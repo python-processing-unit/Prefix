@@ -3,19 +3,18 @@
 
 #include "lexer.h"
 #include "common.h"
-
-// Parser definition would go here.
-// For Stage 2, we just need to ensure the structure exists.
+#include "ast.h"
 
 typedef struct {
     Lexer* lexer;
     Token current_token;
     Token previous_token;
+    Token next_token;
     bool panic_mode;
     bool had_error;
 } Parser;
 
 void parser_init(Parser* parser, Lexer* lexer);
-void parser_run(Parser* parser);
+Stmt* parser_parse(Parser* parser);
 
 #endif // PARSER_H
