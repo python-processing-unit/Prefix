@@ -1,4 +1,5 @@
 #include "lexer.h"
+#include <stdio.h>
 #include <ctype.h>
 #include <string.h>
 #include <stdlib.h>
@@ -6,6 +7,36 @@
 #ifdef _MSC_VER
 #define strdup _strdup
 #endif
+
+// Memory hardening helpers
+static void* safe_malloc(size_t size) {
+    void* ptr = malloc(size);
+    if (ptr == NULL) {
+        fprintf(stderr, "Fatal error: Out of memory.\n");
+        exit(1);
+    }
+    return ptr;
+}
+
+static void* safe_realloc(void* ptr, size_t size) {
+    void* new_ptr = realloc(ptr, size);
+    if (new_ptr == NULL) {
+        fprintf(stderr, "Fatal error: Out of memory.\n");
+        exit(1);
+    }
+    return new_ptr;
+}
+
+static char* safe_strdup(const char* str) {
+    if (str == NULL) return NULL;
+    char* copy = strdup(str);
+    if (copy == NULL) {
+        fprintf(stderr, "Fatal error: Out of memory.\n");
+        exit(1);
+    }
+    return copy;
+}
+
 // Helper functions declarations
 static bool is_at_end(Lexer* lexer);
 static char advance(Lexer* lexer);
@@ -86,9 +117,9 @@ static Token make_token(Lexer* lexer, TokenType type, const char* start, size_t 
     token.line = lexer->line;
     token.column = lexer->column - (int)length; // Approximate start column
     if (length == 0 && start != NULL) {
-        token.literal = strdup(start);
+        token.literal = safe_strdup(start);
     } else if (start != NULL) {
-        token.literal = (char*)malloc(length + 1);
+        token.literal = (char*)safe_malloc(length + 1);
         memcpy(token.literal, start, length);
         token.literal[length] = '\0';
     } else {
@@ -102,7 +133,7 @@ static Token error_token(Lexer* lexer, const char* message) {
     token.type = TOKEN_ERROR;
     token.line = lexer->line;
     token.column = lexer->column;
-    token.literal = strdup(message);
+    token.literal = safe_strdup(message);
     return token;
 }
 
@@ -154,12 +185,12 @@ Token lexer_next_token(Lexer* lexer) {
         }
         if (c == '\n') {
             advance(lexer);
-            Token t = {TOKEN_NEWLINE, strdup("\n"), lexer->line - 1, lexer->column}; 
+            Token t = {TOKEN_NEWLINE, safe_strdup("\n"), lexer->line - 1, lexer->column}; 
             return t;
         }
         if (c == ';') {
             advance(lexer);
-            Token t = {TOKEN_NEWLINE, strdup("\n"), lexer->line, lexer->column};
+            Token t = {TOKEN_NEWLINE, safe_strdup("\n"), lexer->line, lexer->column};
             return t;
         }
         if (c == '#') {
@@ -203,7 +234,7 @@ Token lexer_next_token(Lexer* lexer) {
                    return number_token(lexer, true);
             }
             
-            Token t = {TOKEN_DASH, strdup("-"), start_line, start_col};
+            Token t = {TOKEN_DASH, safe_strdup("-"), start_line, start_col};
             return t;
         }
 
@@ -231,7 +262,7 @@ static Token string_token(Lexer* lexer, char quote_char) {
     advance(lexer); 
     
     size_t capacity = 64;
-    char* value = malloc(capacity);
+    char* value = safe_malloc(capacity);
     size_t len_val = 0;
     bool raw_mode = false;
     
@@ -264,7 +295,7 @@ static Token string_token(Lexer* lexer, char quote_char) {
                     raw_mode = false;
                     continue;
                 }
-                if (len_val + 2 >= capacity) { capacity *= 2; value = realloc(value, capacity); }
+                if (len_val + 2 >= capacity) { capacity *= 2; value = safe_realloc(value, capacity); }
                 value[len_val++] = '\\';
                 advance(lexer); 
                 value[len_val++] = next;
@@ -299,7 +330,7 @@ static Token string_token(Lexer* lexer, char quote_char) {
             
             if (handled) {
                 advance(lexer);
-                if (len_val + 1 >= capacity) { capacity *= 2; value = realloc(value, capacity); }
+                if (len_val + 1 >= capacity) { capacity *= 2; value = safe_realloc(value, capacity); }
                 value[len_val++] = esc_char;
                 continue;
             }
@@ -336,10 +367,10 @@ static Token string_token(Lexer* lexer, char quote_char) {
             
             if (codepoint != -1) {
                 if (codepoint <= 0x7F) {
-                    if (len_val + 1 >= capacity) { capacity *= 2; value = realloc(value, capacity); }
+                    if (len_val + 1 >= capacity) { capacity *= 2; value = safe_realloc(value, capacity); }
                     value[len_val++] = (char)codepoint;
                 } else {
-                    if (len_val + 4 >= capacity) { capacity += 10; value = realloc(value, capacity); }
+                    if (len_val + 4 >= capacity) { capacity += 10; value = safe_realloc(value, capacity); }
                     if(codepoint <= 0x7FF) {
                         value[len_val++] = 0xC0 | ((codepoint >> 6) & 0x1F);
                         value[len_val++] = 0x80 | (codepoint & 0x3F);
@@ -359,7 +390,7 @@ static Token string_token(Lexer* lexer, char quote_char) {
         }
         
         advance(lexer);
-        if (len_val + 1 >= capacity) { capacity *= 2; value = realloc(value, capacity); }
+        if (len_val + 1 >= capacity) { capacity *= 2; value = safe_realloc(value, capacity); }
         value[len_val++] = c;
     }
     
@@ -372,14 +403,14 @@ static Token identifier_token(Lexer* lexer) {
     int start_col = lexer->column;
     
     size_t capacity = 32;
-    char* value = malloc(capacity);
+    char* value = safe_malloc(capacity);
     size_t len_val = 0;
     
     while (!is_at_end(lexer)) {
         char c = peek(lexer);
         if (strchr("abcdefghijklmnopqrstuvwxyz1234567890./ABCDEFGHIJKLMNOPQRSTUVWXYZ!$%&~_+|?", c)) {
             advance(lexer);
-            if (len_val + 1 >= capacity) { capacity *= 2; value = realloc(value, capacity); }
+            if (len_val + 1 >= capacity) { capacity *= 2; value = safe_realloc(value, capacity); }
             value[len_val++] = c;
         } else if (c == '^') {
             consume_line_continuation(lexer);
@@ -403,7 +434,7 @@ static Token number_token(Lexer* lexer, bool is_negative_start) {
     int start_col = lexer->column;
     
     size_t capacity = 32;
-    char* value = malloc(capacity);
+    char* value = safe_malloc(capacity);
     size_t len_val = 0;
     
     if (is_negative_start) {
@@ -414,7 +445,7 @@ static Token number_token(Lexer* lexer, bool is_negative_start) {
         char c = peek(lexer);
         if (c == '0' || c == '1') {
             advance(lexer);
-            if (len_val + 1 >= capacity) { capacity *= 2; value = realloc(value, capacity); }
+            if (len_val + 1 >= capacity) { capacity *= 2; value = safe_realloc(value, capacity); }
             value[len_val++] = c;
         } else if (c == '^') {
             consume_line_continuation(lexer);
@@ -432,7 +463,7 @@ static Token number_token(Lexer* lexer, bool is_negative_start) {
         
         bool has_frac = false;
         size_t frac_start_len = len_val;
-        if (len_val + 1 >= capacity) { capacity *= 2; value = realloc(value, capacity); }
+        if (len_val + 1 >= capacity) { capacity *= 2; value = safe_realloc(value, capacity); }
         value[len_val++] = '.';
         
         while (!is_at_end(lexer)) {
@@ -440,7 +471,7 @@ static Token number_token(Lexer* lexer, bool is_negative_start) {
             if (c == '0' || c == '1') {
                 advance(lexer);
                 has_frac = true;
-                if (len_val + 1 >= capacity) { capacity *= 2; value = realloc(value, capacity); }
+                if (len_val + 1 >= capacity) { capacity *= 2; value = safe_realloc(value, capacity); }
                 value[len_val++] = c;
             } else if (c == '^') {
                 consume_line_continuation(lexer);
@@ -449,7 +480,7 @@ static Token number_token(Lexer* lexer, bool is_negative_start) {
             }
         }
         
-        if (!has_frac) {
+            if (!has_frac) {
             lexer->current = saved_current;
             lexer->line = saved_line;
             lexer->column = saved_col;
