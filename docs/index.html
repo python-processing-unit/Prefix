@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Prefix</title>
+  <link rel="icon" href="./icon.png" />
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Source+Code+Pro:wght@400;700&display=swap');
+    body{background:#222;color:#99ddff;font-family:Open Sans, sans-serif;margin:0;padding:1rem}
+    .container{max-width:1000px;margin:0 auto;text-align:justify;text-justify:inter-word}
+    .container h1{ text-align:center; margin-top:0; }
+    pre, code{background:#3c3c3c;color:inherit;font-family:Source Code Pro, monospace;padding:.25rem .5rem}
+    img{max-width:100%}
+  </style>
+</head>
+<body>
+  <div class="container" id="content">Rendering index…</div>
+
+  <!-- Markdown source is embedded below. marked.js will render it into #content. -->
+  <script id="md" type="text/markdown">
+# Prefix
+
+<p align="center">
+  <img alt="Prefix icon" src="./icon.png">
+</p>
+
+Prefix is a statement-based, imperative language focused on simplicity, readability, and brevity.
+It is designed to be easy to learn and use, while still being powerful enough to handle a wide range of programming tasks.
+
+- [Prefix Specification](./SPECIFICATION.html)
+- [Contribution Guide](./CONTRIBUTING.html)
+- [Unlicense](./UNLICENSE.html)
+
+  </script>
+
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function(){
+      const md = document.getElementById('md').textContent;
+      const rendered = marked.parse(md);
+      document.getElementById('content').innerHTML = rendered;
+    });
+  </script>
+</body>
+</html>
