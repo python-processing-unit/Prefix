@@ -200,6 +200,73 @@ Value value_tns_slice(Value v, const int64_t* starts, const int64_t* ends, size_
     return out;
 }
 
+// Map implementation
+Value value_map_new(void) {
+    Value v; v.type = VAL_MAP;
+    Map* m = malloc(sizeof(Map));
+    if (!m) { fprintf(stderr, "Out of memory\n"); exit(1); }
+    m->items = NULL;
+    m->count = 0;
+    m->capacity = 0;
+    v.as.map = m;
+    return v;
+}
+
+static int map_find_index(Map* m, Value key) {
+    for (size_t i = 0; i < m->count; i++) {
+        MapEntry* e = &m->items[i];
+        if (e->key.type == key.type) {
+            if (key.type == VAL_INT && e->key.as.i == key.as.i) return (int)i;
+            if (key.type == VAL_STR && e->key.as.s && key.as.s && strcmp(e->key.as.s, key.as.s) == 0) return (int)i;
+            if (key.type == VAL_FLT && e->key.as.f == key.as.f) return (int)i;
+        }
+    }
+    return -1;
+}
+
+void value_map_set(Value* mapval, Value key, Value val) {
+    if (!mapval || mapval->type != VAL_MAP) return;
+    Map* m = mapval->as.map;
+    int idx = map_find_index(m, key);
+    if (idx >= 0) {
+        // replace
+        value_free(m->items[idx].value);
+        m->items[idx].value = value_copy(val);
+        return;
+    }
+    if (m->count + 1 > m->capacity) {
+        size_t newc = m->capacity == 0 ? 8 : m->capacity * 2;
+        m->items = realloc(m->items, sizeof(MapEntry) * newc);
+        if (!m->items) { fprintf(stderr, "Out of memory\n"); exit(1); }
+        m->capacity = newc;
+    }
+    m->items[m->count].key = value_copy(key);
+    m->items[m->count].value = value_copy(val);
+    m->count++;
+}
+
+Value value_map_get(Value mapval, Value key, int* found) {
+    Value out = value_null();
+    if (!mapval.as.map) { if (found) *found = 0; return out; }
+    Map* m = mapval.as.map;
+    int idx = map_find_index(m, key);
+    if (idx < 0) { if (found) *found = 0; return out; }
+    if (found) *found = 1;
+    return value_copy(m->items[idx].value);
+}
+
+void value_map_delete(Value* mapval, Value key) {
+    if (!mapval || mapval->type != VAL_MAP) return;
+    Map* m = mapval->as.map;
+    int idx = map_find_index(m, key);
+    if (idx < 0) return;
+    value_free(m->items[idx].key);
+    value_free(m->items[idx].value);
+    // compact
+    for (size_t i = (size_t)idx; i + 1 < m->count; i++) m->items[i] = m->items[i+1];
+    m->count--;
+}
+
 Value value_copy(Value v) {
     Value out = v;
     if (v.type == VAL_STR && v.as.s) {
@@ -216,6 +283,18 @@ Value value_copy(Value v) {
         t2->data = malloc(sizeof(Value) * t2->length);
         for (size_t i = 0; i < t2->length; i++) t2->data[i] = value_copy(t->data[i]);
         out.as.tns = t2;
+    } else if (v.type == VAL_MAP && v.as.map) {
+        Map* m = v.as.map;
+        Map* m2 = malloc(sizeof(Map));
+        if (!m2) { fprintf(stderr, "Out of memory\n"); exit(1); }
+        m2->count = m->count;
+        m2->capacity = m->count;
+        m2->items = malloc(sizeof(MapEntry) * (m2->capacity ? m2->capacity : 1));
+        for (size_t i = 0; i < m->count; i++) {
+            m2->items[i].key = value_copy(m->items[i].key);
+            m2->items[i].value = value_copy(m->items[i].value);
+        }
+        out.as.map = m2;
     }
     return out;
 }
@@ -233,12 +312,24 @@ void value_free(Value v) {
         if (t->strides) free(t->strides);
         free(t);
     }
+    else if (v.type == VAL_MAP && v.as.map) {
+        Map* m = v.as.map;
+        if (m->items) {
+            for (size_t i = 0; i < m->count; i++) {
+                value_free(m->items[i].key);
+                value_free(m->items[i].value);
+            }
+            free(m->items);
+        }
+        free(m);
+    }
 }
 
 const char* value_type_name(Value v) {
     switch (v.type) {
         case VAL_INT: return "INT";
         case VAL_FLT: return "FLT";
+        case VAL_MAP: return "MAP";
         case VAL_TNS: return "TNS";
         case VAL_STR: return "STR";
         case VAL_FUNC: return "FUNC";

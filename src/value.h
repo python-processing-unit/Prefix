@@ -9,6 +9,7 @@ typedef enum {
     VAL_FLT,
     VAL_STR,
     VAL_TNS,
+    VAL_MAP,
     VAL_FUNC
 } ValueType;
 
@@ -33,14 +34,32 @@ typedef struct Value {
         char* s;
         struct Func* func;
         struct Tensor* tns;
+        struct Map* map;
     } as;
 } Value;
+
+typedef struct MapEntry {
+    Value key;
+    Value value;
+} MapEntry;
+
+typedef struct Map {
+    MapEntry* items;
+    size_t count;
+    size_t capacity;
+} Map;
 
 // Tensor helpers
 Value value_tns_new(DeclType elem_type, size_t ndim, const size_t* shape);
 Value value_tns_from_values(DeclType elem_type, size_t ndim, const size_t* shape, Value* items, size_t item_count);
 Value value_tns_get(Value t, const size_t* idxs, size_t nidxs);
 Value value_tns_slice(Value t, const int64_t* starts, const int64_t* ends, size_t n);
+
+// Map helpers
+Value value_map_new(void);
+void value_map_set(Value* mapval, Value key, Value val);
+Value value_map_get(Value mapval, Value key, int* found);
+void value_map_delete(Value* mapval, Value key);
 
 
 Value value_null(void);

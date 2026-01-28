@@ -69,6 +69,20 @@ Expr* expr_tns(int line, int column) {
     return expr;
 }
 
+Expr* expr_map(int line, int column) {
+    Expr* expr = ast_alloc(sizeof(Expr));
+    expr->type = EXPR_MAP;
+    expr->line = line;
+    expr->column = column;
+    expr->as.map_items.keys.items = NULL;
+    expr->as.map_items.keys.count = 0;
+    expr->as.map_items.keys.capacity = 0;
+    expr->as.map_items.values.items = NULL;
+    expr->as.map_items.values.count = 0;
+    expr->as.map_items.values.capacity = 0;
+    return expr;
+}
+
 Expr* expr_index(Expr* target, int line, int column) {
     Expr* expr = ast_alloc(sizeof(Expr));
     expr->type = EXPR_INDEX;
@@ -297,6 +311,10 @@ void free_expr(Expr* expr) {
         case EXPR_TNS:
             free_expr_list(&expr->as.tns_items);
             break;
+            case EXPR_MAP:
+                free_expr_list(&expr->as.map_items.keys);
+                free_expr_list(&expr->as.map_items.values);
+                break;
         case EXPR_INDEX:
             free_expr(expr->as.index.target);
             free_expr_list(&expr->as.index.indices);

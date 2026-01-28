@@ -591,19 +591,37 @@ tns_eval_fail:
             free(shape);
             return value_null();
         }
+        case EXPR_MAP: {
+            // Evaluate map literal: keys and values
+            Expr* mp = expr;
+            Value mv = value_map_new();
+            size_t count = mp->as.map_items.keys.count;
+            for (size_t i = 0; i < count; i++) {
+                Expr* kexpr = mp->as.map_items.keys.items[i];
+                Expr* vexpr = mp->as.map_items.values.items[i];
+                Value k = eval_expr(interp, kexpr, env);
+                if (interp->error) { value_free(k); value_free(mv); return value_null(); }
+                if (!(k.type == VAL_INT || k.type == VAL_STR || k.type == VAL_FLT)) {
+                    value_free(k);
+                    value_free(mv);
+                    interp->error = strdup("Map keys must be INT, FLT or STR");
+                    interp->error_line = expr->line;
+                    interp->error_col = expr->column;
+                    return value_null();
+                }
+                Value v = eval_expr(interp, vexpr, env);
+                if (interp->error) { value_free(k); value_free(mv); return value_null(); }
+                value_map_set(&mv, k, v);
+                value_free(k);
+                value_free(v);
+            }
+            return mv;
+        }
         case EXPR_INDEX: {
             // Evaluate target
             Expr* target = expr->as.index.target;
             Value tval = eval_expr(interp, target, env);
             if (interp->error) return value_null();
-            if (tval.type != VAL_TNS) {
-                interp->error = strdup("Indexing is supported only on tensors");
-                interp->error_line = expr->line;
-                interp->error_col = expr->column;
-                value_free(tval);
-                return value_null();
-            }
-            Tensor* t = tval.as.tns;
             size_t nidx = expr->as.index.indices.count;
             if (nidx == 0) {
                 value_free(tval);
@@ -612,6 +630,58 @@ tns_eval_fail:
                 interp->error_col = expr->column;
                 return value_null();
             }
+
+            if (tval.type == VAL_MAP) {
+                // map indexing: support nested lookups m<k1,k2>
+                Value cur = tval;
+                for (size_t i = 0; i < nidx; i++) {
+                    Expr* it = expr->as.index.indices.items[i];
+                    Value key = eval_expr(interp, it, env);
+                    if (interp->error) { value_free(cur); return value_null(); }
+                    if (!(key.type == VAL_INT || key.type == VAL_STR || key.type == VAL_FLT)) {
+                        value_free(key); value_free(cur);
+                        interp->error = strdup("Map index must be INT, FLT or STR");
+                        interp->error_line = it->line;
+                        interp->error_col = it->column;
+                        return value_null();
+                    }
+                    int found = 0;
+                    Value got = value_map_get(cur, key, &found);
+                    value_free(key);
+                    // If not found, return null (missing key)
+                    if (!found) { value_free(cur); return value_null(); }
+                    // If this is last index, return the found value
+                    if (i + 1 == nidx) {
+                        // free original map container if it was a copy
+                        if (cur.type == VAL_MAP) value_free(cur);
+                        return got;
+                    }
+                    // Otherwise, continue descending; found must be a map
+                    if (got.type != VAL_MAP) {
+                        value_free(got);
+                        value_free(cur);
+                        interp->error = strdup("Attempted nested map indexing on non-map value");
+                        interp->error_line = it->line;
+                        interp->error_col = it->column;
+                        return value_null();
+                    }
+                    // replace cur with got and continue
+                    if (cur.type == VAL_MAP) value_free(cur);
+                    cur = got;
+                }
+                // Shouldn't reach here
+                value_free(cur);
+                return value_null();
+            }
+
+            if (tval.type != VAL_TNS) {
+                interp->error = strdup("Indexing is supported only on tensors and maps");
+                interp->error_line = expr->line;
+                interp->error_col = expr->column;
+                value_free(tval);
+                return value_null();
+            }
+            Tensor* t = tval.as.tns;
 
             // Check whether all indices are simple integer indexes
             bool all_int = true;

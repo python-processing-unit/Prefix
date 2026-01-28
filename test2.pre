@@ -51,6 +51,19 @@ ASSERT(EQ(t[*, 1], [1, 11]))
 ASSERT(EQ(t[1-10, 1-10], t[*, *]))
 ASSERT(EQ(t[1--1, 1], [1, 11]))
 DEL(t)
+PRINT("Tensors: PASS")
+
+PRINT("=== MAP tests ===")
+# Simple map literal and lookup
+MAP: m = <"foo" = 101, "bar" = 1010, "nested" = <"a" = 1, "b" = 10>>
+ASSERT(EQ(m<"foo">, 101))
+ASSERT(EQ(m<"bar">, 1010))
+ASSERT(EQ(m<"nested", "a">, 1))
+ASSERT(EQ(m<"nested", "b">, 10))
+# Missing key should return null/0 (treat as false)
+ASSERT(NOT(m<"nope">))
+PRINT("=== MAP tests PASSED ===")
+
 
 # --- TNS operator ---
 PRINT("Testing TNS operator...")

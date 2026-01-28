@@ -130,6 +130,29 @@ static Expr* parse_primary(Parser* parser) {
         consume(parser, TOKEN_RBRACKET, "Expected ']' after tensor literal");
         return tns;
     }
+    if (match(parser, TOKEN_LANGLE)) {
+        Token lb = parser->previous_token; // the '<' token
+        Expr* mp = expr_map(lb.line, lb.column);
+        if (parser->current_token.type == TOKEN_RANGLE) {
+            report_error(parser, "Empty map literal is not allowed");
+            return NULL;
+        }
+        do {
+            // parse key
+            Expr* key = parse_expression(parser);
+            if (!key) return NULL;
+            if (!match(parser, TOKEN_EQUALS)) {
+                report_error(parser, "Expected '=' in map literal");
+                return NULL;
+            }
+            Expr* val = parse_expression(parser);
+            if (!val) return NULL;
+            expr_list_add(&mp->as.map_items.keys, key);
+            expr_list_add(&mp->as.map_items.values, val);
+        } while (match(parser, TOKEN_COMMA));
+        consume(parser, TOKEN_RANGLE, "Expected '>' after map literal");
+        return mp;
+    }
     report_error(parser, "Expected expression");
     return NULL;
 }
@@ -137,7 +160,7 @@ static Expr* parse_primary(Parser* parser) {
 static Expr* parse_call(Parser* parser) {
     Expr* expr = parse_primary(parser);
     if (!expr) return NULL;
-    while (parser->current_token.type == TOKEN_LPAREN || parser->current_token.type == TOKEN_LBRACKET) {
+    while (parser->current_token.type == TOKEN_LPAREN || parser->current_token.type == TOKEN_LBRACKET || parser->current_token.type == TOKEN_LANGLE) {
         if (parser->current_token.type == TOKEN_LPAREN) {
             int line = parser->current_token.line;
             int column = parser->current_token.column;
@@ -197,6 +220,29 @@ static Expr* parse_call(Parser* parser) {
                 break;
             }
             consume(parser, TOKEN_RBRACKET, "Expected ']' after index list");
+            expr = idx;
+            continue;
+        }
+        
+        // Handle angle-bracket indexing for maps: '<' ... '>'
+        if (parser->current_token.type == TOKEN_LANGLE) {
+            int line = parser->current_token.line;
+            int column = parser->current_token.column;
+            advance(parser); // consume '<'
+            Expr* idx = expr_index(expr, line, column);
+            if (parser->current_token.type == TOKEN_RANGLE) {
+                report_error(parser, "Empty index list");
+                return NULL;
+            }
+            while (parser->current_token.type != TOKEN_RANGLE && parser->current_token.type != TOKEN_EOF) {
+                Expr* start = parse_expression(parser);
+                if (!start) return NULL;
+                expr_list_add(&idx->as.index.indices, start);
+
+                if (parser->current_token.type == TOKEN_COMMA) { advance(parser); continue; }
+                break;
+            }
+            consume(parser, TOKEN_RANGLE, "Expected '>' after index list");
             expr = idx;
             continue;
         }

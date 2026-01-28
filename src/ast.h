@@ -22,6 +22,7 @@ typedef enum {
     EXPR_IDENT,
     EXPR_CALL,
     EXPR_TNS,
+    EXPR_MAP,
     EXPR_INDEX,
     EXPR_RANGE,
     EXPR_WILDCARD
@@ -54,6 +55,10 @@ struct Expr {
             Expr* start;
             Expr* end;
         } range;
+        struct {
+            ExprList keys;
+            ExprList values;
+        } map_items;
         ExprList tns_items;
     } as;
 };
@@ -126,6 +131,7 @@ Expr* expr_str(char* value, int line, int column);
 Expr* expr_ident(char* name, int line, int column);
 Expr* expr_call(Expr* callee, int line, int column);
 Expr* expr_tns(int line, int column);
+Expr* expr_map(int line, int column);
 Expr* expr_index(Expr* target, int line, int column);
 Expr* expr_range(Expr* start, Expr* end, int line, int column);
 Expr* expr_wildcard(int line, int column);
