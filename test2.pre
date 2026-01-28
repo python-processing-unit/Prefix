@@ -50,6 +50,8 @@ ASSERT(EQ(t[*, *], t))
 ASSERT(EQ(t[*, 1], [1, 11]))
 ASSERT(EQ(t[1-10, 1-10], t[*, *]))
 ASSERT(EQ(t[1--1, 1], [1, 11]))
+ASSERT(ISTNS(t))
+ASSERT(NOT(ISTNS(101)))
 DEL(t)
 PRINT("Tensors: PASS")
 
@@ -63,6 +65,53 @@ ASSERT(EQ(m<"nested", "b">, 10))
 # Missing key should return null/0 (treat as false)
 ASSERT(NOT(m<"nope">))
 PRINT("=== MAP tests PASSED ===")
+
+# Additional map builtins tests
+ASSERT(KEYIN("foo", m))
+ASSERT(NOT(KEYIN("nope", m)))
+ASSERT(VALUEIN(101, m))
+ASSERT(NOT(VALUEIN(1000, m)))
+
+# uniform map for KEYS/VALUES/INV
+MAP: m2 = <"a" = 101, "b" = 1010>
+ASSERT(EQ(KEYS(m2), ["a", "b"]))
+ASSERT(EQ(VALUES(m2), [101, 1010]))
+
+# MATCH tests
+MAP: tpl = <"foo" = 101>
+ASSERT(MATCH(m, tpl))
+# typing enforcement: wrong type should fail when typing=1
+MAP: tpl2 = <"foo" = "101">
+ASSERT(NOT(MATCH(m, tpl2, 1)))
+# recurse: template nested matches nested map
+MAP: tpl3 = <"nested" = <"a" = 1>>
+ASSERT(MATCH(m, tpl3, 0, 1))
+
+# INV (invert m2)
+MAP: invm2 = INV(m2)
+ASSERT(EQ(invm2<101>, "a"))
+ASSERT(EQ(invm2<1010>, "b"))
+DEL(m2)
+DEL(tpl)
+DEL(tpl2)
+DEL(tpl3)
+DEL(invm2)
+
+# --- COPY / DEEPCOPY ---
+PRINT("Testing COPY/DEEPCOPY...")
+# shallow vs deep copy for nested maps
+MAP: inner = <"x" = 10>
+MAP: outer = <"a" = 101, "b" = inner>
+MAP: outer_sh = COPY(outer)
+MAP: outer_dp = DEEPCOPY(outer)
+outer<"b"><"x"> = 11
+ASSERT(EQ(outer<"b"><"x">, 11))
+ASSERT(EQ(outer_sh<"b"><"x">, 11))
+ASSERT(EQ(outer_dp<"b"><"x">, 10))
+DEL(outer)
+DEL(outer_sh)
+DEL(outer_dp)
+PRINT("COPY/DEEPCOPY: PASS")
 
 
 # --- TNS operator ---
@@ -238,6 +287,15 @@ ASSERT(EQ(FLT(10), 10.0))         # INT->FLT
 ASSERT(EQ(STR(101), "101"))       # INT->STR
 ASSERT(EQ(INT("101"), 101))       # STR->INT
 PRINT("Type conversions: PASS")
+
+# --- BYTES ---
+PRINT("Testing BYTES...")
+ASSERT(EQ(BYTES(0), [0]))
+ASSERT(EQ(BYTES(1), [1]))
+ASSERT(EQ(BYTES(100000000), BYTES(100000000, "big")))
+ASSERT(EQ(BYTES(100000000), [1,0]))
+ASSERT(EQ(BYTES(100000000, "little"), [0,1]))
+PRINT("BYTES: PASS")
 
 # --- Type checking ---
 PRINT("Testing type checks...")
@@ -448,5 +506,11 @@ STR: os_name = OS()
 ASSERT(ISSTR(os_name))
 DEL(os_name)
 PRINT("System: PASS")
+
+PRINT("Testing ARGV...")
+TNS: av = ARGV()
+ASSERT(ISSTR(av[1]))
+DEL(av)
+PRINT("ARGV: PASS")
 
 PRINT("=== All Stage 4 Tests PASSED ===")

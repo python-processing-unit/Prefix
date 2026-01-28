@@ -24,6 +24,7 @@ typedef struct Tensor {
     size_t* strides;  // length ndim
     size_t length;    // total elements
     struct Value* data;      // length elements, contiguous row-major
+    int refcount;
 } Tensor;
 
 typedef struct Value {
@@ -47,6 +48,7 @@ typedef struct Map {
     MapEntry* items;
     size_t count;
     size_t capacity;
+    int refcount;
 } Map;
 
 // Tensor helpers
@@ -69,6 +71,7 @@ Value value_str(const char* s);
 Value value_func(struct Func* func);
 
 Value value_copy(Value v);
+Value value_deep_copy(Value v);
 void value_free(Value v);
 
 const char* value_type_name(Value v);

@@ -50,6 +50,7 @@ Value value_tns_new(DeclType elem_type, size_t ndim, const size_t* shape) {
     t->length = compute_strides(shape, ndim, t->strides);
     t->data = malloc(sizeof(Value) * (t->length));
     for (size_t i = 0; i < t->length; i++) t->data[i] = value_null();
+    t->refcount = 1;
     v.as.tns = t;
     return v;
 }
@@ -208,6 +209,7 @@ Value value_map_new(void) {
     m->items = NULL;
     m->count = 0;
     m->capacity = 0;
+    m->refcount = 1;
     v.as.map = m;
     return v;
 }
@@ -267,13 +269,33 @@ void value_map_delete(Value* mapval, Value key) {
     m->count--;
 }
 
+// Shallow copy semantics: increment refcount for MAP/TNS and return aliasing Value.
 Value value_copy(Value v) {
+    Value out = v;
+    if (v.type == VAL_STR && v.as.s) {
+        // Duplicate strings to preserve independent ownership semantics for STR
+        out.as.s = strdup(v.as.s);
+    } else if (v.type == VAL_TNS && v.as.tns) {
+        Tensor* t = v.as.tns;
+        t->refcount++;
+        out.as.tns = t;
+    } else if (v.type == VAL_MAP && v.as.map) {
+        Map* m = v.as.map;
+        m->refcount++;
+        out.as.map = m;
+    }
+    return out;
+}
+
+// Deep-copy helper: recursively duplicate container contents.
+Value value_deep_copy(Value v) {
     Value out = v;
     if (v.type == VAL_STR && v.as.s) {
         out.as.s = strdup(v.as.s);
     } else if (v.type == VAL_TNS && v.as.tns) {
         Tensor* t = v.as.tns;
         Tensor* t2 = malloc(sizeof(Tensor));
+        if (!t2) { fprintf(stderr, "Out of memory\n"); exit(1); }
         t2->elem_type = t->elem_type;
         t2->ndim = t->ndim;
         t2->shape = malloc(sizeof(size_t) * t2->ndim);
@@ -281,7 +303,8 @@ Value value_copy(Value v) {
         for (size_t i = 0; i < t2->ndim; i++) { t2->shape[i] = t->shape[i]; t2->strides[i] = t->strides[i]; }
         t2->length = t->length;
         t2->data = malloc(sizeof(Value) * t2->length);
-        for (size_t i = 0; i < t2->length; i++) t2->data[i] = value_copy(t->data[i]);
+        for (size_t i = 0; i < t2->length; i++) t2->data[i] = value_deep_copy(t->data[i]);
+        t2->refcount = 1;
         out.as.tns = t2;
     } else if (v.type == VAL_MAP && v.as.map) {
         Map* m = v.as.map;
@@ -291,9 +314,10 @@ Value value_copy(Value v) {
         m2->capacity = m->count;
         m2->items = malloc(sizeof(MapEntry) * (m2->capacity ? m2->capacity : 1));
         for (size_t i = 0; i < m->count; i++) {
-            m2->items[i].key = value_copy(m->items[i].key);
-            m2->items[i].value = value_copy(m->items[i].value);
+            m2->items[i].key = value_deep_copy(m->items[i].key);
+            m2->items[i].value = value_deep_copy(m->items[i].value);
         }
+        m2->refcount = 1;
         out.as.map = m2;
     }
     return out;
@@ -304,24 +328,27 @@ void value_free(Value v) {
         free(v.as.s);
     } else if (v.type == VAL_TNS && v.as.tns) {
         Tensor* t = v.as.tns;
-        if (t->data) {
-            for (size_t i = 0; i < t->length; i++) value_free(t->data[i]);
-            free(t->data);
-        }
-        if (t->shape) free(t->shape);
-        if (t->strides) free(t->strides);
-        free(t);
-    }
-    else if (v.type == VAL_MAP && v.as.map) {
-        Map* m = v.as.map;
-        if (m->items) {
-            for (size_t i = 0; i < m->count; i++) {
-                value_free(m->items[i].key);
-                value_free(m->items[i].value);
+        if (--t->refcount <= 0) {
+            if (t->data) {
+                for (size_t i = 0; i < t->length; i++) value_free(t->data[i]);
+                free(t->data);
             }
-            free(m->items);
+            if (t->shape) free(t->shape);
+            if (t->strides) free(t->strides);
+            free(t);
         }
-        free(m);
+    } else if (v.type == VAL_MAP && v.as.map) {
+        Map* m = v.as.map;
+        if (--m->refcount <= 0) {
+            if (m->items) {
+                for (size_t i = 0; i < m->count; i++) {
+                    value_free(m->items[i].key);
+                    value_free(m->items[i].value);
+                }
+                free(m->items);
+            }
+            free(m);
+        }
     }
 }
 

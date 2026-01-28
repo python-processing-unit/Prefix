@@ -143,7 +143,7 @@ Stmt* stmt_expr(Expr* expr, int line, int column) {
     return stmt;
 }
 
-Stmt* stmt_assign(bool has_type, DeclType decl_type, char* name, Expr* value, int line, int column) {
+Stmt* stmt_assign(bool has_type, DeclType decl_type, char* name, Expr* target, Expr* value, int line, int column) {
     Stmt* stmt = ast_alloc(sizeof(Stmt));
     stmt->type = STMT_ASSIGN;
     stmt->line = line;
@@ -151,6 +151,7 @@ Stmt* stmt_assign(bool has_type, DeclType decl_type, char* name, Expr* value, in
     stmt->as.assign.has_type = has_type;
     stmt->as.assign.decl_type = decl_type;
     stmt->as.assign.name = name;
+    stmt->as.assign.target = target;
     stmt->as.assign.value = value;
     return stmt;
 }
@@ -346,7 +347,8 @@ void free_stmt(Stmt* stmt) {
             free_expr(stmt->as.expr_stmt.expr);
             break;
         case STMT_ASSIGN:
-            free(stmt->as.assign.name);
+            if (stmt->as.assign.name) free(stmt->as.assign.name);
+            if (stmt->as.assign.target) free_expr(stmt->as.assign.target);
             free_expr(stmt->as.assign.value);
             break;
         case STMT_DECL:

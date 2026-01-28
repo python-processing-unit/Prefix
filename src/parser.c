@@ -480,7 +480,7 @@ static Stmt* parse_statement(Parser* parser) {
         if (match(parser, TOKEN_EQUALS)) {
             Expr* expr = parse_expression(parser);
             if (!expr) return NULL;
-            return stmt_assign(true, dtype, name, expr, type_tok.line, type_tok.column);
+            return stmt_assign(true, dtype, name, NULL, expr, type_tok.line, type_tok.column);
         }
         return stmt_decl(dtype, name, type_tok.line, type_tok.column);
     }
@@ -491,11 +491,22 @@ static Stmt* parse_statement(Parser* parser) {
         consume(parser, TOKEN_EQUALS, "Expected '=' after identifier");
         Expr* expr = parse_expression(parser);
         if (!expr) return NULL;
-        return stmt_assign(false, TYPE_UNKNOWN, name_tok.literal, expr, name_tok.line, name_tok.column);
+        return stmt_assign(false, TYPE_UNKNOWN, name_tok.literal, NULL, expr, name_tok.line, name_tok.column);
     }
 
     Expr* expr = parse_expression(parser);
     if (!expr) return NULL;
+
+    // Support assignment to an expression LHS (e.g., indexed assignment): expr '=' rhs
+    if (parser->current_token.type == TOKEN_EQUALS) {
+        // consume '=' and parse RHS
+        advance(parser);
+        Expr* rhs = parse_expression(parser);
+        if (!rhs) return NULL;
+        // Create an assign stmt with the expression as target
+        return stmt_assign(false, TYPE_UNKNOWN, NULL, expr, rhs, expr->line, expr->column);
+    }
+
     return stmt_expr(expr, expr->line, expr->column);
 }
 

@@ -105,7 +105,7 @@ struct Stmt {
     union {
         StmtList block;
         struct { Expr* expr; } expr_stmt;
-        struct { bool has_type; DeclType decl_type; char* name; Expr* value; } assign;
+        struct { bool has_type; DeclType decl_type; char* name; Expr* target; Expr* value; } assign;
         struct { DeclType decl_type; char* name; } decl;
         struct {
             Expr* condition;
@@ -139,7 +139,7 @@ void expr_list_add(ExprList* list, Expr* expr);
 
 Stmt* stmt_block(int line, int column);
 Stmt* stmt_expr(Expr* expr, int line, int column);
-Stmt* stmt_assign(bool has_type, DeclType decl_type, char* name, Expr* value, int line, int column);
+Stmt* stmt_assign(bool has_type, DeclType decl_type, char* name, Expr* target, Expr* value, int line, int column);
 Stmt* stmt_decl(DeclType decl_type, char* name, int line, int column);
 Stmt* stmt_if(Expr* cond, Stmt* then_branch, int line, int column);
 Stmt* stmt_while(Expr* cond, Stmt* body, int line, int column);

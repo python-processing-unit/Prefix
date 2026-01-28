@@ -791,6 +791,70 @@ tns_eval_fail:
 
 // ============ Statement execution ============
 
+// Recursive helper to assign a value into a nested map path.
+// map_ptr: pointer to the Value (must be VAL_MAP) to operate on.
+// keys: list of key Expr nodes
+// idx: current index into keys
+// rhs: value to assign (ownership: caller retains ownership; this function MUST NOT free rhs)
+static ExecResult assign_map_nested(Interpreter* interp, Env* env, Value* map_ptr, ExprList* keys, size_t idx, Value rhs, int stmt_line, int stmt_col) {
+    if (idx >= keys->count) {
+        return make_error("Internal: missing key in nested assignment", stmt_line, stmt_col);
+    }
+    // evaluate key
+    Expr* kexpr = keys->items[idx];
+    Value key = eval_expr(interp, kexpr, env);
+    if (interp->error) {
+        ExecResult err = make_error(interp->error, interp->error_line, interp->error_col);
+        clear_error(interp);
+        return err;
+    }
+    if (!(key.type == VAL_INT || key.type == VAL_STR || key.type == VAL_FLT)) {
+        value_free(key);
+        return make_error("Map index must be INT, FLT or STR", kexpr->line, kexpr->column);
+    }
+
+    if (idx + 1 == keys->count) {
+        // final key: set rhs here (value_map_set copies rhs)
+        value_map_set(map_ptr, key, rhs);
+        value_free(key);
+        return make_ok(value_null());
+    }
+
+    // intermediate: ensure child map exists
+    int found = 0;
+    Value child = value_map_get(*map_ptr, key, &found);
+    if (!found) {
+        Value nm = value_map_new();
+        value_map_set(map_ptr, key, nm);
+        value_free(nm);
+        child = value_map_get(*map_ptr, key, &found);
+        if (!found) {
+            value_free(key);
+            return make_error("Internal error creating nested map", stmt_line, stmt_col);
+        }
+    }
+
+    if (child.type != VAL_MAP) {
+        value_free(child);
+        value_free(key);
+        return make_error("Attempted nested map indexing on non-map value", kexpr->line, kexpr->column);
+    }
+
+    // Recurse into child (child is a copy). Mutate child, then write it back into parent.
+    ExecResult res = assign_map_nested(interp, env, &child, keys, idx + 1, rhs, stmt_line, stmt_col);
+    if (res.status == EXEC_ERROR) {
+        value_free(child);
+        value_free(key);
+        return res;
+    }
+
+    // write back modified child into parent map under key
+    value_map_set(map_ptr, key, child);
+    value_free(child);
+    value_free(key);
+    return make_ok(value_null());
+}
+
 static ExecResult exec_stmt(Interpreter* interp, Stmt* stmt, Env* env, LabelMap* labels) {
     if (!stmt) return make_ok(value_null());
 
@@ -820,6 +884,135 @@ static ExecResult exec_stmt(Interpreter* interp, Stmt* stmt, Env* env, LabelMap*
                 ExecResult err = make_error(interp->error, interp->error_line, interp->error_col);
                 clear_error(interp);
                 return err;
+            }
+
+            // If this assignment has an expression target (indexed assignment), handle specially
+            if (stmt->as.assign.target) {
+                if (stmt->as.assign.target->type != EXPR_INDEX) {
+                    value_free(v);
+                    return make_error("Can only assign to indexed targets or identifiers", stmt->line, stmt->column);
+                }
+                Expr* idx = stmt->as.assign.target;
+                Expr* base = idx->as.index.target;
+
+                // Two supported forms:
+                // 1) base is an identifier: treat indices on this node as a multi-key assignment
+                // 2) base is a nested index chain whose innermost target is an identifier:
+                //    flatten the chain's index lists into a single key list and perform assignment
+                if (base && base->type == EXPR_IDENT) {
+                    EnvEntry* entry = env_get_entry(env, base->as.ident);
+                    if (!entry) {
+                        value_free(v);
+                        char buf[256];
+                        snprintf(buf, sizeof(buf), "Cannot assign to undeclared identifier '%s'", base->as.ident);
+                        return make_error(buf, stmt->line, stmt->column);
+                    }
+                    if (!entry->initialized) {
+                        entry->value = value_map_new();
+                        entry->initialized = true;
+                    }
+                    if (entry->value.type != VAL_MAP) {
+                        value_free(v);
+                        return make_error("Attempting indexed assignment on non-map value", stmt->line, stmt->column);
+                    }
+
+                    // Delegate to recursive helper using this node's indices
+                    ExecResult ar = assign_map_nested(interp, env, &entry->value, &idx->as.index.indices, 0, v, stmt->line, stmt->column);
+                    if (ar.status == EXEC_ERROR) {
+                        value_free(v);
+                        return ar;
+                    }
+                    // value_map_set copies rhs; free local rhs
+                    value_free(v);
+                    return make_ok(value_null());
+                }
+
+                // Handle chained indexing e.g. outer<"b"><"x">: collect chain nodes
+                if (base && base->type == EXPR_INDEX) {
+                    // Walk the chain, collecting nodes
+                    Expr* node = stmt->as.assign.target;
+                    // Determine chain length
+                    size_t chain_len = 0;
+                    Expr* walker = node;
+                    while (walker && walker->type == EXPR_INDEX) {
+                        chain_len++;
+                        walker = walker->as.index.target;
+                    }
+                    // walker should now point to innermost target
+                    if (!walker || walker->type != EXPR_IDENT) {
+                        value_free(v);
+                        return make_error("Indexed assignment base must be an identifier", stmt->line, stmt->column);
+                    }
+
+                    // Lookup the environment entry for the innermost identifier
+                    EnvEntry* entry = env_get_entry(env, walker->as.ident);
+                    if (!entry) {
+                        value_free(v);
+                        char buf[256];
+                        snprintf(buf, sizeof(buf), "Cannot assign to undeclared identifier '%s'", walker->as.ident);
+                        return make_error(buf, stmt->line, stmt->column);
+                    }
+                    if (!entry->initialized) {
+                        entry->value = value_map_new();
+                        entry->initialized = true;
+                    }
+                    if (entry->value.type != VAL_MAP) {
+                        value_free(v);
+                        return make_error("Attempting indexed assignment on non-map value", stmt->line, stmt->column);
+                    }
+
+                    // Build combined ExprList of all keys from innermost -> outermost
+                    ExprList combined = {0};
+                    // allocate by iterating again and summing counts
+                    size_t total_keys = 0;
+                    walker = stmt->as.assign.target;
+                    while (walker && walker->type == EXPR_INDEX) {
+                        total_keys += walker->as.index.indices.count;
+                        walker = walker->as.index.target;
+                    }
+                    // Reserve
+                    if (total_keys) {
+                        combined.items = malloc(sizeof(Expr*) * total_keys);
+                        combined.capacity = total_keys;
+                    } else {
+                        combined.items = NULL;
+                        combined.capacity = 0;
+                    }
+                    combined.count = 0;
+
+                    // collect in reverse (innermost first)
+                    Expr** nodes = malloc(sizeof(Expr*) * chain_len);
+                    size_t ni = 0;
+                    walker = stmt->as.assign.target;
+                    while (walker && walker->type == EXPR_INDEX) {
+                        nodes[ni++] = walker;
+                        walker = walker->as.index.target;
+                    }
+                    // nodes[0] = outermost, nodes[ni-1] = innermost
+                    for (int k = (int)ni - 1; k >= 0; k--) {
+                        Expr* n = nodes[k];
+                        for (size_t j = 0; j < n->as.index.indices.count; j++) {
+                            combined.items[combined.count++] = n->as.index.indices.items[j];
+                        }
+                    }
+                    free(nodes);
+
+                    // Delegate to recursive helper with combined list
+                    ExecResult ar = assign_map_nested(interp, env, &entry->value, &combined, 0, v, stmt->line, stmt->column);
+                    if (ar.status == EXEC_ERROR) {
+                        value_free(v);
+                        if (combined.items) free(combined.items);
+                        return ar;
+                    }
+
+                    if (combined.items) free(combined.items);
+                    value_free(v);
+                    return make_ok(value_null());
+                }
+
+                // Unsupported base expression
+                value_free(v);
+                return make_error("Indexed assignment base must be an identifier or an index chain", stmt->line, stmt->column);
             }
 
             if (stmt->as.assign.has_type) {

@@ -5,6 +5,7 @@
 #include "lexer.h"
 #include "parser.h"
 #include "interpreter.h"
+#include "builtins.h"
 
 int main(int argc, char** argv) {
     const char* path = NULL;
@@ -36,6 +37,9 @@ int main(int argc, char** argv) {
         free(src);
         return PREFIX_ERROR_SYNTAX;
     }
+
+    // Provide process argv to builtins (ARGV)
+    builtins_set_argv(argc, argv);
 
     ExecResult res = exec_program(program);
     if (res.status == EXEC_ERROR) {

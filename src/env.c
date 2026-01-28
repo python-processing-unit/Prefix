@@ -44,6 +44,14 @@ static EnvEntry* env_find_local(Env* env, const char* name) {
     return NULL;
 }
 
+EnvEntry* env_get_entry(Env* env, const char* name) {
+    for (Env* e = env; e != NULL; e = e->parent) {
+        EnvEntry* entry = env_find_local(e, name);
+        if (entry) return entry;
+    }
+    return NULL;
+}
+
 bool env_define(Env* env, const char* name, DeclType type) {
     if (env_find_local(env, name) != NULL) return false;
     if (env->count + 1 > env->capacity) {

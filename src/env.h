@@ -25,5 +25,8 @@ bool env_assign(Env* env, const char* name, Value value, DeclType type, bool dec
 bool env_get(Env* env, const char* name, Value* out_value, DeclType* out_type, bool* out_initialized);
 bool env_delete(Env* env, const char* name);
 bool env_exists(Env* env, const char* name);
+// Return pointer to the EnvEntry for the given name, searching parents.
+// Caller must NOT free the returned pointer. Returns NULL if not found.
+EnvEntry* env_get_entry(Env* env, const char* name);
 
 #endif // ENV_H

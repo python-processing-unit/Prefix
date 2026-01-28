@@ -1557,6 +1557,62 @@ static Value builtin_str(Interpreter* interp, Value* args, int argc, Expr** arg_
     return value_str("");
 }
 
+// BYTES(INT: n, endian = "big"):TNS
+static Value builtin_bytes(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
+    (void)arg_nodes; (void)env;
+    // Expect first arg INT
+    EXPECT_INT(args[0], "BYTES", interp, line, col);
+    int64_t n = args[0].as.i;
+    if (n < 0) {
+        RUNTIME_ERROR(interp, "BYTES: negative integer not allowed", line, col);
+    }
+
+    // Default endian is "big"
+    bool little = false;
+    if (argc >= 2) {
+        if (args[1].type != VAL_STR) {
+            RUNTIME_ERROR(interp, "BYTES: endian must be a string\n", line, col);
+        }
+        const char* e = args[1].as.s;
+        if (strcmp(e, "little") == 0) {
+            little = true;
+        } else if (strcmp(e, "big") == 0) {
+            little = false;
+        } else {
+            RUNTIME_ERROR(interp, "BYTES: endian must be \"big\" or \"little\"", line, col);
+        }
+    }
+
+    // Compute byte length: max(1, ceil(bit_length(n)/8))
+    uint64_t un = (uint64_t)n;
+    int bits = 0;
+    if (un == 0) bits = 1; else {
+        while (un > 0) { bits++; un >>= 1; }
+    }
+    int bytelength = (bits + 7) / 8;
+    if (bytelength < 1) bytelength = 1;
+
+    // Recompute unsigned value for extraction
+    uint64_t val = (uint64_t)n;
+    Value* items = malloc(sizeof(Value) * (size_t)bytelength);
+    if (!items) RUNTIME_ERROR(interp, "Out of memory", line, col);
+    for (int i = 0; i < bytelength; i++) {
+        uint8_t b;
+        if (little) {
+            b = (uint8_t)((val >> (8 * i)) & 0xFFULL);
+        } else {
+            int shift = 8 * (bytelength - 1 - i);
+            b = (uint8_t)((val >> shift) & 0xFFULL);
+        }
+        items[i] = value_int((int64_t)b);
+    }
+    size_t shape[1]; shape[0] = (size_t)bytelength;
+    Value out = value_tns_from_values(TYPE_INT, 1, shape, items, (size_t)bytelength);
+    for (int i = 0; i < bytelength; i++) value_free(items[i]);
+    free(items);
+    return out;
+}
+
 // ============ String operations ============
 
 static Value builtin_slen(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
@@ -1989,6 +2045,11 @@ static Value builtin_isstr(Interpreter* interp, Value* args, int argc, Expr** ar
     return value_int(args[0].type == VAL_STR ? 1 : 0);
 }
 
+static Value builtin_istns(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
+    (void)arg_nodes; (void)env; (void)interp; (void)line; (void)col;
+    return value_int(args[0].type == VAL_TNS ? 1 : 0);
+}
+
 static Value builtin_type(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
     (void)arg_nodes; (void)env; (void)interp; (void)line; (void)col;
     return value_str(value_type_name(args[0]));
@@ -2369,21 +2430,205 @@ static Value builtin_round(Interpreter* interp, Value* args, int argc, Expr** ar
 // INV (1/x)
 static Value builtin_inv(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
     (void)arg_nodes; (void)env;
+    (void)interp; (void)line; (void)col;
+    if (args[0].type == VAL_MAP) {
+        // Map inversion: values become keys, keys become values
+        Map* m = args[0].as.map;
+        if (!m) return value_map_new();
+        Value out = value_map_new();
+        for (size_t i = 0; i < m->count; i++) {
+            Value key = m->items[i].key; // original key
+            Value val = m->items[i].value; // original value
+            // Only scalar values may be used as keys
+            if (val.type != VAL_INT && val.type != VAL_FLT && val.type != VAL_STR) {
+                value_free(out);
+                RUNTIME_ERROR(interp, "INV(map) requires scalar values", line, col);
+            }
+            // Check for duplicate values
+            int found = 0;
+            Value existing = value_map_get(out, val, &found);
+            if (found) {
+                value_free(existing);
+                value_free(out);
+                RUNTIME_ERROR(interp, "INV(map) contains duplicate values", line, col);
+            }
+            if (found == 0) value_free(existing);
+            // Insert inverted pair: new_key = value, new_value = key
+            value_map_set(&out, val, key);
+        }
+        return out;
+    }
+
+    // numeric inverse behavior preserved
     EXPECT_NUM(args[0], "INV", interp, line, col);
-    
     if (args[0].type == VAL_INT) {
         if (args[0].as.i == 0) {
             RUNTIME_ERROR(interp, "Division by zero", line, col);
         }
         if (args[0].as.i == 1) return value_int(1);
         if (args[0].as.i == -1) return value_int(-1);
-        return value_int(0);  // Integer inverse of anything else is 0 (floor)
+        return value_int(0);
     }
-    
     if (args[0].as.f == 0.0) {
         RUNTIME_ERROR(interp, "Division by zero", line, col);
     }
     return value_flt(1.0 / args[0].as.f);
+}
+
+// KEYS(map):TNS - return 1-D tensor of keys in insertion order
+static Value builtin_keys(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
+    (void)arg_nodes; (void)env; (void)argc;
+    if (args[0].type != VAL_MAP) RUNTIME_ERROR(interp, "KEYS expects MAP argument", line, col);
+    Map* m = args[0].as.map;
+    size_t count = m ? m->count : 0;
+    if (count == 0) {
+        size_t shape[1] = {0};
+        return value_tns_new(TYPE_INT, 1, shape);
+    }
+    // determine key type
+    ValueType kt = m->items[0].key.type;
+    DeclType dt = TYPE_UNKNOWN;
+    if (kt == VAL_INT) dt = TYPE_INT;
+    else if (kt == VAL_FLT) dt = TYPE_FLT;
+    else if (kt == VAL_STR) dt = TYPE_STR;
+    else RUNTIME_ERROR(interp, "KEYS: unsupported key type", line, col);
+
+    Value* items = malloc(sizeof(Value) * count);
+    if (!items) RUNTIME_ERROR(interp, "Out of memory", line, col);
+    for (size_t i = 0; i < count; i++) {
+        if (m->items[i].key.type != kt) {
+            for (size_t j = 0; j < i; j++) value_free(items[j]);
+            free(items);
+            RUNTIME_ERROR(interp, "KEYS: mixed key types in map", line, col);
+        }
+        items[i] = value_copy(m->items[i].key);
+    }
+    size_t shape[1] = { count };
+    Value out = value_tns_from_values(dt, 1, shape, items, count);
+    for (size_t i = 0; i < count; i++) value_free(items[i]);
+    free(items);
+    return out;
+}
+
+// VALUES(map):TNS - return 1-D tensor of values in insertion order (requires uniform element type)
+static Value builtin_values(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
+    (void)arg_nodes; (void)env; (void)argc;
+    if (args[0].type != VAL_MAP) RUNTIME_ERROR(interp, "VALUES expects MAP argument", line, col);
+    Map* m = args[0].as.map;
+    size_t count = m ? m->count : 0;
+    if (count == 0) {
+        size_t shape[1] = {0};
+        return value_tns_new(TYPE_INT, 1, shape);
+    }
+    // determine element DeclType from first value
+    ValueType vt = m->items[0].value.type;
+    DeclType dt = TYPE_UNKNOWN;
+    if (vt == VAL_INT) dt = TYPE_INT;
+    else if (vt == VAL_FLT) dt = TYPE_FLT;
+    else if (vt == VAL_STR) dt = TYPE_STR;
+    else if (vt == VAL_TNS) dt = TYPE_TNS;
+    else if (vt == VAL_FUNC) dt = TYPE_FUNC;
+    else if (vt == VAL_MAP) dt = TYPE_TNS; // no TYPE_MAP, use TNS as container type
+    else RUNTIME_ERROR(interp, "VALUES: unsupported value type", line, col);
+
+    Value* items = malloc(sizeof(Value) * count);
+    if (!items) RUNTIME_ERROR(interp, "Out of memory", line, col);
+    for (size_t i = 0; i < count; i++) {
+        Value v = m->items[i].value;
+        // map all MAP values to TYPE_TNS element classification but keep actual Value
+        ValueType cur = v.type;
+        DeclType cur_dt = TYPE_UNKNOWN;
+        if (cur == VAL_INT) cur_dt = TYPE_INT;
+        else if (cur == VAL_FLT) cur_dt = TYPE_FLT;
+        else if (cur == VAL_STR) cur_dt = TYPE_STR;
+        else if (cur == VAL_TNS) cur_dt = TYPE_TNS;
+        else if (cur == VAL_FUNC) cur_dt = TYPE_FUNC;
+        else if (cur == VAL_MAP) cur_dt = TYPE_TNS;
+        if (cur_dt != dt) {
+            for (size_t j = 0; j < i; j++) value_free(items[j]);
+            free(items);
+            RUNTIME_ERROR(interp, "VALUES: mixed value types in map", line, col);
+        }
+        items[i] = value_copy(v);
+    }
+    size_t shape[1] = { count };
+    Value out = value_tns_from_values(dt, 1, shape, items, count);
+    for (size_t i = 0; i < count; i++) value_free(items[i]);
+    free(items);
+    return out;
+}
+
+// KEYIN(key, map):INT - returns 1 if map contains key (type+value)
+static Value builtin_keyin(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
+    (void)arg_nodes; (void)env; (void)argc;
+    if (args[1].type != VAL_MAP) RUNTIME_ERROR(interp, "KEYIN expects MAP as second argument", line, col);
+    int found = 0;
+    Value res = value_map_get(args[1], args[0], &found);
+    if (found) value_free(res);
+    return value_int(found ? 1 : 0);
+}
+
+// VALUEIN(value, map):INT - returns 1 if any stored value equals the provided value
+static Value builtin_valuein(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
+    (void)arg_nodes; (void)env; (void)argc;
+    if (args[1].type != VAL_MAP) RUNTIME_ERROR(interp, "VALUEIN expects MAP as second argument", line, col);
+    Map* m = args[1].as.map;
+    if (!m) return value_int(0);
+    for (size_t i = 0; i < m->count; i++) {
+        if (value_deep_eq(args[0], m->items[i].value)) return value_int(1);
+    }
+    return value_int(0);
+}
+
+// Helper: recursive match implementation
+static int match_map_internal(Map* m, Map* tpl, int typing, int recurse, int shape) {
+    if (!tpl) return 1;
+    for (size_t i = 0; i < tpl->count; i++) {
+        Value tkey = tpl->items[i].key;
+        Value tval = tpl->items[i].value;
+        // find key in m
+        int found = 0;
+        Value got = value_map_get((Value){ .type = VAL_MAP, .as.map = m }, tkey, &found);
+        if (!found) { if (found) value_free(got); return 0; }
+        Value mval = got;
+        // typing: types must match
+        if (typing && mval.type != tval.type) { value_free(mval); return 0; }
+        // shape: if either side is TNS, both must be TNS and shapes identical
+        if (shape) {
+            if (mval.type == VAL_TNS || tval.type == VAL_TNS) {
+                if (mval.type != VAL_TNS || tval.type != VAL_TNS) { value_free(mval); return 0; }
+                Tensor* a = mval.as.tns;
+                Tensor* b = tval.as.tns;
+                if (a->ndim != b->ndim) { value_free(mval); return 0; }
+                for (size_t d = 0; d < a->ndim; d++) { if (a->shape[d] != b->shape[d]) { value_free(mval); return 0; } }
+            }
+        }
+        // recurse: if true and both are maps, apply recursively
+        if (recurse && mval.type == VAL_MAP && tval.type == VAL_MAP) {
+            Map* mm = mval.as.map;
+            Map* tt = tval.as.map;
+            int ok = match_map_internal(mm, tt, typing, recurse, shape);
+            value_free(mval);
+            if (!ok) return 0;
+        } else {
+            value_free(mval);
+        }
+    }
+    return 1;
+}
+
+// MATCH(map, template, typing=0, recurse=0, shape=0):INT
+static Value builtin_match(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
+    (void)arg_nodes; (void)env; (void)argc;
+    if (args[0].type != VAL_MAP || args[1].type != VAL_MAP) RUNTIME_ERROR(interp, "MATCH expects two MAP arguments", line, col);
+    int typing = 0, recurse = 0, shape = 0;
+    if (argc >= 3) { if (args[2].type == VAL_INT) typing = args[2].as.i ? 1 : 0; }
+    if (argc >= 4) { if (args[3].type == VAL_INT) recurse = args[3].as.i ? 1 : 0; }
+    if (argc >= 5) { if (args[4].type == VAL_INT) shape = args[4].as.i ? 1 : 0; }
+    Map* m = args[0].as.map;
+    Map* tpl = args[1].as.map;
+    int ok = match_map_internal(m, tpl, typing, recurse, shape);
+    return value_int(ok ? 1 : 0);
 }
 
 // COPY (shallow copy for scalars)
@@ -2392,6 +2637,11 @@ static Value builtin_copy(Interpreter* interp, Value* args, int argc, Expr** arg
     return value_copy(args[0]);
 }
 
+// DEEPCOPY: return a recursive deep copy of the argument
+static Value builtin_deepcopy(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
+    (void)arg_nodes; (void)env; (void)interp; (void)line; (void)col;
+    return value_deep_copy(args[0]);
+}
 // ILEN - integer length (number of bits)
 static Value builtin_ilen(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
     (void)arg_nodes; (void)env;
@@ -2655,6 +2905,9 @@ static Value builtin_tstr(Interpreter* interp, Value* args, int argc, Expr** arg
 
 // ============ Builtins table ============
 
+// Forward declare ARGV builtin so it can be referenced in the table
+static Value builtin_argv(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col);
+
 static BuiltinFunction builtins_table[] = {
     // Arithmetic
     {"ADD", 2, 2, builtin_add},
@@ -2736,11 +2989,13 @@ static BuiltinFunction builtins_table[] = {
     {"INT", 1, 1, builtin_int},
     {"FLT", 1, 1, builtin_flt},
     {"STR", 1, 1, builtin_str},
+    {"BYTES", 1, 2, builtin_bytes},
     
     // Type checking
     {"ISINT", 1, 1, builtin_isint},
     {"ISFLT", 1, 1, builtin_isflt},
     {"ISSTR", 1, 1, builtin_isstr},
+    {"ISTNS", 1, 1, builtin_istns},
     {"TYPE", 1, 1, builtin_type},
     
     // String operations
@@ -2754,12 +3009,18 @@ static BuiltinFunction builtins_table[] = {
     {"JOIN", 1, -1, builtin_join},
     {"SPLIT", 1, 2, builtin_split},
     {"IN", 2, 2, builtin_in},
+    {"KEYS", 1, 1, builtin_keys},
+    {"VALUES", 1, 1, builtin_values},
+    {"KEYIN", 2, 2, builtin_keyin},
+    {"VALUEIN", 2, 2, builtin_valuein},
+    {"MATCH", 2, 5, builtin_match},
     {"ILEN", 1, 1, builtin_ilen},
     {"LEN", 0, -1, builtin_len},
     
     // I/O
     {"PRINT", 0, -1, builtin_print},
     {"INPUT", 0, 1, builtin_input},
+    {"ARGV", 0, 0, builtin_argv},
     
     // Control
     {"ASSERT", 1, 1, builtin_assert},
@@ -2769,6 +3030,7 @@ static BuiltinFunction builtins_table[] = {
     {"DEL", 1, 1, builtin_del},
     {"EXIST", 1, 1, builtin_exist},
     {"COPY", 1, 1, builtin_copy},
+    {"DEEPCOPY", 1, 1, builtin_deepcopy},
     
     // Variadic math
     {"SUM", 1, -1, builtin_sum},
@@ -2812,3 +3074,34 @@ bool is_builtin(const char* name) {
 #ifdef _MSC_VER
 #pragma warning(pop)
 #endif
+
+// Global argv storage for ARGV builtin
+static int g_argc = 0;
+static char** g_argv = NULL;
+
+void builtins_set_argv(int argc, char** argv) {
+    g_argc = argc;
+    g_argv = argv;
+}
+
+// ARGV builtin: returns a 1-D TNS of STR containing process argv in order
+static Value builtin_argv(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
+    (void)args; (void)arg_nodes; (void)env; (void)argc;
+    // Create a 1-D tensor of strings with length g_argc
+    size_t n = (size_t)g_argc;
+    if (n == 0) {
+        // Return empty 1-D tensor
+        size_t shape[1] = {0};
+        return value_tns_new(TYPE_STR, 1, shape);
+    }
+    Value* items = malloc(sizeof(Value) * n);
+    if (!items) RUNTIME_ERROR(interp, "Out of memory", line, col);
+    for (size_t i = 0; i < n; i++) {
+        items[i] = value_str(g_argv[i]);
+    }
+    size_t shape[1]; shape[0] = n;
+    Value out = value_tns_from_values(TYPE_STR, 1, shape, items, n);
+    for (size_t i = 0; i < n; i++) value_free(items[i]);
+    free(items);
+    return out;
+}
