@@ -397,6 +397,649 @@ static Value builtin_fpow(Interpreter* interp, Value* args, int argc, Expr** arg
     return value_flt(pow(a, b));
 }
 
+// ============ Tensor elementwise operators ============
+
+// op: 0=add,1=sub,2=mul,3=div,4=pow
+static Value tensor_elemwise_op(Interpreter* interp, Value a, Value b, int op, int line, int col) {
+    // Both tensors
+    if (a.type == VAL_TNS && b.type == VAL_TNS) {
+        Tensor* ta = a.as.tns;
+        Tensor* tb = b.as.tns;
+        if (ta->elem_type != tb->elem_type) {
+            RUNTIME_ERROR(interp, "T* operators require same element types", line, col);
+        }
+        if (ta->ndim != tb->ndim) {
+            RUNTIME_ERROR(interp, "T* operators require same tensor dimensionality", line, col);
+        }
+        for (size_t i = 0; i < ta->ndim; i++) {
+            if (ta->shape[i] != tb->shape[i]) {
+                RUNTIME_ERROR(interp, "T* operators require identical tensor shapes", line, col);
+            }
+        }
+
+        Value out = value_tns_new(ta->elem_type, ta->ndim, ta->shape);
+        Tensor* ot = out.as.tns;
+        for (size_t i = 0; i < ta->length; i++) {
+            Value va = ta->data[i];
+            Value vb = tb->data[i];
+            // Only support numeric element types
+            if (va.type != vb.type) {
+                value_free(out);
+                RUNTIME_ERROR(interp, "T* element type mismatch", line, col);
+            }
+            if (va.type == VAL_INT) {
+                int64_t ra = va.as.i;
+                int64_t rb = vb.as.i;
+                if (op == 0) ot->data[i] = value_int(ra + rb);
+                else if (op == 1) ot->data[i] = value_int(ra - rb);
+                else if (op == 2) ot->data[i] = value_int(ra * rb);
+                else if (op == 3) {
+                    if (rb == 0) { value_free(out); RUNTIME_ERROR(interp, "Division by zero", line, col); }
+                    ot->data[i] = value_int(ra / rb);
+                } else if (op == 4) {
+                    if (rb < 0) { value_free(out); RUNTIME_ERROR(interp, "Negative exponent not supported", line, col); }
+                    int64_t result = 1;
+                    int64_t base = ra;
+                    int64_t exp = rb;
+                    while (exp > 0) {
+                        if (exp & 1) result *= base;
+                        base *= base;
+                        exp >>= 1;
+                    }
+                    ot->data[i] = value_int(result);
+                }
+            } else if (va.type == VAL_FLT) {
+                double ra = va.as.f;
+                double rb = vb.as.f;
+                if (op == 0) ot->data[i] = value_flt(ra + rb);
+                else if (op == 1) ot->data[i] = value_flt(ra - rb);
+                else if (op == 2) ot->data[i] = value_flt(ra * rb);
+                else if (op == 3) {
+                    if (rb == 0.0) { value_free(out); RUNTIME_ERROR(interp, "Division by zero", line, col); }
+                    ot->data[i] = value_flt(ra / rb);
+                } else if (op == 4) {
+                    ot->data[i] = value_flt(pow(ra, rb));
+                }
+            } else if (va.type == VAL_TNS) {
+                // nested tensors: recurse
+                ot->data[i] = tensor_elemwise_op(interp, va, vb, op, line, col);
+            } else {
+                value_free(out);
+                RUNTIME_ERROR(interp, "T* operators only support numeric or nested tensor elements", line, col);
+            }
+        }
+        return out;
+    }
+
+    // One tensor and one scalar: broadcast scalar
+    if (a.type == VAL_TNS && (b.type == VAL_INT || b.type == VAL_FLT)) {
+        Tensor* ta = a.as.tns;
+        // element static type must match scalar
+        if (!((ta->elem_type == TYPE_INT && b.type == VAL_INT) || (ta->elem_type == TYPE_FLT && b.type == VAL_FLT))) {
+            RUNTIME_ERROR(interp, "Tensor element type and scalar type mismatch", line, col);
+        }
+        Value out = value_tns_new(ta->elem_type, ta->ndim, ta->shape);
+        Tensor* ot = out.as.tns;
+        for (size_t i = 0; i < ta->length; i++) {
+            Value va = ta->data[i];
+            if (va.type == VAL_INT) {
+                int64_t ra = va.as.i;
+                int64_t rb = b.as.i;
+                if (op == 0) ot->data[i] = value_int(ra + rb);
+                else if (op == 1) ot->data[i] = value_int(ra - rb);
+                else if (op == 2) ot->data[i] = value_int(ra * rb);
+                else if (op == 3) { if (rb == 0) { value_free(out); RUNTIME_ERROR(interp, "Division by zero", line, col); } ot->data[i] = value_int(ra / rb); }
+                else if (op == 4) { if (rb < 0) { value_free(out); RUNTIME_ERROR(interp, "Negative exponent not supported", line, col); } int64_t result = 1; int64_t base = ra; int64_t exp = rb; while (exp > 0) { if (exp & 1) result *= base; base *= base; exp >>= 1; } ot->data[i] = value_int(result); }
+            } else if (va.type == VAL_FLT) {
+                double ra = va.as.f;
+                double rb = b.as.f;
+                if (op == 0) ot->data[i] = value_flt(ra + rb);
+                else if (op == 1) ot->data[i] = value_flt(ra - rb);
+                else if (op == 2) ot->data[i] = value_flt(ra * rb);
+                else if (op == 3) { if (rb == 0.0) { value_free(out); RUNTIME_ERROR(interp, "Division by zero", line, col); } ot->data[i] = value_flt(ra / rb); }
+                else if (op == 4) ot->data[i] = value_flt(pow(ra, rb));
+            } else if (va.type == VAL_TNS) {
+                ot->data[i] = tensor_elemwise_op(interp, va, b, op, line, col);
+            } else {
+                value_free(out);
+                RUNTIME_ERROR(interp, "Unsupported tensor element type for T*", line, col);
+            }
+        }
+        return out;
+    }
+
+    if (b.type == VAL_TNS && (a.type == VAL_INT || a.type == VAL_FLT)) {
+        // scalar on left, tensor on right: compute scalar OP element
+        Tensor* tb = b.as.tns;
+        // element static type must match scalar
+        if (!((tb->elem_type == TYPE_INT && a.type == VAL_INT) || (tb->elem_type == TYPE_FLT && a.type == VAL_FLT))) {
+            RUNTIME_ERROR(interp, "Tensor element type and scalar type mismatch", line, col);
+        }
+        Value out = value_tns_new(tb->elem_type, tb->ndim, tb->shape);
+        Tensor* ot = out.as.tns;
+        for (size_t i = 0; i < tb->length; i++) {
+            Value vb = tb->data[i];
+            if (vb.type == VAL_INT) {
+                int64_t ra = a.as.i;
+                int64_t rb = vb.as.i;
+                if (op == 0) ot->data[i] = value_int(ra + rb);
+                else if (op == 1) ot->data[i] = value_int(ra - rb);
+                else if (op == 2) ot->data[i] = value_int(ra * rb);
+                else if (op == 3) { if (rb == 0) { value_free(out); RUNTIME_ERROR(interp, "Division by zero", line, col); } ot->data[i] = value_int(ra / rb); }
+                else if (op == 4) { if (rb < 0) { value_free(out); RUNTIME_ERROR(interp, "Negative exponent not supported", line, col); } int64_t result = 1; int64_t base = ra; int64_t exp = rb; while (exp > 0) { if (exp & 1) result *= base; base *= base; exp >>= 1; } ot->data[i] = value_int(result); }
+            } else if (vb.type == VAL_FLT) {
+                double ra = a.as.f;
+                double rb = vb.as.f;
+                if (op == 0) ot->data[i] = value_flt(ra + rb);
+                else if (op == 1) ot->data[i] = value_flt(ra - rb);
+                else if (op == 2) ot->data[i] = value_flt(ra * rb);
+                else if (op == 3) { if (rb == 0.0) { value_free(out); RUNTIME_ERROR(interp, "Division by zero", line, col); } ot->data[i] = value_flt(ra / rb); }
+                else if (op == 4) ot->data[i] = value_flt(pow(ra, rb));
+            } else if (vb.type == VAL_TNS) {
+                ot->data[i] = tensor_elemwise_op(interp, a, vb, op, line, col);
+            } else {
+                value_free(out);
+                RUNTIME_ERROR(interp, "Unsupported tensor element type for scalar-left T*", line, col);
+            }
+        }
+        return out;
+    }
+
+    RUNTIME_ERROR(interp, "T* operators expect tensors or tensor+scalar", line, col);
+}
+
+static Value builtin_tadd(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
+    (void)arg_nodes; (void)env;
+    return tensor_elemwise_op(interp, args[0], args[1], 0, line, col);
+}
+
+static Value builtin_tsub(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
+    (void)arg_nodes; (void)env;
+    return tensor_elemwise_op(interp, args[0], args[1], 1, line, col);
+}
+
+static Value builtin_tmul(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
+    (void)arg_nodes; (void)env;
+    return tensor_elemwise_op(interp, args[0], args[1], 2, line, col);
+}
+
+static Value builtin_tdiv(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
+    (void)arg_nodes; (void)env;
+    return tensor_elemwise_op(interp, args[0], args[1], 3, line, col);
+}
+
+static Value builtin_tpow(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
+    (void)arg_nodes; (void)env;
+    return tensor_elemwise_op(interp, args[0], args[1], 4, line, col);
+}
+
+// SHAPE: returns 1-D tensor of INT lengths (one per dimension)
+static Value builtin_shape(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
+    (void)arg_nodes; (void)env; (void)argc;
+    if (args[0].type != VAL_TNS) {
+        RUNTIME_ERROR(interp, "SHAPE expects TNS argument", line, col);
+    }
+    Tensor* t = args[0].as.tns;
+    size_t ndim = t->ndim;
+    // prepare items: INT values of each dimension length
+    Value* items = malloc(sizeof(Value) * ndim);
+    if (!items) { RUNTIME_ERROR(interp, "Out of memory", line, col); }
+    for (size_t i = 0; i < ndim; i++) items[i] = value_int((int64_t)t->shape[i]);
+    size_t out_shape[1]; out_shape[0] = ndim;
+    Value out = value_tns_from_values(TYPE_INT, 1, out_shape, items, ndim);
+    for (size_t i = 0; i < ndim; i++) value_free(items[i]);
+    free(items);
+    return out;
+}
+
+// CONV: N-D discrete convolution (two-argument backward-compatible form)
+// Usage: CONV(TNS: x, TNS: kernel) -> TNS (same shape as x)
+static Value builtin_conv(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
+    (void)arg_nodes; (void)env; (void)argc;
+    if (args[0].type != VAL_TNS || args[1].type != VAL_TNS) {
+        RUNTIME_ERROR(interp, "CONV expects (TNS, TNS)", line, col);
+    }
+    Tensor* x = args[0].as.tns;
+    Tensor* k = args[1].as.tns;
+
+    // kernel must have same rank
+    if (x->ndim != k->ndim) {
+        RUNTIME_ERROR(interp, "CONV kernel must have same rank as input", line, col);
+    }
+
+    // kernel dims must be odd
+    for (size_t d = 0; d < k->ndim; d++) {
+        if ((k->shape[d] & 1) == 0) {
+            RUNTIME_ERROR(interp, "CONV kernel dimensions must be odd", line, col);
+        }
+    }
+
+    // Element types must be numeric
+    if (!((x->elem_type == TYPE_INT || x->elem_type == TYPE_FLT) && (k->elem_type == TYPE_INT || k->elem_type == TYPE_FLT))) {
+        RUNTIME_ERROR(interp, "CONV only supports INT or FLT element types", line, col);
+    }
+
+    // Output typing: INT only if both are INT, otherwise FLT
+    DeclType out_decl = (x->elem_type == TYPE_INT && k->elem_type == TYPE_INT) ? TYPE_INT : TYPE_FLT;
+
+    Value out = value_tns_new(out_decl, x->ndim, x->shape);
+    Tensor* ot = out.as.tns;
+
+    // Precompute kernel centers
+    size_t* centers = malloc(sizeof(size_t) * k->ndim);
+    for (size_t d = 0; d < k->ndim; d++) centers[d] = k->shape[d] / 2;
+
+    // For each output position, compute convolution
+    for (size_t pos = 0; pos < x->length; pos++) {
+        // compute multi-index for pos
+        size_t rem = pos;
+        size_t idx[64]; // support up to 64 dims (practical)
+        if (x->ndim > 64) { free(centers); value_free(out); RUNTIME_ERROR(interp, "CONV: too many dimensions", line, col); }
+        for (size_t d = 0; d < x->ndim; d++) {
+            idx[d] = rem / x->strides[d];
+            rem = rem % x->strides[d];
+        }
+
+        if (out_decl == TYPE_INT) {
+            int64_t acc = 0;
+            for (size_t kpos = 0; kpos < k->length; kpos++) {
+                // kernel multi-index
+                size_t krem = kpos;
+                size_t kidx[64];
+                for (size_t d = 0; d < k->ndim; d++) {
+                    kidx[d] = krem / k->strides[d];
+                    krem = krem % k->strides[d];
+                }
+                // compute input index with replicate padding
+                size_t in_offset = 0;
+                for (size_t d = 0; d < x->ndim; d++) {
+                    int64_t rel = (int64_t)idx[d] + (int64_t)kidx[d] - (int64_t)centers[d];
+                    if (rel < 0) rel = 0;
+                    if ((size_t)rel >= x->shape[d]) rel = (int64_t)x->shape[d] - 1;
+                    in_offset += (size_t)rel * x->strides[d];
+                }
+                Value vx = x->data[in_offset];
+                Value vk = k->data[kpos];
+                if (vx.type != VAL_INT || vk.type != VAL_INT) { free(centers); value_free(out); RUNTIME_ERROR(interp, "CONV integer-mode requires INT elements", line, col); }
+                acc += vx.as.i * vk.as.i;
+            }
+            ot->data[pos] = value_int(acc);
+        } else {
+            double acc = 0.0;
+            for (size_t kpos = 0; kpos < k->length; kpos++) {
+                size_t krem = kpos;
+                size_t kidx[64];
+                for (size_t d = 0; d < k->ndim; d++) {
+                    kidx[d] = krem / k->strides[d];
+                    krem = krem % k->strides[d];
+                }
+                size_t in_offset = 0;
+                for (size_t d = 0; d < x->ndim; d++) {
+                    int64_t rel = (int64_t)idx[d] + (int64_t)kidx[d] - (int64_t)centers[d];
+                    if (rel < 0) rel = 0;
+                    if ((size_t)rel >= x->shape[d]) rel = (int64_t)x->shape[d] - 1;
+                    in_offset += (size_t)rel * x->strides[d];
+                }
+                Value vx = x->data[in_offset];
+                Value vk = k->data[kpos];
+                double aval = (vx.type == VAL_FLT) ? vx.as.f : (double)vx.as.i;
+                double kval = (vk.type == VAL_FLT) ? vk.as.f : (double)vk.as.i;
+                acc += aval * kval;
+            }
+            ot->data[pos] = value_flt(acc);
+        }
+    }
+
+    free(centers);
+    return out;
+}
+
+// TLEN: returns length of 1-based dimension
+static Value builtin_tlen(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
+    (void)arg_nodes; (void)env; (void)argc;
+    if (args[0].type != VAL_TNS) {
+        RUNTIME_ERROR(interp, "TLEN expects TNS as first argument", line, col);
+    }
+    EXPECT_INT(args[1], "TLEN", interp, line, col);
+    Tensor* t = args[0].as.tns;
+    int64_t dim = args[1].as.i; // 1-based
+    if (dim < 1 || (size_t)dim > t->ndim) {
+        RUNTIME_ERROR(interp, "TLEN dimension out of range", line, col);
+    }
+    return value_int((int64_t)t->shape[(size_t)dim - 1]);
+}
+
+// TFLIP: returns a new tensor with elements along 1-based dimension dim reversed
+static Value builtin_tflip(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
+    (void)arg_nodes; (void)env; (void)argc;
+    if (args[0].type != VAL_TNS) {
+        RUNTIME_ERROR(interp, "TFLIP expects TNS as first argument", line, col);
+    }
+    EXPECT_INT(args[1], "TFLIP", interp, line, col);
+    Tensor* t = args[0].as.tns;
+    int64_t dim1 = args[1].as.i; // 1-based
+    if (dim1 < 1 || (size_t)dim1 > t->ndim) {
+        RUNTIME_ERROR(interp, "TFLIP dimension out of range", line, col);
+    }
+    size_t dim = (size_t)dim1 - 1;
+    // create output tensor
+    Value out = value_tns_new(t->elem_type, t->ndim, t->shape);
+    Tensor* ot = out.as.tns;
+
+    // iterate source positions
+    for (size_t src = 0; src < t->length; src++) {
+        // compute multi-index
+        size_t rem = src;
+        size_t dst_offset = 0;
+        for (size_t d = 0; d < t->ndim; d++) {
+            size_t pos = rem / t->strides[d];
+            rem = rem % t->strides[d];
+            size_t flip_pos = (d == dim) ? (t->shape[d] - 1 - pos) : pos;
+            dst_offset += flip_pos * t->strides[d];
+        }
+        ot->data[dst_offset] = value_copy(t->data[src]);
+    }
+    return out;
+}
+
+// FILL: return a new tensor with the same shape as the first arg,
+// filled with the supplied value. The fill value's runtime type
+// must match the existing element types in the source tensor.
+static Value builtin_fill(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
+    (void)arg_nodes; (void)env; (void)argc;
+    if (args[0].type != VAL_TNS) {
+        RUNTIME_ERROR(interp, "FILL expects TNS as first argument", line, col);
+    }
+    Tensor* t = args[0].as.tns;
+    Value fill = args[1];
+    // Ensure element runtime types match the fill value's type
+    for (size_t i = 0; i < t->length; i++) {
+        if (t->data[i].type != fill.type) {
+            RUNTIME_ERROR(interp, "FILL value type must match existing tensor element types", line, col);
+        }
+    }
+
+    Value out = value_tns_new(t->elem_type, t->ndim, t->shape);
+    Tensor* ot = out.as.tns;
+    for (size_t i = 0; i < t->length; i++) {
+        ot->data[i] = value_copy(fill);
+    }
+    return out;
+}
+
+// SCAT: return a copy of dst with a rectangular slice replaced by src.
+// Args: SCAT(TNS: src, TNS: dst, TNS: ind)
+static Value builtin_scat(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
+    (void)arg_nodes; (void)env; (void)argc;
+    if (args[0].type != VAL_TNS || args[1].type != VAL_TNS || args[2].type != VAL_TNS) {
+        RUNTIME_ERROR(interp, "SCAT expects (TNS, TNS, TNS)", line, col);
+    }
+    Tensor* src = args[0].as.tns;
+    Tensor* dst = args[1].as.tns;
+    Tensor* ind = args[2].as.tns;
+
+    size_t rank = dst->ndim;
+    // ind must be 2-D with shape [rank, 2]
+    if (ind->ndim != 2) {
+        RUNTIME_ERROR(interp, "SCAT index tensor must be 2-dimensional", line, col);
+    }
+    if (ind->shape[0] != rank || ind->shape[1] != 2) {
+        RUNTIME_ERROR(interp, "SCAT index tensor shape must be [rank,2]", line, col);
+    }
+
+    // src must have same dimensionality as dst and element types must match
+    if (src->ndim != rank) {
+        RUNTIME_ERROR(interp, "SCAT src must have same rank as dst", line, col);
+    }
+    if (src->elem_type != dst->elem_type) {
+        RUNTIME_ERROR(interp, "SCAT src and dst element types must match", line, col);
+    }
+
+    // Read lo/hi per dimension and validate bounds
+    int64_t* lo = malloc(sizeof(int64_t) * rank);
+    int64_t* hi = malloc(sizeof(int64_t) * rank);
+    if (!lo || !hi) { free(lo); free(hi); RUNTIME_ERROR(interp, "Out of memory", line, col); }
+
+    for (size_t d = 0; d < rank; d++) {
+        // index into ind: row d, col 0 and 1 -> linear index = d*ind->strides[0] + col*ind->strides[1]
+        size_t base = d * ind->strides[0];
+        Value vlo = ind->data[base + 0 * ind->strides[1]];
+        Value vhi = ind->data[base + 1 * ind->strides[1]];
+        if (vlo.type != VAL_INT || vhi.type != VAL_INT) {
+            free(lo); free(hi);
+            RUNTIME_ERROR(interp, "SCAT indices must be INT", line, col);
+        }
+        int64_t l = vlo.as.i;
+        int64_t h = vhi.as.i;
+        if (l == 0 || h == 0) { free(lo); free(hi); RUNTIME_ERROR(interp, "SCAT indices are 1-based and cannot be 0", line, col); }
+        // handle negative indices: -1 means last element
+        if (l < 0) l = (int64_t)dst->shape[d] + l + 1;
+        if (h < 0) h = (int64_t)dst->shape[d] + h + 1;
+        // convert to 0-based for internal checks
+        int64_t l0 = l - 1;
+        int64_t h0 = h - 1;
+        if (l0 < 0 || h0 < 0 || (size_t)h0 >= dst->shape[d] || l0 > h0) { free(lo); free(hi); RUNTIME_ERROR(interp, "SCAT index out of range or invalid", line, col); }
+        // check slice length matches src dimension
+        int64_t expected = h0 - l0 + 1;
+        if ((size_t)expected != src->shape[d]) { free(lo); free(hi); RUNTIME_ERROR(interp, "SCAT src dimension lengths must match index spans", line, col); }
+        lo[d] = l0;
+        hi[d] = h0;
+    }
+
+    // Build output tensor as a copy of dst structure
+    Value out = value_tns_new(dst->elem_type, dst->ndim, dst->shape);
+    Tensor* ot = out.as.tns;
+
+    // Iterate over all positions in dst. For positions inside the slice, copy from src; otherwise copy dst
+    for (size_t pos = 0; pos < dst->length; pos++) {
+        // compute multi-index
+        size_t rem = pos;
+        size_t dst_offset = 0;
+        size_t src_offset = 0;
+        int inside = 1;
+        for (size_t d = 0; d < rank; d++) {
+            size_t idx = rem / dst->strides[d];
+            rem = rem % dst->strides[d];
+            if ((int64_t)idx < lo[d] || (int64_t)idx > hi[d]) {
+                inside = 0;
+            } else {
+                size_t src_idx = (size_t)((int64_t)idx - lo[d]);
+                src_offset += src_idx * src->strides[d];
+            }
+            dst_offset += idx * dst->strides[d];
+        }
+        if (inside) {
+            ot->data[dst_offset] = value_copy(src->data[src_offset]);
+        } else {
+            ot->data[dst_offset] = value_copy(dst->data[dst_offset]);
+        }
+    }
+
+    free(lo); free(hi);
+    return out;
+}
+
+// M* operators: strict elementwise operations for two tensors (no broadcasting)
+static Value builtin_mop(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col, int op) {
+    (void)arg_nodes; (void)env; (void)argc;
+    if (args[0].type != VAL_TNS || args[1].type != VAL_TNS) {
+        RUNTIME_ERROR(interp, "M* operators expect TNS arguments", line, col);
+    }
+    Tensor* ta = args[0].as.tns;
+    Tensor* tb = args[1].as.tns;
+    if (ta->ndim != tb->ndim) {
+        RUNTIME_ERROR(interp, "M* operators require same tensor dimensionality", line, col);
+    }
+    for (size_t i = 0; i < ta->ndim; i++) {
+        if (ta->shape[i] != tb->shape[i]) {
+            RUNTIME_ERROR(interp, "M* operators require identical tensor shapes", line, col);
+        }
+    }
+    if (ta->elem_type != tb->elem_type) {
+        RUNTIME_ERROR(interp, "M* operators require same element types", line, col);
+    }
+    if (!(ta->elem_type == TYPE_INT || ta->elem_type == TYPE_FLT)) {
+        RUNTIME_ERROR(interp, "M* operators only support INT or FLT element types", line, col);
+    }
+
+    Value out = value_tns_new(ta->elem_type, ta->ndim, ta->shape);
+    Tensor* ot = out.as.tns;
+
+    for (size_t i = 0; i < ta->length; i++) {
+        Value va = ta->data[i];
+        Value vb = tb->data[i];
+        // Expect scalar numeric elements
+        if (va.type != vb.type) { value_free(out); RUNTIME_ERROR(interp, "M* element type mismatch", line, col); }
+        if (va.type == VAL_INT) {
+            int64_t a = va.as.i;
+            int64_t b = vb.as.i;
+            if (op == 0) ot->data[i] = value_int(a + b);
+            else if (op == 1) ot->data[i] = value_int(a - b);
+            else if (op == 2) ot->data[i] = value_int(a * b);
+            else if (op == 3) {
+                if (b == 0) { value_free(out); RUNTIME_ERROR(interp, "Division by zero", line, col); }
+                ot->data[i] = value_int(a / b);
+            }
+        } else if (va.type == VAL_FLT) {
+            double a = va.as.f;
+            double b = vb.as.f;
+            if (op == 0) ot->data[i] = value_flt(a + b);
+            else if (op == 1) ot->data[i] = value_flt(a - b);
+            else if (op == 2) ot->data[i] = value_flt(a * b);
+            else if (op == 3) {
+                if (b == 0.0) { value_free(out); RUNTIME_ERROR(interp, "Division by zero", line, col); }
+                ot->data[i] = value_flt(a / b);
+            }
+        } else {
+            value_free(out);
+            RUNTIME_ERROR(interp, "M* operators only support numeric scalar elements", line, col);
+        }
+    }
+    return out;
+}
+
+static Value builtin_madd(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
+    return builtin_mop(interp, args, argc, arg_nodes, env, line, col, 0);
+}
+static Value builtin_msub(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
+    return builtin_mop(interp, args, argc, arg_nodes, env, line, col, 1);
+}
+static Value builtin_mmul(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
+    return builtin_mop(interp, args, argc, arg_nodes, env, line, col, 2);
+}
+static Value builtin_mdiv(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
+    return builtin_mop(interp, args, argc, arg_nodes, env, line, col, 3);
+}
+
+// MSUM: elementwise sum across N tensors
+static Value builtin_msum(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
+    (void)arg_nodes; (void)env;
+    if (argc < 1) {
+        RUNTIME_ERROR(interp, "MSUM requires at least one tensor", line, col);
+    }
+    // all args must be tensors with same shape and element type
+    for (int j = 0; j < argc; j++) {
+        if (args[j].type != VAL_TNS) {
+            RUNTIME_ERROR(interp, "MSUM expects TNS arguments", line, col);
+        }
+    }
+    Tensor* t0 = args[0].as.tns;
+    for (int j = 1; j < argc; j++) {
+        Tensor* tj = args[j].as.tns;
+        if (tj->ndim != t0->ndim) {
+            RUNTIME_ERROR(interp, "MSUM requires same tensor dimensionality", line, col);
+        }
+        for (size_t d = 0; d < t0->ndim; d++) {
+            if (tj->shape[d] != t0->shape[d]) {
+                RUNTIME_ERROR(interp, "MSUM requires identical tensor shapes", line, col);
+            }
+        }
+        if (tj->elem_type != t0->elem_type) {
+            RUNTIME_ERROR(interp, "MSUM requires same element types", line, col);
+        }
+    }
+    if (!(t0->elem_type == TYPE_INT || t0->elem_type == TYPE_FLT)) {
+        RUNTIME_ERROR(interp, "MSUM only supports INT or FLT element types", line, col);
+    }
+
+    Value out = value_tns_new(t0->elem_type, t0->ndim, t0->shape);
+    Tensor* ot = out.as.tns;
+    for (size_t i = 0; i < t0->length; i++) {
+        if (t0->elem_type == TYPE_INT) {
+            int64_t acc = 0;
+            for (int j = 0; j < argc; j++) {
+                Value v = args[j].as.tns->data[i];
+                if (v.type != VAL_INT) { value_free(out); RUNTIME_ERROR(interp, "MSUM element type mismatch", line, col); }
+                acc += v.as.i;
+            }
+            ot->data[i] = value_int(acc);
+        } else {
+            double acc = 0.0;
+            for (int j = 0; j < argc; j++) {
+                Value v = args[j].as.tns->data[i];
+                if (v.type != VAL_FLT) { value_free(out); RUNTIME_ERROR(interp, "MSUM element type mismatch", line, col); }
+                acc += v.as.f;
+            }
+            ot->data[i] = value_flt(acc);
+        }
+    }
+    return out;
+}
+
+// MPROD: elementwise product across N tensors
+static Value builtin_mprod(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
+    (void)arg_nodes; (void)env;
+    if (argc < 1) {
+        RUNTIME_ERROR(interp, "MPROD requires at least one tensor", line, col);
+    }
+    for (int j = 0; j < argc; j++) {
+        if (args[j].type != VAL_TNS) {
+            RUNTIME_ERROR(interp, "MPROD expects TNS arguments", line, col);
+        }
+    }
+    Tensor* t0 = args[0].as.tns;
+    for (int j = 1; j < argc; j++) {
+        Tensor* tj = args[j].as.tns;
+        if (tj->ndim != t0->ndim) {
+            RUNTIME_ERROR(interp, "MPROD requires same tensor dimensionality", line, col);
+        }
+        for (size_t d = 0; d < t0->ndim; d++) {
+            if (tj->shape[d] != t0->shape[d]) {
+                RUNTIME_ERROR(interp, "MPROD requires identical tensor shapes", line, col);
+            }
+        }
+        if (tj->elem_type != t0->elem_type) {
+            RUNTIME_ERROR(interp, "MPROD requires same element types", line, col);
+        }
+    }
+    if (!(t0->elem_type == TYPE_INT || t0->elem_type == TYPE_FLT)) {
+        RUNTIME_ERROR(interp, "MPROD only supports INT or FLT element types", line, col);
+    }
+
+    Value out = value_tns_new(t0->elem_type, t0->ndim, t0->shape);
+    Tensor* ot = out.as.tns;
+    for (size_t i = 0; i < t0->length; i++) {
+        if (t0->elem_type == TYPE_INT) {
+            int64_t acc = 1;
+            for (int j = 0; j < argc; j++) {
+                Value v = args[j].as.tns->data[i];
+                if (v.type != VAL_INT) { value_free(out); RUNTIME_ERROR(interp, "MPROD element type mismatch", line, col); }
+                acc *= v.as.i;
+            }
+            ot->data[i] = value_int(acc);
+        } else {
+            double acc = 1.0;
+            for (int j = 0; j < argc; j++) {
+                Value v = args[j].as.tns->data[i];
+                if (v.type != VAL_FLT) { value_free(out); RUNTIME_ERROR(interp, "MPROD element type mismatch", line, col); }
+                acc *= v.as.f;
+            }
+            ot->data[i] = value_flt(acc);
+        }
+    }
+    return out;
+}
+
 // ROOT and variants
 static Value builtin_root(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
     (void)arg_nodes; (void)env;
@@ -946,6 +1589,68 @@ static Value builtin_lower(Interpreter* interp, Value* args, int argc, Expr** ar
     return v;
 }
 
+static Value builtin_flip(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
+    (void)arg_nodes; (void)env;
+    // Accept INT or STR
+    if (args[0].type == VAL_INT) {
+        int64_t v = args[0].as.i;
+        int is_negative = v < 0;
+        uint64_t u = is_negative ? (uint64_t)(-v) : (uint64_t)v;
+
+        // get binary digits for absolute value
+        char buf[128];
+        int pos = 0;
+        if (u == 0) {
+            buf[pos++] = '0';
+        } else {
+            // build digits in MSB-first order
+            // find highest bit manually for portability
+            int highest = -1;
+            for (int b = 63; b >= 0; --b) {
+                if ((u >> b) & 1ULL) { highest = b; break; }
+            }
+            if (highest < 0) { buf[pos++] = '0'; }
+            else {
+                for (int i = highest; i >= 0; --i) {
+                    buf[pos++] = ((u >> i) & 1ULL) ? '1' : '0';
+                }
+            }
+        }
+        buf[pos] = '\0';
+
+        // reverse the digit string
+        for (int i = 0, j = pos - 1; i < j; ++i, --j) {
+            char t = buf[i]; buf[i] = buf[j]; buf[j] = t;
+        }
+
+        // parse reversed binary string into integer
+        uint64_t out = 0;
+        for (int i = 0; i < pos; ++i) {
+            out = (out << 1) + (buf[i] == '1');
+        }
+
+        int64_t result = (int64_t)out;
+        if (is_negative) result = -result;
+        return value_int(result);
+    }
+
+    if (args[0].type == VAL_STR) {
+        const char* s = args[0].as.s;
+        size_t n = strlen(s);
+        char* out = malloc(n + 1);
+        if (!out) { RUNTIME_ERROR(interp, "Out of memory", line, col); }
+        for (size_t i = 0; i < n; ++i) {
+            out[i] = s[n - 1 - i];
+        }
+        out[n] = '\0';
+        Value v = value_str(out);
+        free(out);
+        return v;
+    }
+
+    RUNTIME_ERROR(interp, "FLIP expects INT or STR", line, col);
+}
+
 static Value builtin_join(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
     (void)arg_nodes; (void)env;
     // JOIN(sep, str1, str2, ...) or variadic
@@ -1048,6 +1753,30 @@ static Value builtin_split(Interpreter* interp, Value* args, int argc, Expr** ar
     for (size_t i = 0; i < count; i++) value_free(items[i]);
     free(items);
     return out;
+}
+
+// IN (membership): IN(value, container)
+// Only supports container of type TNS. Returns 1 if any element in the
+// tensor is deeply equal to the provided value, otherwise 0. No special
+// handling for STRs (no substring semantics).
+static Value builtin_in(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
+    (void)arg_nodes; (void)env;
+    if (argc != 2) {
+        RUNTIME_ERROR(interp, "IN requires two arguments", line, col);
+    }
+
+    // Container must be a tensor; otherwise membership is false
+    if (args[1].type != VAL_TNS) {
+        return value_int(0);
+    }
+
+    Tensor* t = args[1].as.tns;
+    if (!t || t->length == 0) return value_int(0);
+
+    for (size_t i = 0; i < t->length; i++) {
+        if (value_deep_eq(args[0], t->data[i])) return value_int(1);
+    }
+    return value_int(0);
 }
 
 static Value builtin_slice(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
@@ -1384,6 +2113,59 @@ static Value builtin_max(Interpreter* interp, Value* args, int argc, Expr** arg_
         }
         return value_str(max);
     }
+    if (args[0].type == VAL_TNS) {
+        // MAX(TNS: t1, ..., tN) -> flatten tensors and return largest scalar element
+        // All tensors must have same scalar element type (INT/FLT/STR)
+        Tensor* t0 = args[0].as.tns;
+        DeclType etype = t0->elem_type;
+        if (!(etype == TYPE_INT || etype == TYPE_FLT || etype == TYPE_STR)) {
+            RUNTIME_ERROR(interp, "MAX TNS form requires scalar element types", line, col);
+        }
+        // verify all args are tensors with same element type
+        for (int j = 0; j < argc; j++) {
+            if (args[j].type != VAL_TNS) {
+                RUNTIME_ERROR(interp, "MAX expects TNS arguments in this form", line, col);
+            }
+            if (args[j].as.tns->elem_type != etype) {
+                RUNTIME_ERROR(interp, "MAX TNS arguments must share the same element type", line, col);
+            }
+        }
+        // find first element to seed
+        bool seeded = false;
+        Value best = value_null();
+        for (int j = 0; j < argc && !seeded; j++) {
+            Tensor* tj = args[j].as.tns;
+            for (size_t i = 0; i < tj->length; i++) {
+                Value v = tj->data[i];
+                if (etype == TYPE_INT && v.type == VAL_INT) { best = value_int(v.as.i); seeded = true; break; }
+                if (etype == TYPE_FLT && v.type == VAL_FLT) { best = value_flt(v.as.f); seeded = true; break; }
+                if (etype == TYPE_STR && v.type == VAL_STR) { best = value_str(v.as.s); seeded = true; break; }
+                // skip non-matching elements (elem_type check above should prevent mismatches)
+                continue;
+            }
+        }
+        if (!seeded) {
+            RUNTIME_ERROR(interp, "MAX requires non-empty tensors", line, col);
+        }
+        // compare remaining elements
+        for (int j = 0; j < argc; j++) {
+            Tensor* tj = args[j].as.tns;
+            for (size_t i = 0; i < tj->length; i++) {
+                Value v = tj->data[i];
+                if (etype == TYPE_INT) {
+                    EXPECT_INT(v, "MAX", interp, line, col);
+                    if (v.as.i > best.as.i) { value_free(best); best = value_int(v.as.i); }
+                } else if (etype == TYPE_FLT) {
+                    EXPECT_FLT(v, "MAX", interp, line, col);
+                    if (v.as.f > best.as.f) { value_free(best); best = value_flt(v.as.f); }
+                } else { // STR
+                    EXPECT_STR(v, "MAX", interp, line, col);
+                    if (strlen(v.as.s) > strlen(best.as.s)) { value_free(best); best = value_str(v.as.s); }
+                }
+            }
+        }
+        return best;
+    }
     RUNTIME_ERROR(interp, "MAX expects INT, FLT, or STR arguments", line, col);
 }
 
@@ -1422,6 +2204,55 @@ static Value builtin_min(Interpreter* interp, Value* args, int argc, Expr** arg_
             }
         }
         return value_str(min);
+    }
+    if (args[0].type == VAL_TNS) {
+        // MIN(TNS: t1, ..., tN) -> flatten tensors and return smallest scalar element
+        Tensor* t0 = args[0].as.tns;
+        DeclType etype = t0->elem_type;
+        if (!(etype == TYPE_INT || etype == TYPE_FLT || etype == TYPE_STR)) {
+            RUNTIME_ERROR(interp, "MIN TNS form requires scalar element types", line, col);
+        }
+        for (int j = 0; j < argc; j++) {
+            if (args[j].type != VAL_TNS) {
+                RUNTIME_ERROR(interp, "MIN expects TNS arguments in this form", line, col);
+            }
+            if (args[j].as.tns->elem_type != etype) {
+                RUNTIME_ERROR(interp, "MIN TNS arguments must share the same element type", line, col);
+            }
+        }
+        bool seeded = false;
+        Value best = value_null();
+        for (int j = 0; j < argc && !seeded; j++) {
+            Tensor* tj = args[j].as.tns;
+            for (size_t i = 0; i < tj->length; i++) {
+                Value v = tj->data[i];
+                if (etype == TYPE_INT && v.type == VAL_INT) { best = value_int(v.as.i); seeded = true; break; }
+                if (etype == TYPE_FLT && v.type == VAL_FLT) { best = value_flt(v.as.f); seeded = true; break; }
+                if (etype == TYPE_STR && v.type == VAL_STR) { best = value_str(v.as.s); seeded = true; break; }
+                // skip non-matching elements (elem_type check above should prevent mismatches)
+                continue;
+            }
+        }
+        if (!seeded) {
+            RUNTIME_ERROR(interp, "MIN requires non-empty tensors", line, col);
+        }
+        for (int j = 0; j < argc; j++) {
+            Tensor* tj = args[j].as.tns;
+            for (size_t i = 0; i < tj->length; i++) {
+                Value v = tj->data[i];
+                if (etype == TYPE_INT) {
+                    EXPECT_INT(v, "MIN", interp, line, col);
+                    if (v.as.i < best.as.i) { value_free(best); best = value_int(v.as.i); }
+                } else if (etype == TYPE_FLT) {
+                    EXPECT_FLT(v, "MIN", interp, line, col);
+                    if (v.as.f < best.as.f) { value_free(best); best = value_flt(v.as.f); }
+                } else {
+                    EXPECT_STR(v, "MIN", interp, line, col);
+                    if (strlen(v.as.s) < strlen(best.as.s)) { value_free(best); best = value_str(v.as.s); }
+                }
+            }
+        }
+        return best;
     }
     RUNTIME_ERROR(interp, "MIN expects INT, FLT, or STR arguments", line, col);
 }
@@ -1638,6 +2469,190 @@ static Value builtin_import(Interpreter* interp, Value* args, int argc, Expr** a
     return value_int(0);
 }
 
+// TNS operator: two forms
+// 1) TNS(STR: string) -> 1-D TNS of STR single-character elements
+// 2) TNS(TNS: shape, ANY: value) -> creates tensor with given shape filled with value
+static Value builtin_tns(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
+    (void)arg_nodes; (void)env;
+    if (argc == 1) {
+        // TNS(STR: string)
+        if (args[0].type != VAL_STR) {
+            RUNTIME_ERROR(interp, "TNS expects STR or (TNS, value)", line, col);
+        }
+        const char* s = args[0].as.s ? args[0].as.s : "";
+        size_t n = strlen(s);
+        if (n == 0) {
+            return value_tns_new(TYPE_STR, 1, (const size_t[]){0});
+        }
+        Value* items = malloc(sizeof(Value) * n);
+        if (!items) { RUNTIME_ERROR(interp, "Out of memory", line, col); }
+        for (size_t i = 0; i < n; i++) {
+            char buf[2] = { s[i], '\0' };
+            items[i] = value_str(buf);
+        }
+        size_t shape[1] = { n };
+        Value out = value_tns_from_values(TYPE_STR, 1, shape, items, n);
+        for (size_t i = 0; i < n; i++) value_free(items[i]);
+        free(items);
+        return out;
+    }
+
+    if (argc == 2) {
+        // TNS(TNS: shape, ANY: value)
+        if (args[0].type != VAL_TNS) {
+            RUNTIME_ERROR(interp, "TNS expects a 1-D TNS shape as first argument", line, col);
+        }
+        Tensor* shape_t = args[0].as.tns;
+        if (!shape_t) {
+            RUNTIME_ERROR(interp, "Invalid shape tensor", line, col);
+        }
+        if (shape_t->ndim != 1) {
+            RUNTIME_ERROR(interp, "Shape tensor must be 1-D", line, col);
+        }
+        if (shape_t->elem_type != TYPE_INT) {
+            RUNTIME_ERROR(interp, "Shape tensor must contain INT lengths", line, col);
+        }
+        // compute total length and build shape array
+        size_t ndim = shape_t->shape[0];
+        if (ndim == 0) {
+            RUNTIME_ERROR(interp, "Shape tensor must have at least one element", line, col);
+        }
+        size_t* shape = malloc(sizeof(size_t) * ndim);
+        if (!shape) { RUNTIME_ERROR(interp, "Out of memory", line, col); }
+        size_t total = 1;
+        for (size_t i = 0; i < ndim; i++) {
+            Value v = shape_t->data[i];
+            if (v.type != VAL_INT) { free(shape); RUNTIME_ERROR(interp, "Shape entries must be INT", line, col); }
+            if (v.as.i <= 0) { free(shape); RUNTIME_ERROR(interp, "Shape lengths must be positive", line, col); }
+            shape[i] = (size_t)v.as.i;
+            // check overflow
+            if (total > SIZE_MAX / shape[i]) { free(shape); RUNTIME_ERROR(interp, "Shape too large", line, col); }
+            total *= shape[i];
+        }
+
+        // Prepare items filled with copies of the provided value
+        Value* items = malloc(sizeof(Value) * total);
+        if (!items) { free(shape); RUNTIME_ERROR(interp, "Out of memory", line, col); }
+        for (size_t i = 0; i < total; i++) {
+            items[i] = value_copy(args[1]);
+        }
+
+        // Determine element DeclType
+        DeclType elem_decl;
+        switch (args[1].type) {
+            case VAL_INT: elem_decl = TYPE_INT; break;
+            case VAL_FLT: elem_decl = TYPE_FLT; break;
+            case VAL_STR: elem_decl = TYPE_STR; break;
+            case VAL_TNS: elem_decl = TYPE_TNS; break;
+            case VAL_FUNC: elem_decl = TYPE_FUNC; break;
+            default: elem_decl = TYPE_UNKNOWN; break;
+        }
+
+        Value out = value_tns_from_values(elem_decl, ndim, (const size_t*)shape, items, total);
+        for (size_t i = 0; i < total; i++) value_free(items[i]);
+        free(items);
+        free(shape);
+        return out;
+    }
+
+    RUNTIME_ERROR(interp, "TNS expects STR or (TNS shape, value)", line, col);
+}
+
+// ====== Tensor elementwise conversions: TINT, TFLT, TSTR ======
+static Value builtin_tint(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
+    (void)arg_nodes; (void)env; (void)argc;
+    if (args[0].type != VAL_TNS) {
+        RUNTIME_ERROR(interp, "TINT expects TNS argument", line, col);
+    }
+    Tensor* t = args[0].as.tns;
+    size_t n = t->length;
+    Value* items = malloc(sizeof(Value) * n);
+    if (!items) RUNTIME_ERROR(interp, "Out of memory", line, col);
+    for (size_t i = 0; i < n; i++) {
+        Value elem = t->data[i];
+        // Disallow nested tensors or functions
+        if (elem.type == VAL_TNS || elem.type == VAL_FUNC) {
+            for (size_t j = 0; j < i; j++) value_free(items[j]);
+            free(items);
+            RUNTIME_ERROR(interp, "TINT requires scalar tensor elements", line, col);
+        }
+        Value arg0[1] = { elem };
+        Value conv = builtin_int(interp, arg0, 1, NULL, NULL, line, col);
+        if (interp->error) {
+            for (size_t j = 0; j < i; j++) value_free(items[j]);
+            free(items);
+            return value_null();
+        }
+        items[i] = conv;
+    }
+    Value out = value_tns_from_values(TYPE_INT, t->ndim, t->shape, items, n);
+    for (size_t i = 0; i < n; i++) value_free(items[i]);
+    free(items);
+    return out;
+}
+
+static Value builtin_tflt(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
+    (void)arg_nodes; (void)env; (void)argc;
+    if (args[0].type != VAL_TNS) {
+        RUNTIME_ERROR(interp, "TFLT expects TNS argument", line, col);
+    }
+    Tensor* t = args[0].as.tns;
+    size_t n = t->length;
+    Value* items = malloc(sizeof(Value) * n);
+    if (!items) RUNTIME_ERROR(interp, "Out of memory", line, col);
+    for (size_t i = 0; i < n; i++) {
+        Value elem = t->data[i];
+        if (elem.type == VAL_TNS || elem.type == VAL_FUNC) {
+            for (size_t j = 0; j < i; j++) value_free(items[j]);
+            free(items);
+            RUNTIME_ERROR(interp, "TFLT requires scalar tensor elements", line, col);
+        }
+        Value arg0[1] = { elem };
+        Value conv = builtin_flt(interp, arg0, 1, NULL, NULL, line, col);
+        if (interp->error) {
+            for (size_t j = 0; j < i; j++) value_free(items[j]);
+            free(items);
+            return value_null();
+        }
+        items[i] = conv;
+    }
+    Value out = value_tns_from_values(TYPE_FLT, t->ndim, t->shape, items, n);
+    for (size_t i = 0; i < n; i++) value_free(items[i]);
+    free(items);
+    return out;
+}
+
+static Value builtin_tstr(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
+    (void)arg_nodes; (void)env; (void)argc;
+    if (args[0].type != VAL_TNS) {
+        RUNTIME_ERROR(interp, "TSTR expects TNS argument", line, col);
+    }
+    Tensor* t = args[0].as.tns;
+    size_t n = t->length;
+    Value* items = malloc(sizeof(Value) * n);
+    if (!items) RUNTIME_ERROR(interp, "Out of memory", line, col);
+    for (size_t i = 0; i < n; i++) {
+        Value elem = t->data[i];
+        if (elem.type == VAL_TNS || elem.type == VAL_FUNC) {
+            for (size_t j = 0; j < i; j++) value_free(items[j]);
+            free(items);
+            RUNTIME_ERROR(interp, "TSTR requires scalar tensor elements", line, col);
+        }
+        Value arg0[1] = { elem };
+        Value conv = builtin_str(interp, arg0, 1, NULL, NULL, line, col);
+        if (interp->error) {
+            for (size_t j = 0; j < i; j++) value_free(items[j]);
+            free(items);
+            return value_null();
+        }
+        items[i] = conv;
+    }
+    Value out = value_tns_from_values(TYPE_STR, t->ndim, t->shape, items, n);
+    for (size_t i = 0; i < n; i++) value_free(items[i]);
+    free(items);
+    return out;
+}
+
 // ============ Builtins table ============
 
 static BuiltinFunction builtins_table[] = {
@@ -1672,6 +2687,28 @@ static BuiltinFunction builtins_table[] = {
     {"FMUL", 2, 2, builtin_fmul},
     {"FDIV", 2, 2, builtin_fdiv},
     {"FPOW", 2, 2, builtin_fpow},
+    // Tensor elementwise operators
+    {"TNS", 1, 2, builtin_tns},
+    {"TINT", 1, 1, builtin_tint},
+    {"TFLT", 1, 1, builtin_tflt},
+    {"TSTR", 1, 1, builtin_tstr},
+    {"CONV", 2, 2, builtin_conv},
+    {"FILL", 2, 2, builtin_fill},
+    {"TADD", 2, 2, builtin_tadd},
+    {"TSUB", 2, 2, builtin_tsub},
+    {"TMUL", 2, 2, builtin_tmul},
+    {"TDIV", 2, 2, builtin_tdiv},
+    {"TPOW", 2, 2, builtin_tpow},
+    {"SHAPE", 1, 1, builtin_shape},
+    {"TLEN", 2, 2, builtin_tlen},
+    {"TFLIP", 2, 2, builtin_tflip},
+    {"SCAT", 3, 3, builtin_scat},
+    {"MADD", 2, 2, builtin_madd},
+    {"MSUB", 2, 2, builtin_msub},
+    {"MMUL", 2, 2, builtin_mmul},
+    {"MDIV", 2, 2, builtin_mdiv},
+    {"MSUM", 1, -1, builtin_msum},
+    {"MPROD", 1, -1, builtin_mprod},
     
     // Comparison
     {"EQ", 2, 2, builtin_eq},
@@ -1710,11 +2747,13 @@ static BuiltinFunction builtins_table[] = {
     {"SLEN", 1, 1, builtin_slen},
     {"UPPER", 1, 1, builtin_upper},
     {"LOWER", 1, 1, builtin_lower},
+    {"FLIP", 1, 1, builtin_flip},
     {"SLICE", 3, 3, builtin_slice},
     {"REPLACE", 3, 3, builtin_replace},
     {"STRIP", 2, 2, builtin_strip},
     {"JOIN", 1, -1, builtin_join},
     {"SPLIT", 1, 2, builtin_split},
+    {"IN", 2, 2, builtin_in},
     {"ILEN", 1, 1, builtin_ilen},
     {"LEN", 0, -1, builtin_len},
     

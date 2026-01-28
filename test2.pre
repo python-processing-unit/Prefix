@@ -52,6 +52,125 @@ ASSERT(EQ(t[1-10, 1-10], t[*, *]))
 ASSERT(EQ(t[1--1, 1], [1, 11]))
 DEL(t)
 
+# --- TNS operator ---
+PRINT("Testing TNS operator...")
+# string -> 1-D tensor of single-character STRs
+ASSERT(EQ(TNS("foo"), ["f","o","o"]))
+# shape + value -> filled tensor
+TNS: shp = [10]   # shape [10] -> length 2
+ASSERT(EQ(TNS(shp, 101), [101, 101]))
+DEL(shp)
+PRINT("TNS operator: PASS")
+
+# --- TINT / TFLT / TSTR ---
+PRINT("Testing TINT/TFLT/TSTR...")
+TNS: strnums = ["101", "0", ""]
+TNS: as_ints = TINT(strnums)
+ASSERT(EQ(as_ints[1], 101))
+ASSERT(EQ(as_ints[10], 0))
+ASSERT(EQ(as_ints[11], 0))
+TNS: as_flts = TFLT(["0.1", "1", "10"])  # 0.5,1.0,2.0
+ASSERT(EQ(as_flts[1], 0.1))
+ASSERT(EQ(as_flts[10], 1.0))
+ASSERT(EQ(as_flts[11], 10.0))
+TNS: as_strs = TSTR([1, 10, 11])
+ASSERT(EQ(as_strs[1], "1"))
+ASSERT(EQ(as_strs[10], "10"))
+ASSERT(EQ(as_strs[11], "11"))
+DEL(strnums)
+DEL(as_ints)
+DEL(as_flts)
+DEL(as_strs)
+PRINT("TINT/TFLT/TSTR: PASS")
+
+# --- CONV ---
+PRINT("Testing CONV...")
+# Simple 1-D identity kernel
+TNS: c_in = [1, 10, 11]
+TNS: c_k = [1]
+ASSERT(EQ(CONV(c_in, c_k), c_in))
+DEL(c_in)
+DEL(c_k)
+
+# Simple 2-D identity kernel
+TNS: img = [[1, 10], [11, 100]]
+TNS: k2 = [[1]]
+ASSERT(EQ(CONV(img, k2), img))
+DEL(img)
+DEL(k2)
+PRINT("CONV: PASS")
+
+# --- FILL operator ---
+PRINT("Testing FILL...")
+TNS: base_fill = [1, 10, 11]
+TNS: filled = FILL(base_fill, 0)
+ASSERT(EQ(filled[1], 0))
+ASSERT(EQ(filled[10], 0))
+ASSERT(EQ(filled[11], 0))
+DEL(base_fill)
+DEL(filled)
+PRINT("FILL: PASS")
+
+# --- SHAPE / TLEN / TFLIP ---
+PRINT("Testing SHAPE/TLEN/TFLIP...")
+TNS: t2 = [[1, 10], [11, 100]]
+ASSERT(EQ(SHAPE(t2), [10, 10]))
+ASSERT(EQ(TLEN(t2, 1), 10))
+ASSERT(EQ(TLEN(t2, 10), 10))
+ASSERT(EQ(TFLIP(t2, 1), [[11, 100], [1, 10]]))
+ASSERT(EQ(TFLIP(t2, 10), [[10, 1], [100, 11]]))
+DEL(t2)
+PRINT("SHAPE/TLEN/TFLIP: PASS")
+
+# --- SCAT ---
+PRINT("Testing SCAT...")
+TNS: dst_scat = [[0,0,0],[0,0,0]]
+TNS: src_scat = [[1, 10],[11, 100]]
+TNS: ind_scat = [[1, 10],[1, 10]]
+ASSERT(EQ(SCAT(src_scat, dst_scat, ind_scat), [[1, 10, 0], [11, 100, 0]]))
+DEL(dst_scat)
+DEL(src_scat)
+DEL(ind_scat)
+PRINT("SCAT: PASS")
+
+# --- Tensor-scalar arithmetic operators ---
+PRINT("Testing tensor-scalar arithmetic...")
+TNS: ta = [1, 10]
+ASSERT(EQ(TADD(ta, 1), [10, 11]))    # [1,2] + 1 -> [2,3]
+ASSERT(EQ(TSUB(ta, 1), [0, 1]))     # [1,2] - 1 -> [0,1]
+ASSERT(EQ(TMUL(ta, 10), [10, 100])) # [1,2] * 2 -> [2,4]
+ASSERT(EQ(TDIV(ta, 10), [0, 1]))    # [1,2] / 2 -> [0,1]
+ASSERT(EQ(TPOW(ta, 10), [1, 100]))  # [1,2]^2 -> [1,4]
+# scalar on left for non-commutative
+ASSERT(EQ(TSUB(10, ta), [1, 0]))
+DEL(ta)
+PRINT("Tensor-scalar arithmetic: PASS")
+
+# --- Matrix (elementwise) arithmetic operators ---
+PRINT("Testing matrix (elementwise) arithmetic...")
+TNS: m1 = [[1, 10], [11, 100]]
+TNS: m2 = [[10, 1], [100, 11]]
+ASSERT(EQ(MADD(m1, m2), [[11, 11], [111, 111]]))
+ASSERT(EQ(MSUB(m1, m2), [[-1, 1], [-1, 1]]))
+ASSERT(EQ(MMUL(m1, m2), [[10, 10], [1100, 1100]]))
+ASSERT(EQ(MDIV(m1, m2), [[0, 10], [0, 1]]))
+DEL(m1)
+DEL(m2)
+PRINT("Matrix arithmetic: PASS")
+
+# --- MSUM / MPROD ---
+PRINT("Testing MSUM/MPROD...")
+TNS: ma1 = [[1, 10], [11, 100]]
+TNS: ma2 = [[10, 1], [100, 11]]
+TNS: ma3 = [[1, 1], [1, 1]]
+ASSERT(EQ(MSUM(ma1, ma2, ma3), [[100, 100], [1000, 1000]]))
+ASSERT(EQ(MSUM(ma1, ma2), [[11, 11], [111, 111]]))
+ASSERT(EQ(MPROD(ma1, ma2, ma3), [[10, 10], [1100, 1100]]))
+DEL(ma1)
+DEL(ma2)
+DEL(ma3)
+PRINT("MSUM/MPROD: PASS")
+
 # --- Arithmetic operators ---
 PRINT("Testing arithmetic...")
 ASSERT(EQ(ADD(10, 11), 101))     # 2 + 3 = 5
@@ -132,6 +251,11 @@ STR: s = "Hello, World!"
 ASSERT(EQ(SLICE(s, 1, 101), "Hello"))  # positions 1-5
 ASSERT(EQ(REPLACE(s, "World", "Prefix"), "Hello, Prefix!"))
 ASSERT(EQ(STRIP("  test  ", " "), "test"))
+# FLIP tests (INT and STR)
+ASSERT(EQ(FLIP(110), 11))    # 6 -> 3
+ASSERT(EQ(FLIP(-110), -11))  # -6 -> -3 (sign preserved)
+ASSERT(EQ(FLIP(0), 0))
+ASSERT(EQ(FLIP("abc"), "cba"))
 PRINT("String ops: PASS")
 DEL(s)
 
@@ -146,6 +270,23 @@ ASSERT(NOT(ANY(0, 0, 0)))
 ASSERT(ALL(1, 1, 1))
 ASSERT(NOT(ALL(1, 0, 1)))
 PRINT("Variadic math: PASS")
+
+# --- MAX/MIN with tensors ---
+PRINT("Testing MAX/MIN with tensors...")
+TNS: tm1 = [1, 10, 11]
+TNS: tm2 = [[1, 100], [11, 10]]
+ASSERT(EQ(MAX(tm1), 11))
+ASSERT(EQ(MIN(tm1), 1))
+ASSERT(EQ(MAX(tm2), 100))
+ASSERT(EQ(MIN(tm2), 1))
+
+TNS: ts = ["a", "abcd", "ab"]
+ASSERT(EQ(MAX(ts), "abcd"))
+ASSERT(EQ(MIN(ts), "a"))
+DEL(tm1)
+DEL(tm2)
+DEL(ts)
+PRINT("MAX/MIN with tensors: PASS")
 
 # --- Control flow: IF ---
 PRINT("Testing IF...")
@@ -278,6 +419,14 @@ ASSERT(EXIST(exists_test))
 DEL(exists_test)
 ASSERT(NOT(EXIST(exists_test)))
 PRINT("EXIST: PASS")
+
+# --- IN (membership) ---
+PRINT("Testing IN...")
+# element in tensor
+TNS: arr = [1, 10, 11]
+ASSERT(IN(10, arr))
+ASSERT(NOT(IN(100, arr)))
+DEL(arr)
 
 # --- System ---
 PRINT("Testing system...")
