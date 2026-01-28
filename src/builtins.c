@@ -612,25 +612,48 @@ static Value builtin_lcm(Interpreter* interp, Value* args, int argc, Expr** arg_
 
 // ============ Comparison operators ============
 
+// Recursive deep equality helper for Values (returns 1 if equal, 0 otherwise)
+static int value_deep_eq(Value a, Value b) {
+    if (a.type != b.type) return 0;
+    switch (a.type) {
+        case VAL_INT:
+            return a.as.i == b.as.i ? 1 : 0;
+        case VAL_FLT:
+            return a.as.f == b.as.f ? 1 : 0;
+        case VAL_STR:
+            if (a.as.s == NULL || b.as.s == NULL) return (a.as.s == b.as.s) ? 1 : 0;
+            return strcmp(a.as.s, b.as.s) == 0 ? 1 : 0;
+        case VAL_FUNC:
+            return a.as.func == b.as.func ? 1 : 0;
+        case VAL_TNS: {
+            Tensor* ta = a.as.tns;
+            Tensor* tb = b.as.tns;
+            if (ta == NULL || tb == NULL) return (ta == tb) ? 1 : 0;
+            if (ta->elem_type != tb->elem_type) return 0;
+            if (ta->ndim != tb->ndim) return 0;
+            for (size_t i = 0; i < ta->ndim; i++) {
+                if (ta->shape[i] != tb->shape[i]) return 0;
+            }
+            if (ta->length != tb->length) return 0;
+            for (size_t i = 0; i < ta->length; i++) {
+                if (!value_deep_eq(ta->data[i], tb->data[i])) return 0;
+            }
+            return 1;
+        }
+        default:
+            return 0;
+    }
+}
+
 static Value builtin_eq(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
     (void)arg_nodes; (void)env; (void)interp;
-    
+
+    // If types differ, not equal
     if (args[0].type != args[1].type) {
         return value_int(0);
     }
-    
-    switch (args[0].type) {
-        case VAL_INT:
-            return value_int(args[0].as.i == args[1].as.i ? 1 : 0);
-        case VAL_FLT:
-            return value_int(args[0].as.f == args[1].as.f ? 1 : 0);
-        case VAL_STR:
-            return value_int(strcmp(args[0].as.s, args[1].as.s) == 0 ? 1 : 0);
-        case VAL_FUNC:
-            return value_int(args[0].as.func == args[1].as.func ? 1 : 0);
-        default:
-            return value_int(0);
-    }
+
+    return value_int(value_deep_eq(args[0], args[1]) ? 1 : 0);
 }
 
 static Value builtin_gt(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
@@ -956,39 +979,109 @@ static Value builtin_join(Interpreter* interp, Value* args, int argc, Expr** arg
 
 static Value builtin_split(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
     (void)arg_nodes; (void)env;
-    // SPLIT returns a tensor in Python but for now we can't return tensors
-    // For Stage 3, we'll skip tensor-returning operations
-    RUNTIME_ERROR(interp, "SPLIT requires TNS support (Stage 4)", line, col);
+    // SPLIT(str, sep?) -> 1-D TNS of STR
+    EXPECT_STR(args[0], "SPLIT", interp, line, col);
+    const char* sep = NULL;
+    if (argc >= 2) {
+        EXPECT_STR(args[1], "SPLIT", interp, line, col);
+        sep = args[1].as.s;
+    }
+    const char* s = args[0].as.s;
+    // simple separator: if sep==NULL split on whitespace, else split on sep exactly
+    char* copy = strdup(s);
+    char* saveptr = NULL;
+    char* token;
+    size_t cap = 8;
+    size_t count = 0;
+    Value* items = malloc(sizeof(Value) * cap);
+    if (!items) { free(copy); RUNTIME_ERROR(interp, "Out of memory", line, col); }
+    if (sep == NULL) {
+        // whitespace split
+        token = strtok_s(copy, " \t\r\n", &saveptr);
+        if (token) {
+            if (count + 1 > cap) { cap *= 2; items = realloc(items, sizeof(Value) * cap); }
+            items[count++] = value_str(token);
+        }
+    } else {
+        // split on sep: iterate
+        size_t seplen = strlen(sep);
+        char* cur = copy;
+        char* found;
+        while ((found = strstr(cur, sep)) != NULL) {
+            size_t len = (size_t)(found - cur);
+            char* piece = malloc(len + 1);
+            memcpy(piece, cur, len);
+            piece[len] = '\0';
+            if (count + 1 > cap) { cap *= 2; items = realloc(items, sizeof(Value) * cap); }
+            items[count++] = value_str(piece);
+            free(piece);
+            cur = found + seplen;
+        }
+        // last piece
+        if (*cur != '\0') {
+            if (count + 1 > cap) { cap *= 2; items = realloc(items, sizeof(Value) * cap); }
+            items[count++] = value_str(cur);
+        }
+        free(copy);
+        if (count == 0) {
+            free(items);
+            return value_tns_new(TYPE_STR, 1, (const size_t[]){0});
+        }
+        size_t shape[1] = { count };
+        Value out = value_tns_from_values(TYPE_STR, 1, shape, items, count);
+        for (size_t i = 0; i < count; i++) value_free(items[i]);
+        free(items);
+        return out;
+    }
+
+    while ((token = strtok_s(NULL, " \t\r\n", &saveptr)) != NULL) {
+        if (count + 1 > cap) { cap *= 2; items = realloc(items, sizeof(Value) * cap); }
+        items[count++] = value_str(token);
+    }
+    free(copy);
+    if (count == 0) {
+        free(items);
+        return value_tns_new(TYPE_STR, 1, (const size_t[]){0});
+    }
+    size_t shape[1] = { count };
+    Value out = value_tns_from_values(TYPE_STR, 1, shape, items, count);
+    for (size_t i = 0; i < count; i++) value_free(items[i]);
+    free(items);
+    return out;
 }
 
 static Value builtin_slice(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
     (void)arg_nodes; (void)env;
-    EXPECT_STR(args[0], "SLICE", interp, line, col);
-    EXPECT_INT(args[1], "SLICE", interp, line, col);
-    EXPECT_INT(args[2], "SLICE", interp, line, col);
-    
-    const char* s = args[0].as.s;
-    size_t len = strlen(s);
-    int64_t start = args[1].as.i;
-    int64_t end = args[2].as.i;
-    
-    // Convert 1-based to 0-based, handle negative indices
-    if (start < 0) start = (int64_t)len + start + 1;
-    if (end < 0) end = (int64_t)len + end + 1;
-    start--; // Convert to 0-based
-    
-    if (start < 0) start = 0;
-    if (end > (int64_t)len) end = (int64_t)len;
-    if (start >= end) return value_str("");
-    
-    size_t result_len = (size_t)(end - start);
-    char* result = malloc(result_len + 1);
-    memcpy(result, s + start, result_len);
-    result[result_len] = '\0';
-    
-    Value v = value_str(result);
-    free(result);
-    return v;
+    // SLICE can operate on STR or TNS for now. Syntax: SLICE(target, start, end)
+    if (args[0].type == VAL_STR) {
+        EXPECT_INT(args[1], "SLICE", interp, line, col);
+        EXPECT_INT(args[2], "SLICE", interp, line, col);
+        const char* s = args[0].as.s;
+        size_t len = strlen(s);
+        int64_t start = args[1].as.i;
+        int64_t end = args[2].as.i;
+        if (start < 0) start = (int64_t)len + start + 1;
+        if (end < 0) end = (int64_t)len + end + 1;
+        start--;
+        if (start < 0) start = 0;
+        if (end > (int64_t)len) end = (int64_t)len;
+        if (start >= end) return value_str("");
+        size_t result_len = (size_t)(end - start);
+        char* result = malloc(result_len + 1);
+        memcpy(result, s + start, result_len);
+        result[result_len] = '\0';
+        Value v = value_str(result);
+        free(result);
+        return v;
+    } else if (args[0].type == VAL_TNS) {
+        // slice along first axis using 1-based inclusive indices
+        EXPECT_INT(args[1], "SLICE", interp, line, col);
+        EXPECT_INT(args[2], "SLICE", interp, line, col);
+        int64_t starts[1] = { args[1].as.i };
+        int64_t ends[1] = { args[2].as.i };
+        return value_tns_slice(args[0], starts, ends, 1);
+    }
+    RUNTIME_ERROR(interp, "SLICE expects STR or TNS", line, col);
 }
 
 static Value builtin_replace(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
@@ -1496,7 +1589,13 @@ static Value builtin_len(Interpreter* interp, Value* args, int argc, Expr** arg_
     if (args[0].type == VAL_STR) {
         return value_int((int64_t)strlen(args[0].as.s));
     }
-    RUNTIME_ERROR(interp, "LEN requires TNS support for non-string arguments (Stage 4)", line, col);
+    if (args[0].type == VAL_TNS) {
+        Tensor* t = args[0].as.tns;
+        if (!t) return value_int(0);
+        if (t->ndim == 0) return value_int(0);
+        return value_int((int64_t)t->shape[0]);
+    }
+    RUNTIME_ERROR(interp, "LEN expects STR or TNS", line, col);
 }
 
 // Main, OS

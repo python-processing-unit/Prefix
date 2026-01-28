@@ -36,7 +36,7 @@ Push-Location $buildDir
 try {
     # Build in temp dir; cl will place outputs in the current dir
     $fe = "/Fe:prefix.exe"
-    $args = @("/std:c17", "/Gd", "/O2", "/W4", "/WX", "/nologo", $fe)
+    $args = @("/std:c17", "/Gd", "/O2", "/Gy", "/GF", "/GL", "/W4", "/WX", "/MP", "/nologo", $fe)
     $args += $cFiles
 
     Write-Host "Invoking: cl.exe $($args -join ' ')"

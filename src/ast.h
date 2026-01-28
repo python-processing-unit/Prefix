@@ -7,6 +7,7 @@ typedef enum {
     TYPE_INT,
     TYPE_FLT,
     TYPE_STR,
+    TYPE_TNS,
     TYPE_FUNC,
     TYPE_UNKNOWN
 } DeclType;
@@ -19,7 +20,11 @@ typedef enum {
     EXPR_FLT,
     EXPR_STR,
     EXPR_IDENT,
-    EXPR_CALL
+    EXPR_CALL,
+    EXPR_TNS,
+    EXPR_INDEX,
+    EXPR_RANGE,
+    EXPR_WILDCARD
 } ExprType;
 
 typedef struct {
@@ -41,6 +46,15 @@ struct Expr {
             Expr* callee;
             ExprList args;
         } call;
+        struct {
+            Expr* target;
+            ExprList indices;
+        } index;
+        struct {
+            Expr* start;
+            Expr* end;
+        } range;
+        ExprList tns_items;
     } as;
 };
 
@@ -111,6 +125,10 @@ Expr* expr_flt(double value, int line, int column);
 Expr* expr_str(char* value, int line, int column);
 Expr* expr_ident(char* name, int line, int column);
 Expr* expr_call(Expr* callee, int line, int column);
+Expr* expr_tns(int line, int column);
+Expr* expr_index(Expr* target, int line, int column);
+Expr* expr_range(Expr* start, Expr* end, int line, int column);
+Expr* expr_wildcard(int line, int column);
 void expr_list_add(ExprList* list, Expr* expr);
 
 Stmt* stmt_block(int line, int column);

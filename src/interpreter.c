@@ -121,6 +121,7 @@ static DeclType value_type_to_decl(ValueType vt) {
         case VAL_INT: return TYPE_INT;
         case VAL_FLT: return TYPE_FLT;
         case VAL_STR: return TYPE_STR;
+        case VAL_TNS: return TYPE_TNS;
         case VAL_FUNC: return TYPE_FUNC;
         default: return TYPE_UNKNOWN;
     }
@@ -131,8 +132,74 @@ static ValueType decl_type_to_value(DeclType dt) {
         case TYPE_INT: return VAL_INT;
         case TYPE_FLT: return VAL_FLT;
         case TYPE_STR: return VAL_STR;
+        case TYPE_TNS: return VAL_TNS;
         case TYPE_FUNC: return VAL_FUNC;
         default: return VAL_NULL;
+    }
+}
+
+// Compute tensor shape from AST tensor literal. Returns true on success
+// and allocates *out_shape (caller must free). On failure sets *err.
+static bool ast_tns_compute_shape(Expr* expr, size_t** out_shape, size_t* out_ndim, char** err) {
+    if (!expr || expr->type != EXPR_TNS) {
+        *err = strdup("Internal: expected tensor AST node");
+        return false;
+    }
+    size_t count = expr->as.tns_items.count;
+    if (count == 0) {
+        *err = strdup("Tensor literal must be non-empty");
+        return false;
+    }
+
+    Expr* first = expr->as.tns_items.items[0];
+    if (first->type == EXPR_TNS) {
+        // All items must be EXPR_TNS and have identical shape
+        size_t* child_shape = NULL;
+        size_t child_ndim = 0;
+        for (size_t i = 0; i < count; i++) {
+            Expr* it = expr->as.tns_items.items[i];
+            if (it->type != EXPR_TNS) {
+                *err = strdup("Mixed nested and non-nested tensor elements");
+                return false;
+            }
+            size_t* s = NULL; size_t nd = 0;
+            if (!ast_tns_compute_shape(it, &s, &nd, err)) {
+                return false;
+            }
+            if (i == 0) {
+                child_shape = s; child_ndim = nd;
+            } else {
+                if (nd != child_ndim) {
+                    free(s);
+                    *err = strdup("Inconsistent tensor shapes in nested literal");
+                    free(child_shape);
+                    return false;
+                }
+                for (size_t k = 0; k < nd; k++) {
+                    if (s[k] != child_shape[k]) {
+                        free(s);
+                        *err = strdup("Inconsistent tensor shapes in nested literal");
+                        free(child_shape);
+                        return false;
+                    }
+                }
+                free(s);
+            }
+        }
+
+        // Build shape = [count] + child_shape
+        *out_ndim = child_ndim + 1;
+        *out_shape = malloc(sizeof(size_t) * (*out_ndim));
+        (*out_shape)[0] = count;
+        for (size_t k = 0; k < child_ndim; k++) (*out_shape)[k+1] = child_shape[k];
+        free(child_shape);
+        return true;
+    } else {
+        // Leaf level
+        *out_ndim = 1;
+        *out_shape = malloc(sizeof(size_t));
+        (*out_shape)[0] = count;
+        return true;
     }
 }
 
@@ -160,6 +227,16 @@ static ExecResult make_ok(Value v) {
     res.error_line = 0;
     res.error_column = 0;
     return res;
+}
+
+// Clear the interpreter error after handling it
+static void clear_error(Interpreter* interp) {
+    if (interp->error) {
+        free(interp->error);
+        interp->error = NULL;
+        interp->error_line = 0;
+        interp->error_col = 0;
+    }
 }
 
 // ============ Expression evaluation ============
@@ -382,9 +459,14 @@ Value eval_expr(Interpreter* interp, Expr* expr, Env* env) {
             env_free(call_env);
             
             if (res.status == EXEC_ERROR) {
-                interp->error = res.error;
+                /* Copy the error message into the interpreter-owned slot and
+                   free the ExecResult-owned string to avoid ambiguous ownership
+                   (which previously could lead to double-free or use-after-free
+                   and cause the interpreter to hang). */
+                interp->error = res.error ? strdup(res.error) : strdup("Error");
                 interp->error_line = res.error_line;
                 interp->error_col = res.error_column;
+                free(res.error);
                 return value_null();
             }
             
@@ -416,6 +498,218 @@ Value eval_expr(Interpreter* interp, Expr* expr, Env* env) {
                     return value_null();
             }
         }
+        case EXPR_TNS: {
+            // Compute shape
+            size_t* shape = NULL;
+            size_t ndim = 0;
+            char* serr = NULL;
+            if (!ast_tns_compute_shape(expr, &shape, &ndim, &serr)) {
+                interp->error = serr ? serr : strdup("Invalid tensor literal");
+                interp->error_line = expr->line;
+                interp->error_col = expr->column;
+                return value_null();
+            }
+
+            size_t total = 1;
+            for (size_t d = 0; d < ndim; d++) total *= shape[d];
+
+            Value* items = malloc(sizeof(Value) * (total ? total : 1));
+            size_t pos = 0;
+
+            for (size_t i = 0; i < expr->as.tns_items.count; i++) {
+                Expr* it = expr->as.tns_items.items[i];
+                if (it->type == EXPR_TNS) {
+                    Value cv = eval_expr(interp, it, env);
+                    if (interp->error) { goto tns_eval_fail; }
+                    if (cv.type != VAL_TNS) {
+                        interp->error = strdup("Nested tensor literal did not evaluate to tensor");
+                        interp->error_line = it->line;
+                        interp->error_col = it->column;
+                        value_free(cv);
+                        goto tns_eval_fail;
+                    }
+                    Tensor* ct = cv.as.tns;
+                    if (ct->ndim != (ndim ? ndim - 1 : 0)) {
+                        interp->error = strdup("Nested tensor shape mismatch");
+                        interp->error_line = it->line;
+                        interp->error_col = it->column;
+                        value_free(cv);
+                        goto tns_eval_fail;
+                    }
+                    for (size_t d = 0; d < ct->ndim; d++) {
+                        if (ct->shape[d] != shape[d+1]) {
+                            interp->error = strdup("Nested tensor shape mismatch");
+                            interp->error_line = it->line;
+                            interp->error_col = it->column;
+                            value_free(cv);
+                            goto tns_eval_fail;
+                        }
+                    }
+                    for (size_t k = 0; k < ct->length; k++) items[pos++] = value_copy(ct->data[k]);
+                    value_free(cv);
+                } else {
+                    Value v = eval_expr(interp, it, env);
+                    if (interp->error) { goto tns_eval_fail; }
+                    items[pos++] = value_copy(v);
+                    value_free(v);
+                }
+            }
+
+            if (pos != total) {
+                interp->error = strdup("Internal: tensor flatten length mismatch");
+                interp->error_line = expr->line;
+                interp->error_col = expr->column;
+                goto tns_eval_fail;
+            }
+
+            if (total == 0) {
+                interp->error = strdup("Empty tensor literal");
+                interp->error_line = expr->line;
+                interp->error_col = expr->column;
+                goto tns_eval_fail;
+            }
+
+            DeclType elem_decl = value_type_to_decl(items[0].type);
+            for (size_t j = 1; j < total; j++) {
+                if (value_type_to_decl(items[j].type) != elem_decl) {
+                    interp->error = strdup("Tensor literal elements must have uniform type");
+                    interp->error_line = expr->line;
+                    interp->error_col = expr->column;
+                    goto tns_eval_fail;
+                }
+            }
+
+            Value out = value_tns_from_values(elem_decl, ndim, shape, items, total);
+            for (size_t j = 0; j < total; j++) value_free(items[j]);
+            free(items);
+            free(shape);
+            return out;
+
+tns_eval_fail:
+            for (size_t j = 0; j < pos; j++) value_free(items[j]);
+            free(items);
+            free(shape);
+            return value_null();
+        }
+        case EXPR_INDEX: {
+            // Evaluate target
+            Expr* target = expr->as.index.target;
+            Value tval = eval_expr(interp, target, env);
+            if (interp->error) return value_null();
+            if (tval.type != VAL_TNS) {
+                interp->error = strdup("Indexing is supported only on tensors");
+                interp->error_line = expr->line;
+                interp->error_col = expr->column;
+                value_free(tval);
+                return value_null();
+            }
+            Tensor* t = tval.as.tns;
+            size_t nidx = expr->as.index.indices.count;
+            if (nidx == 0) {
+                value_free(tval);
+                interp->error = strdup("Empty index list");
+                interp->error_line = expr->line;
+                interp->error_col = expr->column;
+                return value_null();
+            }
+
+            // Check whether all indices are simple integer indexes
+            bool all_int = true;
+            for (size_t i = 0; i < nidx; i++) {
+                Expr* it = expr->as.index.indices.items[i];
+                if (it->type != EXPR_INT) {
+                    all_int = false;
+                    break;
+                }
+            }
+
+            // If all are ints and count <= ndim, perform direct get
+            if (all_int) {
+                // Build 0-based idx array
+                size_t* idxs = malloc(sizeof(size_t) * nidx);
+                for (size_t i = 0; i < nidx; i++) {
+                    Expr* it = expr->as.index.indices.items[i];
+                    Value vi = eval_expr(interp, it, env);
+                    if (interp->error) {
+                        free(idxs);
+                        value_free(tval);
+                        return value_null();
+                    }
+                    if (vi.type != VAL_INT) {
+                        interp->error = strdup("Index expression must evaluate to INT");
+                        interp->error_line = it->line;
+                        interp->error_col = it->column;
+                        value_free(vi);
+                        free(idxs);
+                        value_free(tval);
+                        return value_null();
+                    }
+                    int64_t v = vi.as.i;
+                    // convert 1-based/negative to 0-based
+                    int64_t dim = (int64_t)t->shape[i];
+                    if (v < 0) v = dim + v + 1;
+                    if (v < 1 || v > dim) {
+                        interp->error = strdup("Index out of range");
+                        interp->error_line = it->line;
+                        interp->error_col = it->column;
+                        value_free(vi);
+                        free(idxs);
+                        value_free(tval);
+                        return value_null();
+                    }
+                    idxs[i] = (size_t)(v - 1);
+                    value_free(vi);
+                }
+                Value out = value_tns_get(tval, idxs, nidx);
+                free(idxs);
+                value_free(tval);
+                return out;
+            }
+
+            // Mixed case: build starts/ends arrays (1-based inclusive per value_tns_slice)
+            int64_t* starts = malloc(sizeof(int64_t) * nidx);
+            int64_t* ends = malloc(sizeof(int64_t) * nidx);
+            for (size_t i = 0; i < nidx; i++) {
+                Expr* it = expr->as.index.indices.items[i];
+                if (it->type == EXPR_WILDCARD) {
+                    starts[i] = 1;
+                    ends[i] = (int64_t)t->shape[i];
+                } else if (it->type == EXPR_RANGE) {
+                    // evaluate start and end
+                    Value vs = eval_expr(interp, it->as.range.start, env);
+                    if (interp->error) { free(starts); free(ends); value_free(tval); return value_null(); }
+                    Value ve = eval_expr(interp, it->as.range.end, env);
+                    if (interp->error) { value_free(vs); free(starts); free(ends); value_free(tval); return value_null(); }
+                    if (vs.type != VAL_INT || ve.type != VAL_INT) {
+                        interp->error = strdup("Range bounds must be INT");
+                        interp->error_line = it->line;
+                        interp->error_col = it->column;
+                        value_free(vs); value_free(ve); free(starts); free(ends); value_free(tval); return value_null();
+                    }
+                    starts[i] = vs.as.i;
+                    ends[i] = ve.as.i;
+                    value_free(vs); value_free(ve);
+                } else {
+                    // general expression: expect INT
+                    Value vi = eval_expr(interp, it, env);
+                    if (interp->error) { free(starts); free(ends); value_free(tval); return value_null(); }
+                    if (vi.type != VAL_INT) {
+                        interp->error = strdup("Index expression must evaluate to INT");
+                        interp->error_line = it->line;
+                        interp->error_col = it->column;
+                        value_free(vi); free(starts); free(ends); value_free(tval); return value_null();
+                    }
+                    starts[i] = vi.as.i;
+                    ends[i] = vi.as.i;
+                    value_free(vi);
+                }
+            }
+
+            Value out = value_tns_slice(tval, starts, ends, nidx);
+            free(starts); free(ends);
+            value_free(tval);
+            return out;
+        }
         
         default:
             interp->error = strdup("Unknown expression type");
@@ -429,36 +723,39 @@ Value eval_expr(Interpreter* interp, Expr* expr, Env* env) {
 
 static ExecResult exec_stmt(Interpreter* interp, Stmt* stmt, Env* env, LabelMap* labels) {
     if (!stmt) return make_ok(value_null());
-    
+
     switch (stmt->type) {
         case STMT_BLOCK:
             return exec_stmt_list(interp, &stmt->as.block, env, labels);
-            
+
         case STMT_EXPR: {
             Value v = eval_expr(interp, stmt->as.expr_stmt.expr, env);
             if (interp->error) {
-                return make_error(interp->error, interp->error_line, interp->error_col);
+                ExecResult err = make_error(interp->error, interp->error_line, interp->error_col);
+                clear_error(interp);
+                return err;
             }
             value_free(v);
             return make_ok(value_null());
         }
-        
+
         case STMT_DECL: {
             env_define(env, stmt->as.decl.name, stmt->as.decl.decl_type);
             return make_ok(value_null());
         }
-        
+
         case STMT_ASSIGN: {
             Value v = eval_expr(interp, stmt->as.assign.value, env);
             if (interp->error) {
-                return make_error(interp->error, interp->error_line, interp->error_col);
+                ExecResult err = make_error(interp->error, interp->error_line, interp->error_col);
+                clear_error(interp);
+                return err;
             }
-            
+
             if (stmt->as.assign.has_type) {
-                // Declaration with assignment
                 DeclType expected = stmt->as.assign.decl_type;
                 DeclType actual = value_type_to_decl(v.type);
-                
+
                 if (expected != actual) {
                     char buf[128];
                     snprintf(buf, sizeof(buf), "Type mismatch: expected %s but got %s",
@@ -469,11 +766,10 @@ static ExecResult exec_stmt(Interpreter* interp, Stmt* stmt, Env* env, LabelMap*
                     value_free(v);
                     return make_error(buf, stmt->line, stmt->column);
                 }
-                
+
                 env_define(env, stmt->as.assign.name, expected);
                 env_assign(env, stmt->as.assign.name, v, expected, true);
             } else {
-                // Assignment without type - must be previously declared
                 if (!env_assign(env, stmt->as.assign.name, v, TYPE_UNKNOWN, false)) {
                     char buf[128];
                     snprintf(buf, sizeof(buf), "Cannot assign to undeclared identifier '%s'", stmt->as.assign.name);
@@ -484,194 +780,53 @@ static ExecResult exec_stmt(Interpreter* interp, Stmt* stmt, Env* env, LabelMap*
             value_free(v);
             return make_ok(value_null());
         }
-        
-        case STMT_IF: {
-            // Evaluate condition
-            Value cond = eval_expr(interp, stmt->as.if_stmt.condition, env);
-            if (interp->error) {
-                return make_error(interp->error, interp->error_line, interp->error_col);
-            }
-            
-            if (value_truthiness(cond)) {
-                value_free(cond);
-                return exec_stmt(interp, stmt->as.if_stmt.then_branch, env, labels);
-            }
-            value_free(cond);
-            
-            // Check elif branches
-            for (size_t i = 0; i < stmt->as.if_stmt.elif_conditions.count; i++) {
-                Value elif_cond = eval_expr(interp, stmt->as.if_stmt.elif_conditions.items[i], env);
-                if (interp->error) {
-                    return make_error(interp->error, interp->error_line, interp->error_col);
-                }
-                
-                if (value_truthiness(elif_cond)) {
-                    value_free(elif_cond);
-                    return exec_stmt(interp, stmt->as.if_stmt.elif_blocks.items[i], env, labels);
-                }
-                value_free(elif_cond);
-            }
-            
-            // Check else branch
-            if (stmt->as.if_stmt.else_branch) {
-                return exec_stmt(interp, stmt->as.if_stmt.else_branch, env, labels);
-            }
-            
-            return make_ok(value_null());
-        }
-        
-        case STMT_WHILE: {
-            interp->loop_depth++;
-            
-            while (1) {
-                Value cond = eval_expr(interp, stmt->as.while_stmt.condition, env);
-                if (interp->error) {
-                    interp->loop_depth--;
-                    return make_error(interp->error, interp->error_line, interp->error_col);
-                }
-                
-                if (!value_truthiness(cond)) {
-                    value_free(cond);
-                    break;
-                }
-                value_free(cond);
-                
-                ExecResult res = exec_stmt(interp, stmt->as.while_stmt.body, env, labels);
-                
-                if (res.status == EXEC_ERROR || res.status == EXEC_RETURN || res.status == EXEC_GOTO) {
-                    interp->loop_depth--;
-                    return res;
-                }
-                
-                if (res.status == EXEC_BREAK) {
-                    if (res.break_count > 1) {
-                        res.break_count--;
-                        interp->loop_depth--;
-                        return res;
-                    }
-                    break;
-                }
-                
-                if (res.status == EXEC_CONTINUE) {
-                    continue;
-                }
-            }
-            
-            interp->loop_depth--;
-            return make_ok(value_null());
-        }
-        
-        case STMT_FOR: {
-            // Evaluate target once
-            Value target = eval_expr(interp, stmt->as.for_stmt.target, env);
-            if (interp->error) {
-                return make_error(interp->error, interp->error_line, interp->error_col);
-            }
-            
-            if (target.type != VAL_INT) {
-                value_free(target);
-                return make_error("FOR target must be INT", stmt->line, stmt->column);
-            }
-            
-            int64_t limit = target.as.i;
-            value_free(target);
-            
-            // Save any existing binding for counter
-            Value old_val;
-            DeclType old_type;
-            bool old_init;
-            bool had_counter = env_get(env, stmt->as.for_stmt.counter, &old_val, &old_type, &old_init);
-            
-            // Create counter
-            env_define(env, stmt->as.for_stmt.counter, TYPE_INT);
-            
-            interp->loop_depth++;
-            
-            for (int64_t i = 0; i < limit; i++) {
-                env_assign(env, stmt->as.for_stmt.counter, value_int(i), TYPE_INT, true);
-                
-                ExecResult res = exec_stmt(interp, stmt->as.for_stmt.body, env, labels);
-                
-                if (res.status == EXEC_ERROR || res.status == EXEC_RETURN || res.status == EXEC_GOTO) {
-                    interp->loop_depth--;
-                    // Restore counter
-                    env_delete(env, stmt->as.for_stmt.counter);
-                    if (had_counter && old_init) {
-                        env_define(env, stmt->as.for_stmt.counter, old_type);
-                        env_assign(env, stmt->as.for_stmt.counter, old_val, old_type, true);
-                    }
-                    if (had_counter) value_free(old_val);
-                    return res;
-                }
-                
-                if (res.status == EXEC_BREAK) {
-                    if (res.break_count > 1) {
-                        res.break_count--;
-                        interp->loop_depth--;
-                        env_delete(env, stmt->as.for_stmt.counter);
-                        if (had_counter && old_init) {
-                            env_define(env, stmt->as.for_stmt.counter, old_type);
-                            env_assign(env, stmt->as.for_stmt.counter, old_val, old_type, true);
-                        }
-                        if (had_counter) value_free(old_val);
-                        return res;
-                    }
-                    break;
-                }
-                
-                if (res.status == EXEC_CONTINUE) {
-                    continue;
-                }
-            }
-            
-            interp->loop_depth--;
-            
-            // Restore counter
-            env_delete(env, stmt->as.for_stmt.counter);
-            if (had_counter && old_init) {
-                env_define(env, stmt->as.for_stmt.counter, old_type);
-                env_assign(env, stmt->as.for_stmt.counter, old_val, old_type, true);
-            }
-            if (had_counter) value_free(old_val);
-            
-            return make_ok(value_null());
-        }
-        
+
         case STMT_FUNC: {
-            // Check if name conflicts with builtin
-            if (is_builtin(stmt->as.func_stmt.name)) {
-                char buf[128];
-                snprintf(buf, sizeof(buf), "Cannot define function with builtin name '%s'", stmt->as.func_stmt.name);
-                return make_error(buf, stmt->line, stmt->column);
+            // Register user-defined function in the interpreter
+            Func* f = safe_malloc(sizeof(Func));
+            f->name = strdup(stmt->as.func_stmt.name);
+            f->return_type = stmt->as.func_stmt.return_type;
+            f->body = stmt->as.func_stmt.body;
+            // Copy parameters
+            ParamList* src = &stmt->as.func_stmt.params;
+            f->params.count = src->count;
+            f->params.items = NULL;
+            f->params.capacity = src->capacity;
+            if (src->count > 0) {
+                f->params.items = safe_malloc(sizeof(Param) * src->count);
+                for (size_t i = 0; i < src->count; i++) {
+                    f->params.items[i].type = src->items[i].type;
+                    f->params.items[i].name = strdup(src->items[i].name);
+                    f->params.items[i].default_value = src->items[i].default_value; // share AST node
+                }
             }
-            
-            // Create function object
-            Func* func = safe_malloc(sizeof(Func));
-            func->name = strdup(stmt->as.func_stmt.name);
-            func->return_type = stmt->as.func_stmt.return_type;
-            func->params = stmt->as.func_stmt.params;
-            func->body = stmt->as.func_stmt.body;
-            func->closure = env;
-            
-            // Add to function table
-            func_table_add(interp->functions, func->name, func);
-            
-            // Also store as a FUNC value in environment
-            env_define(env, func->name, TYPE_FUNC);
-            env_assign(env, func->name, value_func(func), TYPE_FUNC, true);
-            
+            // Closure is current environment
+            f->closure = env;
+
+            if (!func_table_add(interp->functions, f->name, f)) {
+                // Name conflict
+                free(f->name);
+                // free params names
+                for (size_t i = 0; i < f->params.count; i++) free(f->params.items[i].name);
+                free(f->params.items);
+                free(f);
+                return make_error("Function name already defined", stmt->line, stmt->column);
+            }
+
             return make_ok(value_null());
         }
-        
+
         case STMT_RETURN: {
+            // Evaluate return expression and propagate as EXEC_RETURN
             Value v = eval_expr(interp, stmt->as.return_stmt.value, env);
             if (interp->error) {
-                return make_error(interp->error, interp->error_line, interp->error_col);
+                ExecResult err = make_error(interp->error, interp->error_line, interp->error_col);
+                clear_error(interp);
+                return err;
             }
-            
             ExecResult res;
             res.status = EXEC_RETURN;
-            res.value = v;
+            res.value = v; // caller will own and free
             res.break_count = 0;
             res.jump_index = -1;
             res.error = NULL;
@@ -679,28 +834,61 @@ static ExecResult exec_stmt(Interpreter* interp, Stmt* stmt, Env* env, LabelMap*
             res.error_column = 0;
             return res;
         }
-        
+
+        case STMT_TRY: {
+            // Execute try block and, on error, run catch block if present
+            bool prev_in_try = interp->in_try_block;
+            interp->in_try_block = true;
+            ExecResult tres = exec_stmt(interp, stmt->as.try_stmt.try_block, env, labels);
+            interp->in_try_block = prev_in_try;
+
+            if (tres.status == EXEC_ERROR) {
+                // Determine error message
+                char* msg = NULL;
+                if (tres.error) {
+                    msg = strdup(tres.error);
+                } else if (interp->error) {
+                    msg = strdup(interp->error);
+                } else {
+                    msg = strdup("Error");
+                }
+
+                // Clear interpreter error state
+                clear_error(interp);
+
+                // If a catch block exists, bind the catch name (if any) and execute it
+                if (stmt->as.try_stmt.catch_block) {
+                    if (stmt->as.try_stmt.catch_name) {
+                        env_define(env, stmt->as.try_stmt.catch_name, TYPE_STR);
+                        env_assign(env, stmt->as.try_stmt.catch_name, value_str(msg), TYPE_STR, true);
+                    }
+                    free(msg);
+                    ExecResult cres = exec_stmt(interp, stmt->as.try_stmt.catch_block, env, labels);
+                    if (cres.status == EXEC_ERROR) return cres;
+                    return cres;
+                }
+
+                free(msg);
+                // No catch -> propagate error upward
+                return tres;
+            }
+
+            // No error in try block -> normal completion
+            return tres;
+        }
+
         case STMT_BREAK: {
+            // Evaluate break count expression
             Value v = eval_expr(interp, stmt->as.break_stmt.value, env);
             if (interp->error) {
-                return make_error(interp->error, interp->error_line, interp->error_col);
+                ExecResult err = make_error(interp->error, interp->error_line, interp->error_col);
+                clear_error(interp);
+                return err;
             }
-            
             if (v.type != VAL_INT) {
                 value_free(v);
-                return make_error("BREAK argument must be INT", stmt->line, stmt->column);
+                return make_error("BREAK requires INT argument", stmt->line, stmt->column);
             }
-            
-            if (v.as.i <= 0) {
-                value_free(v);
-                return make_error("BREAK argument must be positive", stmt->line, stmt->column);
-            }
-            
-            if (v.as.i > interp->loop_depth) {
-                value_free(v);
-                return make_error("BREAK count exceeds loop nesting depth", stmt->line, stmt->column);
-            }
-            
             ExecResult res;
             res.status = EXEC_BREAK;
             res.value = value_null();
@@ -712,12 +900,8 @@ static ExecResult exec_stmt(Interpreter* interp, Stmt* stmt, Env* env, LabelMap*
             value_free(v);
             return res;
         }
-        
+
         case STMT_CONTINUE: {
-            if (interp->loop_depth <= 0) {
-                return make_error("CONTINUE outside of loop", stmt->line, stmt->column);
-            }
-            
             ExecResult res;
             res.status = EXEC_CONTINUE;
             res.value = value_null();
@@ -728,83 +912,145 @@ static ExecResult exec_stmt(Interpreter* interp, Stmt* stmt, Env* env, LabelMap*
             res.error_column = 0;
             return res;
         }
-        
-        case STMT_TRY: {
-            bool old_in_try = interp->in_try_block;
-            interp->in_try_block = true;
-            
-            // Execute try block
-            ExecResult res = exec_stmt(interp, stmt->as.try_stmt.try_block, env, labels);
-            
-            interp->in_try_block = old_in_try;
-            
-            if (res.status == EXEC_ERROR) {
-                // Create catch environment
-                Env* catch_env = env;
-                
-                // If there's a catch name, bind the error message
-                if (stmt->as.try_stmt.catch_name) {
-                    env_define(catch_env, stmt->as.try_stmt.catch_name, TYPE_STR);
-                    env_assign(catch_env, stmt->as.try_stmt.catch_name, 
-                              value_str(res.error ? res.error : "Error"), TYPE_STR, true);
-                }
-                
-                free(res.error);
-                free(interp->error);
-                interp->error = NULL;
-                
-                // Execute catch block
-                ExecResult catch_res = exec_stmt(interp, stmt->as.try_stmt.catch_block, catch_env, labels);
-                
-                // Clean up catch binding
-                if (stmt->as.try_stmt.catch_name) {
-                    env_delete(catch_env, stmt->as.try_stmt.catch_name);
-                }
-                
-                return catch_res;
-            }
-            
-            return res;
-        }
-        
-        case STMT_GOTO: {
-            Value target = eval_expr(interp, stmt->as.goto_stmt.target, env);
+
+        case STMT_IF: {
+            Value cond = eval_expr(interp, stmt->as.if_stmt.condition, env);
             if (interp->error) {
-                return make_error(interp->error, interp->error_line, interp->error_col);
+                ExecResult err = make_error(interp->error, interp->error_line, interp->error_col);
+                clear_error(interp);
+                return err;
             }
-            
-            int idx = label_map_find(labels, target);
-            value_free(target);
-            
-            if (idx < 0) {
-                return make_error("GOTO target not found", stmt->line, stmt->column);
+
+            if (value_truthiness(cond)) {
+                value_free(cond);
+                return exec_stmt(interp, stmt->as.if_stmt.then_branch, env, labels);
             }
-            
-            ExecResult res;
-            res.status = EXEC_GOTO;
-            res.value = value_null();
-            res.break_count = 0;
-            res.jump_index = idx;
-            res.error = NULL;
-            res.error_line = 0;
-            res.error_column = 0;
-            return res;
-        }
-        
-        case STMT_GOTOPOINT: {
-            Value target = eval_expr(interp, stmt->as.gotopoint_stmt.target, env);
-            if (interp->error) {
-                return make_error(interp->error, interp->error_line, interp->error_col);
+            value_free(cond);
+
+            for (size_t i = 0; i < stmt->as.if_stmt.elif_conditions.count; i++) {
+                Value elif_cond = eval_expr(interp, stmt->as.if_stmt.elif_conditions.items[i], env);
+                if (interp->error) {
+                    ExecResult err = make_error(interp->error, interp->error_line, interp->error_col);
+                    clear_error(interp);
+                    return err;
+                }
+
+                if (value_truthiness(elif_cond)) {
+                    value_free(elif_cond);
+                    return exec_stmt(interp, stmt->as.if_stmt.elif_blocks.items[i], env, labels);
+                }
+                value_free(elif_cond);
             }
-            
-            // Register this gotopoint - the index will be set by exec_stmt_list
-            // For now, just return OK
-            value_free(target);
+
+            if (stmt->as.if_stmt.else_branch) {
+                return exec_stmt(interp, stmt->as.if_stmt.else_branch, env, labels);
+            }
+
             return make_ok(value_null());
         }
-        
+
+        case STMT_WHILE: {
+            interp->loop_depth++;
+            int iteration_count = 0;
+            const int max_iterations = 100000; // Prevent infinite loops
+
+            while (1) {
+                if (++iteration_count > max_iterations) {
+                    interp->loop_depth--;
+                    return make_error("Infinite loop detected", stmt->line, stmt->column);
+                }
+
+                Value cond = eval_expr(interp, stmt->as.while_stmt.condition, env);
+                if (interp->error) {
+                    interp->loop_depth--;
+                    ExecResult err = make_error(interp->error, interp->error_line, interp->error_col);
+                    clear_error(interp);
+                    return err;
+                }
+
+                if (!value_truthiness(cond)) {
+                    value_free(cond);
+                    break;
+                }
+                value_free(cond);
+
+                ExecResult res = exec_stmt(interp, stmt->as.while_stmt.body, env, labels);
+
+                if (res.status == EXEC_ERROR || res.status == EXEC_RETURN || res.status == EXEC_GOTO) {
+                    interp->loop_depth--;
+                    return res;
+                }
+
+                if (res.status == EXEC_BREAK) {
+                    if (res.break_count > 1) {
+                        res.break_count--;
+                        interp->loop_depth--;
+                        return res;
+                    }
+                    break;
+                }
+            }
+
+            interp->loop_depth--;
+            return make_ok(value_null());
+        }
+
+        case STMT_FOR: {
+            interp->loop_depth++;
+            int iteration_count = 0;
+            const int max_iterations = 100000; // Prevent infinite loops
+
+            Value target = eval_expr(interp, stmt->as.for_stmt.target, env);
+            if (interp->error) {
+                interp->loop_depth--;
+                ExecResult err = make_error(interp->error, interp->error_line, interp->error_col);
+                clear_error(interp);
+                return err;
+            }
+
+            if (target.type != VAL_INT) {
+                value_free(target);
+                interp->loop_depth--;
+                return make_error("FOR target must be INT", stmt->line, stmt->column);
+            }
+
+            int64_t limit = target.as.i;
+            value_free(target);
+
+            for (int64_t idx = 0; idx < limit; idx++) {
+                if (++iteration_count > max_iterations) {
+                    interp->loop_depth--;
+                    return make_error("Infinite loop detected", stmt->line, stmt->column);
+                }
+
+                // Bind or assign the loop counter in the current environment
+                env_assign(env, stmt->as.for_stmt.counter, value_int(idx), TYPE_INT, true);
+
+                ExecResult res = exec_stmt(interp, stmt->as.for_stmt.body, env, labels);
+
+                if (res.status == EXEC_ERROR || res.status == EXEC_RETURN || res.status == EXEC_GOTO) {
+                    interp->loop_depth--;
+                    return res;
+                }
+
+                if (res.status == EXEC_BREAK) {
+                    if (res.break_count > 1) {
+                        res.break_count--;
+                        interp->loop_depth--;
+                        return res;
+                    }
+                    break;
+                }
+
+                // EXEC_CONTINUE is treated as a normal completion (loop continues)
+            }
+
+            interp->loop_depth--;
+            return make_ok(value_null());
+        }
+
         default:
-            return make_error("Unknown statement type", stmt->line, stmt->column);
+            return make_ok(value_null());
     }
 }
 

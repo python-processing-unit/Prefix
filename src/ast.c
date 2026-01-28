@@ -58,6 +58,47 @@ Expr* expr_call(Expr* callee, int line, int column) {
     return expr;
 }
 
+Expr* expr_tns(int line, int column) {
+    Expr* expr = ast_alloc(sizeof(Expr));
+    expr->type = EXPR_TNS;
+    expr->line = line;
+    expr->column = column;
+    expr->as.tns_items.items = NULL;
+    expr->as.tns_items.count = 0;
+    expr->as.tns_items.capacity = 0;
+    return expr;
+}
+
+Expr* expr_index(Expr* target, int line, int column) {
+    Expr* expr = ast_alloc(sizeof(Expr));
+    expr->type = EXPR_INDEX;
+    expr->line = line;
+    expr->column = column;
+    expr->as.index.target = target;
+    expr->as.index.indices.items = NULL;
+    expr->as.index.indices.count = 0;
+    expr->as.index.indices.capacity = 0;
+    return expr;
+}
+
+Expr* expr_range(Expr* start, Expr* end, int line, int column) {
+    Expr* expr = ast_alloc(sizeof(Expr));
+    expr->type = EXPR_RANGE;
+    expr->line = line;
+    expr->column = column;
+    expr->as.range.start = start;
+    expr->as.range.end = end;
+    return expr;
+}
+
+Expr* expr_wildcard(int line, int column) {
+    Expr* expr = ast_alloc(sizeof(Expr));
+    expr->type = EXPR_WILDCARD;
+    expr->line = line;
+    expr->column = column;
+    return expr;
+}
+
 void expr_list_add(ExprList* list, Expr* expr) {
     if (list->count + 1 > list->capacity) {
         size_t new_cap = list->capacity == 0 ? 4 : list->capacity * 2;
@@ -252,6 +293,17 @@ void free_expr(Expr* expr) {
     switch (expr->type) {
         case EXPR_STR:
             free(expr->as.str_value);
+            break;
+        case EXPR_TNS:
+            free_expr_list(&expr->as.tns_items);
+            break;
+        case EXPR_INDEX:
+            free_expr(expr->as.index.target);
+            free_expr_list(&expr->as.index.indices);
+            break;
+        case EXPR_RANGE:
+            free_expr(expr->as.range.start);
+            free_expr(expr->as.range.end);
             break;
         case EXPR_IDENT:
             free(expr->as.ident);

@@ -24,12 +24,20 @@ static void advance(Parser* parser) {
     parser->current_token = parser->next_token;
     parser->next_token = lexer_next_token(parser->lexer);
 
-    if (parser->current_token.type == TOKEN_ERROR) {
+    /* If the lexer produced an error token, report it and advance until
+       we reach a non-error token. Use a loop instead of recursion so the
+       parser doesn't overflow the stack or hang when many consecutive
+       error tokens are emitted. */
+    while (parser->current_token.type == TOKEN_ERROR) {
         report_error(parser, parser->current_token.literal);
         parser->panic_mode = false;
-        advance(parser);
+
+        parser->previous_token = parser->current_token;
+        parser->current_token = parser->next_token;
+        parser->next_token = lexer_next_token(parser->lexer);
     }
 }
+
 
 static bool match(Parser* parser, TokenType type) {
     if (parser->current_token.type != type) return false;
@@ -57,6 +65,7 @@ static DeclType parse_type_name(const char* name) {
     if (strcmp(name, "FLT") == 0) return TYPE_FLT;
     if (strcmp(name, "STR") == 0) return TYPE_STR;
     if (strcmp(name, "FUNC") == 0) return TYPE_FUNC;
+    if (strcmp(name, "TNS") == 0) return TYPE_TNS;
     return TYPE_UNKNOWN;
 }
 
@@ -106,25 +115,91 @@ static Expr* parse_primary(Parser* parser) {
         consume(parser, TOKEN_RPAREN, "Expected ')' after expression");
         return expr;
     }
+    if (match(parser, TOKEN_LBRACKET)) {
+        Token lb = parser->previous_token; // the '[' token
+        Expr* tns = expr_tns(lb.line, lb.column);
+        if (parser->current_token.type == TOKEN_RBRACKET) {
+            report_error(parser, "Empty tensor literal is not allowed");
+            return NULL;
+        }
+        do {
+            Expr* item = parse_expression(parser);
+            if (!item) return NULL;
+            expr_list_add(&tns->as.tns_items, item);
+        } while (match(parser, TOKEN_COMMA));
+        consume(parser, TOKEN_RBRACKET, "Expected ']' after tensor literal");
+        return tns;
+    }
     report_error(parser, "Expected expression");
-    return expr_int(0, token.line, token.column);
+    return NULL;
 }
 
 static Expr* parse_call(Parser* parser) {
     Expr* expr = parse_primary(parser);
-    while (parser->current_token.type == TOKEN_LPAREN) {
-        int line = parser->current_token.line;
-        int column = parser->current_token.column;
-        advance(parser); // consume '('
-        Expr* call = expr_call(expr, line, column);
-        if (parser->current_token.type != TOKEN_RPAREN) {
-            do {
-                Expr* arg = parse_expression(parser);
-                expr_list_add(&call->as.call.args, arg);
-            } while (match(parser, TOKEN_COMMA));
+    if (!expr) return NULL;
+    while (parser->current_token.type == TOKEN_LPAREN || parser->current_token.type == TOKEN_LBRACKET) {
+        if (parser->current_token.type == TOKEN_LPAREN) {
+            int line = parser->current_token.line;
+            int column = parser->current_token.column;
+            advance(parser); // consume '('
+            Expr* call = expr_call(expr, line, column);
+            if (parser->current_token.type != TOKEN_RPAREN) {
+                do {
+                    Expr* arg = parse_expression(parser);
+                    if (!arg) return NULL;
+                    expr_list_add(&call->as.call.args, arg);
+                } while (match(parser, TOKEN_COMMA));
+            }
+            consume(parser, TOKEN_RPAREN, "Expected ')' after arguments");
+            expr = call;
+            continue;
         }
-        consume(parser, TOKEN_RPAREN, "Expected ')' after arguments");
-        expr = call;
+
+        // Handle indexing: '['
+        if (parser->current_token.type == TOKEN_LBRACKET) {
+            int line = parser->current_token.line;
+            int column = parser->current_token.column;
+            advance(parser); // consume '['
+            Expr* idx = expr_index(expr, line, column);
+            if (parser->current_token.type == TOKEN_RBRACKET) {
+                report_error(parser, "Empty index list");
+                return NULL;
+            }
+            while (parser->current_token.type != TOKEN_RBRACKET && parser->current_token.type != TOKEN_EOF) {
+                // wildcard
+                if (match(parser, TOKEN_STAR)) {
+                    Expr* wc = expr_wildcard(parser->previous_token.line, parser->previous_token.column);
+                    expr_list_add(&idx->as.index.indices, wc);
+                } else {
+                    // parse an expression for index or possibly a range
+                    Expr* start = parse_expression(parser);
+                    if (!start) return NULL;
+                    // Accept either an explicit DASH token or a negative-number token as the range separator
+                    bool is_range = false;
+                    if (parser->current_token.type == TOKEN_DASH) {
+                        is_range = true;
+                    } else if (parser->current_token.type == TOKEN_NUMBER && parser->current_token.literal && parser->current_token.literal[0] == '-') {
+                        is_range = true;
+                    }
+                    if (is_range) {
+                        // If it's a DASH token, consume it; otherwise leave the negative-number token for parse_expression
+                        if (parser->current_token.type == TOKEN_DASH) advance(parser);
+                        Expr* end = parse_expression(parser);
+                        if (!end) return NULL;
+                        Expr* range = expr_range(start, end, start->line, start->column);
+                        expr_list_add(&idx->as.index.indices, range);
+                    } else {
+                        expr_list_add(&idx->as.index.indices, start);
+                    }
+                }
+
+                if (parser->current_token.type == TOKEN_COMMA) { advance(parser); continue; }
+                break;
+            }
+            consume(parser, TOKEN_RBRACKET, "Expected ']' after index list");
+            expr = idx;
+            continue;
+        }
     }
     return expr;
 }
@@ -154,6 +229,7 @@ static Stmt* parse_if(Parser* parser) {
     consume(parser, TOKEN_IF, "Expected 'IF'");
     consume(parser, TOKEN_LPAREN, "Expected '(' after IF");
     Expr* cond = parse_expression(parser);
+    if (!cond) return NULL;
     consume(parser, TOKEN_RPAREN, "Expected ')' after condition");
     Stmt* then_block = parse_block(parser);
     Stmt* stmt = stmt_if(cond, then_block, if_tok.line, if_tok.column);
@@ -163,6 +239,7 @@ static Stmt* parse_if(Parser* parser) {
         advance(parser);
         consume(parser, TOKEN_LPAREN, "Expected '(' after ELSEIF");
         Expr* elif_cond = parse_expression(parser);
+        if (!elif_cond) return NULL;
         consume(parser, TOKEN_RPAREN, "Expected ')' after condition");
         Stmt* elif_block = parse_block(parser);
         expr_list_add(&stmt->as.if_stmt.elif_conditions, elif_cond);
@@ -183,6 +260,7 @@ static Stmt* parse_while(Parser* parser) {
     consume(parser, TOKEN_WHILE, "Expected 'WHILE'");
     consume(parser, TOKEN_LPAREN, "Expected '(' after WHILE");
     Expr* cond = parse_expression(parser);
+    if (!cond) return NULL;
     consume(parser, TOKEN_RPAREN, "Expected ')' after condition");
     Stmt* body = parse_block(parser);
     return stmt_while(cond, body, tok.line, tok.column);
@@ -200,6 +278,7 @@ static Stmt* parse_for(Parser* parser) {
     advance(parser);
     consume(parser, TOKEN_COMMA, "Expected ',' after counter");
     Expr* target = parse_expression(parser);
+    if (!target) return NULL;
     consume(parser, TOKEN_RPAREN, "Expected ')' after FOR");
     Stmt* body = parse_block(parser);
     return stmt_for(counter, target, body, tok.line, tok.column);
@@ -261,6 +340,7 @@ static Stmt* parse_func(Parser* parser) {
             advance(parser);
             if (match(parser, TOKEN_EQUALS)) {
                 param.default_value = parse_expression(parser);
+                if (!param.default_value) return NULL;
             }
             param_list_add(&params, param);
         } while (match(parser, TOKEN_COMMA));
@@ -297,6 +377,7 @@ static Stmt* parse_statement(Parser* parser) {
             advance(parser);
             consume(parser, TOKEN_LPAREN, "Expected '(' after RETURN");
             Expr* expr = parse_expression(parser);
+            if (!expr) return NULL;
             consume(parser, TOKEN_RPAREN, "Expected ')' after RETURN value");
             return stmt_return(expr, tok.line, tok.column);
         }
@@ -305,6 +386,7 @@ static Stmt* parse_statement(Parser* parser) {
             advance(parser);
             consume(parser, TOKEN_LPAREN, "Expected '(' after BREAK");
             Expr* expr = parse_expression(parser);
+            if (!expr) return NULL;
             consume(parser, TOKEN_RPAREN, "Expected ')' after BREAK value");
             return stmt_break(expr, tok.line, tok.column);
         }
@@ -321,7 +403,8 @@ static Stmt* parse_statement(Parser* parser) {
             advance(parser);
             consume(parser, TOKEN_LPAREN, "Expected '(' after GOTO");
             Expr* expr = parse_expression(parser);
-            consume(parser, TOKEN_RPAREN, "Expected ')' after GOTO target");
+            if (!expr) return NULL;
+            consume(parser, TOKEN_RPAREN, "Expected ')' after GOTO");
             return stmt_goto(expr, tok.line, tok.column);
         }
         case TOKEN_GOTOPOINT: {
@@ -329,6 +412,7 @@ static Stmt* parse_statement(Parser* parser) {
             advance(parser);
             consume(parser, TOKEN_LPAREN, "Expected '(' after GOTOPOINT");
             Expr* expr = parse_expression(parser);
+            if (!expr) return NULL;
             consume(parser, TOKEN_RPAREN, "Expected ')' after GOTOPOINT target");
             return stmt_gotopoint(expr, tok.line, tok.column);
         }
@@ -349,6 +433,7 @@ static Stmt* parse_statement(Parser* parser) {
         DeclType dtype = parse_type_name(type_tok.literal);
         if (match(parser, TOKEN_EQUALS)) {
             Expr* expr = parse_expression(parser);
+            if (!expr) return NULL;
             return stmt_assign(true, dtype, name, expr, type_tok.line, type_tok.column);
         }
         return stmt_decl(dtype, name, type_tok.line, type_tok.column);
@@ -359,10 +444,12 @@ static Stmt* parse_statement(Parser* parser) {
         advance(parser);
         consume(parser, TOKEN_EQUALS, "Expected '=' after identifier");
         Expr* expr = parse_expression(parser);
+        if (!expr) return NULL;
         return stmt_assign(false, TYPE_UNKNOWN, name_tok.literal, expr, name_tok.line, name_tok.column);
     }
 
     Expr* expr = parse_expression(parser);
+    if (!expr) return NULL;
     return stmt_expr(expr, expr->line, expr->column);
 }
 
@@ -373,6 +460,15 @@ Stmt* parser_parse(Parser* parser) {
         Stmt* stmt = parse_statement(parser);
         if (stmt) {
             stmt_list_add(&program->as.block, stmt);
+            skip_newlines(parser);
+            continue;
+        }
+
+        /* Synchronize after an error: advance to next newline or EOF so the
+           parser makes progress instead of repeatedly returning NULL and
+           hanging. Clear panic mode to allow further error reports. */
+        while (parser->current_token.type != TOKEN_EOF && parser->current_token.type != TOKEN_NEWLINE) {
+            advance(parser);
         }
         skip_newlines(parser);
     }

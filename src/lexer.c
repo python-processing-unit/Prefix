@@ -221,19 +221,39 @@ Token lexer_next_token(Lexer* lexer) {
         if (c == '-') {
             int start_line = lexer->line;
             int start_col = lexer->column;
-            advance(lexer); 
-            
+            advance(lexer);
+
+            // Determine the previous non-whitespace character to avoid
+            // interpreting a mid-token '-' (eg. `1-10`) as a negative number
+            // start. If the previous significant character is a digit,
+            // identifier character, or a closing bracket, treat '-' as a
+            // plain DASH token.
+            int prev_index = (int)lexer->current - 2; // position before the '-'
+            while (prev_index >= 0) {
+                char pc = lexer->source[prev_index];
+                if (pc == ' ' || pc == '\t' || pc == '\r' || pc == '\n') {
+                    prev_index--;
+                    continue;
+                }
+                // found a non-whitespace previous char
+                if (pc == '0' || pc == '1' || isalnum((unsigned char)pc) || pc == ']' || pc == ')' || pc == '}' ) {
+                    Token t = {TOKEN_DASH, safe_strdup("-"), start_line, start_col};
+                    return t;
+                }
+                break;
+            }
+
             size_t lookahead = lexer->current;
-            while (lookahead < lexer->source_len && 
+            while (lookahead < lexer->source_len &&
                   (lexer->source[lookahead] == ' ' || lexer->source[lookahead] == '\t' || lexer->source[lookahead] == '\r')) {
                 lookahead++;
             }
-            if (lookahead < lexer->source_len && 
+            if (lookahead < lexer->source_len &&
                (lexer->source[lookahead] == '0' || lexer->source[lookahead] == '1')) {
                    while(lexer->current < lookahead) advance(lexer);
                    return number_token(lexer, true);
             }
-            
+
             Token t = {TOKEN_DASH, safe_strdup("-"), start_line, start_col};
             return t;
         }
