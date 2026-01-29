@@ -1,10 +1,17 @@
 #include "builtins.h"
 #include "interpreter.h"
+#include "lexer.h"
+#include "parser.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <errno.h>
 #include <math.h>
 #include <ctype.h>
+#include <sys/stat.h>
+#ifndef _MSC_VER
+#include <sys/wait.h>
+#endif
 
 #ifdef _MSC_VER
 #define strdup _strdup
@@ -1835,6 +1842,166 @@ static Value builtin_in(Interpreter* interp, Value* args, int argc, Expr** arg_n
     return value_int(0);
 }
 
+// IMPORT_PATH: import a module by explicit filesystem path (string)
+static Value builtin_import_path(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
+    (void)arg_nodes; (void)env;
+    if (argc < 1) {
+        RUNTIME_ERROR(interp, "IMPORT_PATH expects a path string", line, col);
+    }
+    if (args[0].type != VAL_STR) {
+        RUNTIME_ERROR(interp, "IMPORT_PATH first argument must be STR", line, col);
+    }
+    const char* inpath = args[0].as.s ? args[0].as.s : "";
+
+    const char* alias = NULL;
+    char* alias_dup = NULL;
+    if (argc >= 2) {
+        if (arg_nodes[1]->type != EXPR_IDENT) {
+            RUNTIME_ERROR(interp, "IMPORT_PATH second argument must be an identifier (alias)", line, col);
+        }
+        alias = arg_nodes[1]->as.ident;
+    } else {
+        // Derive alias from basename of path (strip directories and extension)
+        const char* p = inpath + strlen(inpath);
+        while (p > inpath && *(p-1) != '/' && *(p-1) != '\\') p--;
+        char base[512];
+        strncpy(base, p, sizeof(base)-1);
+        base[sizeof(base)-1] = '\0';
+        char* dot = strrchr(base, '.');
+        if (dot) *dot = '\0';
+        alias_dup = strdup(base);
+        if (!alias_dup) { RUNTIME_ERROR(interp, "Out of memory", line, col); }
+        alias = alias_dup;
+    }
+
+    // Register module using the canonical path string as name to ensure uniqueness
+    if (module_register(interp, inpath) != 0) {
+        if (alias_dup) free(alias_dup);
+        RUNTIME_ERROR(interp, "IMPORT_PATH failed to register module", line, col);
+    }
+
+    Env* mod_env = module_env_lookup(interp, inpath);
+    if (!mod_env) {
+        if (alias_dup) free(alias_dup);
+        RUNTIME_ERROR(interp, "IMPORT_PATH failed to lookup module env", line, col);
+    }
+
+    // If not already loaded, attempt to load file or directory
+    EnvEntry* marker = env_get_entry(mod_env, "__MODULE_LOADED__");
+    if (!marker || !marker->initialized) {
+        // Determine if path is file or directory
+        struct stat st;
+        char candidate[2048];
+        char* found_path = NULL;
+
+        if (stat(inpath, &st) == 0 && (st.st_mode & S_IFMT) == S_IFDIR) {
+            // directory -> require init.pre
+            if (snprintf(candidate, sizeof(candidate), "%s/init.pre", inpath) >= 0) {
+                if (stat(candidate, &st) == 0 && (st.st_mode & S_IFMT) == S_IFREG) {
+                    found_path = strdup(candidate);
+                } else {
+                    if (alias_dup) free(alias_dup);
+                    RUNTIME_ERROR(interp, "IMPORT_PATH: package missing init.pre", line, col);
+                }
+            }
+        } else {
+            // try file as given
+            if (stat(inpath, &st) == 0 && (st.st_mode & S_IFMT) == S_IFREG) {
+                found_path = strdup(inpath);
+            } else {
+                // try appending .pre
+                if (snprintf(candidate, sizeof(candidate), "%s.pre", inpath) >= 0) {
+                    if (stat(candidate, &st) == 0 && (st.st_mode & S_IFMT) == S_IFREG) {
+                        found_path = strdup(candidate);
+                    }
+                }
+            }
+        }
+
+        if (found_path) {
+            FILE* f = fopen(found_path, "rb");
+            char* srcbuf = NULL;
+            if (f) {
+                fseek(f, 0, SEEK_END);
+                long len = ftell(f);
+                fseek(f, 0, SEEK_SET);
+                srcbuf = malloc((size_t)len + 1);
+                if (!srcbuf) { fclose(f); free(found_path); if (alias_dup) free(alias_dup); RUNTIME_ERROR(interp, "Out of memory", line, col); }
+                if (fread(srcbuf, 1, (size_t)len, f) != (size_t)len) { free(srcbuf); fclose(f); free(found_path); srcbuf = NULL; }
+                if (srcbuf) {
+                    srcbuf[len] = '\0';
+                    fclose(f);
+                    // Set module source so nested IMPORTs prefer this dir
+                    env_assign(mod_env, "__MODULE_SOURCE__", value_str(found_path), TYPE_STR, true);
+
+                    Lexer lex;
+                    lexer_init(&lex, srcbuf, found_path);
+                    Parser parser;
+                    parser_init(&parser, &lex);
+                    Stmt* program = parser_parse(&parser);
+                    if (parser.had_error) {
+                        free(srcbuf);
+                        free(found_path);
+                        if (alias_dup) free(alias_dup);
+                        interp->error = strdup("IMPORT_PATH: parse error");
+                        interp->error_line = parser.current_token.line;
+                        interp->error_col = parser.current_token.column;
+                        return value_null();
+                    }
+
+                    ExecResult res = exec_program_in_env(interp, program, mod_env);
+                    if (res.status == EXEC_ERROR) {
+                        free(srcbuf);
+                        free(found_path);
+                        if (res.error) interp->error = strdup(res.error);
+                        interp->error_line = res.error_line;
+                        interp->error_col = res.error_column;
+                        free(res.error);
+                        if (alias_dup) free(alias_dup);
+                        return value_null();
+                    }
+
+                    // mark loaded
+                    env_assign(mod_env, "__MODULE_LOADED__", value_int(1), TYPE_INT, true);
+
+                    free(srcbuf);
+                    free(found_path);
+                }
+            }
+        }
+        // If not found, allow module env to be populated by extensions
+    }
+
+    // Expose module symbols into caller env under alias prefix: alias.name -> value
+    size_t alias_len = strlen(alias);
+    for (size_t i = 0; i < mod_env->count; i++) {
+        EnvEntry* e = &mod_env->entries[i];
+        if (!e->initialized) continue;
+        if (e->name && e->name[0] == '_' && e->name[1] == '_') continue;
+        size_t qlen = alias_len + 1 + strlen(e->name) + 1;
+        char* qualified = malloc(qlen);
+        if (!qualified) { if (alias_dup) free(alias_dup); RUNTIME_ERROR(interp, "Out of memory", line, col); }
+        snprintf(qualified, qlen, "%s.%s", alias, e->name);
+        if (!env_assign(env, qualified, e->value, e->decl_type, true)) {
+            free(qualified);
+            if (alias_dup) free(alias_dup);
+            RUNTIME_ERROR(interp, "IMPORT_PATH failed to assign qualified name", line, col);
+        }
+        free(qualified);
+    }
+
+    // Ensure the module name itself exists in caller env
+    EnvEntry* alias_entry = env_get_entry(env, alias);
+    if (!alias_entry) {
+        if (!env_assign(env, alias, value_str("") , TYPE_STR, true)) {
+            if (alias_dup) free(alias_dup);
+            RUNTIME_ERROR(interp, "IMPORT_PATH failed to assign module name", line, col);
+        }
+    }
+
+    if (alias_dup) free(alias_dup);
+    return value_int(0);
+}
 static Value builtin_slice(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
     (void)arg_nodes; (void)env;
     // SLICE can operate on STR or TNS for now. Syntax: SLICE(target, start, end)
@@ -1954,35 +2121,37 @@ static Value builtin_strip(Interpreter* interp, Value* args, int argc, Expr** ar
 // ============ I/O operations ============
 
 static Value builtin_print(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
-    (void)arg_nodes; (void)env; (void)interp; (void)line; (void)col;
-    
+    (void)arg_nodes; (void)env; (void)line; (void)col;
+
+    int forward = !(interp && interp->shushed);
+
     for (int i = 0; i < argc; i++) {
-        if (i > 0) printf(" ");
+        if (i > 0 && forward) printf(" ");
         switch (args[i].type) {
             case VAL_INT: {
                 char* s = int_to_binary_str(args[i].as.i);
-                printf("%s", s);
+                if (forward) printf("%s", s);
                 free(s);
                 break;
             }
             case VAL_FLT: {
                 char* s = flt_to_binary_str(args[i].as.f);
-                printf("%s", s);
+                if (forward) printf("%s", s);
                 free(s);
                 break;
             }
             case VAL_STR:
-                printf("%s", args[i].as.s);
+                if (forward) printf("%s", args[i].as.s);
                 break;
             case VAL_FUNC:
-                printf("<func %p>", (void*)args[i].as.func);
+                if (forward) printf("<func %p>", (void*)args[i].as.func);
                 break;
             default:
-                printf("<null>");
+                if (forward) printf("<null>");
                 break;
         }
     }
-    printf("\n");
+    if (forward) printf("\n");
     return value_int(0);
 }
 
@@ -2004,6 +2173,267 @@ static Value builtin_input(Interpreter* interp, Value* args, int argc, Expr** ar
         return value_str(buf);
     }
     return value_str("");
+}
+
+// SHUSH():INT - suppress forwarding of console output
+static Value builtin_shush(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
+    (void)args; (void)argc; (void)arg_nodes; (void)env; (void)line; (void)col;
+    if (!interp) return value_int(0);
+    interp->shushed = 1;
+    return value_int(0);
+}
+
+// UNSHUSH():INT - re-enable forwarding of console output
+static Value builtin_unshush(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
+    (void)args; (void)argc; (void)arg_nodes; (void)env; (void)line; (void)col;
+    if (!interp) return value_int(0);
+    interp->shushed = 0;
+    return value_int(0);
+}
+
+// CL: execute a command string using the host shell and return exit code
+static Value builtin_cl(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
+    (void)arg_nodes; (void)env;
+    if (argc < 1) {
+        RUNTIME_ERROR(interp, "CL expects 1 argument", line, col);
+    }
+    EXPECT_STR(args[0], "CL", interp, line, col);
+    const char* cmd = args[0].as.s;
+    int rc;
+    if (interp && interp->shushed) {
+        // When shushed, suppress forwarding of command output by redirecting to null
+#ifdef _WIN32
+        const char* redir = " >NUL 2>&1";
+#else
+        const char* redir = " >/dev/null 2>&1";
+#endif
+        size_t n = strlen(cmd) + strlen(redir) + 1;
+        char* tmp = malloc(n);
+        if (!tmp) RUNTIME_ERROR(interp, "Out of memory", line, col);
+        strcpy(tmp, cmd);
+        strcat(tmp, redir);
+        rc = system(tmp);
+        free(tmp);
+    } else {
+        rc = system(cmd);
+    }
+    if (rc == -1) {
+        RUNTIME_ERROR(interp, "Failed to invoke shell for CL", line, col);
+    }
+#ifdef WIFEXITED
+    if (WIFEXITED(rc)) {
+        return value_int(WEXITSTATUS(rc));
+    }
+#endif
+    return value_int(rc);
+}
+
+// READFILE(STR: path, STR: coding = "UTF-8"):STR
+static Value builtin_readfile(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
+    (void)arg_nodes; (void)env;
+    if (argc < 1) {
+        RUNTIME_ERROR(interp, "READFILE expects at least 1 argument", line, col);
+    }
+    EXPECT_STR(args[0], "READFILE", interp, line, col);
+    const char* coding = "utf-8";
+    if (argc >= 2) {
+        EXPECT_STR(args[1], "READFILE", interp, line, col);
+        coding = args[1].as.s;
+    }
+
+    // normalize coding to lowercase
+    char codelb[64];
+    size_t clen = strlen(coding);
+    if (clen >= sizeof(codelb)) clen = sizeof(codelb)-1;
+    for (size_t i = 0; i < clen; i++) codelb[i] = (char)tolower((unsigned char)coding[i]);
+    codelb[clen] = '\0';
+
+    FILE* f = fopen(args[0].as.s, "rb");
+    if (!f) {
+        RUNTIME_ERROR(interp, "READFILE: cannot open file", line, col);
+    }
+    if (fseek(f, 0, SEEK_END) != 0) { fclose(f); RUNTIME_ERROR(interp, "READFILE: seek failed", line, col); }
+    long sz = ftell(f);
+    if (sz < 0) { fclose(f); RUNTIME_ERROR(interp, "READFILE: ftell failed", line, col); }
+    rewind(f);
+    unsigned char* buf = malloc((size_t)sz + 1);
+    if (!buf) { fclose(f); RUNTIME_ERROR(interp, "Out of memory", line, col); }
+    size_t got = fread(buf, 1, (size_t)sz, f);
+    fclose(f);
+    (void)got; // allow binary files smaller than reported on some platforms
+
+    // binary -> return bitstring
+    if (strcmp(codelb, "binary") == 0 || strcmp(codelb, "bin") == 0) {
+        // each byte -> 8 chars
+        size_t outlen = (size_t)sz * 8;
+        char* out = malloc(outlen + 1);
+        if (!out) { free(buf); RUNTIME_ERROR(interp, "Out of memory", line, col); }
+        size_t p = 0;
+        for (size_t i = 0; i < (size_t)sz; i++) {
+            unsigned char b = buf[i];
+            for (int bit = 7; bit >= 0; bit--) {
+                out[p++] = ((b >> bit) & 1) ? '1' : '0';
+            }
+        }
+        out[p] = '\0';
+        free(buf);
+        Value v = value_str(out);
+        free(out);
+        return v;
+    }
+
+    // hex -> lowercase hex string
+    if (strcmp(codelb, "hex") == 0 || strcmp(codelb, "hexadecimal") == 0) {
+        static const char* hex = "0123456789abcdef";
+        size_t outlen = (size_t)sz * 2;
+        char* out = malloc(outlen + 1);
+        if (!out) { free(buf); RUNTIME_ERROR(interp, "Out of memory", line, col); }
+        size_t p = 0;
+        for (size_t i = 0; i < (size_t)sz; i++) {
+            unsigned char b = buf[i];
+            out[p++] = hex[(b >> 4) & 0xf];
+            out[p++] = hex[b & 0xf];
+        }
+        out[p] = '\0';
+        free(buf);
+        Value v = value_str(out);
+        free(out);
+        return v;
+    }
+
+    // Text modes: handle UTF-8 BOM strip
+    size_t start = 0;
+    if ((strcmp(codelb, "utf-8-bom") == 0 || strcmp(codelb, "utf-8 bom") == 0) && sz >= 3) {
+        if (buf[0] == 0xEF && buf[1] == 0xBB && buf[2] == 0xBF) start = 3;
+    } else if (strcmp(codelb, "utf-8") == 0 && sz >= 3) {
+        if (buf[0] == 0xEF && buf[1] == 0xBB && buf[2] == 0xBF) start = 3;
+    }
+
+    // For other encodings (ANSI, UTF-16 LE/BE) we fall back to returning raw bytes as-is.
+    size_t tlen = (size_t)sz - start;
+    char* out = malloc(tlen + 1);
+    if (!out) { free(buf); RUNTIME_ERROR(interp, "Out of memory", line, col); }
+    memcpy(out, buf + start, tlen);
+    out[tlen] = '\0';
+    free(buf);
+    Value v = value_str(out);
+    free(out);
+    return v;
+}
+
+// WRITEFILE(STR: blob, STR: path, STR: coding = "UTF-8"):INT
+static Value builtin_writefile(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
+    (void)arg_nodes; (void)env;
+    if (argc < 2) {
+        RUNTIME_ERROR(interp, "WRITEFILE expects at least 2 arguments", line, col);
+    }
+    EXPECT_STR(args[0], "WRITEFILE", interp, line, col);
+    EXPECT_STR(args[1], "WRITEFILE", interp, line, col);
+    const char* coding = "utf-8";
+    if (argc >= 3) {
+        EXPECT_STR(args[2], "WRITEFILE", interp, line, col);
+        coding = args[2].as.s;
+    }
+    // normalize
+    char codelb[64];
+    size_t clen = strlen(coding);
+    if (clen >= sizeof(codelb)) clen = sizeof(codelb)-1;
+    for (size_t i = 0; i < clen; i++) codelb[i] = (char)tolower((unsigned char)coding[i]);
+    codelb[clen] = '\0';
+
+    const char* blob = args[0].as.s ? args[0].as.s : "";
+
+    // binary
+    if (strcmp(codelb, "binary") == 0 || strcmp(codelb, "bin") == 0) {
+        size_t blen = strlen(blob);
+        if (blen % 8 != 0) {
+            RUNTIME_ERROR(interp, "WRITEFILE(binary) expects bitstring length multiple of 8", line, col);
+        }
+        FILE* f = fopen(args[1].as.s, "wb");
+        if (!f) {
+            fprintf(stderr, "WRITEFILE: cannot open '%s' for writing: %s\n", args[1].as.s, strerror(errno));
+            return value_int(0);
+        }
+        for (size_t i = 0; i < blen; i += 8) {
+            unsigned char byte = 0;
+            for (int b = 0; b < 8; b++) {
+                char c = blob[i+b];
+                if (c != '0' && c != '1') { fclose(f); RUNTIME_ERROR(interp, "WRITEFILE(binary) expects only 0/1 characters", line, col); }
+                byte = (byte << 1) | (unsigned char)(c - '0');
+            }
+            if (fwrite(&byte, 1, 1, f) != 1) { fclose(f); return value_int(0); }
+        }
+        fclose(f);
+        return value_int(1);
+    }
+
+    // hex
+    if (strcmp(codelb, "hex") == 0 || strcmp(codelb, "hexadecimal") == 0) {
+        size_t blen = strlen(blob);
+        if (blen % 2 != 0) RUNTIME_ERROR(interp, "WRITEFILE(hex) expects even-length hex string", line, col);
+        FILE* f = fopen(args[1].as.s, "wb");
+        if (!f) {
+            fprintf(stderr, "WRITEFILE: cannot open '%s' for writing: %s\n", args[1].as.s, strerror(errno));
+            return value_int(0);
+        }
+        for (size_t i = 0; i < blen; i += 2) {
+            char a = blob[i]; char b = blob[i+1];
+            int hi = (a >= '0' && a <= '9') ? a - '0' : (a >= 'a' && a <= 'f') ? a - 'a' + 10 : (a >= 'A' && a <= 'F') ? a - 'A' + 10 : -1;
+            int lo = (b >= '0' && b <= '9') ? b - '0' : (b >= 'a' && b <= 'f') ? b - 'a' + 10 : (b >= 'A' && b <= 'F') ? b - 'A' + 10 : -1;
+            if (hi < 0 || lo < 0) { fclose(f); RUNTIME_ERROR(interp, "WRITEFILE(hex) expects valid hex digits", line, col); }
+            unsigned char byte = (unsigned char)((hi << 4) | lo);
+            if (fwrite(&byte, 1, 1, f) != 1) { fclose(f); return value_int(0); }
+        }
+        fclose(f);
+        return value_int(1);
+    }
+
+    // Text encodings: write raw bytes; for utf-8-bom emit BOM
+    FILE* f = fopen(args[1].as.s, "wb");
+    if (!f) {
+        // Try text mode as a fallback (may succeed on some platforms)
+        fprintf(stderr, "WRITEFILE: open('%s','wb') failed: %s; trying text mode...\n", args[1].as.s, strerror(errno));
+        f = fopen(args[1].as.s, "w");
+        if (!f) {
+            fprintf(stderr, "WRITEFILE: cannot open '%s' for writing: %s\n", args[1].as.s, strerror(errno));
+            return value_int(0);
+        }
+    }
+    if (strcmp(codelb, "utf-8-bom") == 0 || strcmp(codelb, "utf-8 bom") == 0) {
+        unsigned char bom[3] = {0xEF,0xBB,0xBF};
+        if (fwrite(bom, 1, 3, f) != 3) { fclose(f); return value_int(0); }
+    }
+    size_t towrite = strlen(blob);
+    if (towrite > 0) {
+        if (fwrite(blob, 1, towrite, f) != towrite) { fclose(f); return value_int(0); }
+    }
+    fclose(f);
+    return value_int(1);
+}
+
+// EXISTFILE(STR: path):INT
+static Value builtin_existfile(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
+    (void)arg_nodes; (void)env;
+    if (argc < 1) {
+        RUNTIME_ERROR(interp, "EXISTFILE expects 1 argument", line, col);
+    }
+    EXPECT_STR(args[0], "EXISTFILE", interp, line, col);
+    FILE* f = fopen(args[0].as.s, "rb");
+    if (f) { fclose(f); return value_int(1); }
+    return value_int(0);
+}
+
+// DELETEFILE(STR: path):INT
+static Value builtin_deletefile(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
+    (void)arg_nodes; (void)env;
+    if (argc < 1) {
+        RUNTIME_ERROR(interp, "DELETEFILE expects 1 argument", line, col);
+    }
+    EXPECT_STR(args[0], "DELETEFILE", interp, line, col);
+    if (remove(args[0].as.s) != 0) {
+        RUNTIME_ERROR(interp, "DELETEFILE failed", line, col);
+    }
+    return value_int(1);
 }
 
 // ============ Control flow helpers ============
@@ -2055,6 +2485,181 @@ static Value builtin_type(Interpreter* interp, Value* args, int argc, Expr** arg
     return value_str(value_type_name(args[0]));
 }
 
+// SIGNATURE(SYMBOL: sym):STR
+static Value builtin_signature(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
+    (void)args; (void)argc;
+    if (argc != 1 || arg_nodes[0]->type != EXPR_IDENT) {
+        RUNTIME_ERROR(interp, "SIGNATURE expects an identifier", line, col);
+    }
+    const char* name = arg_nodes[0]->as.ident;
+    EnvEntry* entry = env_get_entry(env, name);
+    // Prefer environment entry if it exists and is initialized
+    if (entry && entry->initialized) {
+        if (entry->value.type == VAL_FUNC && entry->value.as.func != NULL) {
+            struct Func* f = entry->value.as.func;
+            // Build signature
+            size_t cap = 256;
+            char* buf = malloc(cap);
+            if (!buf) RUNTIME_ERROR(interp, "Out of memory", line, col);
+            buf[0] = '\0';
+            strcat(buf, f->name ? f->name : name);
+            strcat(buf, "(");
+            for (size_t i = 0; i < f->params.count; i++) {
+                Param p = f->params.items[i];
+                const char* tname = "UNKNOWN";
+                switch (p.type) {
+                    case TYPE_INT: tname = "INT"; break;
+                    case TYPE_FLT: tname = "FLT"; break;
+                    case TYPE_STR: tname = "STR"; break;
+                    case TYPE_TNS: tname = "TNS"; break;
+                    case TYPE_FUNC: tname = "FUNC"; break;
+                    default: tname = "ANY"; break;
+                }
+                if (i > 0) strcat(buf, ", ");
+                strcat(buf, tname);
+                strcat(buf, ": ");
+                strcat(buf, p.name ? p.name : "");
+                if (p.default_value != NULL) {
+                    Value dv = eval_expr(interp, p.default_value, f->closure);
+                    strcat(buf, " = ");
+                    if (dv.type == VAL_STR) {
+                        size_t need = strlen(buf) + strlen(dv.as.s) + 4;
+                        if (need > cap) { cap = need * 2; buf = realloc(buf, cap); }
+                        strcat(buf, "\"");
+                        strcat(buf, dv.as.s);
+                        strcat(buf, "\"");
+                    } else if (dv.type == VAL_INT) {
+                        char* s = int_to_binary_str(dv.as.i);
+                        size_t need = strlen(buf) + strlen(s) + 2;
+                        if (need > cap) { cap = need * 2; buf = realloc(buf, cap); }
+                        strcat(buf, s);
+                        free(s);
+                    } else if (dv.type == VAL_FLT) {
+                        char* s = flt_to_binary_str(dv.as.f);
+                        size_t need = strlen(buf) + strlen(s) + 2;
+                        if (need > cap) { cap = need * 2; buf = realloc(buf, cap); }
+                        strcat(buf, s);
+                        free(s);
+                    } else {
+                        const char* tn = value_type_name(dv);
+                        size_t need = strlen(buf) + strlen(tn) + 2;
+                        if (need > cap) { cap = need * 2; buf = realloc(buf, cap); }
+                        strcat(buf, tn);
+                    }
+                    value_free(dv);
+                }
+            }
+            strcat(buf, "):");
+            const char* rname = "ANY";
+            switch (f->return_type) {
+                case TYPE_INT: rname = "INT"; break;
+                case TYPE_FLT: rname = "FLT"; break;
+                case TYPE_STR: rname = "STR"; break;
+                case TYPE_TNS: rname = "TNS"; break;
+                case TYPE_FUNC: rname = "FUNC"; break;
+                default: rname = "ANY"; break;
+            }
+            strcat(buf, rname);
+            Value out = value_str(buf);
+            free(buf);
+            return out;
+        }
+    }
+
+    // If not in environment or not a function there, check the interpreter function table
+    Func* ff = NULL;
+    if (interp && interp->functions) ff = func_table_lookup(interp->functions, name);
+    if (ff != NULL) {
+        struct Func* f = ff;
+        size_t cap = 256;
+        char* buf = malloc(cap);
+        if (!buf) RUNTIME_ERROR(interp, "Out of memory", line, col);
+        buf[0] = '\0';
+        strcat(buf, f->name ? f->name : name);
+        strcat(buf, "(");
+        for (size_t i = 0; i < f->params.count; i++) {
+            Param p = f->params.items[i];
+            const char* tname = "UNKNOWN";
+            switch (p.type) {
+                case TYPE_INT: tname = "INT"; break;
+                case TYPE_FLT: tname = "FLT"; break;
+                case TYPE_STR: tname = "STR"; break;
+                case TYPE_TNS: tname = "TNS"; break;
+                case TYPE_FUNC: tname = "FUNC"; break;
+                default: tname = "ANY"; break;
+            }
+            if (i > 0) strcat(buf, ", ");
+            strcat(buf, tname);
+            strcat(buf, ": ");
+            strcat(buf, p.name ? p.name : "");
+            if (p.default_value != NULL) {
+                Value dv = eval_expr(interp, p.default_value, f->closure);
+                strcat(buf, " = ");
+                if (dv.type == VAL_STR) {
+                    size_t need = strlen(buf) + strlen(dv.as.s) + 4;
+                    if (need > cap) { cap = need * 2; buf = realloc(buf, cap); }
+                    strcat(buf, "\"");
+                    strcat(buf, dv.as.s);
+                    strcat(buf, "\"");
+                } else if (dv.type == VAL_INT) {
+                    char* s = int_to_binary_str(dv.as.i);
+                    size_t need = strlen(buf) + strlen(s) + 2;
+                    if (need > cap) { cap = need * 2; buf = realloc(buf, cap); }
+                    strcat(buf, s);
+                    free(s);
+                } else if (dv.type == VAL_FLT) {
+                    char* s = flt_to_binary_str(dv.as.f);
+                    size_t need = strlen(buf) + strlen(s) + 2;
+                    if (need > cap) { cap = need * 2; buf = realloc(buf, cap); }
+                    strcat(buf, s);
+                    free(s);
+                } else {
+                    const char* tn = value_type_name(dv);
+                    size_t need = strlen(buf) + strlen(tn) + 2;
+                    if (need > cap) { cap = need * 2; buf = realloc(buf, cap); }
+                    strcat(buf, tn);
+                }
+                value_free(dv);
+            }
+        }
+        strcat(buf, "):");
+        const char* rname = "ANY";
+        switch (f->return_type) {
+            case TYPE_INT: rname = "INT"; break;
+            case TYPE_FLT: rname = "FLT"; break;
+            case TYPE_STR: rname = "STR"; break;
+            case TYPE_TNS: rname = "TNS"; break;
+            case TYPE_FUNC: rname = "FUNC"; break;
+            default: rname = "ANY"; break;
+        }
+        strcat(buf, rname);
+        Value out = value_str(buf);
+        free(buf);
+        return out;
+    }
+
+    // Non-function: return "TYPE: name" using declared type if available
+    if (!entry) {
+        RUNTIME_ERROR(interp, "SIGNATURE: identifier not found or uninitialized", line, col);
+    }
+    const char* tname = "UNKNOWN";
+    switch (entry->decl_type) {
+        case TYPE_INT: tname = "INT"; break;
+        case TYPE_FLT: tname = "FLT"; break;
+        case TYPE_STR: tname = "STR"; break;
+        case TYPE_TNS: tname = "TNS"; break;
+        case TYPE_FUNC: tname = "FUNC"; break;
+        default: tname = value_type_name(entry->value); break;
+    }
+    size_t len = strlen(tname) + 2 + strlen(name) + 1;
+    char* res = malloc(len + 1);
+    if (!res) RUNTIME_ERROR(interp, "Out of memory", line, col);
+    snprintf(res, len + 1, "%s: %s", tname, name);
+    Value out = value_str(res);
+    free(res);
+    return out;
+}
+
 // ============ Variable management ============
 
 static Value builtin_del(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
@@ -2065,12 +2670,136 @@ static Value builtin_del(Interpreter* interp, Value* args, int argc, Expr** arg_
     }
     
     const char* name = arg_nodes[0]->as.ident;
-    if (!env_delete(env, name)) {
+    EnvEntry* entry = env_get_entry(env, name);
+    if (!entry || !entry->initialized) {
         char buf[128];
         snprintf(buf, sizeof(buf), "Cannot delete undefined identifier '%s'", name);
         RUNTIME_ERROR(interp, buf, line, col);
     }
+    if (entry->frozen || entry->permafrozen) {
+        char buf[128];
+        snprintf(buf, sizeof(buf), "Cannot delete frozen identifier '%s'", name);
+        RUNTIME_ERROR(interp, buf, line, col);
+    }
+    if (!env_delete(env, name)) {
+        char buf[128];
+        snprintf(buf, sizeof(buf), "Cannot delete identifier '%s'", name);
+        RUNTIME_ERROR(interp, buf, line, col);
+    }
     return value_int(0);
+}
+
+static Value builtin_freeze(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
+    (void)args;
+    if (argc != 1 || arg_nodes[0]->type != EXPR_IDENT) {
+        RUNTIME_ERROR(interp, "FREEZE expects an identifier", line, col);
+    }
+    const char* name = arg_nodes[0]->as.ident;
+    int r = env_freeze(env, name);
+    if (r != 0) {
+        char buf[128];
+        snprintf(buf, sizeof(buf), "FREEZE: identifier '%s' not found", name);
+        RUNTIME_ERROR(interp, buf, line, col);
+    }
+    return value_int(0);
+}
+
+static Value builtin_thaw(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
+    (void)args;
+    if (argc != 1 || arg_nodes[0]->type != EXPR_IDENT) {
+        RUNTIME_ERROR(interp, "THAW expects an identifier", line, col);
+    }
+    const char* name = arg_nodes[0]->as.ident;
+    int r = env_thaw(env, name);
+    if (r == -1) {
+        char buf[128];
+        snprintf(buf, sizeof(buf), "THAW: identifier '%s' not found", name);
+        RUNTIME_ERROR(interp, buf, line, col);
+    }
+    if (r == -2) {
+        char buf[128];
+        snprintf(buf, sizeof(buf), "THAW: identifier '%s' is permanently frozen", name);
+        RUNTIME_ERROR(interp, buf, line, col);
+    }
+    return value_int(0);
+}
+
+static Value builtin_permafreeze(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
+    (void)args;
+    if (argc != 1 || arg_nodes[0]->type != EXPR_IDENT) {
+        RUNTIME_ERROR(interp, "PERMAFREEZE expects an identifier", line, col);
+    }
+    const char* name = arg_nodes[0]->as.ident;
+    int r = env_permafreeze(env, name);
+    if (r != 0) {
+        char buf[128];
+        snprintf(buf, sizeof(buf), "PERMAFREEZE: identifier '%s' not found", name);
+        RUNTIME_ERROR(interp, buf, line, col);
+    }
+    return value_int(0);
+}
+
+static Value builtin_export(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
+    (void)args;
+    if (argc != 2 || arg_nodes[0]->type != EXPR_IDENT || arg_nodes[1]->type != EXPR_IDENT) {
+        RUNTIME_ERROR(interp, "EXPORT expects two identifiers", line, col);
+    }
+    const char* sym = arg_nodes[0]->as.ident;
+    const char* module = arg_nodes[1]->as.ident;
+
+    // Find the symbol in caller environment
+    EnvEntry* entry = env_get_entry(env, sym);
+    if (!entry || !entry->initialized) {
+        char buf[128];
+        snprintf(buf, sizeof(buf), "EXPORT: identifier '%s' not found", sym);
+        RUNTIME_ERROR(interp, buf, line, col);
+    }
+
+    // Lookup module env (must be previously imported)
+    Env* mod_env = module_env_lookup(interp, module);
+    if (!mod_env) {
+        char buf[128];
+        snprintf(buf, sizeof(buf), "EXPORT: module '%s' not imported", module);
+        RUNTIME_ERROR(interp, buf, line, col);
+    }
+
+    // Assign into module's env under the plain symbol name
+    if (!env_assign(mod_env, sym, entry->value, entry->decl_type, true)) {
+        RUNTIME_ERROR(interp, "EXPORT failed to assign into module", line, col);
+    }
+
+    // Also create qualified name in caller env: module.symbol
+    size_t len = strlen(module) + 1 + strlen(sym) + 1;
+    char* qualified = malloc(len);
+    if (!qualified) RUNTIME_ERROR(interp, "Out of memory", line, col);
+    snprintf(qualified, len, "%s.%s", module, sym);
+    if (!env_assign(env, qualified, entry->value, entry->decl_type, true)) {
+        free(qualified);
+        RUNTIME_ERROR(interp, "EXPORT failed to assign qualified name", line, col);
+    }
+    free(qualified);
+
+    return value_int(0);
+}
+
+static Value builtin_frozen(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
+    (void)args;
+    if (argc != 1 || arg_nodes[0]->type != EXPR_IDENT) {
+        RUNTIME_ERROR(interp, "FROZEN expects an identifier", line, col);
+    }
+    const char* name = arg_nodes[0]->as.ident;
+    int st = env_frozen_state(env, name);
+    return value_int(st);
+}
+
+static Value builtin_permafrozen(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
+    (void)args;
+    if (argc != 1 || arg_nodes[0]->type != EXPR_IDENT) {
+        RUNTIME_ERROR(interp, "PERMAFROZEN expects an identifier", line, col);
+    }
+    const char* name = arg_nodes[0]->as.ident;
+    int p = env_permafrozen(env, name);
+    return value_int(p);
 }
 
 static Value builtin_exist(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
@@ -2681,8 +3410,21 @@ static Value builtin_len(Interpreter* interp, Value* args, int argc, Expr** arg_
 
 // Main, OS
 static Value builtin_main(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
-    (void)args; (void)argc; (void)arg_nodes; (void)env; (void)interp; (void)line; (void)col;
-    // Return 1 if this is the main module
+    (void)args; (void)argc; (void)arg_nodes; (void)line; (void)col;
+    // Determine module source for this call site (from env) and compare to interpreter primary source
+    EnvEntry* call_src = env_get_entry(env, "__MODULE_SOURCE__");
+    EnvEntry* primary_src = interp && interp->global_env ? env_get_entry(interp->global_env, "__MODULE_SOURCE__") : NULL;
+    if (!primary_src || !primary_src->initialized) {
+        // No recorded primary source -> treat as main
+        return value_int(1);
+    }
+    if (!call_src || !call_src->initialized) {
+        // Call site has no source recorded; treat as main if equal to primary (unlikely) else main
+        return value_int(1);
+    }
+    if (call_src->value.type == VAL_STR && primary_src->value.type == VAL_STR && call_src->value.as.s && primary_src->value.as.s) {
+        return value_int(strcmp(call_src->value.as.s, primary_src->value.as.s) == 0 ? 1 : 0);
+    }
     return value_int(1);
 }
 
@@ -2714,8 +3456,189 @@ static Value builtin_exit(Interpreter* interp, Value* args, int argc, Expr** arg
 
 // Stubs for operations requiring TNS/MAP/THD
 static Value builtin_import(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
-    (void)args; (void)argc; (void)arg_nodes; (void)env;
-    // For now, just acknowledge import but do nothing
+    (void)args; (void)argc;
+    if (argc < 1 || arg_nodes[0]->type != EXPR_IDENT) {
+        RUNTIME_ERROR(interp, "IMPORT expects a module identifier", line, col);
+    }
+    const char* modname = arg_nodes[0]->as.ident;
+    const char* alias = NULL;
+    if (argc >= 2) {
+        if (arg_nodes[1]->type != EXPR_IDENT) {
+            RUNTIME_ERROR(interp, "IMPORT second argument must be an identifier (alias)", line, col);
+        }
+        alias = arg_nodes[1]->as.ident;
+    } else {
+        alias = modname;
+    }
+
+    // Ensure module registry entry exists
+    if (module_register(interp, modname) != 0) {
+        RUNTIME_ERROR(interp, "IMPORT failed to register module", line, col);
+    }
+
+    // Lookup module env
+    Env* mod_env = module_env_lookup(interp, modname);
+    if (!mod_env) {
+        RUNTIME_ERROR(interp, "IMPORT failed to lookup module env", line, col);
+    }
+
+    // If not already loaded, attempt to locate and load a .pre file
+    EnvEntry* marker = env_get_entry(mod_env, "__MODULE_LOADED__");
+    if (!marker || !marker->initialized) {
+        // Determine referring directory from caller env's __MODULE_SOURCE__ if present
+        const char* referer_source = NULL;
+        EnvEntry* src_entry = env_get_entry(env, "__MODULE_SOURCE__");
+        if (src_entry && src_entry->initialized && src_entry->value.type == VAL_STR) {
+            referer_source = src_entry->value.as.s;
+        }
+
+        char referer_dir[1024] = {0};
+        if (referer_source && referer_source[0] != '\0') {
+            // Extract directory portion
+            strncpy(referer_dir, referer_source, sizeof(referer_dir)-1);
+            char* last_sep = NULL;
+            for (char* p = referer_dir; *p; p++) if (*p == '/' || *p == '\\') last_sep = p;
+            if (last_sep) *last_sep = '\0';
+        } else {
+            // Empty string => use current working directory (.)
+            strncpy(referer_dir, ".", sizeof(referer_dir)-1);
+        }
+
+        // Build base path by replacing '..' separators with platform path sep
+#ifdef _WIN32
+        const char PATH_SEP = '\\';
+#else
+        const char PATH_SEP = '/';
+#endif
+        char base[1024]; base[0] = '\0';
+        const char* p = modname;
+        char* b = base;
+        while (*p && (size_t)(b - base) + 1 < sizeof(base)) {
+            if (p[0] == '.' && p[1] == '.') { *b++ = PATH_SEP; p += 2; continue; }
+            *b++ = *p++;
+        }
+        *b = '\0';
+
+        // Helper to test file/dir existence
+        struct stat st;
+        char candidate[2048];
+        char* found_path = NULL;
+        char* srcbuf = NULL;
+
+        // Search locations: referring dir, then lib/
+        const char* search_dirs[2];
+        search_dirs[0] = referer_dir;
+        search_dirs[1] = "lib";
+
+        for (int sd = 0; sd < 2 && !found_path; sd++) {
+            const char* sdir = search_dirs[sd];
+            if (!sdir) continue;
+
+            // For package-name (single component) and for multi-component both
+            // we use package precedence: if directory exists, require init.pre; else try .pre file
+            if (snprintf(candidate, sizeof(candidate), "%s/%s", sdir, base) < 0) continue;
+            if (stat(candidate, &st) == 0 && (st.st_mode & S_IFMT) == S_IFDIR) {
+                // directory exists -> require init.pre inside
+                char initpath[2048];
+                if (snprintf(initpath, sizeof(initpath), "%s/%s/init.pre", sdir, base) < 0) continue;
+                if (stat(initpath, &st) == 0 && (st.st_mode & S_IFMT) == S_IFREG) {
+                    found_path = strdup(initpath);
+                    break;
+                } else {
+                    // Directory exists but no init.pre -> error per spec
+                    char buf[256];
+                    snprintf(buf, sizeof(buf), "IMPORT: package '%s' missing init.pre", modname);
+                    RUNTIME_ERROR(interp, buf, line, col);
+                }
+            }
+
+            // Otherwise try file sdir/base.pre
+            char filepath[2048];
+            if (snprintf(filepath, sizeof(filepath), "%s/%s.pre", sdir, base) < 0) continue;
+            if (stat(filepath, &st) == 0 && (st.st_mode & S_IFMT) == S_IFREG) {
+                found_path = strdup(filepath);
+                break;
+            }
+        }
+
+        if (found_path) {
+            FILE* f = fopen(found_path, "rb");
+            if (f) {
+                fseek(f, 0, SEEK_END);
+                long len = ftell(f);
+                fseek(f, 0, SEEK_SET);
+                srcbuf = malloc((size_t)len + 1);
+                if (!srcbuf) { fclose(f); free(found_path); RUNTIME_ERROR(interp, "Out of memory", line, col); }
+                if (fread(srcbuf, 1, (size_t)len, f) != (size_t)len) { free(srcbuf); fclose(f); free(found_path); srcbuf = NULL; }
+                if (srcbuf) {
+                    srcbuf[len] = '\0';
+                    fclose(f);
+                    // Set module source so nested IMPORTs prefer this dir
+                    env_assign(mod_env, "__MODULE_SOURCE__", value_str(found_path), TYPE_STR, true);
+
+                    // Parse and execute in module env
+                    Lexer lex;
+                    lexer_init(&lex, srcbuf, found_path);
+                    Parser parser;
+                    parser_init(&parser, &lex);
+                    Stmt* program = parser_parse(&parser);
+                    if (parser.had_error) {
+                        free(srcbuf);
+                        free(found_path);
+                        interp->error = strdup("IMPORT: parse error");
+                        interp->error_line = parser.current_token.line;
+                        interp->error_col = parser.current_token.column;
+                        return value_null();
+                    }
+
+                    ExecResult res = exec_program_in_env(interp, program, mod_env);
+                    if (res.status == EXEC_ERROR) {
+                        free(srcbuf);
+                        free(found_path);
+                        interp->error = res.error ? strdup(res.error) : strdup("Runtime error in IMPORT");
+                        interp->error_line = res.error_line;
+                        interp->error_col = res.error_column;
+                        free(res.error);
+                        return value_null();
+                    }
+
+                    // mark loaded
+                    env_assign(mod_env, "__MODULE_LOADED__", value_int(1), TYPE_INT, true);
+
+                    free(srcbuf);
+                    srcbuf = NULL;
+                    free(found_path);
+                }
+            }
+        }
+        // If not found, do nothing (module env may be populated by extensions)
+    }
+
+    // Expose module symbols into caller env under alias prefix: alias.name -> value
+    size_t alias_len = strlen(alias);
+    for (size_t i = 0; i < mod_env->count; i++) {
+        EnvEntry* e = &mod_env->entries[i];
+        if (!e->initialized) continue;
+        if (e->name && e->name[0] == '_' && e->name[1] == '_') continue; // skip magic
+        size_t qlen = alias_len + 1 + strlen(e->name) + 1;
+        char* qualified = malloc(qlen);
+        if (!qualified) { RUNTIME_ERROR(interp, "Out of memory", line, col); }
+        snprintf(qualified, qlen, "%s.%s", alias, e->name);
+        if (!env_assign(env, qualified, e->value, e->decl_type, true)) {
+            free(qualified);
+            RUNTIME_ERROR(interp, "IMPORT failed to assign qualified name", line, col);
+        }
+        free(qualified);
+    }
+
+    // Ensure the module name itself exists in caller env (avoid undefined identifier errors)
+    EnvEntry* alias_entry = env_get_entry(env, alias);
+    if (!alias_entry) {
+        if (!env_assign(env, alias, value_str("") , TYPE_STR, true)) {
+            RUNTIME_ERROR(interp, "IMPORT failed to assign module name", line, col);
+        }
+    }
+
     return value_int(0);
 }
 
@@ -2907,6 +3830,11 @@ static Value builtin_tstr(Interpreter* interp, Value* args, int argc, Expr** arg
 
 // Forward declare ARGV builtin so it can be referenced in the table
 static Value builtin_argv(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col);
+// Forward declare RUN builtin so it can be referenced in the table
+static Value builtin_run(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col);
+// Forward declare SHUSH/UNSHUSH so they can be referenced in the table
+static Value builtin_shush(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col);
+static Value builtin_unshush(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col);
 
 static BuiltinFunction builtins_table[] = {
     // Arithmetic
@@ -2927,7 +3855,7 @@ static BuiltinFunction builtins_table[] = {
     {"LCM", 2, 2, builtin_lcm},
     {"INV", 1, 1, builtin_inv},
     {"ROUND", 1, 3, builtin_round},
-    
+
     // Coercing arithmetic
     {"IADD", 2, 2, builtin_iadd},
     {"ISUB", 2, 2, builtin_isub},
@@ -2962,21 +3890,21 @@ static BuiltinFunction builtins_table[] = {
     {"MDIV", 2, 2, builtin_mdiv},
     {"MSUM", 1, -1, builtin_msum},
     {"MPROD", 1, -1, builtin_mprod},
-    
+
     // Comparison
     {"EQ", 2, 2, builtin_eq},
     {"GT", 2, 2, builtin_gt},
     {"LT", 2, 2, builtin_lt},
     {"GTE", 2, 2, builtin_gte},
     {"LTE", 2, 2, builtin_lte},
-    
+
     // Logical
     {"AND", 2, 2, builtin_and},
     {"OR", 2, 2, builtin_or},
     {"XOR", 2, 2, builtin_xor},
     {"NOT", 1, 1, builtin_not},
     {"BOOL", 1, 1, builtin_bool},
-    
+
     // Bitwise
     {"BAND", 2, 2, builtin_band},
     {"BOR", 2, 2, builtin_bor},
@@ -2984,20 +3912,21 @@ static BuiltinFunction builtins_table[] = {
     {"BNOT", 1, 1, builtin_bnot},
     {"SHL", 2, 2, builtin_shl},
     {"SHR", 2, 2, builtin_shr},
-    
+
     // Type conversion
     {"INT", 1, 1, builtin_int},
     {"FLT", 1, 1, builtin_flt},
     {"STR", 1, 1, builtin_str},
     {"BYTES", 1, 2, builtin_bytes},
-    
+
     // Type checking
     {"ISINT", 1, 1, builtin_isint},
     {"ISFLT", 1, 1, builtin_isflt},
     {"ISSTR", 1, 1, builtin_isstr},
     {"ISTNS", 1, 1, builtin_istns},
     {"TYPE", 1, 1, builtin_type},
-    
+    {"SIGNATURE", 1, 1, builtin_signature},
+
     // String operations
     {"SLEN", 1, 1, builtin_slen},
     {"UPPER", 1, 1, builtin_upper},
@@ -3016,22 +3945,35 @@ static BuiltinFunction builtins_table[] = {
     {"MATCH", 2, 5, builtin_match},
     {"ILEN", 1, 1, builtin_ilen},
     {"LEN", 0, -1, builtin_len},
-    
+
     // I/O
     {"PRINT", 0, -1, builtin_print},
     {"INPUT", 0, 1, builtin_input},
+    {"SHUSH", 0, 0, builtin_shush},
+    {"UNSHUSH", 0, 0, builtin_unshush},
+    {"READFILE", 1, 2, builtin_readfile},
+    {"WRITEFILE", 2, 3, builtin_writefile},
+    {"CL", 1, 1, builtin_cl},
+    {"EXISTFILE", 1, 1, builtin_existfile},
+    {"DELETEFILE", 1, 1, builtin_deletefile},
+    {"RUN", 1, 1, builtin_run},
     {"ARGV", 0, 0, builtin_argv},
-    
+
     // Control
     {"ASSERT", 1, 1, builtin_assert},
     {"THROW", 0, -1, builtin_throw},
-    
+
     // Variables
     {"DEL", 1, 1, builtin_del},
+    {"FREEZE", 1, 1, builtin_freeze},
+    {"THAW", 1, 1, builtin_thaw},
+    {"PERMAFREEZE", 1, 1, builtin_permafreeze},
+    {"FROZEN", 1, 1, builtin_frozen},
+    {"PERMAFROZEN", 1, 1, builtin_permafrozen},
     {"EXIST", 1, 1, builtin_exist},
     {"COPY", 1, 1, builtin_copy},
     {"DEEPCOPY", 1, 1, builtin_deepcopy},
-    
+
     // Variadic math
     {"SUM", 1, -1, builtin_sum},
     {"PROD", 1, -1, builtin_prod},
@@ -3043,13 +3985,15 @@ static BuiltinFunction builtins_table[] = {
     {"FSUM", 1, -1, builtin_fsum},
     {"IPROD", 1, -1, builtin_iprod},
     {"FPROD", 1, -1, builtin_fprod},
-    
+
     // System
     {"MAIN", 0, 0, builtin_main},
     {"OS", 0, 0, builtin_os},
     {"EXIT", 0, 1, builtin_exit},
     {"IMPORT", 1, 2, builtin_import},
-    
+    {"IMPORT_PATH", 1, 2, builtin_import_path},
+    {"EXPORT", 2, 2, builtin_export},
+
     // Sentinel
     {NULL, 0, 0, NULL}
 };
@@ -3104,4 +4048,39 @@ static Value builtin_argv(Interpreter* interp, Value* args, int argc, Expr** arg
     for (size_t i = 0; i < n; i++) value_free(items[i]);
     free(items);
     return out;
+}
+
+// RUN(STR: s) - parse and execute a Prefix program string within
+// the current interpreter and environment.
+static Value builtin_run(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
+    (void)arg_nodes; (void)argc;
+    EXPECT_STR(args[0], "RUN", interp, line, col);
+
+    const char* src = args[0].as.s ? args[0].as.s : "";
+
+    // Initialize lexer/parser on the provided string
+    Lexer lex;
+    lexer_init(&lex, src, "<string>");
+    Parser parser;
+    parser_init(&parser, &lex);
+
+    Stmt* program = parser_parse(&parser);
+    if (parser.had_error) {
+        interp->error = strdup("RUN: parse error");
+        interp->error_line = parser.current_token.line;
+        interp->error_col = parser.current_token.column;
+        return value_null();
+    }
+
+    // Execute parsed program in the caller's environment
+    ExecResult res = exec_program_in_env(interp, program, env);
+    if (res.status == EXEC_ERROR) {
+        interp->error = res.error ? strdup(res.error) : strdup("Runtime error in RUN");
+        interp->error_line = res.error_line;
+        interp->error_col = res.error_column;
+        free(res.error);
+        return value_null();
+    }
+
+    return value_null();
 }

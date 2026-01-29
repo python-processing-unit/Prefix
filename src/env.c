@@ -67,6 +67,8 @@ bool env_define(Env* env, const char* name, DeclType type) {
     entry->name = strdup(name);
     entry->decl_type = type;
     entry->initialized = false;
+    entry->frozen = false;
+    entry->permafrozen = false;
     entry->value = value_null();
     return true;
 }
@@ -75,6 +77,10 @@ bool env_assign(Env* env, const char* name, Value value, DeclType type, bool dec
     for (Env* e = env; e != NULL; e = e->parent) {
         EnvEntry* entry = env_find_local(e, name);
         if (entry) {
+            // Respect frozen/permanent-frozen bindings
+            if (entry->frozen || entry->permafrozen) {
+                return false;
+            }
             if (entry->initialized) {
                 value_free(entry->value);
             }
@@ -108,6 +114,10 @@ bool env_delete(Env* env, const char* name) {
     for (Env* e = env; e != NULL; e = e->parent) {
         EnvEntry* entry = env_find_local(e, name);
         if (entry) {
+            // Respect frozen/permanent-frozen bindings
+            if (entry->frozen || entry->permafrozen) {
+                return false;
+            }
             if (entry->initialized) {
                 value_free(entry->value);
             }
@@ -117,6 +127,43 @@ bool env_delete(Env* env, const char* name) {
         }
     }
     return false;
+}
+
+int env_freeze(Env* env, const char* name) {
+    EnvEntry* entry = env_get_entry(env, name);
+    if (!entry) return -1;
+    entry->frozen = true;
+    return 0;
+}
+
+int env_thaw(Env* env, const char* name) {
+    EnvEntry* entry = env_get_entry(env, name);
+    if (!entry) return -1;
+    if (entry->permafrozen) return -2;
+    entry->frozen = false;
+    return 0;
+}
+
+int env_permafreeze(Env* env, const char* name) {
+    EnvEntry* entry = env_get_entry(env, name);
+    if (!entry) return -1;
+    entry->permafrozen = true;
+    entry->frozen = true;
+    return 0;
+}
+
+int env_frozen_state(Env* env, const char* name) {
+    EnvEntry* entry = env_get_entry(env, name);
+    if (!entry) return 0;
+    if (entry->permafrozen) return -1;
+    if (entry->frozen) return 1;
+    return 0;
+}
+
+int env_permafrozen(Env* env, const char* name) {
+    EnvEntry* entry = env_get_entry(env, name);
+    if (!entry) return 0;
+    return entry->permafrozen ? 1 : 0;
 }
 
 bool env_exists(Env* env, const char* name) {

@@ -519,4 +519,3 @@ static Token number_token(Lexer* lexer, bool is_negative_start) {
     Token t = {TOKEN_NUMBER, value, start_line, start_col};
     return t;
 }
-

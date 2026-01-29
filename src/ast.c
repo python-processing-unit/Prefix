@@ -217,6 +217,15 @@ Stmt* stmt_return(Expr* value, int line, int column) {
     return stmt;
 }
 
+Stmt* stmt_pop(char* name, int line, int column) {
+    Stmt* stmt = ast_alloc(sizeof(Stmt));
+    stmt->type = STMT_POP;
+    stmt->line = line;
+    stmt->column = column;
+    stmt->as.pop_stmt.name = name;
+    return stmt;
+}
+
 Stmt* stmt_break(Expr* value, int line, int column) {
     Stmt* stmt = ast_alloc(sizeof(Stmt));
     stmt->type = STMT_BREAK;
@@ -381,6 +390,9 @@ void free_stmt(Stmt* stmt) {
             break;
         case STMT_RETURN:
             free_expr(stmt->as.return_stmt.value);
+            break;
+        case STMT_POP:
+            free(stmt->as.pop_stmt.name);
             break;
         case STMT_BREAK:
             free_expr(stmt->as.break_stmt.value);

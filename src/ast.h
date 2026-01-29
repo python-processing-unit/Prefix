@@ -75,6 +75,7 @@ typedef enum {
     STMT_RETURN,
     STMT_BREAK,
     STMT_CONTINUE,
+    STMT_POP,
     STMT_TRY,
     STMT_GOTO,
     STMT_GOTOPOINT
@@ -121,6 +122,7 @@ struct Stmt {
         struct { Expr* value; } break_stmt;
         struct { Stmt* try_block; char* catch_name; Stmt* catch_block; } try_stmt;
         struct { Expr* target; } goto_stmt;
+        struct { char* name; } pop_stmt;
         struct { Expr* target; } gotopoint_stmt;
     } as;
 };
@@ -146,6 +148,7 @@ Stmt* stmt_while(Expr* cond, Stmt* body, int line, int column);
 Stmt* stmt_for(char* counter, Expr* target, Stmt* body, int line, int column);
 Stmt* stmt_func(char* name, DeclType ret, Stmt* body, int line, int column);
 Stmt* stmt_return(Expr* value, int line, int column);
+Stmt* stmt_pop(char* name, int line, int column);
 Stmt* stmt_break(Expr* value, int line, int column);
 Stmt* stmt_continue(int line, int column);
 Stmt* stmt_try(Stmt* try_block, char* catch_name, Stmt* catch_block, int line, int column);

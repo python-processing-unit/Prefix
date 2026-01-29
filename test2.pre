@@ -17,7 +17,7 @@ DEL(i0)
 DEL(i1)
 DEL(i5)
 DEL(i_neg)
-PRINT("Literals: PASS")
+PRINT("Literals: PASS\n")
 
 # Floating-point binary fixed-point forms
 PRINT("Testing floats...")
@@ -28,7 +28,7 @@ ASSERT(EQ(ADD(f_half, f_quarter), f_threeq))
 DEL(f_half)
 DEL(f_quarter)
 DEL(f_threeq)
-PRINT("Floats: PASS")
+PRINT("Floats: PASS\n")
 
 # String literals
 PRINT("Testing strings...")
@@ -39,7 +39,7 @@ ASSERT(EQ(UPPER(s2), "TEST"))
 ASSERT(EQ(LOWER("TEST"), "test"))
 DEL(s1)
 DEL(s2)
-PRINT("Strings: PASS")
+PRINT("Strings: PASS\n")
 
 # Tensor literals
 PRINT("Testing tensors...")
@@ -53,9 +53,9 @@ ASSERT(EQ(t[1--1, 1], [1, 11]))
 ASSERT(ISTNS(t))
 ASSERT(NOT(ISTNS(101)))
 DEL(t)
-PRINT("Tensors: PASS")
+PRINT("Tensors: PASS\n")
 
-PRINT("=== MAP tests ===")
+PRINT("Testing maps...")
 # Simple map literal and lookup
 MAP: m = <"foo" = 101, "bar" = 1010, "nested" = <"a" = 1, "b" = 10>>
 ASSERT(EQ(m<"foo">, 101))
@@ -64,7 +64,7 @@ ASSERT(EQ(m<"nested", "a">, 1))
 ASSERT(EQ(m<"nested", "b">, 10))
 # Missing key should return null/0 (treat as false)
 ASSERT(NOT(m<"nope">))
-PRINT("=== MAP tests PASSED ===")
+PRINT("Maps: PASS\n")
 
 # Additional map builtins tests
 ASSERT(KEYIN("foo", m))
@@ -111,7 +111,7 @@ ASSERT(EQ(outer_dp<"b"><"x">, 10))
 DEL(outer)
 DEL(outer_sh)
 DEL(outer_dp)
-PRINT("COPY/DEEPCOPY: PASS")
+PRINT("COPY/DEEPCOPY: PASS\n")
 
 
 # --- TNS operator ---
@@ -122,7 +122,7 @@ ASSERT(EQ(TNS("foo"), ["f","o","o"]))
 TNS: shp = [10]   # shape [10] -> length 2
 ASSERT(EQ(TNS(shp, 101), [101, 101]))
 DEL(shp)
-PRINT("TNS operator: PASS")
+PRINT("TNS operator: PASS\n")
 
 # --- TINT / TFLT / TSTR ---
 PRINT("Testing TINT/TFLT/TSTR...")
@@ -143,7 +143,7 @@ DEL(strnums)
 DEL(as_ints)
 DEL(as_flts)
 DEL(as_strs)
-PRINT("TINT/TFLT/TSTR: PASS")
+PRINT("TINT/TFLT/TSTR: PASS\n")
 
 # --- CONV ---
 PRINT("Testing CONV...")
@@ -160,7 +160,7 @@ TNS: k2 = [[1]]
 ASSERT(EQ(CONV(img, k2), img))
 DEL(img)
 DEL(k2)
-PRINT("CONV: PASS")
+PRINT("CONV: PASS\n")
 
 # --- FILL operator ---
 PRINT("Testing FILL...")
@@ -171,7 +171,7 @@ ASSERT(EQ(filled[10], 0))
 ASSERT(EQ(filled[11], 0))
 DEL(base_fill)
 DEL(filled)
-PRINT("FILL: PASS")
+PRINT("FILL: PASS\n")
 
 # --- SHAPE / TLEN / TFLIP ---
 PRINT("Testing SHAPE/TLEN/TFLIP...")
@@ -182,7 +182,7 @@ ASSERT(EQ(TLEN(t2, 10), 10))
 ASSERT(EQ(TFLIP(t2, 1), [[11, 100], [1, 10]]))
 ASSERT(EQ(TFLIP(t2, 10), [[10, 1], [100, 11]]))
 DEL(t2)
-PRINT("SHAPE/TLEN/TFLIP: PASS")
+PRINT("SHAPE/TLEN/TFLIP: PASS\n")
 
 # --- SCAT ---
 PRINT("Testing SCAT...")
@@ -193,7 +193,7 @@ ASSERT(EQ(SCAT(src_scat, dst_scat, ind_scat), [[1, 10, 0], [11, 100, 0]]))
 DEL(dst_scat)
 DEL(src_scat)
 DEL(ind_scat)
-PRINT("SCAT: PASS")
+PRINT("SCAT: PASS\n")
 
 # --- Tensor-scalar arithmetic operators ---
 PRINT("Testing tensor-scalar arithmetic...")
@@ -206,7 +206,7 @@ ASSERT(EQ(TPOW(ta, 10), [1, 100]))  # [1,2]^2 -> [1,4]
 # scalar on left for non-commutative
 ASSERT(EQ(TSUB(10, ta), [1, 0]))
 DEL(ta)
-PRINT("Tensor-scalar arithmetic: PASS")
+PRINT("Tensor-scalar arithmetic: PASS\n")
 
 # --- Matrix (elementwise) arithmetic operators ---
 PRINT("Testing matrix (elementwise) arithmetic...")
@@ -218,7 +218,7 @@ ASSERT(EQ(MMUL(m1, m2), [[10, 10], [1100, 1100]]))
 ASSERT(EQ(MDIV(m1, m2), [[0, 10], [0, 1]]))
 DEL(m1)
 DEL(m2)
-PRINT("Matrix arithmetic: PASS")
+PRINT("Matrix arithmetic: PASS\n")
 
 # --- MSUM / MPROD ---
 PRINT("Testing MSUM/MPROD...")
@@ -231,7 +231,7 @@ ASSERT(EQ(MPROD(ma1, ma2, ma3), [[10, 10], [1100, 1100]]))
 DEL(ma1)
 DEL(ma2)
 DEL(ma3)
-PRINT("MSUM/MPROD: PASS")
+PRINT("MSUM/MPROD: PASS\n")
 
 # --- Arithmetic operators ---
 PRINT("Testing arithmetic...")
@@ -243,7 +243,7 @@ ASSERT(EQ(MOD(111, 10), 1))      # 7 % 2 = 1
 ASSERT(EQ(POW(10, 11), 1000))    # 2^3 = 8
 ASSERT(EQ(NEG(101), -101))       # -5
 ASSERT(EQ(ABS(-101), 101))       # 5
-PRINT("Arithmetic: PASS")
+PRINT("Arithmetic: PASS\n")
 
 # --- Comparison operators ---
 PRINT("Testing comparisons...")
@@ -255,7 +255,7 @@ ASSERT(GTE(11, 10))
 ASSERT(GTE(10, 10))
 ASSERT(LTE(10, 11))
 ASSERT(LTE(10, 10))
-PRINT("Comparisons: PASS")
+PRINT("Comparisons: PASS\n")
 
 # --- Logical operators ---
 PRINT("Testing logical ops...")
@@ -269,7 +269,7 @@ ASSERT(XOR(0, 1))
 ASSERT(NOT(XOR(1, 1)))
 ASSERT(NOT(0))
 ASSERT(NOT(NOT(1)))
-PRINT("Logical: PASS")
+PRINT("Logical: PASS\n")
 
 # --- Bitwise operators ---
 PRINT("Testing bitwise ops...")
@@ -278,7 +278,7 @@ ASSERT(EQ(BOR(100, 10), 110))     # 4 | 2 = 6
 ASSERT(EQ(BXOR(111, 101), 10))    # 7 ^ 5 = 2
 ASSERT(EQ(SHL(1, 10), 100))       # 1 << 2 = 4
 ASSERT(EQ(SHR(1000, 10), 10))     # 8 >> 2 = 2
-PRINT("Bitwise: PASS")
+PRINT("Bitwise: PASS\n")
 
 # --- Type conversions ---
 PRINT("Testing type conversions...")
@@ -286,7 +286,7 @@ ASSERT(EQ(INT(0.1), 0))           # FLT->INT truncates
 ASSERT(EQ(FLT(10), 10.0))         # INT->FLT
 ASSERT(EQ(STR(101), "101"))       # INT->STR
 ASSERT(EQ(INT("101"), 101))       # STR->INT
-PRINT("Type conversions: PASS")
+PRINT("Type conversions: PASS\n")
 
 # --- BYTES ---
 PRINT("Testing BYTES...")
@@ -295,7 +295,7 @@ ASSERT(EQ(BYTES(1), [1]))
 ASSERT(EQ(BYTES(100000000), BYTES(100000000, "big")))
 ASSERT(EQ(BYTES(100000000), [1,0]))
 ASSERT(EQ(BYTES(100000000, "little"), [0,1]))
-PRINT("BYTES: PASS")
+PRINT("BYTES: PASS\n")
 
 # --- Type checking ---
 PRINT("Testing type checks...")
@@ -314,7 +314,7 @@ ASSERT(EQ(TYPE(z), "STR"))
 DEL(x)
 DEL(y)
 DEL(z)
-PRINT("Type checks: PASS")
+PRINT("Type checks: PASS\n")
 
 # --- String operations ---
 PRINT("Testing string ops...")
@@ -327,7 +327,7 @@ ASSERT(EQ(FLIP(110), 11))    # 6 -> 3
 ASSERT(EQ(FLIP(-110), -11))  # -6 -> -3 (sign preserved)
 ASSERT(EQ(FLIP(0), 0))
 ASSERT(EQ(FLIP("abc"), "cba"))
-PRINT("String ops: PASS")
+PRINT("String ops: PASS\n")
 DEL(s)
 
 # --- Variadic math ---
@@ -340,7 +340,7 @@ ASSERT(ANY(0, 0, 1))
 ASSERT(NOT(ANY(0, 0, 0)))
 ASSERT(ALL(1, 1, 1))
 ASSERT(NOT(ALL(1, 0, 1)))
-PRINT("Variadic math: PASS")
+PRINT("Variadic math: PASS\n")
 
 # --- MAX/MIN with tensors ---
 PRINT("Testing MAX/MIN with tensors...")
@@ -357,7 +357,7 @@ ASSERT(EQ(MIN(ts), "a"))
 DEL(tm1)
 DEL(tm2)
 DEL(ts)
-PRINT("MAX/MIN with tensors: PASS")
+PRINT("MAX/MIN with tensors: PASS\n")
 
 # --- Control flow: IF ---
 PRINT("Testing IF...")
@@ -385,7 +385,7 @@ IF(0){
 }
 ASSERT(EQ(result, 11))
 DEL(result)
-PRINT("IF: PASS")
+PRINT("IF: PASS\n")
 
 # --- Control flow: WHILE ---
 PRINT("Testing WHILE...")
@@ -398,7 +398,7 @@ WHILE(LT(counter, 101)){
 ASSERT(EQ(sum, 1010))  # 0+1+2+3+4 = 10
 DEL(counter)
 DEL(sum)
-PRINT("WHILE: PASS")
+PRINT("WHILE: PASS\n")
 
 # --- Control flow: FOR ---
 PRINT("Testing FOR...")
@@ -408,7 +408,7 @@ FOR(i, 101){  # 5 iterations: 0,1,2,3,4
 }
 ASSERT(EQ(total, 1010))  # 0+1+2+3+4 = 10
 DEL(total)
-PRINT("FOR: PASS")
+PRINT("FOR: PASS\n")
 
 # --- Control flow: BREAK ---
 PRINT("Testing BREAK...")
@@ -421,7 +421,7 @@ WHILE(1){
 }
 ASSERT(EQ(count, 11))  # broke at 3
 DEL(count)
-PRINT("BREAK: PASS")
+PRINT("BREAK: PASS\n")
 
 # --- Control flow: CONTINUE ---
 PRINT("Testing CONTINUE...")
@@ -434,7 +434,7 @@ FOR(j, 101){  # 5 iterations
 }
 ASSERT(EQ(sum2, 1000))  # 0+1+3+4 = 8 (skipped 2)
 DEL(sum2)
-PRINT("CONTINUE: PASS")
+PRINT("CONTINUE: PASS\n")
 
 # --- Functions ---
 PRINT("Testing functions...")
@@ -457,7 +457,32 @@ FUNC GREET(STR: name, STR: prefix = "Hello"):STR{
 }
 ASSERT(EQ(GREET("World"), "Hello World"))
 ASSERT(EQ(GREET("World", "Hi"), "Hi World"))
-PRINT("Functions: PASS")
+PRINT("Functions: PASS\n")
+
+PRINT("Testing SIGNATURE...")
+FUNC SIGTEST(INT: a, STR: b = "def"):INT{
+    RETURN(0)
+}
+INT: v = 101
+STR: s1 = SIGNATURE(SIGTEST)
+ASSERT(ISSTR(s1))
+ASSERT(EQ(s1, "SIGTEST(INT: a, STR: b = \"def\"):INT"))
+STR: s2 = SIGNATURE(v)
+ASSERT(EQ(s2, "INT: v"))
+DEL(s1)
+DEL(s2)
+DEL(v)
+PRINT("SIGNATURE: PASS\n")
+
+# --- POP ---
+PRINT("Testing POP...")
+INT: tmp = 101
+FUNC TEST_POP():INT{
+    POP(tmp)
+}
+ASSERT(EQ(TEST_POP(), 101))
+ASSERT(NOT(EXIST(tmp)))
+PRINT("POP: PASS\n")
 
 # --- TRY/CATCH ---
 PRINT("Testing TRY/CATCH...")
@@ -469,19 +494,19 @@ TRY{
 }
 ASSERT(EQ(caught, 1))
 DEL(caught)
-PRINT("TRY/CATCH: PASS")
+PRINT("TRY/CATCH: PASS\n")
 
 # --- GCD/LCM ---
 PRINT("Testing GCD/LCM...")
 ASSERT(EQ(GCD(1100, 1000), 100))  # gcd(12, 8) = 4
 ASSERT(EQ(LCM(100, 110), 1100))   # lcm(4, 6) = 12
-PRINT("GCD/LCM: PASS")
+PRINT("GCD/LCM: PASS\n")
 
 # --- LOG ---
 PRINT("Testing LOG...")
 ASSERT(EQ(LOG(1000), 11))  # log2(8) = 3
 ASSERT(EQ(LOG(10000), 100))  # log2(16) = 4
-PRINT("LOG: PASS")
+PRINT("LOG: PASS\n")
 
 # --- EXIST ---
 PRINT("Testing EXIST...")
@@ -489,7 +514,7 @@ INT: exists_test = 1
 ASSERT(EXIST(exists_test))
 DEL(exists_test)
 ASSERT(NOT(EXIST(exists_test)))
-PRINT("EXIST: PASS")
+PRINT("EXIST: PASS\n")
 
 # --- IN (membership) ---
 PRINT("Testing IN...")
@@ -505,12 +530,126 @@ ASSERT(MAIN())
 STR: os_name = OS()
 ASSERT(ISSTR(os_name))
 DEL(os_name)
-PRINT("System: PASS")
+PRINT("System: PASS\n")
+
+PRINT("Testing CL...")
+# Simple cross-platform check: `echo` should succeed and return 0
+ASSERT(EQ(CL("echo hello"), 0))
+# Nonexistent command should return non-zero (platform-dependent code)
+ASSERT(NOT(EQ(CL("this_command_does_not_exist_12345"), 0)))
+PRINT("CL: PASS\n")
+
+PRINT("Testing shushing...")
+ASSERT(EQ(SHUSH(), 0))
+PRINT("ERROR")  # should be silenced
+ASSERT(EQ(UNSHUSH(), 0))
+PRINT("Shushing: PASS\n")
 
 PRINT("Testing ARGV...")
-TNS: av = ARGV()
-ASSERT(ISSTR(av[1]))
-DEL(av)
-PRINT("ARGV: PASS")
+ASSERT(ISSTR(ARGV()[1]))
+PRINT("ARGV: PASS\n")
+
+PRINT("Testing RUN...")
+# Run a small program string that defines a variable in the current env
+RUN("INT: run_val = 101")
+ASSERT(EQ(run_val, 101))
+DEL(run_val)
+PRINT("RUN: PASS\n")
+
+PRINT("Testing File I/O...")
+ASSERT(EQ(WRITEFILE("hello", "_pre_tmp.txt"), 1))
+ASSERT(EQ(EXISTFILE("_pre_tmp.txt"), 1))
+ASSERT(EQ(READFILE("_pre_tmp.txt"), "hello"))
+
+ASSERT(EQ(WRITEFILE("01000001", "_pre_tmp.bin", "binary"), 1))
+ASSERT(EQ(READFILE("_pre_tmp.bin", "binary"), "01000001"))
+
+ASSERT(EQ(WRITEFILE("41", "_pre_tmp.hex", "hex"), 1))
+ASSERT(EQ(READFILE("_pre_tmp.hex", "hex"), "41"))
+
+# Cleanup temp files
+DELETEFILE("_pre_tmp.txt")
+DELETEFILE("_pre_tmp.bin")
+DELETEFILE("_pre_tmp.hex")
+ASSERT(EQ(EXISTFILE("_pre_tmp.txt"), 0))
+ASSERT(EQ(EXISTFILE("_pre_tmp.bin"), 0))
+ASSERT(EQ(EXISTFILE("_pre_tmp.hex"), 0))
+
+TRY{
+    DELETEFILE("_pre_nonexistent_file.txt")
+    ASSERT(0)  # should not reach here
+}CATCH{}
+PRINT("File I/O: PASS\n")
+
+
+PRINT("Testing freezing...")
+INT: f = 101
+ASSERT(EQ(FROZEN(f), 0))
+ASSERT(EQ(PERMAFROZEN(f), 0))
+FREEZE(f)
+ASSERT(EQ(FROZEN(f), 1))
+TRY{
+    f = 10
+    ASSERT(0)
+}CATCH(SYMBOL: e){
+    ASSERT(EQ(f, 101))
+}
+TRY{
+    DEL(f)
+    ASSERT(0)
+}CATCH{}
+THAW(f)
+f = 10
+ASSERT(EQ(f, 10))
+PERMAFREEZE(f)
+ASSERT(EQ(FROZEN(f), -1))
+ASSERT(EQ(PERMAFROZEN(f), 1))
+TRY{
+    THAW(f)
+    ASSERT(0)
+}CATCH(SYMBOL: e){
+    ASSERT(EQ(f, 10))
+}
+TRY{
+    DEL(f)
+    ASSERT(0)
+}CATCH{}
+
+TRY{
+    FREEZE(nonexistent_sym)
+    ASSERT(0)
+}CATCH{}
+PRINT("Freezing: PASS\n")
+
+# --- IMPORT / EXPORT ---
+PRINT("Testing IMPORT...")
+TRY{
+    IMPORT(nonexistent_module)
+    ASSERT(0)
+}CATCH{}
+WRITEFILE("INT: im_sym = 101", "mod.pre")
+IMPORT(mod)
+ASSERT(EQ(mod.im_sym, 101))
+DEL(mod.im_sym)
+ASSERT(NOT(EXIST(mod.im_sym)))
+PRINT("IMPORT: PASS\n")
+
+PRINT("Testing IMPORT_PATH...")
+WRITEFILE("INT: p_sym = 101", "mod_path.pre")
+ASSERT(EQ(IMPORT_PATH("mod_path.pre", modp), 0))
+ASSERT(EQ(modp.p_sym, 101))
+DEL(modp.p_sym)
+DELETEFILE("mod_path.pre")
+PRINT("IMPORT_PATH: PASS\n")
+
+PRINT("Testing EXPORT...")
+WRITEFILE("", "mod.pre")
+INT: ex_sym = 101
+ASSERT(EQ(EXPORT(ex_sym, mod), 0))
+ASSERT(EQ(mod.ex_sym, 101))
+DEL(ex_sym)
+DEL(mod.ex_sym)
+DELETEFILE("mod.pre")
+PRINT("EXPORT: PASS\n")
 
 PRINT("=== All Stage 4 Tests PASSED ===")

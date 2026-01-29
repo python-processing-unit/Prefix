@@ -1,6 +1,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+// platform-specific chdir
+#ifdef _MSC_VER
+#include <direct.h>
+#else
+#include <unistd.h>
+#endif
 
 #include "lexer.h"
 #include "parser.h"
@@ -41,7 +47,24 @@ int main(int argc, char** argv) {
     // Provide process argv to builtins (ARGV)
     builtins_set_argv(argc, argv);
 
-    ExecResult res = exec_program(program);
+    // Change working directory to the directory containing the script
+    // so relative READFILE/WRITEFILE operate relative to the script.
+    if (path) {
+        char* dir = strdup(path);
+        char* last_slash = NULL;
+        for (char* p = dir; *p; p++) if (*p == '/' || *p == '\\') last_slash = p;
+        if (last_slash) {
+            *last_slash = '\0';
+#ifdef _MSC_VER
+            _chdir(dir);
+#else
+            chdir(dir);
+#endif
+        }
+        free(dir);
+    }
+
+    ExecResult res = exec_program(program, path);
     if (res.status == EXEC_ERROR) {
         fprintf(stderr, "Runtime error: %s at %d:%d\n", res.error ? res.error : "error", res.error_line, res.error_column);
         free(src);

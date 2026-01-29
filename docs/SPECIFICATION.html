@@ -449,6 +449,8 @@ Notes:
 
 - The interpreter may support additional flags and a different ordering of arguments; the rules above define the semantics for `argv[1]`, `-source`, and `-verbose` specifically and are intended to be stable for tooling and replay purposes.
 
+- Exit codes: On normal termination (the program completes without an explicit `EXIT()` call and without encountering a runtime error or uncaught exception) the interpreter returns exit code `0` to the operating system. If execution terminates due to a runtime error or uncaught exception the interpreter returns exit code `1`. If the program invokes `EXIT(n)`, the interpreter returns the supplied integer `n` as the process exit code.
+
 Example invocations (illustrative):
 
 - File mode: `prefix program.pre`
@@ -500,7 +502,7 @@ Tensor indexing uses the expression form `tensor[i1, i2, ..., iN]`. The number o
 
 ### 12.1 Function / Operator Signatures (expression position)
 
-- `RUN(STR: s)` ; Run a string as an Prefix program within the current environment;
+- `RUN(STR: s)` ; Run a string as a Prefix program within the current environment;
 
 - `ASSERT(ANY: a)` ; crashes if `INT`-style` truthiness of `a` is 0
 
@@ -817,7 +819,7 @@ Tensor indexing uses the expression form `tensor[i1, i2, ..., iN]`. The number o
 
   Package imports: Prefix supports package namespaces using `..` as the package separator. The canonical form is `package..subpackage..module`. When `IMPORT(pkg)` is used the interpreter will prefer a package layout and attempt to load `pkg/init.pre` from the referring source's directory (falling back to the interpreter `lib/` directory). If a directory named `pkg` exists but contains no `init.pre` the import raises a clear error. When `IMPORT(pkg..mod)` is used the interpreter resolves to `pkg/mod.pre` (or the corresponding file under `lib/`). When a package directory and a same-named module file both exist in the same search location, the package takes precedence. Items within the package are still imported using their full dotted names (for example, `pkg..mod.FOO`).
 
-- `IMPORT_PATH(STR: path)` — Loads an Prefix module from the absolute filesystem `path` provided as a `STR`. The argument must be an absolute path to a `.pre` source file. The imported module is treated the same as `IMPORT` with respect to parsing, execution isolation, function/module caching, and companion extension loading (companion `<module>.prex` alongside the resolved file and a built-in `ext/<module>.py` are both checked and loaded if present). The module's basename (filename without extension) is used as the module identifier for qualifying exported bindings.
+- `IMPORT_PATH(STR: path)` — Loads a Prefix module from the absolute filesystem `path` provided as a `STR`. The argument must be an absolute path to a `.pre` source file. The imported module is treated the same as `IMPORT` with respect to parsing, execution isolation, function/module caching, and companion extension loading (companion `<module>.prex` alongside the resolved file and a built-in `ext/<module>.py` are both checked and loaded if present). The module's basename (filename without extension) is used as the module identifier for qualifying exported bindings.
 
   The first argument must be an identifier naming a module; the interpreter first looks for a file named `<name>.pre` in the same directory as the referring source file. When the referring source is provided via the `-source` string literal mode, the primary search directory is the process's current working directory. If the module file is not found there, the interpreter will additionally attempt to load the file from a `lib` subdirectory located alongside the interpreter implementation (that is, `<interpreter_dir>/lib/<name>.pre`, where `<interpreter_dir>` is the directory containing the interpreter script or executable).
 
@@ -826,7 +828,7 @@ Tensor indexing uses the expression form `tensor[i1, i2, ..., iN]`. The number o
   After the module finishes executing the first time, the interpreter caches the module's top-level environment and the module-qualified function objects. Subsequent `IMPORT` calls for the same module identifier within the same interpreter process reuse that cached namespace/instance and do not re-execute the module source. Callers importing the same module later will observe the same shared module environment (that is, the same binding objects and the same function objects). By default bindings are exposed under the module's own dotted prefix (`module.FOO`, `module.bar`, etc.); however, if the importer supplied an alias the bindings are instead exposed under the alias prefix (`alias.FOO`, `alias.bar`). Multiple different aliases for the same module identifier will each get their own dotted view into the same cached module instance. If the module imported other modules during its execution, those nested qualified bindings are preserved in the cached namespace and remain accessible via the same dotted paths (for example, `module.other.SYM` or `alias.other.SYM` or `module.alias.SYM`).
 
   This caching behavior ensures that importing a module multiple times produces the same shared module namespace instance for all importers. The interpreter does not automatically perform cycle detection beyond using the cached instance once execution has completed; careful module design should avoid import cycles where possible.
-  
+
   When a module is imported, the interpreter also attempts to load any associated runtime extensions so their operators are immediately available to the importer. The interpreter first looks for a companion pointer file named `<module>.prex` next to the resolved module file (or in the interpreter `lib/` fallback) and loads any extensions listed there. If no pointer file is present (or as an additional fallback), the interpreter will also check its built-in `ext/` directory for a single-file extension named `<module>.py` and load it if present. Operators registered by such extensions are attached to the running interpreter at import time and become callable (typically under the module-qualified names they register).
 
 - `EXPORT(SYMBOL: symbol, MODULE: module):INT` — Adds the caller's binding for the identifier `symbol` into the namespace of the imported module named by the identifier `module`. The first argument must be an identifier (not a string literal); its current value in the caller's environment is copied into the imported module's namespace and becomes available as the qualified name `module.symbol` in the caller's environment. The second argument must be an identifier naming a previously-imported module; if the module has not been imported yet, the interpreter raises a runtime error (rewrite: EXPORT). `EXPORT` returns `INT` 0 on success.

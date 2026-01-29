@@ -8,6 +8,8 @@ typedef struct {
     DeclType decl_type;
     Value value;
     bool initialized;
+    bool frozen;
+    bool permafrozen;
 } EnvEntry;
 
 typedef struct Env {
@@ -28,5 +30,17 @@ bool env_exists(Env* env, const char* name);
 // Return pointer to the EnvEntry for the given name, searching parents.
 // Caller must NOT free the returned pointer. Returns NULL if not found.
 EnvEntry* env_get_entry(Env* env, const char* name);
+
+// Symbol freezing API
+// Returns 0 on success, -1 if the identifier was not found.
+int env_freeze(Env* env, const char* name);
+// Returns 0 on success, -1 if not found, -2 if identifier is permanently frozen
+int env_thaw(Env* env, const char* name);
+// Returns 0 on success, -1 if not found
+int env_permafreeze(Env* env, const char* name);
+// Returns -1 if permanently frozen, 1 if frozen, 0 if not frozen or not found
+int env_frozen_state(Env* env, const char* name);
+// Returns 1 if permanently frozen, 0 otherwise (or not found)
+int env_permafrozen(Env* env, const char* name);
 
 #endif // ENV_H

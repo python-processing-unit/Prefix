@@ -83,11 +83,21 @@ typedef struct Interpreter {
     int error_line;
     int error_col;
     bool in_try_block;
+    // Module registry: linked list of imported modules
+    struct ModuleEntry* modules;
+    // When non-zero, forwarding of console output (PRINT/CL) is suppressed
+    int shushed;
 } Interpreter;
 
 // Main entry point
-ExecResult exec_program(Stmt* program);
+ExecResult exec_program(Stmt* program, const char* source_path);
 
+// Execute a parsed program (`Stmt*`) within an existing interpreter
+// and environment. This runs the program using the provided `interp`
+// state and the supplied `env` (which may be the current frame or
+// the global environment). Returns an ExecResult similar to
+// `exec_program`.
+ExecResult exec_program_in_env(Interpreter* interp, Stmt* program, Env* env);
 // Functions needed by builtins.c
 Value eval_expr(Interpreter* interp, Expr* expr, Env* env);
 int value_truthiness(Value v);
@@ -97,5 +107,11 @@ FuncTable* func_table_create(void);
 void func_table_free(FuncTable* table);
 bool func_table_add(FuncTable* table, const char* name, Func* func);
 Func* func_table_lookup(FuncTable* table, const char* name);
+
+// Module registry helpers
+// Register a module name and create its isolated Env. Returns 0 on success, -1 on error.
+int module_register(Interpreter* interp, const char* name);
+// Lookup a module's Env by name; returns NULL if not found.
+Env* module_env_lookup(Interpreter* interp, const char* name);
 
 #endif // INTERPRETER_H

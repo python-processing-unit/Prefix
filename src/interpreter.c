@@ -53,6 +53,39 @@ FuncTable* func_table_create(void) {
     return table;
 }
 
+// ============ Module registry ============
+
+typedef struct ModuleEntry {
+    char* name;
+    Env* env;
+    struct ModuleEntry* next;
+} ModuleEntry;
+
+int module_register(Interpreter* interp, const char* name) {
+    if (!interp || !name) return -1;
+    ModuleEntry* e = interp->modules;
+    while (e) {
+        if (strcmp(e->name, name) == 0) return 0; // already registered
+        e = e->next;
+    }
+    ModuleEntry* me = safe_malloc(sizeof(ModuleEntry));
+    me->name = strdup(name);
+    me->env = env_create(NULL);
+    me->next = interp->modules;
+    interp->modules = me;
+    return 0;
+}
+
+Env* module_env_lookup(Interpreter* interp, const char* name) {
+    if (!interp || !name) return NULL;
+    ModuleEntry* e = interp->modules;
+    while (e) {
+        if (strcmp(e->name, name) == 0) return e->env;
+        e = e->next;
+    }
+    return NULL;
+}
+
 void func_table_free(FuncTable* table) {
     if (!table) return;
     FuncEntry* entry = table->entries;
@@ -306,8 +339,10 @@ Value eval_expr(Interpreter* interp, Expr* expr, Env* env) {
                         for (int i = 0; i < argc; i++) {
                             arg_nodes[i] = expr->as.call.args.items[i];
                             
-                            // For DEL and EXIST, don't evaluate the argument
-                            if ((strcmp(func_name, "DEL") == 0 || strcmp(func_name, "EXIST") == 0) && i == 0) {
+                            // For DEL, EXIST, and IMPORT, don't evaluate the first argument.
+                            // For IMPORT_PATH, don't evaluate the second (alias) argument.
+                            if (((strcmp(func_name, "DEL") == 0 || strcmp(func_name, "EXIST") == 0 || strcmp(func_name, "IMPORT") == 0) && i == 0)
+                                || (strcmp(func_name, "IMPORT_PATH") == 0 && i == 1)) {
                                 args[i] = value_null();
                             } else {
                                 args[i] = eval_expr(interp, expr->as.call.args.items[i], env);
@@ -444,7 +479,16 @@ Value eval_expr(Interpreter* interp, Expr* expr, Env* env) {
                 }
                 
                 env_define(call_env, param->name, param->type);
-                env_assign(call_env, param->name, arg_val, param->type, true);
+                if (!env_assign(call_env, param->name, arg_val, param->type, true)) {
+                    char buf[256];
+                    snprintf(buf, sizeof(buf), "Cannot assign to frozen identifier '%s'", param->name);
+                    interp->error = strdup(buf);
+                    interp->error_line = expr->line;
+                    interp->error_col = expr->column;
+                    value_free(arg_val);
+                    env_free(call_env);
+                    return value_null();
+                }
                 value_free(arg_val);
             }
             
@@ -1031,9 +1075,21 @@ static ExecResult exec_stmt(Interpreter* interp, Stmt* stmt, Env* env, LabelMap*
                 }
 
                 env_define(env, stmt->as.assign.name, expected);
-                env_assign(env, stmt->as.assign.name, v, expected, true);
+                if (!env_assign(env, stmt->as.assign.name, v, expected, true)) {
+                    char buf[256];
+                    snprintf(buf, sizeof(buf), "Cannot assign to frozen identifier '%s'", stmt->as.assign.name);
+                    value_free(v);
+                    return make_error(buf, stmt->line, stmt->column);
+                }
             } else {
                 if (!env_assign(env, stmt->as.assign.name, v, TYPE_UNKNOWN, false)) {
+                    EnvEntry* echeck = env_get_entry(env, stmt->as.assign.name);
+                    if (echeck) {
+                        char buf[256];
+                        snprintf(buf, sizeof(buf), "Cannot assign to frozen identifier '%s'", stmt->as.assign.name);
+                        value_free(v);
+                        return make_error(buf, stmt->line, stmt->column);
+                    }
                     char buf[128];
                     snprintf(buf, sizeof(buf), "Cannot assign to undeclared identifier '%s'", stmt->as.assign.name);
                     value_free(v);
@@ -1098,6 +1154,37 @@ static ExecResult exec_stmt(Interpreter* interp, Stmt* stmt, Env* env, LabelMap*
             return res;
         }
 
+        case STMT_POP: {
+            // POP: retrieve identifier value, delete binding, and return the value
+            const char* name = stmt->as.pop_stmt.name;
+            // POP is only valid inside a function (env != global_env)
+            if (env == interp->global_env) {
+                return make_error("POP used outside function", stmt->line, stmt->column);
+            }
+
+            Value v;
+            DeclType dtype;
+            bool initialized = false;
+            if (!env_get(env, name, &v, &dtype, &initialized) || !initialized) {
+                return make_error("Cannot POP undefined or uninitialized identifier", stmt->line, stmt->column);
+            }
+
+            if (!env_delete(env, name)) {
+                value_free(v);
+                return make_error("Failed to delete identifier during POP", stmt->line, stmt->column);
+            }
+
+            ExecResult res;
+            res.status = EXEC_RETURN;
+            res.value = v; // transfer ownership to caller
+            res.break_count = 0;
+            res.jump_index = -1;
+            res.error = NULL;
+            res.error_line = 0;
+            res.error_column = 0;
+            return res;
+        }
+
         case STMT_TRY: {
             // Execute try block and, on error, run catch block if present
             bool prev_in_try = interp->in_try_block;
@@ -1123,7 +1210,10 @@ static ExecResult exec_stmt(Interpreter* interp, Stmt* stmt, Env* env, LabelMap*
                 if (stmt->as.try_stmt.catch_block) {
                     if (stmt->as.try_stmt.catch_name) {
                         env_define(env, stmt->as.try_stmt.catch_name, TYPE_STR);
-                        env_assign(env, stmt->as.try_stmt.catch_name, value_str(msg), TYPE_STR, true);
+                        if (!env_assign(env, stmt->as.try_stmt.catch_name, value_str(msg), TYPE_STR, true)) {
+                            free(msg);
+                            return make_error("Cannot bind catch name (frozen)", stmt->line, stmt->column);
+                        }
                     }
                     free(msg);
                     ExecResult cres = exec_stmt(interp, stmt->as.try_stmt.catch_block, env, labels);
@@ -1287,7 +1377,11 @@ static ExecResult exec_stmt(Interpreter* interp, Stmt* stmt, Env* env, LabelMap*
                 }
 
                 // Bind or assign the loop counter in the current environment
-                env_assign(env, stmt->as.for_stmt.counter, value_int(idx), TYPE_INT, true);
+                if (!env_assign(env, stmt->as.for_stmt.counter, value_int(idx), TYPE_INT, true)) {
+                    char buf[256];
+                    snprintf(buf, sizeof(buf), "Cannot assign to frozen identifier '%s'", stmt->as.for_stmt.counter);
+                    return make_error(buf, stmt->line, stmt->column);
+                }
 
                 ExecResult res = exec_stmt(interp, stmt->as.for_stmt.body, env, labels);
 
@@ -1357,15 +1451,20 @@ static ExecResult exec_stmt_list(Interpreter* interp, StmtList* list, Env* env, 
 
 // ============ Main entry point ============
 
-ExecResult exec_program(Stmt* program) {
+ExecResult exec_program(Stmt* program, const char* source_path) {
     Interpreter interp = {0};
     interp.global_env = env_create(NULL);
     interp.functions = func_table_create();
     interp.loop_depth = 0;
     interp.error = NULL;
     interp.in_try_block = false;
-    
+    interp.modules = NULL;
+
     builtins_init();
+    // Record source path of the primary program so imports and MAIN() work
+    if (source_path && source_path[0] != '\0') {
+        env_assign(interp.global_env, "__MODULE_SOURCE__", value_str(source_path), TYPE_STR, true);
+    }
     
     LabelMap labels = {0};
     ExecResult res = exec_stmt_list(&interp, &program->as.block, interp.global_env, &labels);
@@ -1376,6 +1475,34 @@ ExecResult exec_program(Stmt* program) {
     
     env_free(interp.global_env);
     func_table_free(interp.functions);
+    // Free modules
+    ModuleEntry* me = interp.modules;
+    while (me) {
+        ModuleEntry* next = me->next;
+        free(me->name);
+        env_free(me->env);
+        free(me);
+        me = next;
+    }
     
+    return res;
+}
+
+// Execute a parsed program within an existing Interpreter and Env.
+// This runs `program` using the provided `interp` state and the
+// supplied `env` as the execution environment. It returns an
+// ExecResult similar to `exec_program`.
+ExecResult exec_program_in_env(Interpreter* interp, Stmt* program, Env* env) {
+    if (!interp || !program || !env) {
+        ExecResult r = make_error("Internal: invalid args to exec_program_in_env", 0, 0);
+        return r;
+    }
+
+    LabelMap labels = {0};
+    ExecResult res = exec_stmt_list(interp, &program->as.block, env, &labels);
+
+    for (size_t i = 0; i < labels.count; i++) value_free(labels.items[i].key);
+    free(labels.items);
+
     return res;
 }
