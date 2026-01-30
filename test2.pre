@@ -77,6 +77,27 @@ MAP: m2 = <"a" = 101, "b" = 1010>
 ASSERT(EQ(KEYS(m2), ["a", "b"]))
 ASSERT(EQ(VALUES(m2), [101, 1010]))
 
+# Pointer tests
+PRINT("Testing pointers...")
+INT: x = 1
+INT: y = @x
+ASSERT(EQ(y, 1))
+x = 10
+ASSERT(EQ(y, 10))
+y = 0
+ASSERT(EQ(x, 0))
+FREEZE(x)
+FREEZE(y)
+TRY{
+    y = @x
+    ASSERT(0)
+}CATCH{}
+THAW(x)
+THAW(y)
+DEL(x)
+DEL(y)
+PRINT("Pointers: PASS\n")
+
 # MATCH tests
 MAP: tpl = <"foo" = 101>
 ASSERT(MATCH(m, tpl))

@@ -3,6 +3,8 @@
 
 #include "ast.h"
 
+struct EnvEntry; // forward declare for pointer values
+
 typedef enum {
     VAL_NULL,
     VAL_INT,
@@ -69,6 +71,7 @@ Value value_int(int64_t v);
 Value value_flt(double v);
 Value value_str(const char* s);
 Value value_func(struct Func* func);
+// Note: pointer semantics are implemented at the EnvEntry (alias) level; no PTR Value type.
 
 Value value_copy(Value v);
 Value value_deep_copy(Value v);

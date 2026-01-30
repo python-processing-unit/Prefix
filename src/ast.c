@@ -318,6 +318,9 @@ void free_expr(Expr* expr) {
         case EXPR_STR:
             free(expr->as.str_value);
             break;
+        case EXPR_PTR:
+            free(expr->as.ptr_name);
+            break;
         case EXPR_TNS:
             free_expr_list(&expr->as.tns_items);
             break;
@@ -412,4 +415,13 @@ void free_stmt(Stmt* stmt) {
             break;
     }
     free(stmt);
+}
+
+Expr* expr_ptr(char* name, int line, int column) {
+    Expr* expr = ast_alloc(sizeof(Expr));
+    expr->type = EXPR_PTR;
+    expr->line = line;
+    expr->column = column;
+    expr->as.ptr_name = name;
+    return expr;
 }

@@ -107,6 +107,15 @@ static Expr* parse_primary(Parser* parser) {
     if (match(parser, TOKEN_STRING)) {
         return expr_str(token.literal, token.line, token.column);
     }
+    if (match(parser, TOKEN_AT)) {
+        if (parser->current_token.type != TOKEN_IDENT) {
+            report_error(parser, "Expected identifier after '@'");
+            return NULL;
+        }
+        Token id = parser->current_token;
+        advance(parser);
+        return expr_ptr(id.literal, id.line, id.column);
+    }
     if (match(parser, TOKEN_IDENT)) {
         return expr_ident(token.literal, token.line, token.column);
     }

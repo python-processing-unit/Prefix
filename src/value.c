@@ -28,6 +28,10 @@ Value value_func(struct Func* func) {
     Value val; val.type = VAL_FUNC; val.as.func = func; return val;
 }
 
+// Create a pointer value referring to a binding name
+// Pointer values removed: aliasing is handled at EnvEntry level
+
+
 static size_t compute_strides(const size_t* shape, size_t ndim, size_t* out_strides) {
     size_t len = 1;
     for (size_t i = ndim; i-- > 0;) {

@@ -23,6 +23,55 @@ Env* env_create(Env* parent) {
     return env;
 }
 
+// Forward declaration for lookup helper used below
+static EnvEntry* env_find_local(Env* env, const char* name);
+
+bool env_set_alias(Env* env, const char* name, const char* target_name, DeclType type, bool declare_if_missing) {
+    if (!env || !name || !target_name) return false;
+    // Ensure the target exists
+    EnvEntry* target = env_get_entry(env, target_name);
+    if (!target) return false;
+
+    // Resolve final target through alias chain and ensure no cycle to 'name'
+    EnvEntry* cur = target;
+    int depth = 0;
+    while (cur && cur->alias_target) {
+        if (depth++ > 256) return false;
+        if (strcmp(cur->alias_target, name) == 0) return false; // would create cycle
+        cur = env_get_entry(env, cur->alias_target);
+    }
+    if (!cur) return false;
+
+    // Disallow aliasing to frozen/permafrozen target
+    if (cur->frozen || cur->permafrozen) return false;
+
+    // Find or create local entry
+    EnvEntry* entry = env_find_local(env, name);
+    if (!entry) {
+        if (!declare_if_missing) return false;
+        if (!env_define(env, name, type)) return false;
+        entry = env_find_local(env, name);
+    }
+
+    // Respect frozen state on the entry itself
+    if (entry->frozen || entry->permafrozen) return false;
+
+    // Type compatibility
+    if (type != TYPE_UNKNOWN && type != cur->decl_type) return false;
+    entry->decl_type = cur->decl_type;
+
+    // Clear any stored value and set alias
+    if (entry->initialized) {
+        value_free(entry->value);
+        entry->initialized = false;
+        entry->value = value_null();
+    }
+    if (entry->alias_target) { free(entry->alias_target); entry->alias_target = NULL; }
+    entry->alias_target = strdup(cur->name);
+    entry->initialized = true; // alias is considered an initialized binding
+    return true;
+}
+
 void env_free(Env* env) {
     if (!env) return;
     for (size_t i = 0; i < env->count; i++) {
@@ -69,6 +118,7 @@ bool env_define(Env* env, const char* name, DeclType type) {
     entry->initialized = false;
     entry->frozen = false;
     entry->permafrozen = false;
+    entry->alias_target = NULL;
     entry->value = value_null();
     return true;
 }
@@ -77,10 +127,26 @@ bool env_assign(Env* env, const char* name, Value value, DeclType type, bool dec
     for (Env* e = env; e != NULL; e = e->parent) {
         EnvEntry* entry = env_find_local(e, name);
         if (entry) {
-            // Respect frozen/permanent-frozen bindings
+            // If this binding is an alias, route assignment to the alias target
+            if (entry->alias_target) {
+                const char* target_name = entry->alias_target;
+                if (!target_name) return false;
+                EnvEntry* target = env_get_entry(env, target_name);
+                if (!target) return false;
+                // Respect freezing on the target
+                if (target->frozen || target->permafrozen) return false;
+                if (target->initialized) value_free(target->value);
+                target->value = value_copy(value);
+                target->initialized = true;
+                return true;
+            }
+
+            // Respect frozen/permanent-frozen bindings for normal assignments
             if (entry->frozen || entry->permafrozen) {
                 return false;
             }
+
+            // Normal assignment: respect frozen/permafrozen bindings
             if (entry->initialized) {
                 value_free(entry->value);
             }
@@ -101,9 +167,17 @@ bool env_get(Env* env, const char* name, Value* out_value, DeclType* out_type, b
     for (Env* e = env; e != NULL; e = e->parent) {
         EnvEntry* entry = env_find_local(e, name);
         if (entry) {
-            if (out_value) *out_value = value_copy(entry->value);
-            if (out_type) *out_type = entry->decl_type;
-            if (out_initialized) *out_initialized = entry->initialized;
+            // If this entry is an alias, follow chain to final target
+            EnvEntry* cur = entry;
+            int depth = 0;
+            while (cur && cur->alias_target) {
+                if (depth++ > 256) return false; // cycle or too deep
+                cur = env_get_entry(env, cur->alias_target);
+            }
+            if (!cur) return false;
+            if (out_value) *out_value = value_copy(cur->value);
+            if (out_type) *out_type = cur->decl_type;
+            if (out_initialized) *out_initialized = cur->initialized;
             return true;
         }
     }
@@ -121,6 +195,7 @@ bool env_delete(Env* env, const char* name) {
             if (entry->initialized) {
                 value_free(entry->value);
             }
+            if (entry->alias_target) { free(entry->alias_target); entry->alias_target = NULL; }
             entry->initialized = false;
             entry->value = value_null();
             return true;
@@ -166,6 +241,24 @@ int env_permafrozen(Env* env, const char* name) {
     return entry->permafrozen ? 1 : 0;
 }
 
+// EnvEntry accessors
+bool env_entry_initialized(EnvEntry* entry) {
+    if (!entry) return false;
+    return entry->initialized;
+}
+
+Value env_entry_value_copy(EnvEntry* entry) {
+    if (!entry) return value_null();
+    return value_copy(entry->value);
+}
+
+int env_entry_frozen_state_local(EnvEntry* entry) {
+    if (!entry) return 0;
+    if (entry->permafrozen) return -1;
+    if (entry->frozen) return 1;
+    return 0;
+}
+
 bool env_exists(Env* env, const char* name) {
     for (Env* e = env; e != NULL; e = e->parent) {
         EnvEntry* entry = env_find_local(e, name);
@@ -173,3 +266,6 @@ bool env_exists(Env* env, const char* name) {
     }
     return false;
 }
+
+// Forward declaration for local lookup helper (defined later)
+static EnvEntry* env_find_local(Env* env, const char* name);

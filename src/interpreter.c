@@ -315,6 +315,29 @@ Value eval_expr(Interpreter* interp, Expr* expr, Env* env) {
             }
             return v;
         }
+
+        case EXPR_PTR: {
+            // Evaluate pointer literal by returning the pointed-to binding's value (dereference-on-read)
+            const char* name = expr->as.ptr_name;
+            Value v; DeclType dt; bool initialized;
+            if (!env_get(env, name, &v, &dt, &initialized)) {
+                char buf[128];
+                snprintf(buf, sizeof(buf), "Undefined identifier '%s'", name);
+                interp->error = strdup(buf);
+                interp->error_line = expr->line;
+                interp->error_col = expr->column;
+                return value_null();
+            }
+            if (!initialized) {
+                char buf[128];
+                snprintf(buf, sizeof(buf), "Identifier '%s' declared but not initialized", name);
+                interp->error = strdup(buf);
+                interp->error_line = expr->line;
+                interp->error_col = expr->column;
+                return value_null();
+            }
+            return v;
+        }
         
         case EXPR_CALL: {
             // Get the callee
@@ -923,6 +946,28 @@ static ExecResult exec_stmt(Interpreter* interp, Stmt* stmt, Env* env, LabelMap*
         }
 
         case STMT_ASSIGN: {
+            // Special-case: RHS is a pointer literal -> create alias binding on LHS (no PTR Value type)
+            if (stmt->as.assign.value && stmt->as.assign.value->type == EXPR_PTR && stmt->as.assign.target == NULL) {
+                const char* tgt = stmt->as.assign.value->as.ptr_name;
+                if (!tgt) return make_error("Invalid pointer literal", stmt->line, stmt->column);
+                if (stmt->as.assign.has_type) {
+                    DeclType expected = stmt->as.assign.decl_type;
+                    env_define(env, stmt->as.assign.name, expected);
+                    if (!env_set_alias(env, stmt->as.assign.name, tgt, expected, true)) {
+                        char buf[256];
+                        snprintf(buf, sizeof(buf), "Cannot create alias '%s' -> '%s'", stmt->as.assign.name, tgt);
+                        return make_error(buf, stmt->line, stmt->column);
+                    }
+                } else {
+                    if (!env_set_alias(env, stmt->as.assign.name, tgt, TYPE_UNKNOWN, false)) {
+                        char buf[256];
+                        snprintf(buf, sizeof(buf), "Cannot create alias '%s' -> '%s'", stmt->as.assign.name, tgt);
+                        return make_error(buf, stmt->line, stmt->column);
+                    }
+                }
+                return make_ok(value_null());
+            }
+
             Value v = eval_expr(interp, stmt->as.assign.value, env);
             if (interp->error) {
                 ExecResult err = make_error(interp->error, interp->error_line, interp->error_col);

@@ -3,13 +3,15 @@
 
 #include "value.h"
 
-typedef struct {
+typedef struct EnvEntry {
     char* name;
     DeclType decl_type;
     Value value;
     bool initialized;
     bool frozen;
     bool permafrozen;
+    // If non-NULL, this entry is an alias to another binding name in the environment
+    char* alias_target;
 } EnvEntry;
 
 typedef struct Env {
@@ -30,6 +32,18 @@ bool env_exists(Env* env, const char* name);
 // Return pointer to the EnvEntry for the given name, searching parents.
 // Caller must NOT free the returned pointer. Returns NULL if not found.
 EnvEntry* env_get_entry(Env* env, const char* name);
+
+// Create or update an alias (pointer) binding: `name` will become an alias to `target_name`.
+// If declare_if_missing is true, `name` will be defined if absent. Returns true on success.
+bool env_set_alias(Env* env, const char* name, const char* target_name, DeclType type, bool declare_if_missing);
+
+// Accessors for EnvEntry opaque use from other translation units
+// Returns true if the entry is initialized
+bool env_entry_initialized(EnvEntry* entry);
+// Returns a copy of the entry's value (caller owns the returned Value)
+Value env_entry_value_copy(EnvEntry* entry);
+// Returns frozen state: -1 permafrozen, 1 frozen, 0 not frozen or not found
+int env_entry_frozen_state_local(EnvEntry* entry);
 
 // Symbol freezing API
 // Returns 0 on success, -1 if the identifier was not found.

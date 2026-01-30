@@ -19,6 +19,7 @@ typedef enum {
     EXPR_INT,
     EXPR_FLT,
     EXPR_STR,
+    EXPR_PTR,
     EXPR_IDENT,
     EXPR_CALL,
     EXPR_TNS,
@@ -43,6 +44,7 @@ struct Expr {
         double flt_value;
         char* str_value;
         char* ident;
+        char* ptr_name;
         struct {
             Expr* callee;
             ExprList args;
@@ -130,6 +132,7 @@ struct Stmt {
 Expr* expr_int(int64_t value, int line, int column);
 Expr* expr_flt(double value, int line, int column);
 Expr* expr_str(char* value, int line, int column);
+Expr* expr_ptr(char* name, int line, int column);
 Expr* expr_ident(char* name, int line, int column);
 Expr* expr_call(Expr* callee, int line, int column);
 Expr* expr_tns(int line, int column);
