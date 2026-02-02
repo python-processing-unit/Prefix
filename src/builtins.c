@@ -72,6 +72,31 @@ int value_truthiness(Value v);
         } \
     } while(0)
 
+static bool writeback_first_ptr(Interpreter* interp, Expr** arg_nodes, Env* env, Value result, const char* rule, int line, int col) {
+    if (!arg_nodes || !arg_nodes[0]) return true;
+    if (arg_nodes[0]->type != EXPR_PTR) return true;
+    const char* name = arg_nodes[0]->as.ptr_name;
+    if (!name) {
+        interp->error = strdup("Invalid pointer target");
+        interp->error_line = line;
+        interp->error_col = col;
+        return false;
+    }
+    if (!env_assign(env, name, result, TYPE_UNKNOWN, false)) {
+        char buf[128];
+        snprintf(buf, sizeof(buf), "%s writeback failed", rule);
+        interp->error = strdup(buf);
+        interp->error_line = line;
+        interp->error_col = col;
+        return false;
+    }
+    return true;
+}
+
+    // Global argv storage (set by main via builtins_set_argv)
+    static int g_argc = 0;
+    static char** g_argv = NULL;
+
 // Helper: convert integer to binary string
 static char* int_to_binary_str(int64_t val) {
     if (val == 0) return strdup("0");
@@ -139,7 +164,7 @@ static char* flt_to_binary_str(double val) {
 // ============ Arithmetic operators ============
 
 static Value builtin_add(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
-    (void)arg_nodes; (void)env;
+    (void)argc;
     EXPECT_NUM(args[0], "ADD", interp, line, col);
     EXPECT_NUM(args[1], "ADD", interp, line, col);
     
@@ -147,14 +172,21 @@ static Value builtin_add(Interpreter* interp, Value* args, int argc, Expr** arg_
         RUNTIME_ERROR(interp, "ADD cannot mix INT and FLT", line, col);
     }
     
+    Value result = value_null();
     if (args[0].type == VAL_INT) {
-        return value_int(args[0].as.i + args[1].as.i);
+        result = value_int(args[0].as.i + args[1].as.i);
+    } else {
+        result = value_flt(args[0].as.f + args[1].as.f);
     }
-    return value_flt(args[0].as.f + args[1].as.f);
+    if (!writeback_first_ptr(interp, arg_nodes, env, result, "ADD", line, col)) {
+        value_free(result);
+        return value_null();
+    }
+    return result;
 }
 
 static Value builtin_sub(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
-    (void)arg_nodes; (void)env;
+    (void)argc;
     EXPECT_NUM(args[0], "SUB", interp, line, col);
     EXPECT_NUM(args[1], "SUB", interp, line, col);
     
@@ -162,10 +194,17 @@ static Value builtin_sub(Interpreter* interp, Value* args, int argc, Expr** arg_
         RUNTIME_ERROR(interp, "SUB cannot mix INT and FLT", line, col);
     }
     
+    Value result = value_null();
     if (args[0].type == VAL_INT) {
-        return value_int(args[0].as.i - args[1].as.i);
+        result = value_int(args[0].as.i - args[1].as.i);
+    } else {
+        result = value_flt(args[0].as.f - args[1].as.f);
     }
-    return value_flt(args[0].as.f - args[1].as.f);
+    if (!writeback_first_ptr(interp, arg_nodes, env, result, "SUB", line, col)) {
+        value_free(result);
+        return value_null();
+    }
+    return result;
 }
 
 static Value builtin_mul(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
@@ -333,13 +372,18 @@ static Value builtin_idiv(Interpreter* interp, Value* args, int argc, Expr** arg
 }
 
 static Value builtin_fadd(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
-    (void)arg_nodes; (void)env;
+    (void)argc;
     EXPECT_NUM(args[0], "FADD", interp, line, col);
     EXPECT_NUM(args[1], "FADD", interp, line, col);
     
     double a = args[0].type == VAL_FLT ? args[0].as.f : (double)args[0].as.i;
     double b = args[1].type == VAL_FLT ? args[1].as.f : (double)args[1].as.i;
-    return value_flt(a + b);
+    Value result = value_flt(a + b);
+    if (!writeback_first_ptr(interp, arg_nodes, env, result, "FADD", line, col)) {
+        value_free(result);
+        return value_null();
+    }
+    return result;
 }
 
 static Value builtin_fsub(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
@@ -1716,33 +1760,131 @@ static Value builtin_flip(Interpreter* interp, Value* args, int argc, Expr** arg
 
 static Value builtin_join(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
     (void)arg_nodes; (void)env;
-    // JOIN(sep, str1, str2, ...) or variadic
+    // JOIN(a1, a2, ..., aN): if first arg is STR, treat it as separator
+    // and join subsequent STR args; otherwise join INTs by binary spellings
     if (argc < 1) {
         RUNTIME_ERROR(interp, "JOIN requires at least 1 argument", line, col);
     }
-    EXPECT_STR(args[0], "JOIN", interp, line, col);
-    
-    const char* sep = args[0].as.s;
-    size_t sep_len = strlen(sep);
-    
-    // Calculate total length
-    size_t total = 0;
-    for (int i = 1; i < argc; i++) {
-        EXPECT_STR(args[i], "JOIN", interp, line, col);
-        total += strlen(args[i].as.s);
-        if (i > 1) total += sep_len;
+
+    // Disallow tensors
+    for (int i = 0; i < argc; ++i) {
+        if (args[i].type == VAL_TNS) {
+            RUNTIME_ERROR(interp, "JOIN cannot operate on tensors", line, col);
+        }
     }
-    
-    char* result = malloc(total + 1);
-    result[0] = '\0';
-    for (int i = 1; i < argc; i++) {
-        if (i > 1) strcat(result, sep);
-        strcat(result, args[i].as.s);
+    int first_type = args[0].type;
+    if (first_type == VAL_STR) {
+        // If the first string is a single-character separator and there
+        // are at least two following items, treat it as `sep, a, b, ...`
+        // and join the remaining args with `sep` between them. Otherwise
+        // simply concatenate all string arguments in order.
+        const char* first_s = args[0].as.s;
+        size_t first_len = strlen(first_s);
+        if (first_len == 1 && argc >= 3) {
+            const char* sep = first_s;
+            size_t sep_len = 1;
+            // ensure following args are strings
+            size_t total = 0;
+            for (int i = 1; i < argc; ++i) {
+                if (args[i].type != VAL_STR) {
+                    RUNTIME_ERROR(interp, "JOIN cannot mix integers and strings", line, col);
+                }
+                total += strlen(args[i].as.s);
+                if (i > 1) total += sep_len;
+            }
+            char* out = malloc(total + 1);
+            if (!out) { RUNTIME_ERROR(interp, "Out of memory", line, col); }
+            out[0] = '\0';
+            for (int i = 1; i < argc; ++i) {
+                if (i > 1) strcat(out, sep);
+                strcat(out, args[i].as.s);
+            }
+            Value v = value_str(out);
+            free(out);
+            return v;
+        } else {
+            // Concatenate all string arguments in order
+            size_t total = 0;
+            for (int i = 0; i < argc; ++i) {
+                if (args[i].type != VAL_STR) {
+                    RUNTIME_ERROR(interp, "JOIN cannot mix integers and strings", line, col);
+                }
+                total += strlen(args[i].as.s);
+            }
+            char* out = malloc(total + 1);
+            if (!out) { RUNTIME_ERROR(interp, "Out of memory", line, col); }
+            size_t pos = 0;
+            for (int i = 0; i < argc; ++i) {
+                const char* s = args[i].as.s;
+                size_t n = strlen(s);
+                memcpy(out + pos, s, n);
+                pos += n;
+            }
+            out[pos] = '\0';
+            Value v = value_str(out);
+            free(out);
+            return v;
+        }
     }
-    
-    Value v = value_str(result);
-    free(result);
-    return v;
+
+    // Integer path: concatenate binary spellings
+    // Ensure all args are integers and check sign consistency
+    for (int i = 0; i < argc; ++i) {
+        if (args[i].type != VAL_INT) {
+            RUNTIME_ERROR(interp, "JOIN cannot mix integers and strings", line, col);
+        }
+    }
+    // Check sign consistency
+    bool any_neg = false;
+    bool any_pos = false;
+    for (int i = 0; i < argc; ++i) {
+        int64_t val = args[i].as.i;
+        if (val < 0) any_neg = true; else any_pos = true;
+    }
+    if (any_neg && any_pos) {
+        RUNTIME_ERROR(interp, "JOIN arguments must not mix positive and negative values", line, col);
+    }
+
+    // Build concatenated bits
+    size_t bits_len = 0;
+    for (int i = 0; i < argc; ++i) {
+        int64_t v = args[i].as.i;
+        uint64_t av = v < 0 ? (uint64_t)(-v) : (uint64_t)v;
+        if (av == 0) bits_len += 1;
+        else {
+            uint64_t tmp = av;
+            while (tmp) { bits_len++; tmp >>= 1; }
+        }
+    }
+    char* bits = malloc(bits_len + 1);
+    if (!bits) { RUNTIME_ERROR(interp, "Out of memory", line, col); }
+    size_t p = 0;
+    for (int i = 0; i < argc; ++i) {
+        int64_t v = args[i].as.i;
+        uint64_t av = v < 0 ? (uint64_t)(-v) : (uint64_t)v;
+        if (av == 0) {
+            bits[p++] = '0';
+        } else {
+            // use int_to_binary_str to get textual bits for absolute value
+            char* s = int_to_binary_str((int64_t)av);
+            size_t n = strlen(s);
+            memcpy(bits + p, s, n);
+            p += n;
+            free(s);
+        }
+    }
+    bits[p] = '\0';
+
+    // parse bits into integer
+    uint64_t outv = 0;
+    for (size_t i = 0; i < p; ++i) {
+        outv = (outv << 1) + (bits[i] == '1');
+    }
+    free(bits);
+
+    int64_t result = (int64_t)outv;
+    if (any_neg) result = -result;
+    return value_int(result);
 }
 
 static Value builtin_split(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
@@ -1974,6 +2116,38 @@ static Value builtin_import_path(Interpreter* interp, Value* args, int argc, Exp
 
     // Expose module symbols into caller env under alias prefix: alias.name -> value
     size_t alias_len = strlen(alias);
+    // Expose functions defined in this module as alias.name by matching closure ancestry
+    for (FuncEntry* fe = interp->functions->entries; fe != NULL; fe = fe->next) {
+        if (!fe->func || !fe->func->closure) continue;
+        Env* c = fe->func->closure;
+        bool belongs = false;
+        while (c) {
+            if (c == mod_env) { belongs = true; break; }
+            c = c->parent;
+        }
+        if (!belongs) continue;
+
+        size_t qlen = alias_len + 1 + strlen(fe->name) + 1;
+        char* qualified = malloc(qlen);
+        if (!qualified) { RUNTIME_ERROR(interp, "Out of memory", line, col); }
+        snprintf(qualified, qlen, "%s.%s", alias, fe->name);
+        Value fv = value_func(fe->func);
+
+        // Try to assign qualified symbol into caller env
+        if (!env_assign(env, qualified, fv, TYPE_FUNC, true)) {
+            value_free(fv);
+            free(qualified);
+            RUNTIME_ERROR(interp, "IMPORT failed to assign qualified function name", line, col);
+        }
+
+        // Also register a qualified name in the global function table so
+        // calls written as 'alias.name()' can be resolved via func_table_lookup
+        // (some call sites may appear as a single IDENT with a dot).
+        (void)func_table_add(interp->functions, qualified, fe->func);
+
+        value_free(fv);
+        free(qualified);
+    }
     for (size_t i = 0; i < mod_env->count; i++) {
         EnvEntry* e = &mod_env->entries[i];
         if (!e->initialized) continue;
@@ -3332,7 +3506,8 @@ static int match_map_internal(Map* m, Map* tpl, int typing, int recurse, int sha
                 for (size_t d = 0; d < a->ndim; d++) { if (a->shape[d] != b->shape[d]) { value_free(mval); return 0; } }
             }
         }
-        // recurse: if true and both are maps, apply recursively
+        // recurse: if true and both are maps, apply recursively to the
+        // corresponding nested template map (not to unrelated nested maps).
         if (recurse && mval.type == VAL_MAP && tval.type == VAL_MAP) {
             Map* mm = mval.as.map;
             Map* tt = tval.as.map;
@@ -3525,12 +3700,63 @@ static Value builtin_import(Interpreter* interp, Value* args, int argc, Expr** a
         char* found_path = NULL;
         char* srcbuf = NULL;
 
-        // Search locations: referring dir, then lib/
-        const char* search_dirs[2];
+        // Search locations: referring dir, then the interpreter's `lib/`
+        // directory next to the primary program source (per specification),
+        // then the interpreter executable's own lib/ directory.
+        const char* search_dirs[3];
         search_dirs[0] = referer_dir;
-        search_dirs[1] = "lib";
 
-        for (int sd = 0; sd < 2 && !found_path; sd++) {
+        // Determine interpreter primary source dir and use its lib/ subdir
+        EnvEntry* primary_src_entry = interp && interp->global_env ? env_get_entry(interp->global_env, "__MODULE_SOURCE__") : NULL;
+        char primary_lib_dir[1024];
+        primary_lib_dir[0] = '\0';
+        if (primary_src_entry && primary_src_entry->initialized && primary_src_entry->value.type == VAL_STR && primary_src_entry->value.as.s && primary_src_entry->value.as.s[0] != '\0') {
+            // Extract directory portion of primary source
+            strncpy(primary_lib_dir, primary_src_entry->value.as.s, sizeof(primary_lib_dir)-1);
+            primary_lib_dir[sizeof(primary_lib_dir)-1] = '\0';
+            char* last_sep = NULL;
+            for (char* q = primary_lib_dir; *q; q++) if (*q == '/' || *q == '\\') last_sep = q;
+            if (last_sep) *last_sep = '\0';
+            // Append /lib
+            size_t used = strnlen(primary_lib_dir, sizeof(primary_lib_dir));
+            if (used + 4 < sizeof(primary_lib_dir)) {
+                primary_lib_dir[used] = '/';
+                primary_lib_dir[used+1] = 'l';
+                primary_lib_dir[used+2] = 'i';
+                primary_lib_dir[used+3] = 'b';
+                primary_lib_dir[used+4] = '\0';
+            }
+            search_dirs[1] = primary_lib_dir;
+        } else {
+            // Fallback to plain "lib" relative to CWD
+            search_dirs[1] = "lib";
+        }
+
+        // Derive exe lib dir from argv[0] if available
+        char exe_lib_dir[1024];
+        exe_lib_dir[0] = '\0';
+        if (g_argv && g_argv[0] && g_argv[0][0] != '\0') {
+            strncpy(exe_lib_dir, g_argv[0], sizeof(exe_lib_dir)-1);
+            exe_lib_dir[sizeof(exe_lib_dir)-1] = '\0';
+            char* last_sep = NULL;
+            for (char* q = exe_lib_dir; *q; q++) if (*q == '/' || *q == '\\') last_sep = q;
+            if (last_sep) *last_sep = '\0';
+            size_t used = strnlen(exe_lib_dir, sizeof(exe_lib_dir));
+            if (used + 4 < sizeof(exe_lib_dir)) {
+                exe_lib_dir[used] = '/';
+                exe_lib_dir[used+1] = 'l';
+                exe_lib_dir[used+2] = 'i';
+                exe_lib_dir[used+3] = 'b';
+                exe_lib_dir[used+4] = '\0';
+                search_dirs[2] = exe_lib_dir;
+            } else {
+                search_dirs[2] = NULL;
+            }
+        } else {
+            search_dirs[2] = NULL;
+        }
+
+        for (int sd = 0; sd < 3 && !found_path; sd++) {
             const char* sdir = search_dirs[sd];
             if (!sdir) continue;
 
@@ -3616,6 +3842,34 @@ static Value builtin_import(Interpreter* interp, Value* args, int argc, Expr** a
 
     // Expose module symbols into caller env under alias prefix: alias.name -> value
     size_t alias_len = strlen(alias);
+
+    // Expose functions defined in this module as alias.name by matching closure ancestry
+    for (FuncEntry* fe = interp->functions->entries; fe != NULL; fe = fe->next) {
+        if (!fe->func || !fe->func->closure) continue;
+        Env* c = fe->func->closure;
+        bool belongs = false;
+        while (c) {
+            if (c == mod_env) { belongs = true; break; }
+            c = c->parent;
+        }
+        if (!belongs) continue;
+
+        size_t qlen = alias_len + 1 + strlen(fe->name) + 1;
+        char* qualified = malloc(qlen);
+        if (!qualified) { RUNTIME_ERROR(interp, "Out of memory", line, col); }
+        snprintf(qualified, qlen, "%s.%s", alias, fe->name);
+        Value fv = value_func(fe->func);
+        if (!env_assign(env, qualified, fv, TYPE_FUNC, true)) {
+            value_free(fv);
+            free(qualified);
+            RUNTIME_ERROR(interp, "IMPORT failed to assign qualified function name", line, col);
+        }
+
+        (void)func_table_add(interp->functions, qualified, fe->func);
+        value_free(fv);
+        free(qualified);
+    }
+
     for (size_t i = 0; i < mod_env->count; i++) {
         EnvEntry* e = &mod_env->entries[i];
         if (!e->initialized) continue;
@@ -3707,7 +3961,11 @@ static Value builtin_tns(Interpreter* interp, Value* args, int argc, Expr** arg_
         Value* items = malloc(sizeof(Value) * total);
         if (!items) { free(shape); RUNTIME_ERROR(interp, "Out of memory", line, col); }
         for (size_t i = 0; i < total; i++) {
-            items[i] = value_copy(args[1]);
+            if (args[1].type == VAL_MAP || args[1].type == VAL_TNS) {
+                items[i] = value_deep_copy(args[1]);
+            } else {
+                items[i] = value_copy(args[1]);
+            }
         }
 
         // Determine element DeclType
@@ -4018,11 +4276,6 @@ bool is_builtin(const char* name) {
 #ifdef _MSC_VER
 #pragma warning(pop)
 #endif
-
-// Global argv storage for ARGV builtin
-static int g_argc = 0;
-static char** g_argv = NULL;
-
 void builtins_set_argv(int argc, char** argv) {
     g_argc = argc;
     g_argv = argv;

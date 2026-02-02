@@ -55,6 +55,15 @@ Expr* expr_call(Expr* callee, int line, int column) {
     expr->line = line;
     expr->column = column;
     expr->as.call.callee = callee;
+    expr->as.call.args.items = NULL;
+    expr->as.call.args.count = 0;
+    expr->as.call.args.capacity = 0;
+    expr->as.call.kw_names = NULL;
+    expr->as.call.kw_args.items = NULL;
+    expr->as.call.kw_args.count = 0;
+    expr->as.call.kw_args.capacity = 0;
+    expr->as.call.kw_count = 0;
+    expr->as.call.kw_capacity = 0;
     return expr;
 }
 
@@ -125,6 +134,18 @@ void expr_list_add(ExprList* list, Expr* expr) {
     }
     list->items[list->count++] = expr;
 }
+
+    void call_kw_add(Expr* call, char* name, Expr* value) {
+        if (!call || call->type != EXPR_CALL) return;
+        if (call->as.call.kw_count + 1 > call->as.call.kw_capacity) {
+            size_t new_cap = call->as.call.kw_capacity == 0 ? 4 : call->as.call.kw_capacity * 2;
+            call->as.call.kw_names = realloc(call->as.call.kw_names, new_cap * sizeof(char*));
+            if (!call->as.call.kw_names) { fprintf(stderr, "Out of memory\n"); exit(1); }
+            call->as.call.kw_capacity = new_cap;
+        }
+        call->as.call.kw_names[call->as.call.kw_count++] = name;
+        expr_list_add(&call->as.call.kw_args, value);
+    }
 
 Stmt* stmt_block(int line, int column) {
     Stmt* stmt = ast_alloc(sizeof(Stmt));
@@ -342,6 +363,11 @@ void free_expr(Expr* expr) {
         case EXPR_CALL:
             free_expr(expr->as.call.callee);
             free_expr_list(&expr->as.call.args);
+                if (expr->as.call.kw_names) {
+                    for (size_t i = 0; i < expr->as.call.kw_count; i++) free(expr->as.call.kw_names[i]);
+                    free(expr->as.call.kw_names);
+                }
+                free_expr_list(&expr->as.call.kw_args);
             break;
         default:
             break;

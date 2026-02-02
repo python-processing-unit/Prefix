@@ -48,6 +48,10 @@ struct Expr {
         struct {
             Expr* callee;
             ExprList args;
+            char** kw_names;
+            ExprList kw_args;
+            size_t kw_count;
+            size_t kw_capacity;
         } call;
         struct {
             Expr* target;
@@ -135,6 +139,7 @@ Expr* expr_str(char* value, int line, int column);
 Expr* expr_ptr(char* name, int line, int column);
 Expr* expr_ident(char* name, int line, int column);
 Expr* expr_call(Expr* callee, int line, int column);
+void call_kw_add(Expr* call, char* name, Expr* value);
 Expr* expr_tns(int line, int column);
 Expr* expr_map(int line, int column);
 Expr* expr_index(Expr* target, int line, int column);

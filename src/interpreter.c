@@ -24,6 +24,46 @@ static void* safe_malloc(size_t size) {
     return ptr;
 }
 
+static int builtin_kw_index(const char* func_name, const char* kw) {
+    if (!func_name || !kw) return -1;
+    if (strcmp(func_name, "READFILE") == 0 || strcmp(func_name, "WRITEFILE") == 0) {
+        if (strcmp(kw, "coding") == 0) return 1;
+        return -1;
+    }
+    if (strcmp(func_name, "MATCH") == 0) {
+        if (strcmp(kw, "typing") == 0) return 2;
+        if (strcmp(kw, "recurse") == 0) return 3;
+        if (strcmp(kw, "shape") == 0) return 4;
+        return -1;
+    }
+    if (strcmp(func_name, "CONV") == 0) {
+        if (strcmp(kw, "stride_w") == 0) return 2;
+        if (strcmp(kw, "stride_h") == 0) return 3;
+        if (strcmp(kw, "pad_w") == 0) return 4;
+        if (strcmp(kw, "pad_h") == 0) return 5;
+        if (strcmp(kw, "bias") == 0) return 6;
+        return -1;
+    }
+    if (strcmp(func_name, "ROUND") == 0) {
+        if (strcmp(kw, "mode") == 0) return 1;
+        if (strcmp(kw, "ndigits") == 0) return 2;
+        return -1;
+    }
+    if (strcmp(func_name, "SPLIT") == 0) {
+        if (strcmp(kw, "delimiter") == 0) return 1;
+        return -1;
+    }
+    if (strcmp(func_name, "BYTES") == 0) {
+        if (strcmp(kw, "endian") == 0) return 1;
+        return -1;
+    }
+    if (strcmp(func_name, "PAUSE") == 0) {
+        if (strcmp(kw, "seconds") == 0) return 1;
+        return -1;
+    }
+    return -1;
+}
+
 static void label_map_add(LabelMap* map, Value key, int index) {
     if (map->count + 1 > map->capacity) {
         size_t new_cap = map->capacity == 0 ? 8 : map->capacity * 2;
@@ -350,86 +390,214 @@ Value eval_expr(Interpreter* interp, Expr* expr, Env* env) {
                 // Check builtins first
                 BuiltinFunction* builtin = builtin_lookup(func_name);
                 if (builtin) {
-                    // Evaluate arguments
-                    int argc = (int)expr->as.call.args.count;
+                    int pos_argc = (int)expr->as.call.args.count;
+                    int kwc = (int)expr->as.call.kw_count;
                     Value* args = NULL;
                     Expr** arg_nodes = NULL;
-                    
-                    if (argc > 0) {
-                        args = safe_malloc(sizeof(Value) * argc);
-                        arg_nodes = safe_malloc(sizeof(Expr*) * argc);
-                        
-                        for (int i = 0; i < argc; i++) {
-                            arg_nodes[i] = expr->as.call.args.items[i];
-                            
-                            // For DEL, EXIST, and IMPORT, don't evaluate the first argument.
-                            // For IMPORT_PATH, don't evaluate the second (alias) argument.
-                            if (((strcmp(func_name, "DEL") == 0 || strcmp(func_name, "EXIST") == 0 || strcmp(func_name, "IMPORT") == 0) && i == 0)
-                                || (strcmp(func_name, "IMPORT_PATH") == 0 && i == 1)) {
-                                args[i] = value_null();
-                            } else {
-                                args[i] = eval_expr(interp, expr->as.call.args.items[i], env);
-                                if (interp->error) {
-                                    // Clean up
-                                    for (int j = 0; j < i; j++) value_free(args[j]);
-                                    free(args);
-                                    free(arg_nodes);
-                                    return value_null();
-                                }
+
+                    // For builtins, allow keywords only if explicitly supported
+                    if (kwc > 0) {
+                        for (int i = 0; i < kwc; i++) {
+                            char* k = expr->as.call.kw_names[i];
+                            if (builtin_kw_index(func_name, k) < 0) {
+                                interp->error = strdup("Unknown keyword for builtin function");
+                                interp->error_line = expr->line;
+                                interp->error_col = expr->column;
+                                return value_null();
                             }
                         }
                     }
-                    
-                    // Check arg count
-                    if (argc < builtin->min_args) {
+
+                    // Determine required slots for args (positional plus any kw slot indices)
+                    int max_slot = pos_argc;
+                    if (kwc > 0) {
+                        for (int i = 0; i < kwc; i++) {
+                            char* k = expr->as.call.kw_names[i];
+                            int idx = builtin_kw_index(func_name, k);
+                            if (idx >= 0 && idx + 1 > max_slot) max_slot = idx + 1;
+                        }
+                    }
+
+                    if (max_slot > 0) {
+                        args = safe_malloc(sizeof(Value) * max_slot);
+                        arg_nodes = safe_malloc(sizeof(Expr*) * max_slot);
+                        // initialize to nulls
+                        for (int i = 0; i < max_slot; i++) { args[i] = value_null(); arg_nodes[i] = NULL; }
+
+                        // Evaluate positional args
+                        for (int i = 0; i < pos_argc; i++) {
+                            arg_nodes[i] = expr->as.call.args.items[i];
+                            if (((strcmp(func_name, "DEL") == 0 || strcmp(func_name, "EXIST") == 0 || strcmp(func_name, "IMPORT") == 0) && i == 0)
+                                || (strcmp(func_name, "IMPORT_PATH") == 0 && i == 1)) {
+                                // leave as null placeholder
+                                continue;
+                            }
+                            args[i] = eval_expr(interp, expr->as.call.args.items[i], env);
+                            if (interp->error) {
+                                for (int j = 0; j <= i; j++) value_free(args[j]);
+                                free(args);
+                                free(arg_nodes);
+                                return value_null();
+                            }
+                        }
+
+                        // Evaluate keyword args and place into appropriate slots
+                        for (int k = 0; k < kwc; k++) {
+                            char* name = expr->as.call.kw_names[k];
+                            Expr* valnode = expr->as.call.kw_args.items[k];
+                            int idx = builtin_kw_index(func_name, name);
+                            if (idx < 0) {
+                                interp->error = strdup("Unknown keyword for builtin function");
+                                interp->error_line = expr->line;
+                                interp->error_col = expr->column;
+                                for (int j = 0; j < max_slot; j++) value_free(args[j]);
+                                free(args);
+                                free(arg_nodes);
+                                return value_null();
+                            }
+                            // Duplicate positional/keyword error
+                            if (idx < pos_argc && arg_nodes[idx] != NULL) {
+                                interp->error = strdup("Duplicate argument for parameter 'coding'");
+                                interp->error_line = expr->line;
+                                interp->error_col = expr->column;
+                                for (int j = 0; j < max_slot; j++) value_free(args[j]);
+                                free(args);
+                                free(arg_nodes);
+                                return value_null();
+                            }
+                            // Evaluate kw expr in caller env (left-to-right preserved)
+                            Value v = eval_expr(interp, valnode, env);
+                            if (interp->error) {
+                                for (int j = 0; j < max_slot; j++) value_free(args[j]);
+                                free(args);
+                                free(arg_nodes);
+                                return value_null();
+                            }
+                            // assign into slot
+                            if (idx >= max_slot) {
+                                // should not happen
+                                for (int j = 0; j < max_slot; j++) value_free(args[j]);
+                                value_free(v);
+                                free(args);
+                                free(arg_nodes);
+                                interp->error = strdup("Internal error mapping keyword arg");
+                                interp->error_line = expr->line;
+                                interp->error_col = expr->column;
+                                return value_null();
+                            }
+                            // free placeholder null
+                            value_free(args[idx]);
+                            args[idx] = v;
+                            arg_nodes[idx] = valnode;
+                        }
+                    }
+
+                    // effective_argc should count the original positional arguments
+                    // and extend if any keyword maps beyond them. Do NOT trim placeholder
+                    // NULLs for intentionally-unevaluated positional args (e.g. DEL).
+                    int effective_argc = pos_argc;
+                    if (max_slot > effective_argc) effective_argc = max_slot;
+
+                    // Check arg count against builtin limits
+                    if (effective_argc < builtin->min_args) {
                         char buf[128];
                         snprintf(buf, sizeof(buf), "%s expects at least %d arguments", func_name, builtin->min_args);
                         interp->error = strdup(buf);
                         interp->error_line = expr->line;
                         interp->error_col = expr->column;
                         if (args) {
-                            for (int i = 0; i < argc; i++) value_free(args[i]);
+                            for (int i = 0; i < max_slot; i++) value_free(args[i]);
                             free(args);
                             free(arg_nodes);
                         }
                         return value_null();
                     }
-                    if (builtin->max_args >= 0 && argc > builtin->max_args) {
+                    if (builtin->max_args >= 0 && effective_argc > builtin->max_args) {
                         char buf[128];
                         snprintf(buf, sizeof(buf), "%s expects at most %d arguments", func_name, builtin->max_args);
                         interp->error = strdup(buf);
                         interp->error_line = expr->line;
                         interp->error_col = expr->column;
                         if (args) {
-                            for (int i = 0; i < argc; i++) value_free(args[i]);
+                            for (int i = 0; i < max_slot; i++) value_free(args[i]);
                             free(args);
                             free(arg_nodes);
                         }
                         return value_null();
                     }
-                    
+
                     // Call builtin
-                    Value result = builtin->impl(interp, args, argc, arg_nodes, env, expr->line, expr->column);
-                    
+                    Value result = builtin->impl(interp, args, effective_argc, arg_nodes, env, expr->line, expr->column);
+
                     // Clean up
                     if (args) {
-                        for (int i = 0; i < argc; i++) value_free(args[i]);
+                        for (int i = 0; i < max_slot; i++) value_free(args[i]);
                         free(args);
                         free(arg_nodes);
                     }
-                    
+
                     return result;
                 }
                 
                 // Check user-defined functions
                 user_func = func_table_lookup(interp->functions, func_name);
                 if (!user_func) {
-                    // Check if it's a variable holding a function
+                    // If not found, check if it's a variable holding a function
                     Value v;
                     DeclType dtype;
                     bool initialized;
                     if (env_get(env, func_name, &v, &dtype, &initialized) && initialized && v.type == VAL_FUNC) {
                         user_func = v.as.func;
+                    }
+                }
+
+                // Fallback: if name contains a dot (module-qualified like "mod.fn") and
+                // the direct lookup failed, try to resolve by locating the module env
+                // and finding a function whose declared name matches the suffix and
+                // whose closure ancestry contains the module env. This helps when
+                // IMPORT did not register the qualified name in the global func table.
+                if (!user_func && func_name && strchr(func_name, '.')) {
+                    // find last '.' so module prefixes with dots in names are supported
+                    const char* last_dot = strrchr(func_name, '.');
+                    if (last_dot && last_dot > func_name) {
+                        size_t modlen = (size_t)(last_dot - func_name);
+                        char* modname = malloc(modlen + 1);
+                        if (modname) {
+                            memcpy(modname, func_name, modlen);
+                            modname[modlen] = '\0';
+                            const char* fname = last_dot + 1;
+                            Env* mod_env = module_env_lookup(interp, modname);
+                            // If exact name lookup failed, try matching module entries by
+                            // their basename (strip directories and extension). This
+                            // handles modules registered via IMPORT_PATH using full paths.
+                            if (!mod_env && interp->modules) {
+                                for (ModuleEntry* me = interp->modules; me != NULL; me = me->next) {
+                                    if (!me->name) continue;
+                                    const char* p = me->name + strlen(me->name);
+                                    // find last path separator
+                                    while (p > me->name && *(p-1) != '/' && *(p-1) != '\\') p--;
+                                    char basebuf[512];
+                                    snprintf(basebuf, sizeof(basebuf), "%s", p);
+                                    // strip extension
+                                    char* dot = strrchr(basebuf, '.');
+                                    if (dot) *dot = '\0';
+                                    if (strcmp(basebuf, modname) == 0) { mod_env = me->env; break; }
+                                }
+                            }
+                            if (mod_env) {
+                                for (FuncEntry* fe = interp->functions->entries; fe != NULL; fe = fe->next) {
+                                    if (!fe->func || !fe->name) continue;
+                                    if (strcmp(fe->name, fname) != 0) continue;
+                                    Env* c = fe->func->closure;
+                                    while (c) {
+                                        if (c == mod_env) { user_func = fe->func; break; }
+                                        c = c->parent;
+                                    }
+                                    if (user_func) break;
+                                }
+                            }
+                            free(modname);
+                        }
                     }
                 }
             } else {
@@ -448,6 +616,30 @@ Value eval_expr(Interpreter* interp, Expr* expr, Env* env) {
             }
             
             if (!user_func) {
+                // Final fallback: try to match functions whose registered
+                // name is either the full qualified name or ends with the
+                // requested suffix. This covers cases where IMPORT added
+                // qualified names into the func table but direct lookup
+                // somehow failed earlier.
+                if (func_name && strchr(func_name, '.')) {
+                    const char* last_dot = strrchr(func_name, '.');
+                    const char* suffix = last_dot ? last_dot + 1 : func_name;
+                    for (FuncEntry* fe = interp->functions->entries; fe != NULL && !user_func; fe = fe->next) {
+                        if (!fe->name || !fe->func) continue;
+                        // exact match (qualified)
+                        if (strcmp(fe->name, func_name) == 0) { user_func = fe->func; break; }
+                        // suffix match: either stored as basename or qualified
+                        size_t len = strlen(fe->name);
+                        size_t slen = strlen(suffix);
+                        if (len >= slen && strcmp(fe->name + (len - slen), suffix) == 0) {
+                            // ensure the trailing match is a full identifier segment
+                            if (len == slen || fe->name[len - slen - 1] == '.') {
+                                user_func = fe->func;
+                                break;
+                            }
+                        }
+                    }
+                }
                 char buf[128];
                 snprintf(buf, sizeof(buf), "Unknown function '%s'", func_name ? func_name : "<expr>");
                 interp->error = strdup(buf);
@@ -457,38 +649,134 @@ Value eval_expr(Interpreter* interp, Expr* expr, Env* env) {
             }
             
             // Call user-defined function
-            int argc = (int)expr->as.call.args.count;
-            
+            int pos_argc = (int)expr->as.call.args.count;
+            int kwc = (int)expr->as.call.kw_count;
+
+            // Evaluate positional arguments first (left-to-right)
+            Value* pos_vals = NULL;
+            if (pos_argc > 0) {
+                pos_vals = safe_malloc(sizeof(Value) * pos_argc);
+                for (int i = 0; i < pos_argc; i++) {
+                    pos_vals[i] = eval_expr(interp, expr->as.call.args.items[i], env);
+                    if (interp->error) {
+                        for (int j = 0; j <= i; j++) value_free(pos_vals[j]);
+                        free(pos_vals);
+                        return value_null();
+                    }
+                }
+            }
+
+            // Evaluate keyword argument expressions in source order
+            Value* kw_vals = NULL;
+            int* kw_used = NULL;
+            if (kwc > 0) {
+                kw_vals = safe_malloc(sizeof(Value) * kwc);
+                kw_used = calloc(kwc, sizeof(int));
+                for (int k = 0; k < kwc; k++) {
+                    // detect duplicate keyword names in source (runtime error)
+                    for (int m = 0; m < k; m++) {
+                        if (strcmp(expr->as.call.kw_names[m], expr->as.call.kw_names[k]) == 0) {
+                            interp->error = strdup("Duplicate keyword argument");
+                            interp->error_line = expr->line;
+                            interp->error_col = expr->column;
+                            for (int t = 0; t < (pos_argc); t++) value_free(pos_vals[t]);
+                            free(pos_vals);
+                            for (int t = 0; t < k; t++) value_free(kw_vals[t]);
+                            free(kw_vals);
+                            return value_null();
+                        }
+                    }
+                    kw_vals[k] = eval_expr(interp, expr->as.call.kw_args.items[k], env);
+                    if (interp->error) {
+                        for (int t = 0; t < pos_argc; t++) value_free(pos_vals[t]);
+                        free(pos_vals);
+                        for (int t = 0; t < k; t++) value_free(kw_vals[t]);
+                        free(kw_vals);
+                        return value_null();
+                    }
+                }
+            }
+
             // Create new environment for function call
             Env* call_env = env_create(user_func->closure);
-            
-            // Bind parameters
+
+            // Bind parameters in order, evaluating defaults in call_env after earlier params are bound
             for (size_t i = 0; i < user_func->params.count; i++) {
                 Param* param = &user_func->params.items[i];
-                Value arg_val;
-                
-                if ((int)i < argc) {
-                    arg_val = eval_expr(interp, expr->as.call.args.items[i], env);
-                    if (interp->error) {
-                        env_free(call_env);
-                        return value_null();
-                    }
-                } else if (param->default_value) {
-                    arg_val = eval_expr(interp, param->default_value, call_env);
-                    if (interp->error) {
-                        env_free(call_env);
-                        return value_null();
+                Value arg_val = value_null();
+
+                bool provided = false;
+                // positional provided?
+                if ((int)i < pos_argc) {
+                    arg_val = pos_vals[i];
+                    provided = true;
+                    // check if a keyword also provided for same name -> error
+                    for (int k = 0; k < kwc; k++) {
+                        if (strcmp(expr->as.call.kw_names[k], param->name) == 0) {
+                            interp->error = strdup("Duplicate argument for parameter");
+                            interp->error_line = expr->line;
+                            interp->error_col = expr->column;
+                            // cleanup
+                            for (int t = 0; t < pos_argc; t++) if (t != i) value_free(pos_vals[t]);
+                            free(pos_vals);
+                            for (int t = 0; t < kwc; t++) value_free(kw_vals[t]);
+                            free(kw_vals);
+                            env_free(call_env);
+                            return value_null();
+                        }
                     }
                 } else {
+                    // check if provided as keyword
+                    int found_kw = -1;
+                    for (int k = 0; k < kwc; k++) {
+                        if (strcmp(expr->as.call.kw_names[k], param->name) == 0) { found_kw = k; break; }
+                    }
+                    if (found_kw >= 0) {
+                        // parameter must declare a default to be keyword-capable
+                        if (!param->default_value) {
+                            interp->error = strdup("Parameter is not keyword-capable");
+                            interp->error_line = expr->line;
+                            interp->error_col = expr->column;
+                            for (int t = 0; t < pos_argc; t++) value_free(pos_vals[t]);
+                            free(pos_vals);
+                            for (int t = 0; t < kwc; t++) if (t != found_kw) value_free(kw_vals[t]);
+                            free(kw_vals);
+                            free(kw_used);
+                            env_free(call_env);
+                            return value_null();
+                        }
+                        arg_val = kw_vals[found_kw];
+                        kw_used[found_kw] = 1;
+                        provided = true;
+                    } else if (param->default_value) {
+                        // evaluate default in call_env (after earlier params bound)
+                        arg_val = eval_expr(interp, param->default_value, call_env);
+                        if (interp->error) {
+                            for (int t = 0; t < pos_argc; t++) value_free(pos_vals[t]);
+                            free(pos_vals);
+                            for (int t = 0; t < kwc; t++) value_free(kw_vals[t]);
+                            free(kw_vals);
+                            env_free(call_env);
+                            return value_null();
+                        }
+                        provided = true;
+                    }
+                }
+
+                if (!provided) {
                     char buf[128];
                     snprintf(buf, sizeof(buf), "Missing argument for parameter '%s'", param->name);
                     interp->error = strdup(buf);
                     interp->error_line = expr->line;
                     interp->error_col = expr->column;
+                    for (int t = 0; t < pos_argc; t++) value_free(pos_vals[t]);
+                    free(pos_vals);
+                    for (int t = 0; t < kwc; t++) value_free(kw_vals[t]);
+                    free(kw_vals);
                     env_free(call_env);
                     return value_null();
                 }
-                
+
                 // Type check
                 if (value_type_to_decl(arg_val.type) != param->type) {
                     char buf[128];
@@ -496,11 +784,20 @@ Value eval_expr(Interpreter* interp, Expr* expr, Env* env) {
                     interp->error = strdup(buf);
                     interp->error_line = expr->line;
                     interp->error_col = expr->column;
-                    value_free(arg_val);
+                    // free val resources
+                    if ((int)i < pos_argc) {
+                        // pos_vals[i] will be freed below when cleaning pos_vals array
+                    } else {
+                        // arg_val came from kw_vals or default; if from kw_vals we will free kw_vals array later
+                    }
+                    for (int t = 0; t < pos_argc; t++) value_free(pos_vals[t]);
+                    free(pos_vals);
+                    for (int t = 0; t < kwc; t++) value_free(kw_vals[t]);
+                    free(kw_vals);
                     env_free(call_env);
                     return value_null();
                 }
-                
+
                 env_define(call_env, param->name, param->type);
                 if (!env_assign(call_env, param->name, arg_val, param->type, true)) {
                     char buf[256];
@@ -508,12 +805,40 @@ Value eval_expr(Interpreter* interp, Expr* expr, Env* env) {
                     interp->error = strdup(buf);
                     interp->error_line = expr->line;
                     interp->error_col = expr->column;
-                    value_free(arg_val);
+                    for (int t = 0; t < pos_argc; t++) value_free(pos_vals[t]);
+                    free(pos_vals);
+                    for (int t = 0; t < kwc; t++) value_free(kw_vals[t]);
+                    free(kw_vals);
                     env_free(call_env);
                     return value_null();
                 }
+                // Free the temporary argument value now that it's been copied into the callee env
                 value_free(arg_val);
             }
+
+            // Check for any unmatched keyword args
+            if (kwc > 0) {
+                for (int k = 0; k < kwc; k++) {
+                    if (!kw_used[k]) {
+                        interp->error = strdup("Unknown keyword argument");
+                        interp->error_line = expr->line;
+                        interp->error_col = expr->column;
+                        // cleanup
+                        for (int t = 0; t < pos_argc; t++) value_free(pos_vals[t]);
+                        free(pos_vals);
+                        for (int t = 0; t < kwc; t++) if (!kw_used[t]) value_free(kw_vals[t]);
+                        free(kw_vals);
+                        free(kw_used);
+                        env_free(call_env);
+                        return value_null();
+                    }
+                }
+            }
+
+            // free temporary evaluated argument arrays (their Value contents are now copied into env or freed by env_assign)
+            if (pos_vals) free(pos_vals);
+            if (kw_vals) free(kw_vals);
+            if (kw_used) free(kw_used);
             
             // Execute function body
             LabelMap labels = {0};
@@ -639,10 +964,8 @@ Value eval_expr(Interpreter* interp, Expr* expr, Env* env) {
             DeclType elem_decl = value_type_to_decl(items[0].type);
             for (size_t j = 1; j < total; j++) {
                 if (value_type_to_decl(items[j].type) != elem_decl) {
-                    interp->error = strdup("Tensor literal elements must have uniform type");
-                    interp->error_line = expr->line;
-                    interp->error_col = expr->column;
-                    goto tns_eval_fail;
+                    elem_decl = TYPE_UNKNOWN;
+                    break;
                 }
             }
 
@@ -922,6 +1245,189 @@ static ExecResult assign_map_nested(Interpreter* interp, Env* env, Value* map_pt
     return make_ok(value_null());
 }
 
+static ExecResult assign_index_chain(Interpreter* interp, Env* env, Expr* idx_expr, Value rhs, int stmt_line, int stmt_col) {
+    // Collect index nodes from outermost -> innermost, and require base to be an identifier.
+    size_t chain_len = 0;
+    Expr* walker = idx_expr;
+    while (walker && walker->type == EXPR_INDEX) {
+        chain_len++;
+        walker = walker->as.index.target;
+    }
+
+    if (!walker || walker->type != EXPR_IDENT) {
+        return make_error("Indexed assignment base must be an identifier", stmt_line, stmt_col);
+    }
+
+    EnvEntry* entry = env_get_entry(env, walker->as.ident);
+    if (!entry) {
+        char buf[256];
+        snprintf(buf, sizeof(buf), "Cannot assign to undeclared identifier '%s'", walker->as.ident);
+        return make_error(buf, stmt_line, stmt_col);
+    }
+
+    // If uninitialized, default to map (matches previous indexed-assignment behavior).
+    if (!entry->initialized) {
+        entry->value = value_map_new();
+        entry->initialized = true;
+    }
+
+    Expr** nodes = malloc(sizeof(Expr*) * (chain_len ? chain_len : 1));
+    if (!nodes) {
+        return make_error("Out of memory", stmt_line, stmt_col);
+    }
+
+    walker = idx_expr;
+    for (size_t i = 0; i < chain_len; i++) {
+        nodes[i] = walker;
+        walker = walker->as.index.target;
+    }
+
+    Value* cur = &entry->value;
+
+    // Process from innermost -> outermost
+    for (int ni = (int)chain_len - 1; ni >= 0; ni--) {
+        Expr* node = nodes[ni];
+        ExprList* indices = &node->as.index.indices;
+        if (indices->count == 0) {
+            free(nodes);
+            return make_error("Empty index list", node->line, node->column);
+        }
+
+        // Auto-promote NULL to MAP when assigning through indexes.
+        if (cur->type == VAL_NULL) {
+            *cur = value_map_new();
+        }
+
+        if (cur->type == VAL_TNS) {
+            Tensor* t = cur->as.tns;
+            // Lvalue assignment only supports full integer indexing (no ranges/wildcards).
+            if (indices->count != t->ndim) {
+                free(nodes);
+                return make_error("Cannot assign through tensor slice", node->line, node->column);
+            }
+
+            size_t* idxs0 = malloc(sizeof(size_t) * indices->count);
+            if (!idxs0) {
+                free(nodes);
+                return make_error("Out of memory", stmt_line, stmt_col);
+            }
+
+            for (size_t i = 0; i < indices->count; i++) {
+                Expr* it = indices->items[i];
+                if (it->type == EXPR_WILDCARD || it->type == EXPR_RANGE) {
+                    free(idxs0);
+                    free(nodes);
+                    return make_error("Cannot assign using ranges or wildcards", it->line, it->column);
+                }
+
+                Value vi = eval_expr(interp, it, env);
+                if (interp->error) {
+                    ExecResult err = make_error(interp->error, interp->error_line, interp->error_col);
+                    clear_error(interp);
+                    free(idxs0);
+                    free(nodes);
+                    return err;
+                }
+                if (vi.type != VAL_INT) {
+                    value_free(vi);
+                    free(idxs0);
+                    free(nodes);
+                    return make_error("Index expression must evaluate to INT", it->line, it->column);
+                }
+
+                int64_t v = vi.as.i;
+                int64_t dim = (int64_t)t->shape[i];
+                if (v < 0) v = dim + v + 1;
+                if (v < 1 || v > dim) {
+                    value_free(vi);
+                    free(idxs0);
+                    free(nodes);
+                    return make_error("Index out of range", it->line, it->column);
+                }
+                idxs0[i] = (size_t)(v - 1);
+                value_free(vi);
+            }
+
+            Value* elem = value_tns_get_ptr(*cur, idxs0, indices->count);
+            free(idxs0);
+            if (!elem) {
+                free(nodes);
+                return make_error("Index out of range", node->line, node->column);
+            }
+            cur = elem;
+            continue;
+        }
+
+        if (cur->type == VAL_MAP) {
+            for (size_t i = 0; i < indices->count; i++) {
+                Expr* it = indices->items[i];
+                Value key = eval_expr(interp, it, env);
+                if (interp->error) {
+                    ExecResult err = make_error(interp->error, interp->error_line, interp->error_col);
+                    clear_error(interp);
+                    free(nodes);
+                    return err;
+                }
+                if (!(key.type == VAL_INT || key.type == VAL_STR || key.type == VAL_FLT)) {
+                    value_free(key);
+                    free(nodes);
+                    return make_error("Map index must be INT, FLT or STR", it->line, it->column);
+                }
+
+                bool last_key_in_node = (i + 1 == indices->count);
+                bool last_node_in_chain = (ni == 0);
+
+                if (last_node_in_chain && last_key_in_node) {
+                    // Final destination: assign rhs here.
+                    Value* slot = value_map_get_ptr(cur, key, true);
+                    value_free(key);
+                    if (!slot) {
+                        free(nodes);
+                        return make_error("Internal error assigning to map", stmt_line, stmt_col);
+                    }
+                    if (slot->type != VAL_NULL && value_type_to_decl(slot->type) != value_type_to_decl(rhs.type)) {
+                        free(nodes);
+                        return make_error("Map entry type mismatch", stmt_line, stmt_col);
+                    }
+                    value_free(*slot);
+                    *slot = value_copy(rhs);
+                    free(nodes);
+                    return make_ok(value_null());
+                }
+
+                // Descend into slot.
+                Value* slot = value_map_get_ptr(cur, key, true);
+                value_free(key);
+                if (!slot) {
+                    free(nodes);
+                    return make_error("Internal error indexing map", stmt_line, stmt_col);
+                }
+
+                if (slot->type == VAL_NULL) {
+                    *slot = value_map_new();
+                }
+
+                cur = slot;
+            }
+
+            continue;
+        }
+
+        free(nodes);
+    if (cur->type != VAL_NULL && value_type_to_decl(cur->type) != value_type_to_decl(rhs.type)) {
+        free(nodes);
+        return make_error("Element type mismatch", stmt_line, stmt_col);
+    }
+        return make_error("Indexing assignment is supported only on tensors and maps", node->line, node->column);
+    }
+
+    // If we get here, the chain ended after resolving to a tensor element (e.g. a<1> = rhs)
+    value_free(*cur);
+    *cur = value_copy(rhs);
+    free(nodes);
+    return make_ok(value_null());
+}
+
 static ExecResult exec_stmt(Interpreter* interp, Stmt* stmt, Env* env, LabelMap* labels) {
     if (!stmt) return make_ok(value_null());
 
@@ -981,127 +1487,15 @@ static ExecResult exec_stmt(Interpreter* interp, Stmt* stmt, Env* env, LabelMap*
                     value_free(v);
                     return make_error("Can only assign to indexed targets or identifiers", stmt->line, stmt->column);
                 }
-                Expr* idx = stmt->as.assign.target;
-                Expr* base = idx->as.index.target;
 
-                // Two supported forms:
-                // 1) base is an identifier: treat indices on this node as a multi-key assignment
-                // 2) base is a nested index chain whose innermost target is an identifier:
-                //    flatten the chain's index lists into a single key list and perform assignment
-                if (base && base->type == EXPR_IDENT) {
-                    EnvEntry* entry = env_get_entry(env, base->as.ident);
-                    if (!entry) {
-                        value_free(v);
-                        char buf[256];
-                        snprintf(buf, sizeof(buf), "Cannot assign to undeclared identifier '%s'", base->as.ident);
-                        return make_error(buf, stmt->line, stmt->column);
-                    }
-                    if (!entry->initialized) {
-                        entry->value = value_map_new();
-                        entry->initialized = true;
-                    }
-                    if (entry->value.type != VAL_MAP) {
-                        value_free(v);
-                        return make_error("Attempting indexed assignment on non-map value", stmt->line, stmt->column);
-                    }
-
-                    // Delegate to recursive helper using this node's indices
-                    ExecResult ar = assign_map_nested(interp, env, &entry->value, &idx->as.index.indices, 0, v, stmt->line, stmt->column);
-                    if (ar.status == EXEC_ERROR) {
-                        value_free(v);
-                        return ar;
-                    }
-                    // value_map_set copies rhs; free local rhs
+                ExecResult ar = assign_index_chain(interp, env, stmt->as.assign.target, v, stmt->line, stmt->column);
+                if (ar.status == EXEC_ERROR) {
                     value_free(v);
-                    return make_ok(value_null());
+                    return ar;
                 }
 
-                // Handle chained indexing e.g. outer<"b"><"x">: collect chain nodes
-                if (base && base->type == EXPR_INDEX) {
-                    // Walk the chain, collecting nodes
-                    Expr* node = stmt->as.assign.target;
-                    // Determine chain length
-                    size_t chain_len = 0;
-                    Expr* walker = node;
-                    while (walker && walker->type == EXPR_INDEX) {
-                        chain_len++;
-                        walker = walker->as.index.target;
-                    }
-                    // walker should now point to innermost target
-                    if (!walker || walker->type != EXPR_IDENT) {
-                        value_free(v);
-                        return make_error("Indexed assignment base must be an identifier", stmt->line, stmt->column);
-                    }
-
-                    // Lookup the environment entry for the innermost identifier
-                    EnvEntry* entry = env_get_entry(env, walker->as.ident);
-                    if (!entry) {
-                        value_free(v);
-                        char buf[256];
-                        snprintf(buf, sizeof(buf), "Cannot assign to undeclared identifier '%s'", walker->as.ident);
-                        return make_error(buf, stmt->line, stmt->column);
-                    }
-                    if (!entry->initialized) {
-                        entry->value = value_map_new();
-                        entry->initialized = true;
-                    }
-                    if (entry->value.type != VAL_MAP) {
-                        value_free(v);
-                        return make_error("Attempting indexed assignment on non-map value", stmt->line, stmt->column);
-                    }
-
-                    // Build combined ExprList of all keys from innermost -> outermost
-                    ExprList combined = {0};
-                    // allocate by iterating again and summing counts
-                    size_t total_keys = 0;
-                    walker = stmt->as.assign.target;
-                    while (walker && walker->type == EXPR_INDEX) {
-                        total_keys += walker->as.index.indices.count;
-                        walker = walker->as.index.target;
-                    }
-                    // Reserve
-                    if (total_keys) {
-                        combined.items = malloc(sizeof(Expr*) * total_keys);
-                        combined.capacity = total_keys;
-                    } else {
-                        combined.items = NULL;
-                        combined.capacity = 0;
-                    }
-                    combined.count = 0;
-
-                    // collect in reverse (innermost first)
-                    Expr** nodes = malloc(sizeof(Expr*) * chain_len);
-                    size_t ni = 0;
-                    walker = stmt->as.assign.target;
-                    while (walker && walker->type == EXPR_INDEX) {
-                        nodes[ni++] = walker;
-                        walker = walker->as.index.target;
-                    }
-                    // nodes[0] = outermost, nodes[ni-1] = innermost
-                    for (int k = (int)ni - 1; k >= 0; k--) {
-                        Expr* n = nodes[k];
-                        for (size_t j = 0; j < n->as.index.indices.count; j++) {
-                            combined.items[combined.count++] = n->as.index.indices.items[j];
-                        }
-                    }
-                    free(nodes);
-
-                    // Delegate to recursive helper with combined list
-                    ExecResult ar = assign_map_nested(interp, env, &entry->value, &combined, 0, v, stmt->line, stmt->column);
-                    if (ar.status == EXEC_ERROR) {
-                        value_free(v);
-                        if (combined.items) free(combined.items);
-                        return ar;
-                    }
-
-                    if (combined.items) free(combined.items);
-                    value_free(v);
-                    return make_ok(value_null());
-                }
-
-                // Unsupported base expression
                 value_free(v);
-                return make_error("Indexed assignment base must be an identifier or an index chain", stmt->line, stmt->column);
+                return make_ok(value_null());
             }
 
             if (stmt->as.assign.has_type) {
@@ -1415,7 +1809,7 @@ static ExecResult exec_stmt(Interpreter* interp, Stmt* stmt, Env* env, LabelMap*
             int64_t limit = target.as.i;
             value_free(target);
 
-            for (int64_t idx = 0; idx < limit; idx++) {
+            for (int64_t idx = 1; idx <= limit; idx++) {
                 if (++iteration_count > max_iterations) {
                     interp->loop_depth--;
                     return make_error("Infinite loop detected", stmt->line, stmt->column);

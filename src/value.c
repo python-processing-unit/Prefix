@@ -273,6 +273,40 @@ void value_map_delete(Value* mapval, Value key) {
     m->count--;
 }
 
+Value* value_map_get_ptr(Value* mapval, Value key, bool create_if_missing) {
+    if (!mapval || mapval->type != VAL_MAP) return NULL;
+    Map* m = mapval->as.map;
+    int idx = map_find_index(m, key);
+    if (idx >= 0) {
+        return &m->items[idx].value;
+    }
+    if (!create_if_missing) return NULL;
+
+    if (m->count + 1 > m->capacity) {
+        size_t newc = m->capacity == 0 ? 8 : m->capacity * 2;
+        m->items = realloc(m->items, sizeof(MapEntry) * newc);
+        if (!m->items) { fprintf(stderr, "Out of memory\n"); exit(1); }
+        m->capacity = newc;
+    }
+    m->items[m->count].key = value_copy(key);
+    m->items[m->count].value = value_null();
+    m->count++;
+    return &m->items[m->count - 1].value;
+}
+
+Value* value_tns_get_ptr(Value v, const size_t* idxs, size_t nidxs) {
+    if (v.type != VAL_TNS || !v.as.tns) return NULL;
+    Tensor* t = v.as.tns;
+    if (nidxs != t->ndim) return NULL;
+    size_t offset = 0;
+    for (size_t i = 0; i < nidxs; i++) {
+        size_t idx = idxs[i];
+        if (idx >= t->shape[i]) return NULL;
+        offset += idx * t->strides[i];
+    }
+    return &t->data[offset];
+}
+
 // Shallow copy semantics: increment refcount for MAP/TNS and return aliasing Value.
 Value value_copy(Value v) {
     Value out = v;

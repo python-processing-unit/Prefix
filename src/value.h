@@ -65,6 +65,15 @@ void value_map_set(Value* mapval, Value key, Value val);
 Value value_map_get(Value mapval, Value key, int* found);
 void value_map_delete(Value* mapval, Value key);
 
+// Pointer helpers (for lvalue/indexed assignment)
+// Returns a pointer to the stored value for key, optionally creating a missing entry with NULL value.
+// Returned pointer is owned by the map; do NOT free it.
+Value* value_map_get_ptr(Value* mapval, Value key, bool create_if_missing);
+
+// Returns a pointer to a tensor element for full indexing (nidxs must equal ndim).
+// Returned pointer is owned by the tensor; do NOT free it.
+Value* value_tns_get_ptr(Value t, const size_t* idxs, size_t nidxs);
+
 
 Value value_null(void);
 Value value_int(int64_t v);

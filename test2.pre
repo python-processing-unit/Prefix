@@ -81,11 +81,16 @@ ASSERT(EQ(VALUES(m2), [101, 1010]))
 PRINT("Testing pointers...")
 INT: x = 1
 INT: y = @x
-ASSERT(EQ(y, 1))
-x = 10
+ADD(@x, 1)
+ASSERT(EQ(x, 10))
 ASSERT(EQ(y, 10))
-y = 0
-ASSERT(EQ(x, 0))
+ADD(@y, 1)
+ASSERT(EQ(x, 11))
+ASSERT(EQ(y, 11))
+TRY{
+    INT: x = @y # circular reference should fail
+    ASSERT(0)
+}CATCH{}
 FREEZE(x)
 FREEZE(y)
 TRY{
@@ -424,7 +429,7 @@ PRINT("WHILE: PASS\n")
 # --- Control flow: FOR ---
 PRINT("Testing FOR...")
 INT: total = 0
-FOR(i, 101){  # 5 iterations: 0,1,2,3,4
+FOR(i, 100){  # 4 iterations: 1,2,3,4
     total = ADD(total, i)
 }
 ASSERT(EQ(total, 1010))  # 0+1+2+3+4 = 10
@@ -447,7 +452,7 @@ PRINT("BREAK: PASS\n")
 # --- Control flow: CONTINUE ---
 PRINT("Testing CONTINUE...")
 INT: sum2 = 0
-FOR(j, 101){  # 5 iterations
+FOR(j, 100){  # 4 iterations
     IF(EQ(j, 10)){
         CONTINUE()
     }
@@ -544,6 +549,16 @@ TNS: arr = [1, 10, 11]
 ASSERT(IN(10, arr))
 ASSERT(NOT(IN(100, arr)))
 DEL(arr)
+
+# --- JOIN ---
+PRINT("Testing JOIN...")
+ASSERT(EQ(JOIN("Hello", " ", "World"), "Hello World"))
+ASSERT(EQ(JOIN(101, 1), 1011))
+TRY{
+    JOIN("Hello", 10)  # mixed types should raise an error
+    ASSERT(0)
+}CATCH{}
+PRINT("JOIN: PASS\n")
 
 # --- System ---
 PRINT("Testing system...")
@@ -648,11 +663,14 @@ TRY{
     IMPORT(nonexistent_module)
     ASSERT(0)
 }CATCH{}
-WRITEFILE("INT: im_sym = 101", "mod.pre")
+WRITEFILE("INT: im_sym = 101 ; FUNC test():INT{ RETURN(0) }", "mod.pre")
 IMPORT(mod)
 ASSERT(EQ(mod.im_sym, 101))
 DEL(mod.im_sym)
 ASSERT(NOT(EXIST(mod.im_sym)))
+ASSERT(EQ(mod.test(), 0))
+DEL(mod.test)
+ASSERT(NOT(EXIST(mod.test)))
 PRINT("IMPORT: PASS\n")
 
 PRINT("Testing IMPORT_PATH...")

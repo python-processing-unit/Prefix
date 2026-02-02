@@ -52,14 +52,21 @@
 
 - [12. Operators, Functions, and Statements](#12-operators-functions-and-statements)
 
-This document specifies an imperative programming language with a binary integer data model and an explicit small-step execution semantics. A program is compiled into an initial machine state (a seed configuration) and then executed solely by repeatedly applying a fixed, program-independent state-transition (rewrite) function. All intermediate states are (semi-)human-readable and serializable, and execution can be traced and replayed exactly, including I/O and nondeterministic choices, which are modeled explicitly for deterministic replay.
+This document specifies an imperative programming language with a statically typed data model and an explicit small-step execution semantics.
+
+A program is compiled into an initial machine state (a seed configuration) and then executed solely by repeatedly applying a fixed, program-independent state-transition (rewrite) function. All intermediate states are (semi-)human-readable and serializable, and execution can be traced and replayed exactly, including I/O and nondeterministic choices, which are modeled explicitly for deterministic replay.
 
 ## 1. Overview
 
-The language is a familiar statement-based, imperative language. Programs consist of variable declarations via assignment, expressions, and control-flow constructs such as `IF`, `ELSEIF`, `ELSE`, `WHILE`, and `FOR`. Prefix has seven runtime data types: binary integers (`INT`), binary floating-point numbers (`FLT`, IEEE754), strings (`STR`), non-scalar tensors (`TNS`), first-class user-defined functions (`FUNC`), associative maps (`MAP`), and thread handles (`THR`). Identifiers, function parameters, and return values are statically typed; the type of every symbol must be declared when it is first introduced. Computation proceeds by evaluating expressions and executing statements in sequence, with explicit constructs for branching and looping. Input and output are modeled through built-in operators, in particular `INPUT` and `PRINT`.
+The language is a familiar statement-based, imperative language.
+
+Programs consist of variable declarations via assignment, expressions, and control-flow constructs such as `IF`, `ELSEIF`, `ELSE`, `WHILE`, and `FOR`.
+
+Prefix has seven runtime data types: binary integers (`INT`), binary floating-point numbers (`FLT`, IEEE754), strings (`STR`), non-scalar tensors (`TNS`), first-class user-defined functions (`FUNC`), associative maps (`MAP`), and thread handles (`THR`).
+
+Identifiers, function parameters, and return values are statically typed; the type of every symbol must be declared when it is first introduced. Computation proceeds by evaluating expressions and executing statements in sequence, with explicit constructs for branching and looping. Input and output are modeled through built-in operators, in particular `INPUT` and `PRINT`.
 
 The interpreter compiles source code into a single initial configuration (the seed state), which includes the program code, an empty variable environment, and an initial I/O history. It then advances execution by repeatedly applying a single, fixed small-step transition function that is independent of the particular program. A disassembler and log view expose all intermediate states so that every step and every control-flow decision is inspectable and replay-able.
-
 
 ## 2. Lexical Structure
 
@@ -228,7 +235,7 @@ Thread values (`THR`): a `THR` value is a handle to a background task. In Boolea
 
 Assignments have the syntax `TYPE : identifier = expression` on first use, where TYPE is `INT`, `FLT`, `STR`, `TNS`, or `FUNC`. Spaces around the colon and equals sign are optional. Subsequent assignments to an existing identifier may omit the type but must preserve the original type. Variables are deallocated only when `DEL(identifier)` is executed.
 
-Inline assignment operator: the built-in `ASSIGN` provides an expression form of assignment, similar to a walrus operator. The general form is `ASSIGN(target, expression)` and it evaluates `expression`, assigns it to `target`, and returns the assigned value. The `target` may be a plain identifier (e.g. `ASSIGN(x, 1)`) or an indexed assignment target (e.g. `ASSIGN(tensor[1], 0)` or `ASSIGN(map<"k">, 1)`). If the identifier has not yet been declared, the typed form is required: `ASSIGN(TYPE: name, expression)` declares the identifier's type and performs the assignment in one step. The typed form is only valid for plain identifiers; indexed targets must already exist and follow the same indexed-assignment rules as statement assignments.
+Inline assignment operator: the built-in `ASSIGN` provides an expression form of assignment, similar to a walrus operator. The general form is `ASSIGN(target, expression)` and it evaluates `expression`, assigns it to `target`, and returns the assigned value. The `target` may be a plain identifier (for example `ASSIGN(x, 1)`) or an indexed assignment target (for example `ASSIGN(tensor[1], 0)` or `ASSIGN(map<"k">, 1)`). If the identifier has not yet been declared, the typed form is required: `ASSIGN(TYPE: name, expression)` declares the identifier's type and performs the assignment in one step. The typed form is only valid for plain identifiers; indexed targets must already exist and follow the same indexed-assignment rules as statement assignments.
 
 Tensor elements can be reassigned with the indexed form `identifier[i1,...,iN] = expression`. The base must be a previously-declared `TNS` binding. The indices must match the tensor's dimensionality, follow the same one-based/negative-index rules as ordinary indexing, and must reference anexisting position. The element's original type cannot change: attempting to store a different type at that position is a runtime error. Indexed assignment mutates the `TNS`.
 
@@ -329,7 +336,7 @@ The statement form `GOTO(n)` evaluates `n` at runtime and transfers execution to
 
 `GOTO` and `GOTOPOINT` are intended to be low-level primitives and their use can make programs harder to reason about. They are serialized in the stat log like other statements so that execution is fully replayable for debugging and tracing.
 
-- Trigger: a traceback is produced when a runtime error occurs that prevents normal forward execution (e.g., an assertion failure, divide by zero, undefined variable reference, executing `RETURN` outside of a function, or any other interpreter-defined runtime error).
+- Trigger: a traceback is produced when a runtime error occurs that prevents normal forward execution (for example, an assertion failure, divide by zero, undefined variable reference, executing `RETURN` outside of a function, or any other interpreter-defined runtime error).
 
 - Content: the traceback must list frames in chronological call order from the outermost (earliest) frame to the innermost (where the error occurred), and for each frame include: function name (or `<top-level>` for global code), precise source location, a short excerpt of the offending statement, and identifiers linking to the corresponding states in the state log.
 
@@ -536,7 +543,7 @@ Tensor indexing uses the expression form `tensor[i1, i2, ..., iN]`. The number o
 
 - `TYPE(ANY: obj):STR` ; returns the runtime type name of `obj` as a `STR` — one of `INT`, `FLT`, `STR`, or `TNS` (extension-defined type names are returned unchanged when extensions are enabled).
 
-- `SIGNATURE(SYMBOL: sym):STR` ; returns a textual signature for the identifier `sym`. If `sym` denotes a user-defined function (`FUNC`) the result is formatted in the canonical form used in this specification, e.g. `FUNC name(T1: arg1, T2: arg2 = default):R`. For other bound symbols the result is `TYPE: symbol` (for example `INT: x`). The argument must be a plain identifier.
+- `SIGNATURE(SYMBOL: sym):STR` ; returns a textual signature for the identifier `sym`. If `sym` denotes a user-defined function (`FUNC`) the result is formatted in the canonical form used in this specification, for example `FUNC name(T1: arg1, T2: arg2 = default):R`. For other bound symbols the result is `TYPE: symbol` (for example `INT: x`). The argument must be a plain identifier.
 
 - `COPY(ANY: obj):ANY` ; return a shallow copy of `obj`. For `INT`, `FLT`, `STR`, and `FUNC` this produces a same-typed value wrapper. For `TNS` it returns a newly-allocated tensor with the same shape whose elements reference the original element values (shallow). For `MAP` it returns a new map with the same keys and the same value references (shallow).
 
@@ -688,7 +695,7 @@ Tensor indexing uses the expression form `tensor[i1, i2, ..., iN]`. The number o
 
 - `TFLIP(TNS: obj, INT: dim):TNS` — Returns a new `TNS` with the elements along 1-based dimension `dim` reversed. Errors if `dim` is out of range.
 
-- `SCAT(TNS: src, TNS: dst, TNS: ind):TNS` — Returns a copy of `dst` with a rectangular slice replaced by `src`. `ind` must be a 2D tensor of `INT` pairs with shape `[TLEN(dst, 1), 10]` (binary `10` = decimal 2), i.e., one `[lo, hi]` row per destination dimension (rank; for example `rank = TLEN(SHAPE(dst), 1)`). Indices are 1-based; negatives follow the tensor indexing rules (for example, `-1` is the last element) and `0` is invalid. For each dimension, the inclusive span `hi - lo + 1` must equal the corresponding `src` dimension length, and all bounds must fall within `dst`. Elements outside the slice are copied from `dst` unchanged.
+- `SCAT(TNS: src, TNS: dst, TNS: ind):TNS` — Returns a copy of `dst` with a rectangular slice replaced by `src`. `ind` must be a 2D tensor of `INT` pairs with shape `[TLEN(dst, 1), 10]` (binary `10` = decimal 2), that is, one `[lo, hi]` row per destination dimension (rank; for example `rank = TLEN(SHAPE(dst), 1)`). Indices are 1-based; negatives follow the tensor indexing rules (for example, `-1` is the last element) and `0` is invalid. For each dimension, the inclusive span `hi - lo + 1` must equal the corresponding `src` dimension length, and all bounds must fall within `dst`. Elements outside the slice are copied from `dst` unchanged.
 
 - `FILL(TNS: tensor, ANY: value):TNS` — Returns a new tensor with the same shape as `tensor`, filled with `value`. The supplied value`s type must match the existing element type at every position.
 

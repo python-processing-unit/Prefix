@@ -176,10 +176,23 @@ static Expr* parse_call(Parser* parser) {
             advance(parser); // consume '('
             Expr* call = expr_call(expr, line, column);
             if (parser->current_token.type != TOKEN_RPAREN) {
+                bool seen_kw = false;
                 do {
-                    Expr* arg = parse_expression(parser);
-                    if (!arg) return NULL;
-                    expr_list_add(&call->as.call.args, arg);
+                    // Keyword arg form: IDENT '=' expr
+                    if (parser->current_token.type == TOKEN_IDENT && parser->next_token.type == TOKEN_EQUALS) {
+                        seen_kw = true;
+                        char* name = parser->current_token.literal;
+                        advance(parser); // consume IDENT
+                        consume(parser, TOKEN_EQUALS, "Expected '=' after keyword name");
+                        Expr* val = parse_expression(parser);
+                        if (!val) return NULL;
+                        call_kw_add(call, name, val);
+                    } else {
+                        if (seen_kw) { report_error(parser, "Positional arguments cannot follow keyword arguments"); return NULL; }
+                        Expr* arg = parse_expression(parser);
+                        if (!arg) return NULL;
+                        expr_list_add(&call->as.call.args, arg);
+                    }
                 } while (match(parser, TOKEN_COMMA));
             }
             consume(parser, TOKEN_RPAREN, "Expected ')' after arguments");
