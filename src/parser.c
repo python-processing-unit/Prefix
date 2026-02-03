@@ -65,6 +65,7 @@ static DeclType parse_type_name(const char* name) {
     if (strcmp(name, "FLT") == 0) return TYPE_FLT;
     if (strcmp(name, "STR") == 0) return TYPE_STR;
     if (strcmp(name, "FUNC") == 0) return TYPE_FUNC;
+    if (strcmp(name, "THR") == 0) return TYPE_THR;
     if (strcmp(name, "TNS") == 0) return TYPE_TNS;
     return TYPE_UNKNOWN;
 }
@@ -470,6 +471,20 @@ static Stmt* parse_statement(Parser* parser) {
             if (!expr) return NULL;
             consume(parser, TOKEN_RPAREN, "Expected ')' after BREAK value");
             return stmt_break(expr, tok.line, tok.column);
+        }
+        case TOKEN_THR: {
+            Token tok = parser->current_token;
+            advance(parser);
+            consume(parser, TOKEN_LPAREN, "Expected '(' after THR");
+            if (parser->current_token.type != TOKEN_IDENT) {
+                report_error(parser, "Expected identifier after THR(");
+                return NULL;
+            }
+            char* name = parser->current_token.literal;
+            advance(parser);
+            consume(parser, TOKEN_RPAREN, "Expected ')' after THR identifier");
+            Stmt* body = parse_block(parser);
+            return stmt_thr(name, body, tok.line, tok.column);
         }
         case TOKEN_CONTINUE: {
             Token tok = parser->current_token;

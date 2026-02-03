@@ -2,6 +2,12 @@
 #define VALUE_H
 
 #include "ast.h"
+#if !defined(__STDC_NO_THREADS__) && !defined(_MSC_VER)
+#include <threads.h>
+#define PREFIX_HAS_THREADS 1
+#else
+#define PREFIX_HAS_THREADS 0
+#endif
 
 struct EnvEntry; // forward declare for pointer values
 
@@ -12,12 +18,22 @@ typedef enum {
     VAL_STR,
     VAL_TNS,
     VAL_MAP,
-    VAL_FUNC
+    VAL_FUNC,
+    VAL_THR
 } ValueType;
 
 // Forward declaration - Func is defined in interpreter.h
 struct Func;
 struct Value; // forward declare Value for Tensor.data
+
+typedef struct Thr {
+    int finished; // 0 = running, 1 = finished/stopped
+    int paused;
+    int refcount;
+#if PREFIX_HAS_THREADS
+    thrd_t thread;
+#endif
+} Thr;
 
 typedef struct Tensor {
     DeclType elem_type; // element static type
@@ -38,6 +54,7 @@ typedef struct Value {
         struct Func* func;
         struct Tensor* tns;
         struct Map* map;
+        struct Thr* thr;
     } as;
 } Value;
 
@@ -80,6 +97,9 @@ Value value_int(int64_t v);
 Value value_flt(double v);
 Value value_str(const char* s);
 Value value_func(struct Func* func);
+Value value_thr_new(void);
+int value_thr_is_running(Value v);
+void value_thr_set_finished(Value v, int finished);
 // Note: pointer semantics are implemented at the EnvEntry (alias) level; no PTR Value type.
 
 Value value_copy(Value v);

@@ -691,4 +691,29 @@ DEL(mod.ex_sym)
 DELETEFILE("mod.pre")
 PRINT("EXPORT: PASS\n")
 
+PRINT("Testing THR (thread-handle) semantics...")
+
+# Basic THR: start a thread that sets a shared variable.
+INT: shared = 0
+THR(th) {
+    shared = 101
+}
+
+# Wait for thread to finish (works for both threaded and synchronous fallback).
+INT: waited = 0
+WHILE(th){
+    waited = ADD(waited, 1)
+    # Safety: avoid infinite loop if thread never finishes
+    IF(GT(waited, 100000)){ BREAK(1) }
+}
+
+ASSERT(EQ(shared, 101))
+ASSERT(NOT(th))
+ASSERT(EQ(TYPE(th), "THR"))
+DEL(shared)
+DEL(th)
+DEL(waited)
+
+PRINT("THR: PASS\n")
+
 PRINT("=== All Stage 4 Tests PASSED ===")

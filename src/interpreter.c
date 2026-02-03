@@ -12,6 +12,39 @@
 static ExecResult exec_stmt(Interpreter* interp, Stmt* stmt, Env* env, LabelMap* labels);
 static ExecResult exec_stmt_list(Interpreter* interp, StmtList* list, Env* env, LabelMap* labels);
 
+// Thread worker for THR blocks
+#if PREFIX_HAS_THREADS
+typedef struct {
+    Interpreter* interp;
+    Env* env;
+    Stmt* body;
+    Value thr_val;
+} ThrStart;
+
+static int thr_worker(void* arg) {
+    ThrStart* start = (ThrStart*)arg;
+    LabelMap labels = {0};
+    ExecResult res = exec_stmt(start->interp, start->body, start->env, &labels);
+
+    // Clean up labels
+    for (size_t i = 0; i < labels.count; i++) value_free(labels.items[i].key);
+    free(labels.items);
+
+    if (res.status == EXEC_RETURN || res.status == EXEC_OK || res.status == EXEC_GOTO) {
+        value_free(res.value);
+    }
+    if (res.status == EXEC_ERROR && res.error) {
+        free(res.error);
+    }
+
+    value_thr_set_finished(start->thr_val, 1);
+    value_free(start->thr_val);
+    free(start->interp);
+    free(start);
+    return 0;
+}
+#endif
+
 // ============ Helper functions ============
 
 static void* safe_malloc(size_t size) {
@@ -182,6 +215,8 @@ int value_truthiness(Value v) {
             return v.as.s != NULL && v.as.s[0] != '\0';
         case VAL_FUNC:
             return 1;  // Functions are always truthy
+        case VAL_THR:
+            return value_thr_is_running(v);
         default:
             return 0;
     }
@@ -196,6 +231,7 @@ static DeclType value_type_to_decl(ValueType vt) {
         case VAL_STR: return TYPE_STR;
         case VAL_TNS: return TYPE_TNS;
         case VAL_FUNC: return TYPE_FUNC;
+        case VAL_THR: return TYPE_THR;
         default: return TYPE_UNKNOWN;
     }
 }
@@ -207,6 +243,7 @@ static ValueType decl_type_to_value(DeclType dt) {
         case TYPE_STR: return VAL_STR;
         case TYPE_TNS: return VAL_TNS;
         case TYPE_FUNC: return VAL_FUNC;
+        case TYPE_THR: return VAL_THR;
         default: return VAL_NULL;
     }
 }
@@ -841,12 +878,12 @@ Value eval_expr(Interpreter* interp, Expr* expr, Env* env) {
             if (kw_used) free(kw_used);
             
             // Execute function body
-            LabelMap labels = {0};
-            ExecResult res = exec_stmt(interp, user_func->body, call_env, &labels);
+            LabelMap local_labels = {0};
+            ExecResult res = exec_stmt(interp, user_func->body, call_env, &local_labels);
             
             // Clean up labels
-            for (size_t i = 0; i < labels.count; i++) value_free(labels.items[i].key);
-            free(labels.items);
+            for (size_t i = 0; i < local_labels.count; i++) value_free(local_labels.items[i].key);
+            free(local_labels.items);
             
             env_free(call_env);
             
@@ -881,8 +918,18 @@ Value eval_expr(Interpreter* interp, Expr* expr, Env* env) {
                 case TYPE_INT: return value_int(0);
                 case TYPE_FLT: return value_flt(0.0);
                 case TYPE_STR: return value_str("");
+                case TYPE_TNS:
+                    interp->error = strdup("TNS-returning function must return a value");
+                    interp->error_line = expr->line;
+                    interp->error_col = expr->column;
+                    return value_null();
                 case TYPE_FUNC:
                     interp->error = strdup("FUNC-returning function must return a value");
+                    interp->error_line = expr->line;
+                    interp->error_col = expr->column;
+                    return value_null();
+                case TYPE_THR:
+                    interp->error = strdup("THR-returning function must return a value");
                     interp->error_line = expr->line;
                     interp->error_col = expr->column;
                     return value_null();
@@ -1507,7 +1554,10 @@ static ExecResult exec_stmt(Interpreter* interp, Stmt* stmt, Env* env, LabelMap*
                     snprintf(buf, sizeof(buf), "Type mismatch: expected %s but got %s",
                              expected == TYPE_INT ? "INT" : 
                              expected == TYPE_FLT ? "FLT" :
-                             expected == TYPE_STR ? "STR" : "FUNC",
+                             expected == TYPE_STR ? "STR" :
+                             expected == TYPE_TNS ? "TNS" :
+                             expected == TYPE_FUNC ? "FUNC" :
+                             expected == TYPE_THR ? "THR" : "UNKNOWN",
                              value_type_name(v));
                     value_free(v);
                     return make_error(buf, stmt->line, stmt->column);
@@ -1703,6 +1753,57 @@ static ExecResult exec_stmt(Interpreter* interp, Stmt* stmt, Env* env, LabelMap*
             res.error_line = 0;
             res.error_column = 0;
             return res;
+        }
+
+        case STMT_THR: {
+            Value thr_val = value_thr_new();
+            Value thr_for_worker = value_copy(thr_val);
+            if (!env_assign(env, stmt->as.thr_stmt.name, thr_val, TYPE_THR, true)) {
+                value_free(thr_for_worker);
+                value_free(thr_val);
+                return make_error("Cannot assign to THR identifier", stmt->line, stmt->column);
+            }
+            value_free(thr_val);
+
+#if PREFIX_HAS_THREADS
+            ThrStart* start = safe_malloc(sizeof(ThrStart));
+            Interpreter* thr_interp = safe_malloc(sizeof(Interpreter));
+            *thr_interp = (Interpreter){0};
+            thr_interp->global_env = interp->global_env;
+            thr_interp->functions = interp->functions;
+            thr_interp->loop_depth = 0;
+            thr_interp->error = NULL;
+            thr_interp->error_line = 0;
+            thr_interp->error_col = 0;
+            thr_interp->in_try_block = false;
+            thr_interp->modules = interp->modules;
+            thr_interp->shushed = interp->shushed;
+
+            start->interp = thr_interp;
+            start->env = env;
+            start->body = stmt->as.thr_stmt.body;
+            start->thr_val = thr_for_worker;
+
+            if (thrd_create(&thr_for_worker.as.thr->thread, thr_worker, start) != thrd_success) {
+                value_thr_set_finished(thr_for_worker, 1);
+                value_free(thr_for_worker);
+                free(thr_interp);
+                free(start);
+                return make_error("Failed to start THR", stmt->line, stmt->column);
+            }
+#else
+            LabelMap local_labels = {0};
+            ExecResult res = exec_stmt(interp, stmt->as.thr_stmt.body, env, &local_labels);
+            for (size_t i = 0; i < local_labels.count; i++) value_free(local_labels.items[i].key);
+            free(local_labels.items);
+            if (res.status == EXEC_ERROR && res.error) free(res.error);
+            if (res.status == EXEC_RETURN || res.status == EXEC_OK || res.status == EXEC_GOTO) {
+                value_free(res.value);
+            }
+            value_thr_set_finished(thr_for_worker, 1);
+            value_free(thr_for_worker);
+#endif
+            return make_ok(value_null());
         }
 
         case STMT_IF: {

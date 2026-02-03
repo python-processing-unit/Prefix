@@ -28,6 +28,28 @@ Value value_func(struct Func* func) {
     Value val; val.type = VAL_FUNC; val.as.func = func; return val;
 }
 
+Value value_thr_new(void) {
+    Thr* t = malloc(sizeof(Thr));
+    if (!t) { fprintf(stderr, "Out of memory\n"); exit(1); }
+    t->finished = 0;
+    t->paused = 0;
+    t->refcount = 1;
+#if PREFIX_HAS_THREADS
+    memset(&t->thread, 0, sizeof(thrd_t));
+#endif
+    Value v; v.type = VAL_THR; v.as.thr = t; return v;
+}
+
+int value_thr_is_running(Value v) {
+    if (v.type != VAL_THR || !v.as.thr) return 0;
+    return v.as.thr->finished ? 0 : 1;
+}
+
+void value_thr_set_finished(Value v, int finished) {
+    if (v.type != VAL_THR || !v.as.thr) return;
+    v.as.thr->finished = finished ? 1 : 0;
+}
+
 // Create a pointer value referring to a binding name
 // Pointer values removed: aliasing is handled at EnvEntry level
 
@@ -321,6 +343,10 @@ Value value_copy(Value v) {
         Map* m = v.as.map;
         m->refcount++;
         out.as.map = m;
+    } else if (v.type == VAL_THR && v.as.thr) {
+        Thr* th = v.as.thr;
+        th->refcount++;
+        out.as.thr = th;
     }
     return out;
 }
@@ -357,6 +383,11 @@ Value value_deep_copy(Value v) {
         }
         m2->refcount = 1;
         out.as.map = m2;
+    } else if (v.type == VAL_THR && v.as.thr) {
+        // Threads are not deep-copyable; preserve handle semantics (share)
+        Thr* th = v.as.thr;
+        th->refcount++;
+        out.as.thr = th;
     }
     return out;
 }
@@ -387,6 +418,11 @@ void value_free(Value v) {
             }
             free(m);
         }
+    } else if (v.type == VAL_THR && v.as.thr) {
+        Thr* th = v.as.thr;
+        if (--th->refcount <= 0) {
+            free(th);
+        }
     }
 }
 
@@ -398,6 +434,7 @@ const char* value_type_name(Value v) {
         case VAL_TNS: return "TNS";
         case VAL_STR: return "STR";
         case VAL_FUNC: return "FUNC";
+        case VAL_THR: return "THR";
         default: return "NULL";
     }
 }

@@ -2687,6 +2687,7 @@ static Value builtin_signature(Interpreter* interp, Value* args, int argc, Expr*
                     case TYPE_STR: tname = "STR"; break;
                     case TYPE_TNS: tname = "TNS"; break;
                     case TYPE_FUNC: tname = "FUNC"; break;
+                    case TYPE_THR: tname = "THR"; break;
                     default: tname = "ANY"; break;
                 }
                 if (i > 0) strcat(buf, ", ");
@@ -2731,6 +2732,7 @@ static Value builtin_signature(Interpreter* interp, Value* args, int argc, Expr*
                 case TYPE_STR: rname = "STR"; break;
                 case TYPE_TNS: rname = "TNS"; break;
                 case TYPE_FUNC: rname = "FUNC"; break;
+                case TYPE_THR: rname = "THR"; break;
                 default: rname = "ANY"; break;
             }
             strcat(buf, rname);
@@ -2760,6 +2762,7 @@ static Value builtin_signature(Interpreter* interp, Value* args, int argc, Expr*
                 case TYPE_STR: tname = "STR"; break;
                 case TYPE_TNS: tname = "TNS"; break;
                 case TYPE_FUNC: tname = "FUNC"; break;
+                case TYPE_THR: tname = "THR"; break;
                 default: tname = "ANY"; break;
             }
             if (i > 0) strcat(buf, ", ");
@@ -2804,6 +2807,7 @@ static Value builtin_signature(Interpreter* interp, Value* args, int argc, Expr*
             case TYPE_STR: rname = "STR"; break;
             case TYPE_TNS: rname = "TNS"; break;
             case TYPE_FUNC: rname = "FUNC"; break;
+            case TYPE_THR: rname = "THR"; break;
             default: rname = "ANY"; break;
         }
         strcat(buf, rname);
@@ -2823,6 +2827,7 @@ static Value builtin_signature(Interpreter* interp, Value* args, int argc, Expr*
         case TYPE_STR: tname = "STR"; break;
         case TYPE_TNS: tname = "TNS"; break;
         case TYPE_FUNC: tname = "FUNC"; break;
+        case TYPE_THR: tname = "THR"; break;
         default: tname = value_type_name(entry->value); break;
     }
     size_t len = strlen(tname) + 2 + strlen(name) + 1;
@@ -3431,6 +3436,7 @@ static Value builtin_values(Interpreter* interp, Value* args, int argc, Expr** a
     else if (vt == VAL_STR) dt = TYPE_STR;
     else if (vt == VAL_TNS) dt = TYPE_TNS;
     else if (vt == VAL_FUNC) dt = TYPE_FUNC;
+    else if (vt == VAL_THR) dt = TYPE_THR;
     else if (vt == VAL_MAP) dt = TYPE_TNS; // no TYPE_MAP, use TNS as container type
     else RUNTIME_ERROR(interp, "VALUES: unsupported value type", line, col);
 
@@ -3446,6 +3452,7 @@ static Value builtin_values(Interpreter* interp, Value* args, int argc, Expr** a
         else if (cur == VAL_STR) cur_dt = TYPE_STR;
         else if (cur == VAL_TNS) cur_dt = TYPE_TNS;
         else if (cur == VAL_FUNC) cur_dt = TYPE_FUNC;
+        else if (cur == VAL_THR) cur_dt = TYPE_THR;
         else if (cur == VAL_MAP) cur_dt = TYPE_TNS;
         if (cur_dt != dt) {
             for (size_t j = 0; j < i; j++) value_free(items[j]);

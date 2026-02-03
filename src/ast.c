@@ -264,6 +264,16 @@ Stmt* stmt_continue(int line, int column) {
     return stmt;
 }
 
+Stmt* stmt_thr(char* name, Stmt* body, int line, int column) {
+    Stmt* stmt = ast_alloc(sizeof(Stmt));
+    stmt->type = STMT_THR;
+    stmt->line = line;
+    stmt->column = column;
+    stmt->as.thr_stmt.name = name;
+    stmt->as.thr_stmt.body = body;
+    return stmt;
+}
+
 Stmt* stmt_try(Stmt* try_block, char* catch_name, Stmt* catch_block, int line, int column) {
     Stmt* stmt = ast_alloc(sizeof(Stmt));
     stmt->type = STMT_TRY;
@@ -425,6 +435,10 @@ void free_stmt(Stmt* stmt) {
             break;
         case STMT_BREAK:
             free_expr(stmt->as.break_stmt.value);
+            break;
+        case STMT_THR:
+            free(stmt->as.thr_stmt.name);
+            free_stmt(stmt->as.thr_stmt.body);
             break;
         case STMT_TRY:
             free_stmt(stmt->as.try_stmt.try_block);
