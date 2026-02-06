@@ -87,6 +87,8 @@ typedef struct Interpreter {
     struct ModuleEntry* modules;
     // When non-zero, forwarding of console output (PRINT/CL) is suppressed
     int shushed;
+    // Current thread handle when executing in a background thread (NULL in main thread)
+    struct Thr* current_thr;
 } Interpreter;
 
 // Main entry point
@@ -101,6 +103,9 @@ ExecResult exec_program_in_env(Interpreter* interp, Stmt* program, Env* env);
 // Functions needed by builtins.c
 Value eval_expr(Interpreter* interp, Expr* expr, Env* env);
 int value_truthiness(Value v);
+// Restart a finished thread `thr_val` by re-launching its stored body/env.
+// Returns 0 on success, -1 on failure. On failure, sets interp->error/message.
+int interpreter_restart_thread(Interpreter* interp, Value thr_val, int line, int col);
 
 // Function table operations
 FuncTable* func_table_create(void);

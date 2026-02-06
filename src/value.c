@@ -34,9 +34,10 @@ Value value_thr_new(void) {
     t->finished = 0;
     t->paused = 0;
     t->refcount = 1;
-#if PREFIX_HAS_THREADS
+    t->started = 0;
+    t->body = NULL;
+    t->env = NULL;
     memset(&t->thread, 0, sizeof(thrd_t));
-#endif
     Value v; v.type = VAL_THR; v.as.thr = t; return v;
 }
 

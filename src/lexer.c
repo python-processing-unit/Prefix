@@ -42,7 +42,7 @@ static bool is_at_end(Lexer* lexer);
 static char advance(Lexer* lexer);
 static char peek(Lexer* lexer);
 static char peek_next(Lexer* lexer);
-static Token make_token(Lexer* lexer, TokenType type, const char* start, size_t length);
+static Token make_token(Lexer* lexer, PTokenType type, const char* start, size_t length);
 static Token error_token(Lexer* lexer, const char* message);
 static Token string_token(Lexer* lexer, char quote_char);
 static Token number_token(Lexer* lexer, bool is_negative_start);
@@ -50,7 +50,7 @@ static Token identifier_token(Lexer* lexer);
 static void consume_line_continuation(Lexer* lexer);
 static int hex_digit(char c);
 
-static TokenType check_keyword(const char* text, size_t length) {
+static PTokenType check_keyword(const char* text, size_t length) {
 #define KEYWORD(str, type) \
     if (length == strlen(str) && memcmp(text, str, length) == 0) return type;
 
@@ -111,7 +111,7 @@ static char peek_next(Lexer* lexer) {
     return lexer->source[lexer->current + 1];
 }
 
-static Token make_token(Lexer* lexer, TokenType type, const char* start, size_t length) {
+static Token make_token(Lexer* lexer, PTokenType type, const char* start, size_t length) {
     Token token;
     token.type = type;
     token.line = lexer->line;
@@ -439,7 +439,7 @@ static Token identifier_token(Lexer* lexer) {
         }
     }
     value[len_val] = '\0';
-    TokenType type = check_keyword(value, len_val);
+    PTokenType type = check_keyword(value, len_val);
     
     Token t;
     t.type = type;

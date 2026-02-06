@@ -757,9 +757,9 @@ Tensor indexing uses the expression form `tensor[i1, i2, ..., iN]`. The number o
 
 - `STOP(THR: thread):THR` — Cooperatively stop a running thread and mark it finished.
 
-- `AWAIT(THR: thread):THR` — Block until the thread is finished.
+- `AWAIT(THR: thread):THR` — Block until `thread` is finished.
 
-- `PAUSE(THR: thread, FLT: seconds=-1):THR` — Pause execution while preserving the current location. If `seconds` is provided and is $\ge 0$, the thread is automatically resumed after that duration. Pausing an already-paused thread is a runtime error.
+- `PAUSE(THR: thread, FLT: seconds=-1):THR` — Pause execution while preserving the current location. If `seconds` is provided and is >= 0, `thread` is automatically resumed after that duration. Pausing an already-paused thread is a runtime error.
 
 - `RESUME(THR: thread):THR` — Resume a paused thread. Resuming a thread that is not paused is a runtime error.
 

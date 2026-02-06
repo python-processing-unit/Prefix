@@ -2,14 +2,10 @@
 #define VALUE_H
 
 #include "ast.h"
-#if !defined(__STDC_NO_THREADS__) && !defined(_MSC_VER)
-#include <threads.h>
-#define PREFIX_HAS_THREADS 1
-#else
-#define PREFIX_HAS_THREADS 0
-#endif
+#include "win32_shim.h"  // Hardware threading always required (MSVC C17)
 
 struct EnvEntry; // forward declare for pointer values
+struct Env; // forward declare Env
 
 typedef enum {
     VAL_NULL,
@@ -30,9 +26,12 @@ typedef struct Thr {
     int finished; // 0 = running, 1 = finished/stopped
     int paused;
     int refcount;
-#if PREFIX_HAS_THREADS
-    thrd_t thread;
+#if 1
+    int started;
+    struct Stmt* body;
+    struct Env* env;
 #endif
+    thrd_t thread;
 } Thr;
 
 typedef struct Tensor {

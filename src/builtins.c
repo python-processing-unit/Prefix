@@ -9,6 +9,7 @@
 #include <math.h>
 #include <ctype.h>
 #include <sys/stat.h>
+#include <time.h>
 #ifndef _MSC_VER
 #include <sys/wait.h>
 #endif
@@ -1334,6 +1335,8 @@ static int value_deep_eq(Value a, Value b) {
             }
             return 1;
         }
+        case VAL_THR:
+            return a.as.thr == b.as.thr ? 1 : 0;
         default:
             return 0;
     }
@@ -4092,14 +4095,382 @@ static Value builtin_tstr(Interpreter* interp, Value* args, int argc, Expr** arg
 }
 
 // ============ Builtins table ============
+// Definitions for ARGV and RUN are placed here so the table can reference them.
+// ARGV builtin: returns a 1-D TNS of STR containing process argv in order
+static Value builtin_argv(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
+    (void)args; (void)arg_nodes; (void)env; (void)argc;
+    // Create a 1-D tensor of strings with length g_argc
+    size_t n = (size_t)g_argc;
+    if (n == 0) {
+        // Return empty 1-D tensor
+        size_t shape[1] = {0};
+        return value_tns_new(TYPE_STR, 1, shape);
+    }
+    Value* items = malloc(sizeof(Value) * n);
+    if (!items) RUNTIME_ERROR(interp, "Out of memory", line, col);
+    for (size_t i = 0; i < n; i++) {
+        items[i] = value_str(g_argv[i]);
+    }
+    size_t shape[1]; shape[0] = n;
+    Value out = value_tns_from_values(TYPE_STR, 1, shape, items, n);
+    for (size_t i = 0; i < n; i++) value_free(items[i]);
+    free(items);
+    return out;
+}
 
-// Forward declare ARGV builtin so it can be referenced in the table
-static Value builtin_argv(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col);
-// Forward declare RUN builtin so it can be referenced in the table
-static Value builtin_run(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col);
-// Forward declare SHUSH/UNSHUSH so they can be referenced in the table
-static Value builtin_shush(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col);
-static Value builtin_unshush(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col);
+// RUN(STR: s) - parse and execute a Prefix program string within
+// the current interpreter and environment.
+static Value builtin_run(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
+    (void)arg_nodes; (void)argc;
+    EXPECT_STR(args[0], "RUN", interp, line, col);
+
+    const char* src = args[0].as.s ? args[0].as.s : "";
+
+    // Initialize lexer/parser on the provided string
+    Lexer lex;
+    lexer_init(&lex, src, "<string>");
+    Parser parser;
+    parser_init(&parser, &lex);
+
+    Stmt* program = parser_parse(&parser);
+    if (parser.had_error) {
+        interp->error = strdup("RUN: parse error");
+        interp->error_line = parser.current_token.line;
+        interp->error_col = parser.current_token.column;
+        return value_null();
+    }
+
+    // Execute parsed program in the caller's environment
+    ExecResult res = exec_program_in_env(interp, program, env);
+    if (res.status == EXEC_ERROR) {
+        interp->error = res.error ? strdup(res.error) : strdup("Runtime error in RUN");
+        interp->error_line = res.error_line;
+        interp->error_col = res.error_column;
+        free(res.error);
+        return value_null();
+    }
+
+    return value_null();
+}
+
+// AWAIT(THR: thread):THR — block until thread is finished and return handle
+static Value builtin_await(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
+    (void)arg_nodes; (void)env;
+    if (argc != 1) {
+        RUNTIME_ERROR(interp, "AWAIT expects 1 argument", line, col);
+    }
+    if (args[0].type != VAL_THR || !args[0].as.thr) {
+        RUNTIME_ERROR(interp, "AWAIT expects THR argument", line, col);
+    }
+    // Make a local copy of the thread handle to ensure the Thr
+    // struct remains alive while we wait/join (prevents a race
+    // where the worker could free the Thr between the check and
+    // the join).
+    Value ret = value_copy(args[0]);
+    Thr* th = ret.as.thr;
+    // Wait for worker to mark finished; yield while spinning to be cooperative
+    while (!th->finished) {
+        thrd_yield();
+    }
+    // Join to reclaim thread resources; ignore join errors
+    thrd_join(th->thread, NULL);
+    return ret;
+}
+
+typedef struct {
+    Value thr_val;
+    double seconds;
+} PauseTimer;
+
+static int pause_timer_worker(void* arg) {
+    PauseTimer* pt = (PauseTimer*)arg;
+    if (pt->seconds >= 0) {
+        time_t sec = (time_t)pt->seconds;
+        double frac = pt->seconds - (double)sec;
+        if (frac < 0) frac = 0;
+        struct timespec ts;
+        ts.tv_sec = sec;
+        ts.tv_nsec = (long)(frac * 1000000000.0);
+        thrd_sleep(&ts, NULL);
+    }
+    if (pt->thr_val.type == VAL_THR && pt->thr_val.as.thr) {
+        pt->thr_val.as.thr->paused = 0;
+    }
+    value_free(pt->thr_val);
+    free(pt);
+    return 0;
+}
+
+// PAUSE(THR: thread, FLT: seconds=-1):THR
+static Value builtin_pause(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
+    (void)arg_nodes; (void)env;
+    if (argc < 1 || argc > 2) {
+        RUNTIME_ERROR(interp, "PAUSE expects 1 or 2 arguments", line, col);
+    }
+    if (args[0].type != VAL_THR || !args[0].as.thr) {
+        RUNTIME_ERROR(interp, "PAUSE expects THR argument", line, col);
+    }
+    Thr* th = args[0].as.thr;
+    if (th->finished) {
+        RUNTIME_ERROR(interp, "Cannot pause finished thread", line, col);
+    }
+    if (th->paused) {
+        RUNTIME_ERROR(interp, "Thread already paused", line, col);
+    }
+
+    double seconds = -1.0;
+    if (argc == 2) {
+        if (args[1].type == VAL_FLT) {
+            seconds = args[1].as.f;
+        } else if (args[1].type == VAL_INT) {
+            seconds = (double)args[1].as.i;
+        } else {
+            RUNTIME_ERROR(interp, "PAUSE expects FLT seconds", line, col);
+        }
+    }
+
+    th->paused = 1;
+
+    if (seconds >= 0) {
+        PauseTimer* pt = malloc(sizeof(PauseTimer));
+        if (!pt) RUNTIME_ERROR(interp, "Out of memory", line, col);
+        pt->thr_val = value_copy(args[0]);
+        pt->seconds = seconds;
+        thrd_t t;
+        if (thrd_create(&t, pause_timer_worker, pt) != thrd_success) {
+            value_free(pt->thr_val);
+            free(pt);
+            th->paused = 0;
+            RUNTIME_ERROR(interp, "Failed to schedule resume", line, col);
+        }
+        thrd_detach(t);
+    }
+
+    return value_copy(args[0]);
+}
+
+// RESUME(THR: thread):THR
+static Value builtin_resume(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
+    (void)arg_nodes; (void)env;
+    if (argc != 1) {
+        RUNTIME_ERROR(interp, "RESUME expects 1 argument", line, col);
+    }
+    if (args[0].type != VAL_THR || !args[0].as.thr) {
+        RUNTIME_ERROR(interp, "RESUME expects THR argument", line, col);
+    }
+    Thr* th = args[0].as.thr;
+    if (!th->paused) {
+        RUNTIME_ERROR(interp, "Thread is not paused", line, col);
+    }
+    th->paused = 0;
+    return value_copy(args[0]);
+}
+
+// PAUSED(THR: thread):INT
+static Value builtin_paused(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
+    (void)arg_nodes; (void)env;
+    if (argc != 1) {
+        RUNTIME_ERROR(interp, "PAUSED expects 1 argument", line, col);
+    }
+    if (args[0].type != VAL_THR || !args[0].as.thr) {
+        RUNTIME_ERROR(interp, "PAUSED expects THR argument", line, col);
+    }
+    return value_int(args[0].as.thr->paused ? 1 : 0);
+}
+
+// STOP(THR: thread):THR — cooperatively stop a running thread and mark finished
+static Value builtin_stop(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
+    (void)arg_nodes; (void)env;
+    if (argc != 1) {
+        RUNTIME_ERROR(interp, "STOP expects 1 argument", line, col);
+    }
+    if (args[0].type != VAL_THR || !args[0].as.thr) {
+        RUNTIME_ERROR(interp, "STOP expects THR argument", line, col);
+    }
+    Thr* th = args[0].as.thr;
+    if (th->finished) {
+        return value_copy(args[0]);
+    }
+    th->paused = 0;
+    th->finished = 1;
+    return value_copy(args[0]);
+}
+
+// RESTART(THR: thread):THR — reinitialize and start executing the thread again
+static Value builtin_restart(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
+    (void)arg_nodes; (void)env;
+    if (argc != 1) {
+        RUNTIME_ERROR(interp, "RESTART expects 1 argument", line, col);
+    }
+    if (args[0].type != VAL_THR || !args[0].as.thr) {
+        RUNTIME_ERROR(interp, "RESTART expects THR argument", line, col);
+    }
+    Thr* th = args[0].as.thr;
+    if (!th->body || !th->env) {
+        RUNTIME_ERROR(interp, "Cannot restart: no stored thread body/env", line, col);
+    }
+    if (!th->finished) {
+        RUNTIME_ERROR(interp, "Cannot restart running thread", line, col);
+    }
+    // Delegate to interpreter helper that knows how to launch thr_worker
+    if (interpreter_restart_thread(interp, args[0], line, col) != 0) {
+        // interpreter_restart_thread sets interp->error on failure
+        RUNTIME_ERROR(interp, interp->error ? interp->error : "Failed to restart thread", line, col);
+    }
+    return value_copy(args[0]);
+}
+
+// PARALLEL(TNS: functions) or PARALLEL(FUNC, FUNC, ...):INT
+typedef struct {
+    Interpreter* interp;
+    struct Func* func;
+    char** errors;
+    int index;
+    int* err_lines;
+    int* err_cols;
+} ParallelStart;
+
+static int parallel_worker(void* arg) {
+    ParallelStart* ps = (ParallelStart*)arg;
+    // Create a per-worker interpreter state similar to PARFOR
+    Interpreter* thr_interp = ps->interp;
+
+    // Prepare a call environment from the function's closure
+    Env* call_env = env_create(ps->func->closure);
+
+    // Execute the function body as a program block
+    ExecResult res = exec_program_in_env(thr_interp, ps->func->body, call_env);
+
+    if (res.status == EXEC_ERROR && res.error) {
+        ps->errors[ps->index] = res.error; // transfer ownership
+        if (ps->err_lines) ps->err_lines[ps->index] = res.error_line;
+        if (ps->err_cols) ps->err_cols[ps->index] = res.error_column;
+    } else {
+        if (res.status == EXEC_RETURN || res.status == EXEC_OK || res.status == EXEC_GOTO) {
+            value_free(res.value);
+        }
+        if (res.status == EXEC_ERROR && res.error) free(res.error);
+    }
+
+    env_free(call_env);
+    free(thr_interp);
+    free(ps);
+    return 0;
+}
+
+static Value builtin_parallel(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
+    (void)arg_nodes; (void)env;
+    // Gather elements: either a single tensor argument or variadic FUNC args
+    Value* elems = NULL;
+    size_t n = 0;
+
+    if (argc == 1 && args[0].type == VAL_TNS) {
+        Tensor* t = args[0].as.tns;
+        n = t->length;
+        elems = malloc(sizeof(Value) * n);
+        if (!elems) RUNTIME_ERROR(interp, "Out of memory", line, col);
+        for (size_t i = 0; i < n; i++) elems[i] = value_copy(t->data[i]);
+    } else {
+        if (argc < 1) {
+            RUNTIME_ERROR(interp, "PARALLEL expects at least 1 argument", line, col);
+        }
+        n = (size_t)argc;
+        elems = malloc(sizeof(Value) * n);
+        if (!elems) RUNTIME_ERROR(interp, "Out of memory", line, col);
+        for (size_t i = 0; i < n; i++) elems[i] = value_copy(args[i]);
+    }
+
+    // Validate all are functions
+    for (size_t i = 0; i < n; i++) {
+        if (elems[i].type != VAL_FUNC || !elems[i].as.func) {
+            for (size_t j = 0; j < n; j++) value_free(elems[j]);
+            free(elems);
+            RUNTIME_ERROR(interp, "PARALLEL expects functions (either a tensor of FUNC or FUNC arguments)", line, col);
+        }
+    }
+
+    // Prepare shared error collection and thread handles
+    char** errors = calloc(n, sizeof(char*));
+    int* err_lines = calloc(n, sizeof(int));
+    int* err_cols = calloc(n, sizeof(int));
+    thrd_t* threads = malloc(sizeof(thrd_t) * n);
+    if (!errors || !err_lines || !err_cols || !threads) {
+        if (errors) free(errors);
+        if (err_lines) free(err_lines);
+        if (err_cols) free(err_cols);
+        if (threads) free(threads);
+        for (size_t i = 0; i < n; i++) value_free(elems[i]);
+        free(elems);
+        RUNTIME_ERROR(interp, "Out of memory", line, col);
+    }
+
+    for (size_t i = 0; i < n; i++) {
+        ParallelStart* ps = malloc(sizeof(ParallelStart));
+        Interpreter* thr_interp = malloc(sizeof(Interpreter));
+        if (!ps || !thr_interp) {
+            if (ps) free(ps);
+            if (thr_interp) free(thr_interp);
+            errors[i] = strdup("Failed to allocate worker");
+            continue;
+        }
+        *thr_interp = (Interpreter){0};
+        thr_interp->global_env = interp->global_env;
+        thr_interp->functions = interp->functions;
+        thr_interp->loop_depth = 0;
+        thr_interp->error = NULL;
+        thr_interp->error_line = 0;
+        thr_interp->error_col = 0;
+        thr_interp->in_try_block = interp->in_try_block;
+        thr_interp->modules = interp->modules;
+        thr_interp->shushed = interp->shushed;
+
+        ps->interp = thr_interp;
+        ps->func = elems[i].as.func;
+        ps->errors = errors;
+        ps->index = (int)i;
+        ps->err_lines = err_lines;
+        ps->err_cols = err_cols;
+
+        if (thrd_create(&threads[i], parallel_worker, ps) != thrd_success) {
+            // record failure as error string and clean up
+            errors[i] = strdup("Failed to start PARALLEL worker");
+            free(thr_interp);
+            free(ps);
+        }
+    }
+
+    // Join threads
+    for (size_t i = 0; i < n; i++) {
+        thrd_join(threads[i], NULL);
+    }
+
+    // Find first error
+    char* first_err = NULL;
+    int first_line = 0, first_col = 0;
+    for (size_t i = 0; i < n; i++) {
+        if (errors[i]) { first_err = errors[i]; first_line = err_lines[i]; first_col = err_cols[i]; break; }
+    }
+
+    // Cleanup
+    for (size_t i = 0; i < n; i++) if (elems[i].type != VAL_NULL) value_free(elems[i]);
+    free(elems);
+    for (size_t i = 0; i < n; i++) if (errors[i] && errors[i] != first_err) free(errors[i]);
+    free(errors);
+    free(err_lines);
+    free(err_cols);
+    free(threads);
+
+    if (first_err) {
+        interp->error = strdup(first_err);
+        interp->error_line = first_line ? first_line : line;
+        interp->error_col = first_col ? first_col : col;
+        free(first_err);
+        return value_null();
+    }
+
+    return value_int(0);
+}
+
 
 static BuiltinFunction builtins_table[] = {
     // Arithmetic
@@ -4223,6 +4594,13 @@ static BuiltinFunction builtins_table[] = {
     {"DELETEFILE", 1, 1, builtin_deletefile},
     {"RUN", 1, 1, builtin_run},
     {"ARGV", 0, 0, builtin_argv},
+    {"PARALLEL", 1, -1, builtin_parallel},
+    {"AWAIT", 1, 1, builtin_await},
+    {"PAUSE", 1, 2, builtin_pause},
+    {"RESUME", 1, 1, builtin_resume},
+    {"PAUSED", 1, 1, builtin_paused},
+    {"STOP", 1, 1, builtin_stop},
+    {"RESTART", 1, 1, builtin_restart},
 
     // Control
     {"ASSERT", 1, 1, builtin_assert},
@@ -4286,61 +4664,4 @@ bool is_builtin(const char* name) {
 void builtins_set_argv(int argc, char** argv) {
     g_argc = argc;
     g_argv = argv;
-}
-
-// ARGV builtin: returns a 1-D TNS of STR containing process argv in order
-static Value builtin_argv(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
-    (void)args; (void)arg_nodes; (void)env; (void)argc;
-    // Create a 1-D tensor of strings with length g_argc
-    size_t n = (size_t)g_argc;
-    if (n == 0) {
-        // Return empty 1-D tensor
-        size_t shape[1] = {0};
-        return value_tns_new(TYPE_STR, 1, shape);
-    }
-    Value* items = malloc(sizeof(Value) * n);
-    if (!items) RUNTIME_ERROR(interp, "Out of memory", line, col);
-    for (size_t i = 0; i < n; i++) {
-        items[i] = value_str(g_argv[i]);
-    }
-    size_t shape[1]; shape[0] = n;
-    Value out = value_tns_from_values(TYPE_STR, 1, shape, items, n);
-    for (size_t i = 0; i < n; i++) value_free(items[i]);
-    free(items);
-    return out;
-}
-
-// RUN(STR: s) - parse and execute a Prefix program string within
-// the current interpreter and environment.
-static Value builtin_run(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
-    (void)arg_nodes; (void)argc;
-    EXPECT_STR(args[0], "RUN", interp, line, col);
-
-    const char* src = args[0].as.s ? args[0].as.s : "";
-
-    // Initialize lexer/parser on the provided string
-    Lexer lex;
-    lexer_init(&lex, src, "<string>");
-    Parser parser;
-    parser_init(&parser, &lex);
-
-    Stmt* program = parser_parse(&parser);
-    if (parser.had_error) {
-        interp->error = strdup("RUN: parse error");
-        interp->error_line = parser.current_token.line;
-        interp->error_col = parser.current_token.column;
-        return value_null();
-    }
-
-    // Execute parsed program in the caller's environment
-    ExecResult res = exec_program_in_env(interp, program, env);
-    if (res.status == EXEC_ERROR) {
-        interp->error = res.error ? strdup(res.error) : strdup("Runtime error in RUN");
-        interp->error_line = res.error_line;
-        interp->error_col = res.error_column;
-        free(res.error);
-        return value_null();
-    }
-
-    return value_null();
 }

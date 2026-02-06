@@ -39,13 +39,13 @@ static void advance(Parser* parser) {
 }
 
 
-static bool match(Parser* parser, TokenType type) {
+static bool match(Parser* parser, PTokenType type) {
     if (parser->current_token.type != type) return false;
     advance(parser);
     return true;
 }
 
-static bool consume(Parser* parser, TokenType type, const char* message) {
+static bool consume(Parser* parser, PTokenType type, const char* message) {
     if (parser->current_token.type == type) {
         advance(parser);
         return true;
@@ -72,9 +72,16 @@ static DeclType parse_type_name(const char* name) {
 
 static Expr* parse_expression(Parser* parser);
 static Stmt* parse_statement(Parser* parser);
+static Stmt* parse_block(Parser* parser);
 
 static Expr* parse_primary(Parser* parser) {
     Token token = parser->current_token;
+    if (parser->current_token.type == TOKEN_ASYNC) {
+        Token kw = parser->current_token;
+        advance(parser);
+        Stmt* block = parse_block(parser);
+        return expr_async(block, kw.line, kw.column);
+    }
     if (match(parser, TOKEN_NUMBER)) {
         return expr_int(strtoll(token.literal, NULL, 2), token.line, token.column);
     }
@@ -353,6 +360,24 @@ static Stmt* parse_for(Parser* parser) {
     return stmt_for(counter, target, body, tok.line, tok.column);
 }
 
+static Stmt* parse_parfor(Parser* parser) {
+    Token tok = parser->current_token;
+    consume(parser, TOKEN_PARFOR, "Expected 'PARFOR'");
+    consume(parser, TOKEN_LPAREN, "Expected '(' after PARFOR");
+    if (parser->current_token.type != TOKEN_IDENT) {
+        report_error(parser, "Expected counter identifier");
+        return NULL;
+    }
+    char* counter = parser->current_token.literal;
+    advance(parser);
+    consume(parser, TOKEN_COMMA, "Expected ',' after counter");
+    Expr* target = parse_expression(parser);
+    if (!target) return NULL;
+    consume(parser, TOKEN_RPAREN, "Expected ')' after PARFOR");
+    Stmt* body = parse_block(parser);
+    return stmt_parfor(counter, target, body, tok.line, tok.column);
+}
+
 static Stmt* parse_try(Parser* parser) {
     Token tok = parser->current_token;
     consume(parser, TOKEN_TRY, "Expected 'TRY'");
@@ -430,6 +455,25 @@ static Stmt* parse_func(Parser* parser) {
 
 static Stmt* parse_statement(Parser* parser) {
     skip_newlines(parser);
+    // Handle typed declarations where the type token may be a keyword like THR
+    if ((parser->current_token.type == TOKEN_IDENT || parser->current_token.type == TOKEN_THR) && parser->next_token.type == TOKEN_COLON) {
+        Token type_tok = parser->current_token;
+        advance(parser);
+        consume(parser, TOKEN_COLON, "Expected ':' after type");
+        if (parser->current_token.type != TOKEN_IDENT) {
+            report_error(parser, "Expected identifier name");
+            return NULL;
+        }
+        char* name = parser->current_token.literal;
+        advance(parser);
+        DeclType dtype = parse_type_name(type_tok.literal);
+        if (match(parser, TOKEN_EQUALS)) {
+            Expr* expr = parse_expression(parser);
+            if (!expr) return NULL;
+            return stmt_assign(true, dtype, name, NULL, expr, type_tok.line, type_tok.column);
+        }
+        return stmt_decl(dtype, name, type_tok.line, type_tok.column);
+    }
     switch (parser->current_token.type) {
         case TOKEN_IF:
             return parse_if(parser);
@@ -437,6 +481,8 @@ static Stmt* parse_statement(Parser* parser) {
             return parse_while(parser);
         case TOKEN_FOR:
             return parse_for(parser);
+        case TOKEN_PARFOR:
+            return parse_parfor(parser);
         case TOKEN_TRY:
             return parse_try(parser);
         case TOKEN_FUNC:
@@ -486,6 +532,12 @@ static Stmt* parse_statement(Parser* parser) {
             Stmt* body = parse_block(parser);
             return stmt_thr(name, body, tok.line, tok.column);
         }
+        case TOKEN_ASYNC: {
+            Token tok = parser->current_token;
+            advance(parser);
+            Stmt* body = parse_block(parser);
+            return stmt_async(body, tok.line, tok.column);
+        }
         case TOKEN_CONTINUE: {
             Token tok = parser->current_token;
             advance(parser);
@@ -516,7 +568,7 @@ static Stmt* parse_statement(Parser* parser) {
             break;
     }
 
-    if (parser->current_token.type == TOKEN_IDENT && parser->next_token.type == TOKEN_COLON) {
+    if ((parser->current_token.type == TOKEN_IDENT || parser->current_token.type == TOKEN_THR) && parser->next_token.type == TOKEN_COLON) {
         Token type_tok = parser->current_token;
         advance(parser);
         consume(parser, TOKEN_COLON, "Expected ':' after type");

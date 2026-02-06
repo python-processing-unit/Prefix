@@ -122,6 +122,15 @@ Expr* expr_wildcard(int line, int column) {
     return expr;
 }
 
+Expr* expr_async(Stmt* block, int line, int column) {
+    Expr* expr = ast_alloc(sizeof(Expr));
+    expr->type = EXPR_ASYNC;
+    expr->line = line;
+    expr->column = column;
+    expr->as.async.block = block;
+    return expr;
+}
+
 void expr_list_add(ExprList* list, Expr* expr) {
     if (list->count + 1 > list->capacity) {
         size_t new_cap = list->capacity == 0 ? 4 : list->capacity * 2;
@@ -152,6 +161,15 @@ Stmt* stmt_block(int line, int column) {
     stmt->type = STMT_BLOCK;
     stmt->line = line;
     stmt->column = column;
+    return stmt;
+}
+
+Stmt* stmt_async(Stmt* body, int line, int column) {
+    Stmt* stmt = ast_alloc(sizeof(Stmt));
+    stmt->type = STMT_ASYNC;
+    stmt->line = line;
+    stmt->column = column;
+    stmt->as.async_stmt.body = body;
     return stmt;
 }
 
@@ -215,6 +233,17 @@ Stmt* stmt_for(char* counter, Expr* target, Stmt* body, int line, int column) {
     stmt->as.for_stmt.counter = counter;
     stmt->as.for_stmt.target = target;
     stmt->as.for_stmt.body = body;
+    return stmt;
+}
+
+Stmt* stmt_parfor(char* counter, Expr* target, Stmt* body, int line, int column) {
+    Stmt* stmt = ast_alloc(sizeof(Stmt));
+    stmt->type = STMT_PARFOR;
+    stmt->line = line;
+    stmt->column = column;
+    stmt->as.parfor_stmt.counter = counter;
+    stmt->as.parfor_stmt.target = target;
+    stmt->as.parfor_stmt.body = body;
     return stmt;
 }
 
@@ -346,6 +375,9 @@ static void free_stmt_list(StmtList* list) {
 void free_expr(Expr* expr) {
     if (!expr) return;
     switch (expr->type) {
+        case EXPR_ASYNC:
+            free_stmt(expr->as.async.block);
+            break;
         case EXPR_STR:
             free(expr->as.str_value);
             break;
@@ -391,6 +423,9 @@ void free_stmt(Stmt* stmt) {
         case STMT_BLOCK:
             free_stmt_list(&stmt->as.block);
             break;
+        case STMT_ASYNC:
+            free_stmt(stmt->as.async_stmt.body);
+            break;
         case STMT_EXPR:
             free_expr(stmt->as.expr_stmt.expr);
             break;
@@ -417,6 +452,11 @@ void free_stmt(Stmt* stmt) {
             free(stmt->as.for_stmt.counter);
             free_expr(stmt->as.for_stmt.target);
             free_stmt(stmt->as.for_stmt.body);
+            break;
+        case STMT_PARFOR:
+            free(stmt->as.parfor_stmt.counter);
+            free_expr(stmt->as.parfor_stmt.target);
+            free_stmt(stmt->as.parfor_stmt.body);
             break;
         case STMT_FUNC:
             free(stmt->as.func_stmt.name);

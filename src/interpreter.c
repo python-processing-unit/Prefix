@@ -12,8 +12,18 @@
 static ExecResult exec_stmt(Interpreter* interp, Stmt* stmt, Env* env, LabelMap* labels);
 static ExecResult exec_stmt_list(Interpreter* interp, StmtList* list, Env* env, LabelMap* labels);
 
+static void wait_if_paused(Interpreter* interp) {
+    if (!interp || !interp->current_thr) return;
+    Thr* th = interp->current_thr;
+    if (!th) return;
+    while (th->paused && !th->finished) {
+        thrd_yield();
+    }
+}
+
+static mtx_t g_tns_lock;
+static mtx_t g_parfor_lock;
 // Thread worker for THR blocks
-#if PREFIX_HAS_THREADS
 typedef struct {
     Interpreter* interp;
     Env* env;
@@ -24,6 +34,7 @@ typedef struct {
 static int thr_worker(void* arg) {
     ThrStart* start = (ThrStart*)arg;
     LabelMap labels = {0};
+    start->interp->current_thr = start->thr_val.as.thr;
     ExecResult res = exec_stmt(start->interp, start->body, start->env, &labels);
 
     // Clean up labels
@@ -39,11 +50,61 @@ static int thr_worker(void* arg) {
 
     value_thr_set_finished(start->thr_val, 1);
     value_free(start->thr_val);
+    /* `start->env` points at the caller's environment (shared); the
+     * worker must not free it. Ownership remains with the parent
+     * interpreter which will free the env when appropriate.
+     */
     free(start->interp);
     free(start);
     return 0;
 }
-#endif
+
+typedef struct {
+    Interpreter* interp;
+    Env* env;
+    Stmt* body;
+    char** errors; // shared array, one slot per iteration
+    int index; // iteration index
+    Value thr_val;
+    int* err_lines;
+    int* err_cols;
+} ParforStart;
+
+static int parfor_worker(void* arg) {
+    ParforStart* start = (ParforStart*)arg;
+    LabelMap labels = {0};
+    start->interp->current_thr = start->thr_val.as.thr;
+    mtx_lock(&g_parfor_lock);
+    ExecResult res = exec_stmt(start->interp, start->body, start->env, &labels);
+    mtx_unlock(&g_parfor_lock);
+
+    for (size_t i = 0; i < labels.count; i++) value_free(labels.items[i].key);
+    free(labels.items);
+
+    if (res.status == EXEC_ERROR && res.error) {
+        // Transfer ownership of the error string into shared array
+        start->errors[start->index] = res.error;
+        /* record original error location so parent can report/handle it */
+        if (start->err_lines) start->err_lines[start->index] = res.error_line;
+        if (start->err_cols) start->err_cols[start->index] = res.error_column;
+    } else {
+        if (res.status == EXEC_RETURN || res.status == EXEC_OK || res.status == EXEC_GOTO) {
+            value_free(res.value);
+        }
+        if (res.status == EXEC_ERROR && res.error) free(res.error);
+    }
+
+    value_thr_set_finished(start->thr_val, 1);
+    /* Null out env on the Thr handle before freeing so the handle
+       (which may still be referenced until the join completes) does
+       not carry a dangling pointer. */
+    if (start->thr_val.as.thr) start->thr_val.as.thr->env = NULL;
+    value_free(start->thr_val);
+    env_free(start->env);
+    free(start->interp);
+    free(start);
+    return 0;
+}
 
 // ============ Helper functions ============
 
@@ -1028,6 +1089,47 @@ tns_eval_fail:
             free(shape);
             return value_null();
         }
+        case EXPR_ASYNC: {
+            // Expression form: start executing block asynchronously and return THR handle
+            Value thr_val = value_thr_new();
+            Value thr_for_worker = value_copy(thr_val);
+
+            ThrStart* start = safe_malloc(sizeof(ThrStart));
+            Interpreter* thr_interp = safe_malloc(sizeof(Interpreter));
+            *thr_interp = (Interpreter){0};
+            thr_interp->global_env = interp->global_env;
+            thr_interp->functions = interp->functions;
+            thr_interp->loop_depth = 0;
+            thr_interp->error = NULL;
+            thr_interp->error_line = 0;
+            thr_interp->error_col = 0;
+            thr_interp->in_try_block = false;
+            thr_interp->modules = interp->modules;
+            thr_interp->shushed = interp->shushed;
+
+            start->interp = thr_interp;
+            start->env = env;
+            start->body = expr->as.async.block;
+            start->thr_val = thr_for_worker;
+
+            /* record body/env on the Thr so restart is possible */
+            thr_for_worker.as.thr->body = start->body;
+            thr_for_worker.as.thr->env = start->env;
+            thr_for_worker.as.thr->started = 1;
+
+            if (thrd_create(&thr_for_worker.as.thr->thread, thr_worker, start) != thrd_success) {
+                value_thr_set_finished(thr_for_worker, 1);
+                value_free(thr_for_worker);
+                free(thr_interp);
+                free(start);
+                interp->error = strdup("Failed to start ASYNC");
+                interp->error_line = expr->line;
+                interp->error_col = expr->column;
+                value_free(thr_val);
+                return value_null();
+            }
+            return thr_val;
+        }
         case EXPR_MAP: {
             // Evaluate map literal: keys and values
             Expr* mp = expr;
@@ -1460,17 +1562,20 @@ static ExecResult assign_index_chain(Interpreter* interp, Env* env, Expr* idx_ex
             continue;
         }
 
+        // Unsupported type for indexed assignment
         free(nodes);
-    if (cur->type != VAL_NULL && value_type_to_decl(cur->type) != value_type_to_decl(rhs.type)) {
-        free(nodes);
-        return make_error("Element type mismatch", stmt_line, stmt_col);
-    }
         return make_error("Indexing assignment is supported only on tensors and maps", node->line, node->column);
     }
 
     // If we get here, the chain ended after resolving to a tensor element (e.g. a<1> = rhs)
+    if (cur->type != VAL_NULL && value_type_to_decl(cur->type) != value_type_to_decl(rhs.type)) {
+        free(nodes);
+        return make_error("Element type mismatch", stmt_line, stmt_col);
+    }
+    mtx_lock(&g_tns_lock);
     value_free(*cur);
     *cur = value_copy(rhs);
+    mtx_unlock(&g_tns_lock);
     free(nodes);
     return make_ok(value_null());
 }
@@ -1765,7 +1870,6 @@ static ExecResult exec_stmt(Interpreter* interp, Stmt* stmt, Env* env, LabelMap*
             }
             value_free(thr_val);
 
-#if PREFIX_HAS_THREADS
             ThrStart* start = safe_malloc(sizeof(ThrStart));
             Interpreter* thr_interp = safe_malloc(sizeof(Interpreter));
             *thr_interp = (Interpreter){0};
@@ -1784,6 +1888,11 @@ static ExecResult exec_stmt(Interpreter* interp, Stmt* stmt, Env* env, LabelMap*
             start->body = stmt->as.thr_stmt.body;
             start->thr_val = thr_for_worker;
 
+            /* record body/env on the Thr so restart is possible */
+            thr_for_worker.as.thr->body = start->body;
+            thr_for_worker.as.thr->env = start->env;
+            thr_for_worker.as.thr->started = 1;
+
             if (thrd_create(&thr_for_worker.as.thr->thread, thr_worker, start) != thrd_success) {
                 value_thr_set_finished(thr_for_worker, 1);
                 value_free(thr_for_worker);
@@ -1791,18 +1900,43 @@ static ExecResult exec_stmt(Interpreter* interp, Stmt* stmt, Env* env, LabelMap*
                 free(start);
                 return make_error("Failed to start THR", stmt->line, stmt->column);
             }
-#else
-            LabelMap local_labels = {0};
-            ExecResult res = exec_stmt(interp, stmt->as.thr_stmt.body, env, &local_labels);
-            for (size_t i = 0; i < local_labels.count; i++) value_free(local_labels.items[i].key);
-            free(local_labels.items);
-            if (res.status == EXEC_ERROR && res.error) free(res.error);
-            if (res.status == EXEC_RETURN || res.status == EXEC_OK || res.status == EXEC_GOTO) {
-                value_free(res.value);
+            return make_ok(value_null());
+        }
+
+        case STMT_ASYNC: {
+            Value thr_val = value_thr_new();
+            Value thr_for_worker = value_copy(thr_val);
+
+            ThrStart* start = safe_malloc(sizeof(ThrStart));
+            Interpreter* thr_interp = safe_malloc(sizeof(Interpreter));
+            *thr_interp = (Interpreter){0};
+            thr_interp->global_env = interp->global_env;
+            thr_interp->functions = interp->functions;
+            thr_interp->loop_depth = 0;
+            thr_interp->error = NULL;
+            thr_interp->error_line = 0;
+            thr_interp->error_col = 0;
+            thr_interp->in_try_block = false;
+            thr_interp->modules = interp->modules;
+            thr_interp->shushed = interp->shushed;
+
+            start->interp = thr_interp;
+            start->env = env;
+            start->body = stmt->as.async_stmt.body;
+            start->thr_val = thr_for_worker;
+
+            /* record body/env on the Thr so restart is possible */
+            thr_for_worker.as.thr->body = start->body;
+            thr_for_worker.as.thr->env = start->env;
+            thr_for_worker.as.thr->started = 1;
+
+            if (thrd_create(&thr_for_worker.as.thr->thread, thr_worker, start) != thrd_success) {
+                value_thr_set_finished(thr_for_worker, 1);
+                value_free(thr_for_worker);
+                free(thr_interp);
+                free(start);
+                return make_error("Failed to start ASYNC", stmt->line, stmt->column);
             }
-            value_thr_set_finished(thr_for_worker, 1);
-            value_free(thr_for_worker);
-#endif
             return make_ok(value_null());
         }
 
@@ -1845,7 +1979,7 @@ static ExecResult exec_stmt(Interpreter* interp, Stmt* stmt, Env* env, LabelMap*
         case STMT_WHILE: {
             interp->loop_depth++;
             int iteration_count = 0;
-            const int max_iterations = 100000; // Prevent infinite loops
+            const unsigned long long max_iterations = 18446744073709551615; // Prevent infinite loops
 
             while (1) {
                 if (++iteration_count > max_iterations) {
@@ -1946,6 +2080,159 @@ static ExecResult exec_stmt(Interpreter* interp, Stmt* stmt, Env* env, LabelMap*
             return make_ok(value_null());
         }
 
+        case STMT_PARFOR: {
+            interp->loop_depth++;
+            int iteration_count = 0;
+            const int max_iterations = 100000;
+
+            Value target = eval_expr(interp, stmt->as.parfor_stmt.target, env);
+            if (interp->error) {
+                interp->loop_depth--;
+                ExecResult err = make_error(interp->error, interp->error_line, interp->error_col);
+                clear_error(interp);
+                return err;
+            }
+
+            if (target.type != VAL_INT) {
+                value_free(target);
+                interp->loop_depth--;
+                return make_error("PARFOR target must be INT", stmt->line, stmt->column);
+            }
+
+            int64_t limit = target.as.i;
+            value_free(target);
+
+            if (limit < 0) {
+                interp->loop_depth--;
+                return make_error("PARFOR target must be non-negative", stmt->line, stmt->column);
+            }
+
+            // Spawn worker threads for each iteration
+            size_t n = (size_t)limit;
+            char** errors = calloc(n, sizeof(char*));
+            int* err_lines = calloc(n, sizeof(int));
+            int* err_cols = calloc(n, sizeof(int));
+            Value* thr_vals = malloc(sizeof(Value) * n);
+            ParforStart** starts = malloc(sizeof(ParforStart*) * n);
+
+            for (size_t i = 0; i < n; i++) {
+                if (++iteration_count > max_iterations) {
+                    interp->loop_depth--;
+                    // cleanup
+                    for (size_t j = 0; j < i; j++) value_free(thr_vals[j]);
+                    free(thr_vals);
+                    free(starts);
+                    for (size_t j = 0; j < n; j++) free(errors[j]);
+                    free(errors);
+                    free(err_lines);
+                    free(err_cols);
+                    return make_error("Infinite loop detected", stmt->line, stmt->column);
+                }
+
+                thr_vals[i] = value_thr_new();
+
+                ParforStart* start = safe_malloc(sizeof(ParforStart));
+                Interpreter* thr_interp = safe_malloc(sizeof(Interpreter));
+                *thr_interp = (Interpreter){0};
+                thr_interp->global_env = interp->global_env;
+                thr_interp->functions = interp->functions;
+                thr_interp->loop_depth = 0;
+                thr_interp->error = NULL;
+                thr_interp->error_line = 0;
+                thr_interp->error_col = 0;
+                thr_interp->in_try_block = interp->in_try_block;
+                thr_interp->modules = interp->modules;
+                thr_interp->shushed = interp->shushed;
+
+                start->interp = thr_interp;
+                /* Create a per-iteration child env so each PARFOR iteration
+                   gets its own counter binding and does not race with others. */
+                Env* thread_env = env_create(env);
+                int64_t idx = (int64_t)i + 1; /* iterations are 1-based */
+                /* Always define the counter locally so it shadows any
+                   same-named binding in a parent env. */
+                env_define(thread_env, stmt->as.parfor_stmt.counter, TYPE_INT);
+                if (!env_assign(thread_env, stmt->as.parfor_stmt.counter, value_int(idx), TYPE_INT, false)) {
+                    char buf[256];
+                    snprintf(buf, sizeof(buf), "Cannot assign to frozen identifier '%s'", stmt->as.parfor_stmt.counter);
+                    errors[i] = strdup(buf);
+                    env_free(thread_env);
+                    free(thr_interp);
+                    free(start);
+                    /* Mark this iteration as finished and continue launching others */
+                    value_thr_set_finished(thr_vals[i], 1);
+                    continue;
+                }
+                start->env = thread_env;
+                start->body = stmt->as.parfor_stmt.body;
+                start->errors = errors;
+                start->err_lines = err_lines;
+                start->err_cols = err_cols;
+                start->index = (int)i;
+                start->thr_val = value_copy(thr_vals[i]);
+                starts[i] = start;
+
+                /* record body/env on Thr so restart is possible */
+                thr_vals[i].as.thr->body = start->body;
+                thr_vals[i].as.thr->env = start->env; /* points to per-iteration env */
+
+                if (thrd_create(&thr_vals[i].as.thr->thread, parfor_worker, start) != thrd_success) {
+                    /* mark finished and leave thr_vals[i] intact so later cleanup is safe */
+                    value_thr_set_finished(thr_vals[i], 1);
+                    free(thr_interp);
+                    free(start);
+                    errors[i] = strdup("Failed to start PARFOR iteration");
+                    /* continue launching others */
+                } else {
+                    /* only mark started after successful thread creation */
+                    thr_vals[i].as.thr->started = 1;
+                }
+            }
+
+            // Join only threads that were actually started
+            for (size_t i = 0; i < n; i++) {
+                if (thr_vals[i].type == VAL_THR && thr_vals[i].as.thr && thr_vals[i].as.thr->started) {
+                    if (thrd_join(thr_vals[i].as.thr->thread, NULL) != thrd_success) {
+                        // ignore join failures but mark finished
+                    }
+                }
+            }
+
+            // Collect first error if any (and its original location)
+            char* first_err = NULL;
+            int first_err_line = 0;
+            int first_err_col = 0;
+            for (size_t i = 0; i < n; i++) {
+                if (errors[i]) { first_err = errors[i]; first_err_line = err_lines[i]; first_err_col = err_cols[i]; break; }
+            }
+
+            // Cleanup thr values
+            for (size_t i = 0; i < n; i++) value_free(thr_vals[i]);
+            free(thr_vals);
+            free(starts);
+            for (size_t i = 0; i < n; i++) if (errors[i] && errors[i] != first_err) free(errors[i]);
+            free(errors);
+            free(err_lines);
+            free(err_cols);
+
+            interp->loop_depth--;
+
+            if (first_err) {
+                /* Propagate iteration error into parent interpreter state
+                 * so surrounding TRY blocks reliably observe it. */
+                if (interp->error) free(interp->error);
+                interp->error = strdup(first_err);
+                /* Prefer the original iteration error location when available */
+                interp->error_line = first_err_line ? first_err_line : stmt->line;
+                interp->error_col = first_err_col ? first_err_col : stmt->column;
+                ExecResult err = make_error(first_err, interp->error_line, interp->error_col);
+                free(first_err);
+                return err;
+            }
+
+            return make_ok(value_null());
+        }
+
         default:
             return make_ok(value_null());
     }
@@ -1968,6 +2255,7 @@ static ExecResult exec_stmt_list(Interpreter* interp, StmtList* list, Env* env, 
     // Second pass: execute statements
     size_t i = 0;
     while (i < list->count) {
+        wait_if_paused(interp);
         ExecResult res = exec_stmt(interp, list->items[i], env, labels);
         
         if (res.status == EXEC_ERROR || res.status == EXEC_RETURN || 
@@ -1999,8 +2287,11 @@ ExecResult exec_program(Stmt* program, const char* source_path) {
     interp.error = NULL;
     interp.in_try_block = false;
     interp.modules = NULL;
+    interp.current_thr = NULL;
 
     builtins_init();
+    mtx_init(&g_tns_lock, 0);
+    mtx_init(&g_parfor_lock, 0);
     // Record source path of the primary program so imports and MAIN() work
     if (source_path && source_path[0] != '\0') {
         env_assign(interp.global_env, "__MODULE_SOURCE__", value_str(source_path), TYPE_STR, true);
@@ -2025,7 +2316,57 @@ ExecResult exec_program(Stmt* program, const char* source_path) {
         me = next;
     }
     
+    mtx_destroy(&g_tns_lock);
+    mtx_destroy(&g_parfor_lock);
     return res;
+}
+
+// helper used by builtins to restart threads
+int interpreter_restart_thread(Interpreter* interp, Value thr_val, int line, int col) {
+    (void)line; (void)col;
+    if (thr_val.type != VAL_THR || !thr_val.as.thr) {
+        if (interp) interp->error = strdup("RESTART expects THR argument");
+        return -1;
+    }
+    Thr* th = thr_val.as.thr;
+    if (!th->body || !th->env) {
+        if (interp) interp->error = strdup("Cannot restart: no stored thread body/env");
+        return -1;
+    }
+    if (!th->finished) {
+        if (interp) interp->error = strdup("Cannot restart running thread");
+        return -1;
+    }
+    ThrStart* start = safe_malloc(sizeof(ThrStart));
+    Interpreter* thr_interp = safe_malloc(sizeof(Interpreter));
+    *thr_interp = (Interpreter){0};
+    thr_interp->global_env = interp->global_env;
+    thr_interp->functions = interp->functions;
+    thr_interp->loop_depth = 0;
+    thr_interp->error = NULL;
+    thr_interp->error_line = 0;
+    thr_interp->error_col = 0;
+    thr_interp->in_try_block = interp->in_try_block;
+    thr_interp->modules = interp->modules;
+    thr_interp->shushed = interp->shushed;
+
+    start->interp = thr_interp;
+    start->env = th->env;
+    start->body = th->body;
+    start->thr_val = value_copy(thr_val);
+
+    th->finished = 0;
+    th->paused = 0;
+    th->started = 1;
+    if (thrd_create(&th->thread, thr_worker, start) != thrd_success) {
+        th->finished = 1;
+        value_free(start->thr_val);
+        free(thr_interp);
+        free(start);
+        if (interp) interp->error = strdup("Failed to restart thread");
+        return -1;
+    }
+    return 0;
 }
 
 // Execute a parsed program within an existing Interpreter and Env.

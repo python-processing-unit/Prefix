@@ -23,6 +23,7 @@ typedef enum {
     EXPR_PTR,
     EXPR_IDENT,
     EXPR_CALL,
+    EXPR_ASYNC,
     EXPR_TNS,
     EXPR_MAP,
     EXPR_INDEX,
@@ -46,6 +47,7 @@ struct Expr {
         char* str_value;
         char* ident;
         char* ptr_name;
+            struct { Stmt* block; } async;
         struct {
             Expr* callee;
             ExprList args;
@@ -72,12 +74,14 @@ struct Expr {
 
 typedef enum {
     STMT_BLOCK,
+    STMT_ASYNC,
     STMT_EXPR,
     STMT_ASSIGN,
     STMT_DECL,
     STMT_IF,
     STMT_WHILE,
     STMT_FOR,
+    STMT_PARFOR,
     STMT_FUNC,
     STMT_RETURN,
     STMT_BREAK,
@@ -125,9 +129,11 @@ struct Stmt {
         } if_stmt;
         struct { Expr* condition; Stmt* body; } while_stmt;
         struct { char* counter; Expr* target; Stmt* body; } for_stmt;
+        struct { char* counter; Expr* target; Stmt* body; } parfor_stmt;
         struct { char* name; ParamList params; DeclType return_type; Stmt* body; } func_stmt;
         struct { Expr* value; } return_stmt;
         struct { Expr* value; } break_stmt;
+        struct { Stmt* body; } async_stmt;
         struct { char* name; Stmt* body; } thr_stmt;
         struct { Stmt* try_block; char* catch_name; Stmt* catch_block; } try_stmt;
         struct { Expr* target; } goto_stmt;
@@ -144,6 +150,7 @@ Expr* expr_ident(char* name, int line, int column);
 Expr* expr_call(Expr* callee, int line, int column);
 void call_kw_add(Expr* call, char* name, Expr* value);
 Expr* expr_tns(int line, int column);
+Expr* expr_async(Stmt* block, int line, int column);
 Expr* expr_map(int line, int column);
 Expr* expr_index(Expr* target, int line, int column);
 Expr* expr_range(Expr* start, Expr* end, int line, int column);
@@ -151,12 +158,14 @@ Expr* expr_wildcard(int line, int column);
 void expr_list_add(ExprList* list, Expr* expr);
 
 Stmt* stmt_block(int line, int column);
+Stmt* stmt_async(Stmt* body, int line, int column);
 Stmt* stmt_expr(Expr* expr, int line, int column);
 Stmt* stmt_assign(bool has_type, DeclType decl_type, char* name, Expr* target, Expr* value, int line, int column);
 Stmt* stmt_decl(DeclType decl_type, char* name, int line, int column);
 Stmt* stmt_if(Expr* cond, Stmt* then_branch, int line, int column);
 Stmt* stmt_while(Expr* cond, Stmt* body, int line, int column);
 Stmt* stmt_for(char* counter, Expr* target, Stmt* body, int line, int column);
+Stmt* stmt_parfor(char* counter, Expr* target, Stmt* body, int line, int column);
 Stmt* stmt_func(char* name, DeclType ret, Stmt* body, int line, int column);
 Stmt* stmt_return(Expr* value, int line, int column);
 Stmt* stmt_pop(char* name, int line, int column);

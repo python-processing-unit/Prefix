@@ -51,16 +51,16 @@ typedef enum {
     TOKEN_GOTO,
     TOKEN_GOTOPOINT
 
-} TokenType;
+} PTokenType;
 
 typedef struct {
-    TokenType type;
+    PTokenType type;
     char* literal; // For IDENT, NUMBER, FLOAT, STRING, etc.
     int line;
     int column;
 } Token;
 
-const char* token_type_to_string(TokenType type);
+const char* token_type_to_string(PTokenType type);
 void free_token(Token* token);
 
 #endif // TOKEN_H

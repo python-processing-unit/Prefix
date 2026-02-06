@@ -1,7 +1,6 @@
-# Stage 4 Test - Tests INT, FLT, STR, FUNC and basic operators
-# Excludes TNS, MAP, THR operations
+# Stage 5 Test - Tests INT, FLT, STR, FUNC, TNS, MAP, THR
 
-PRINT("=== Stage 4 Tests ===")
+PRINT("=== Stage 5 Tests ===")
 
 # --- Literal formats ---
 PRINT("Testing literals...")
@@ -54,6 +53,60 @@ ASSERT(ISTNS(t))
 ASSERT(NOT(ISTNS(101)))
 DEL(t)
 PRINT("Tensors: PASS\n")
+
+PRINT("Testing PAUSE/RESUME/PAUSED...")
+# Use a deterministic handshake: worker sets `pause_started` and
+# waits for `pause_go` to be set. Main waits for `pause_started`, then
+# PAUSE/RESUME and sets `pause_go` so the worker can finish. This
+# removes any timing/race reliance on loop duration.
+INT: pause_started = 0
+INT: pause_go = 0
+THR: pause_thr = ASYNC{
+    pause_started = 1
+    WHILE(EQ(pause_go, 0)){
+        # busy-wait; cooperative pause point
+    }
+}
+
+# wait for the worker to start (with a small timeout)
+INT: waited_p = 0
+WHILE(NOT(EQ(pause_started, 1))){
+    waited_p = ADD(waited_p, 1)
+    IF(GT(waited_p, 11110)){ BREAK(1) }
+}
+
+IF(pause_thr){
+    ASSERT(EQ(PAUSED(pause_thr), 0))
+    INT: pause_ok = 0
+    TRY{
+        PAUSE(pause_thr)
+        pause_ok = 1
+    }CATCH{}
+    IF(pause_ok){
+        ASSERT(EQ(PAUSED(pause_thr), 1))
+        # set the flag so the worker can proceed once resumed
+        pause_go = 1
+        RESUME(pause_thr)
+        ASSERT(EQ(PAUSED(pause_thr), 0))
+    }
+    AWAIT(pause_thr)
+    DEL(pause_ok)
+}ELSE{
+    ASSERT(EQ(PAUSED(pause_thr), 0))
+    TRY{
+        PAUSE(pause_thr)
+        ASSERT(0)
+    }CATCH{}
+    TRY{
+        RESUME(pause_thr)
+        ASSERT(0)
+    }CATCH{}
+}
+DEL(pause_started)
+DEL(pause_go)
+DEL(pause_thr)
+DEL(waited_p)
+PRINT("PAUSE/RESUME/PAUSED: PASS\n")
 
 PRINT("Testing maps...")
 # Simple map literal and lookup
@@ -436,6 +489,62 @@ ASSERT(EQ(total, 1010))  # 0+1+2+3+4 = 10
 DEL(total)
 PRINT("FOR: PASS\n")
 
+# --- Control flow: PARFOR ---
+PRINT("Testing PARFOR...")
+TNS: p = [0,0,0,0,0]
+PARFOR(i, 101){
+    p[i] = i
+}
+ASSERT(EQ(p, [1,10,11,100,101]))
+DEL(p)
+
+INT: caught_pf = 0
+TRY{
+    PARFOR(j, 101){
+        IF(EQ(j, 10)){
+            ASSERT(0)  # trigger runtime error in one iteration
+        }
+    }
+}CATCH(SYMBOL: e){
+    caught_pf = 1
+}
+ASSERT(EQ(caught_pf, 1))
+DEL(caught_pf)
+PRINT("PARFOR: PASS\n")
+
+PRINT("Testing PARALLEL...")
+
+# Simple no-op functions to exercise PARALLEL
+FUNC NOOP_A():INT{ RETURN(0) }
+FUNC NOOP_B():INT{ RETURN(0) }
+FUNC NOOP_C():INT{ RETURN(0) }
+
+# Variadic form: pass functions as separate args
+INT: par_res = PARALLEL(NOOP_A, NOOP_B, NOOP_C)
+ASSERT(EQ(par_res, 0))
+
+# Tensor form: pass a tensor containing functions
+TNS: func_tns = [NOOP_A, NOOP_B, NOOP_C]
+INT: par_res2 = PARALLEL(func_tns)
+ASSERT(EQ(par_res2, 0))
+
+# Error propagation: a worker that throws should cause PARALLEL to raise
+FUNC BAD():INT{ THROW("boom") }
+INT: caught_par = 0
+TRY{
+    PARALLEL(BAD, NOOP_A)
+    ASSERT(0)
+}CATCH(SYMBOL: e){
+    caught_par = 1
+}
+ASSERT(EQ(caught_par, 1))
+
+DEL(par_res)
+DEL(par_res2)
+DEL(func_tns)
+DEL(caught_par)
+PRINT("PARALLEL: PASS\n")
+
 # --- Control flow: BREAK ---
 PRINT("Testing BREAK...")
 INT: count = 0
@@ -693,27 +802,90 @@ PRINT("EXPORT: PASS\n")
 
 PRINT("Testing THR (thread-handle) semantics...")
 
+# --- ASYNC tests ---
+PRINT("Testing ASYNC...")
+
+# Statement form: returned THR ignored, block starts immediately
+INT: shared_async_s = 0
+# Bind the ASYNC to a thread handle and await it for determinism
+THR: thr_async_stmt = ASYNC{ shared_async_s = 101 }
+ASSERT(EQ(AWAIT(thr_async_stmt), thr_async_stmt))
+ASSERT(NOT(thr_async_stmt))
+ASSERT(EQ(shared_async_s, 101))
+DEL(shared_async_s)
+DEL(thr_async_stmt)
+
+
+# Additional AWAIT test
+INT: shared_await = 0
+THR: thr_await = ASYNC{ shared_await = 101 }
+ASSERT(EQ(AWAIT(thr_await), thr_await))
+ASSERT(NOT(thr_await))
+ASSERT(EQ(shared_await, 101))
+DEL(shared_await)
+DEL(thr_await)
+
+INT: shared_async_e = 0
+THR: thr_async = ASYNC{ shared_async_e = 101 }
+ASSERT(EQ(AWAIT(thr_async), thr_async))
+ASSERT(NOT(thr_async))
+ASSERT(EQ(shared_async_e, 101))
+DEL(shared_async_e)
+DEL(thr_async)
+
+PRINT("ASYNC: PASS\n")
+
 # Basic THR: start a thread that sets a shared variable.
 INT: shared = 0
 THR(th) {
     shared = 101
 }
-
-# Wait for thread to finish (works for both threaded and synchronous fallback).
-INT: waited = 0
-WHILE(th){
-    waited = ADD(waited, 1)
-    # Safety: avoid infinite loop if thread never finishes
-    IF(GT(waited, 100000)){ BREAK(1) }
-}
+# Wait for thread to finish deterministically
+AWAIT(th)
 
 ASSERT(EQ(shared, 101))
 ASSERT(NOT(th))
 ASSERT(EQ(TYPE(th), "THR"))
 DEL(shared)
 DEL(th)
-DEL(waited)
+
+PRINT("Testing STOP/RESTART...")
+INT: stop_shared = 0
+THR: stop_thr = ASYNC{
+    INT: i = 0
+    # Signal immediate start so main thread can detect the worker
+    stop_shared = ADD(stop_shared, 1)
+    WHILE(LT(i, 1111010)){
+        stop_shared = ADD(stop_shared, 1)
+        i = ADD(i, 1)
+    }
+}
+INT: wait_s = 0
+WHILE(NOT(stop_shared)){
+    wait_s = ADD(wait_s, 1)
+    IF(GT(wait_s, 10000000)){ BREAK(1) }
+}
+ASSERT(GT(stop_shared, 0))
+
+STOP(stop_thr)
+# Wait for cooperative stop to take effect (avoid immediate race)
+INT: wait_stop = 0
+WHILE(stop_thr){
+    wait_stop = ADD(wait_stop, 1)
+    IF(GT(wait_stop, 100000)){ BREAK(1) }
+}
+INT: snapshot_stop = stop_shared
+DEL(wait_stop)
+
+RESTART(stop_thr)
+ASSERT(stop_thr)
+AWAIT(stop_thr)
+ASSERT(GT(stop_shared, snapshot_stop))
+DEL(stop_shared)
+DEL(stop_thr)
+DEL(wait_s)
+DEL(snapshot_stop)
 
 PRINT("THR: PASS\n")
 
-PRINT("=== All Stage 4 Tests PASSED ===")
+PRINT("=== All Stage 5 Tests PASSED ===")
