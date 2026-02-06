@@ -691,6 +691,38 @@ ASSERT(ISSTR(os_name))
 DEL(os_name)
 PRINT("System: PASS\n")
 
+PRINT("Testing ROUND...")
+
+# half-way cases (binary digits) - ndigits = 2 (binary `10`)
+FLT: r_half = 0.101
+ASSERT(EQ(ROUND(r_half, ndigits = 10), 0.10))
+ASSERT(EQ(ROUND(r_half, mode = "ceiling", ndigits = 10), 0.11))
+ASSERT(EQ(ROUND(r_half, mode = "ceil", ndigits = 10), 0.11))
+ASSERT(EQ(ROUND(r_half, mode = "zero", ndigits = 10), 0.10))
+ASSERT(EQ(ROUND(r_half, mode = "logical", ndigits = 10), 0.11))
+ASSERT(EQ(ROUND(r_half, mode = "half-up", ndigits = 10), 0.11))
+# two-argument form: second arg INT -> ndigits with default "floor"
+ASSERT(EQ(ROUND(0.101, 10), 0.10))
+
+# negative half-case: sign effects differ for floor/zero/half-up
+FLT: rn_half = -0.101
+ASSERT(EQ(ROUND(rn_half, ndigits = 10), -0.11))
+ASSERT(EQ(ROUND(rn_half, mode = "zero", ndigits = 10), -0.10))
+ASSERT(EQ(ROUND(rn_half, mode = "logical", ndigits = 10), -0.11))
+
+# negative ndigits (round to left of radix point)
+FLT: three = 11.0
+ASSERT(EQ(ROUND(three, ndigits = -1), 10.0))
+ASSERT(EQ(ROUND(three, mode = "logical", ndigits = -1), 100.0))
+ASSERT(EQ(ROUND(three, -1), 10.0))
+
+FLT: neg_three = -11.0
+ASSERT(EQ(ROUND(neg_three, ndigits = -1), -100.0))
+ASSERT(EQ(ROUND(neg_three, mode = "zero", ndigits = -1), -10.0))
+ASSERT(EQ(ROUND(neg_three, mode = "logical", ndigits = -1), -100.0))
+
+PRINT("ROUND: PASS\n")
+
 PRINT("Testing CL...")
 # Simple cross-platform check: `echo` should succeed and return 0
 ASSERT(EQ(CL("echo hello"), 0))

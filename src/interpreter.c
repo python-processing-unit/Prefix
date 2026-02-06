@@ -118,42 +118,12 @@ static void* safe_malloc(size_t size) {
     return ptr;
 }
 
-static int builtin_kw_index(const char* func_name, const char* kw) {
-    if (!func_name || !kw) return -1;
-    if (strcmp(func_name, "READFILE") == 0 || strcmp(func_name, "WRITEFILE") == 0) {
-        if (strcmp(kw, "coding") == 0) return 1;
-        return -1;
-    }
-    if (strcmp(func_name, "MATCH") == 0) {
-        if (strcmp(kw, "typing") == 0) return 2;
-        if (strcmp(kw, "recurse") == 0) return 3;
-        if (strcmp(kw, "shape") == 0) return 4;
-        return -1;
-    }
-    if (strcmp(func_name, "CONV") == 0) {
-        if (strcmp(kw, "stride_w") == 0) return 2;
-        if (strcmp(kw, "stride_h") == 0) return 3;
-        if (strcmp(kw, "pad_w") == 0) return 4;
-        if (strcmp(kw, "pad_h") == 0) return 5;
-        if (strcmp(kw, "bias") == 0) return 6;
-        return -1;
-    }
-    if (strcmp(func_name, "ROUND") == 0) {
-        if (strcmp(kw, "mode") == 0) return 1;
-        if (strcmp(kw, "ndigits") == 0) return 2;
-        return -1;
-    }
-    if (strcmp(func_name, "SPLIT") == 0) {
-        if (strcmp(kw, "delimiter") == 0) return 1;
-        return -1;
-    }
-    if (strcmp(func_name, "BYTES") == 0) {
-        if (strcmp(kw, "endian") == 0) return 1;
-        return -1;
-    }
-    if (strcmp(func_name, "PAUSE") == 0) {
-        if (strcmp(kw, "seconds") == 0) return 1;
-        return -1;
+static int builtin_param_index(BuiltinFunction* builtin, const char* kw) {
+    if (!builtin || !kw) return -1;
+    if (!builtin->param_names || builtin->param_count <= 0) return -1;
+    for (int i = 0; i < builtin->param_count; i++) {
+        const char* pn = builtin->param_names[i];
+        if (pn && strcmp(pn, kw) == 0) return i;
     }
     return -1;
 }
@@ -493,15 +463,24 @@ Value eval_expr(Interpreter* interp, Expr* expr, Env* env) {
                     Value* args = NULL;
                     Expr** arg_nodes = NULL;
 
-                    // For builtins, allow keywords only if explicitly supported
+                    // For builtins, keywords are supported only if the builtin declares param names.
+                    if (kwc > 0 && (!builtin->param_names || builtin->param_count <= 0)) {
+                        interp->error = strdup("Keyword arguments not supported for builtin function");
+                        interp->error_line = expr->line;
+                        interp->error_col = expr->column;
+                        return value_null();
+                    }
+
+                    // Reject duplicate keyword names (order-independent)
                     if (kwc > 0) {
-                        for (int i = 0; i < kwc; i++) {
-                            char* k = expr->as.call.kw_names[i];
-                            if (builtin_kw_index(func_name, k) < 0) {
-                                interp->error = strdup("Unknown keyword for builtin function");
-                                interp->error_line = expr->line;
-                                interp->error_col = expr->column;
-                                return value_null();
+                        for (int k = 0; k < kwc; k++) {
+                            for (int m = 0; m < k; m++) {
+                                if (strcmp(expr->as.call.kw_names[m], expr->as.call.kw_names[k]) == 0) {
+                                    interp->error = strdup("Duplicate keyword argument");
+                                    interp->error_line = expr->line;
+                                    interp->error_col = expr->column;
+                                    return value_null();
+                                }
                             }
                         }
                     }
@@ -511,8 +490,14 @@ Value eval_expr(Interpreter* interp, Expr* expr, Env* env) {
                     if (kwc > 0) {
                         for (int i = 0; i < kwc; i++) {
                             char* k = expr->as.call.kw_names[i];
-                            int idx = builtin_kw_index(func_name, k);
-                            if (idx >= 0 && idx + 1 > max_slot) max_slot = idx + 1;
+                            int idx = builtin_param_index(builtin, k);
+                            if (idx < 0) {
+                                interp->error = strdup("Unknown keyword argument");
+                                interp->error_line = expr->line;
+                                interp->error_col = expr->column;
+                                return value_null();
+                            }
+                            if (idx + 1 > max_slot) max_slot = idx + 1;
                         }
                     }
 
@@ -543,9 +528,9 @@ Value eval_expr(Interpreter* interp, Expr* expr, Env* env) {
                         for (int k = 0; k < kwc; k++) {
                             char* name = expr->as.call.kw_names[k];
                             Expr* valnode = expr->as.call.kw_args.items[k];
-                            int idx = builtin_kw_index(func_name, name);
+                            int idx = builtin_param_index(builtin, name);
                             if (idx < 0) {
-                                interp->error = strdup("Unknown keyword for builtin function");
+                                interp->error = strdup("Unknown keyword argument");
                                 interp->error_line = expr->line;
                                 interp->error_col = expr->column;
                                 for (int j = 0; j < max_slot; j++) value_free(args[j]);
@@ -553,9 +538,9 @@ Value eval_expr(Interpreter* interp, Expr* expr, Env* env) {
                                 free(arg_nodes);
                                 return value_null();
                             }
-                            // Duplicate positional/keyword error
-                            if (idx < pos_argc && arg_nodes[idx] != NULL) {
-                                interp->error = strdup("Duplicate argument for parameter 'coding'");
+                            // Duplicate positional/keyword or duplicate keyword->slot
+                            if (idx < max_slot && arg_nodes[idx] != NULL) {
+                                interp->error = strdup("Duplicate argument for parameter");
                                 interp->error_line = expr->line;
                                 interp->error_col = expr->column;
                                 for (int j = 0; j < max_slot; j++) value_free(args[j]);

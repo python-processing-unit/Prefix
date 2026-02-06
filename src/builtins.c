@@ -5476,30 +5476,55 @@ static Value builtin_fprod(Interpreter* interp, Value* args, int argc, Expr** ar
 static Value builtin_round(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
     (void)arg_nodes; (void)env;
     EXPECT_NUM(args[0], "ROUND", interp, line, col);
-    
+
+    // Signature: ROUND(x, ndigits = 0, mode = "floor")
     int64_t places = 0;
-    if (argc >= 2) {
+    const char* mode = "floor";
+
+    if (argc >= 2 && args[1].type != VAL_NULL) {
         EXPECT_INT(args[1], "ROUND", interp, line, col);
         places = args[1].as.i;
     }
-    
+    if (argc >= 3 && args[2].type != VAL_NULL) {
+        if (args[2].type != VAL_STR) {
+            RUNTIME_ERROR(interp, "ROUND expects STR mode", line, col);
+        }
+        mode = args[2].as.s;
+        if (!mode) mode = "floor";
+    }
+
+    // INT behavior: keep prior semantics (ndigits >= 0 is a no-op; ndigits < 0 rounds toward zero to multiple of 2^(-ndigits)).
     if (args[0].type == VAL_INT) {
         if (places >= 0) {
             return value_int(args[0].as.i);
         }
-        // Negative places: round to that power of 2
-        int64_t factor = 1LL << (-places);
+        int64_t shift = -places;
+        if (shift >= 63) {
+            // 2^shift exceeds int64 range; rounding to such a large factor yields 0.
+            return value_int(0);
+        }
+        int64_t factor = 1LL << shift;
         return value_int((args[0].as.i / factor) * factor);
     }
-    
+
     double val = args[0].as.f;
-    if (places >= 0) {
-        double factor = (double)(1LL << places);
-        return value_flt(round(val * factor) / factor);
+    double factor = pow(2.0, (double)places);
+    double scaled = val * factor;
+    double rs;
+
+    if (strcmp(mode, "floor") == 0) {
+        rs = floor(scaled);
+    } else if (strcmp(mode, "ceiling") == 0 || strcmp(mode, "ceil") == 0) {
+        rs = ceil(scaled);
+    } else if (strcmp(mode, "zero") == 0) {
+        rs = (scaled >= 0.0) ? floor(scaled) : ceil(scaled);
+    } else if (strcmp(mode, "logical") == 0 || strcmp(mode, "half-up") == 0) {
+        rs = round(scaled);
     } else {
-        double factor = (double)(1LL << (-places));
-        return value_flt(round(val / factor) * factor);
+        RUNTIME_ERROR(interp, "Unknown ROUND mode", line, col);
     }
+
+    return value_flt(rs / factor);
 }
 
 // INV (1/x)
@@ -6702,6 +6727,14 @@ static Value builtin_parallel(Interpreter* interp, Value* args, int argc, Expr**
 }
 
 
+static const char* builtin_params_round[] = {"x", "ndigits", "mode"};
+static const char* builtin_params_bytes[] = {"x", "endian"};
+static const char* builtin_params_split[] = {"s", "delimiter"};
+static const char* builtin_params_match[] = {"value", "template", "typing", "recurse", "shape"};
+static const char* builtin_params_readfile[] = {"path", "coding"};
+static const char* builtin_params_writefile[] = {"data", "path", "coding"};
+static const char* builtin_params_pause[] = {"thr", "seconds"};
+
 static BuiltinFunction builtins_table[] = {
     // Arithmetic
     {"ADD", 2, 2, builtin_add},
@@ -6720,7 +6753,7 @@ static BuiltinFunction builtins_table[] = {
     {"GCD", 2, 2, builtin_gcd},
     {"LCM", 2, 2, builtin_lcm},
     {"INV", 1, 1, builtin_inv},
-    {"ROUND", 1, 3, builtin_round},
+    {"ROUND", 1, 3, builtin_round, builtin_params_round, 3},
 
     // Coercing arithmetic
     {"IADD", 2, 2, builtin_iadd},
@@ -6783,7 +6816,7 @@ static BuiltinFunction builtins_table[] = {
     {"INT", 1, 1, builtin_int},
     {"FLT", 1, 1, builtin_flt},
     {"STR", 1, 1, builtin_str},
-    {"BYTES", 1, 2, builtin_bytes},
+    {"BYTES", 1, 2, builtin_bytes, builtin_params_bytes, 2},
     {"SER", 1, 1, builtin_ser},
     {"UNSER", 1, 1, builtin_unser},
 
@@ -6804,13 +6837,13 @@ static BuiltinFunction builtins_table[] = {
     {"REPLACE", 3, 3, builtin_replace},
     {"STRIP", 2, 2, builtin_strip},
     {"JOIN", 1, -1, builtin_join},
-    {"SPLIT", 1, 2, builtin_split},
+    {"SPLIT", 1, 2, builtin_split, builtin_params_split, 2},
     {"IN", 2, 2, builtin_in},
     {"KEYS", 1, 1, builtin_keys},
     {"VALUES", 1, 1, builtin_values},
     {"KEYIN", 2, 2, builtin_keyin},
     {"VALUEIN", 2, 2, builtin_valuein},
-    {"MATCH", 2, 5, builtin_match},
+    {"MATCH", 2, 5, builtin_match, builtin_params_match, 5},
     {"ILEN", 1, 1, builtin_ilen},
     {"LEN", 0, -1, builtin_len},
 
@@ -6819,8 +6852,8 @@ static BuiltinFunction builtins_table[] = {
     {"INPUT", 0, 1, builtin_input},
     {"SHUSH", 0, 0, builtin_shush},
     {"UNSHUSH", 0, 0, builtin_unshush},
-    {"READFILE", 1, 2, builtin_readfile},
-    {"WRITEFILE", 2, 3, builtin_writefile},
+    {"READFILE", 1, 2, builtin_readfile, builtin_params_readfile, 2},
+    {"WRITEFILE", 2, 3, builtin_writefile, builtin_params_writefile, 3},
     {"CL", 1, 1, builtin_cl},
     {"EXISTFILE", 1, 1, builtin_existfile},
     {"DELETEFILE", 1, 1, builtin_deletefile},
@@ -6828,7 +6861,7 @@ static BuiltinFunction builtins_table[] = {
     {"ARGV", 0, 0, builtin_argv},
     {"PARALLEL", 1, -1, builtin_parallel},
     {"AWAIT", 1, 1, builtin_await},
-    {"PAUSE", 1, 2, builtin_pause},
+    {"PAUSE", 1, 2, builtin_pause, builtin_params_pause, 2},
     {"RESUME", 1, 1, builtin_resume},
     {"PAUSED", 1, 1, builtin_paused},
     {"STOP", 1, 1, builtin_stop},
