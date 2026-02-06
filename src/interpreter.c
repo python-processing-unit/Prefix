@@ -795,6 +795,31 @@ Value eval_expr(Interpreter* interp, Expr* expr, Env* env) {
                 }
             }
 
+            // Count positional-only parameters (those without a default value).
+            // Per spec: "A parameter without a default is positional; a parameter
+            // with a default is keyword-capable." Positional arguments may only
+            // bind to positional parameters.
+            int num_pos_params = 0;
+            for (size_t pi = 0; pi < user_func->params.count; pi++) {
+                if (!user_func->params.items[pi].default_value) num_pos_params++;
+                else break; // positional params must precede keyword-capable ones
+            }
+
+            if (pos_argc > num_pos_params) {
+                char buf[128];
+                snprintf(buf, sizeof(buf), "Too many positional arguments for '%s'",
+                         user_func->name ? user_func->name : "<lambda>");
+                interp->error = strdup(buf);
+                interp->error_line = expr->line;
+                interp->error_col = expr->column;
+                for (int t = 0; t < pos_argc; t++) value_free(pos_vals[t]);
+                free(pos_vals);
+                for (int t = 0; t < kwc; t++) value_free(kw_vals[t]);
+                free(kw_vals);
+                if (kw_used) free(kw_used);
+                return value_null();
+            }
+
             // Create new environment for function call
             Env* call_env = env_create(user_func->closure);
 

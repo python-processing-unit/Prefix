@@ -605,7 +605,7 @@ FUNC GREET(STR: name, STR: prefix = "Hello"):STR{
     RETURN(JOIN(" ", prefix, name))
 }
 ASSERT(EQ(GREET("World"), "Hello World"))
-ASSERT(EQ(GREET("World", "Hi"), "Hi World"))
+ASSERT(EQ(GREET("World", prefix = "Hi"), "Hi World"))
 PRINT("Functions: PASS\n")
 
 PRINT("Testing SIGNATURE...")
