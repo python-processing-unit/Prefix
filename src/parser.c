@@ -441,7 +441,7 @@ static Stmt* parse_func(Parser* parser) {
     }
     consume(parser, TOKEN_RPAREN, "Expected ')' after parameters");
     consume(parser, TOKEN_COLON, "Expected ':' before return type");
-    if (parser->current_token.type != TOKEN_IDENT) {
+    if (!(parser->current_token.type == TOKEN_IDENT || parser->current_token.type == TOKEN_FUNC || parser->current_token.type == TOKEN_THR)) {
         report_error(parser, "Expected return type");
         return NULL;
     }
@@ -456,7 +456,7 @@ static Stmt* parse_func(Parser* parser) {
 static Stmt* parse_statement(Parser* parser) {
     skip_newlines(parser);
     // Handle typed declarations where the type token may be a keyword like THR
-    if ((parser->current_token.type == TOKEN_IDENT || parser->current_token.type == TOKEN_THR) && parser->next_token.type == TOKEN_COLON) {
+    if ((parser->current_token.type == TOKEN_IDENT || parser->current_token.type == TOKEN_THR || parser->current_token.type == TOKEN_FUNC) && parser->next_token.type == TOKEN_COLON) {
         Token type_tok = parser->current_token;
         advance(parser);
         consume(parser, TOKEN_COLON, "Expected ':' after type");
@@ -568,7 +568,7 @@ static Stmt* parse_statement(Parser* parser) {
             break;
     }
 
-    if ((parser->current_token.type == TOKEN_IDENT || parser->current_token.type == TOKEN_THR) && parser->next_token.type == TOKEN_COLON) {
+    if ((parser->current_token.type == TOKEN_IDENT || parser->current_token.type == TOKEN_THR || parser->current_token.type == TOKEN_FUNC) && parser->next_token.type == TOKEN_COLON) {
         Token type_tok = parser->current_token;
         advance(parser);
         consume(parser, TOKEN_COLON, "Expected ':' after type");

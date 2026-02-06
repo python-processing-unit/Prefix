@@ -10,6 +10,7 @@
 #include <ctype.h>
 #include <sys/stat.h>
 #include <time.h>
+#include <stdarg.h>
 #ifndef _MSC_VER
 #include <sys/wait.h>
 #endif
@@ -160,6 +161,2151 @@ static char* flt_to_binary_str(double val) {
     
     free(int_str);
     return strdup(buf);
+}
+
+typedef struct {
+    char* data;
+    size_t len;
+    size_t cap;
+} JsonBuf;
+
+static void jb_init(JsonBuf* jb) {
+    jb->data = NULL;
+    jb->len = 0;
+    jb->cap = 0;
+}
+
+static void jb_reserve(JsonBuf* jb, size_t extra) {
+    if (jb->len + extra + 1 > jb->cap) {
+        size_t new_cap = jb->cap == 0 ? 256 : jb->cap * 2;
+        while (new_cap < jb->len + extra + 1) new_cap *= 2;
+        jb->data = realloc(jb->data, new_cap);
+        if (!jb->data) { fprintf(stderr, "Out of memory\n"); exit(1); }
+        jb->cap = new_cap;
+    }
+}
+
+static void jb_append_char(JsonBuf* jb, char c) {
+    jb_reserve(jb, 1);
+    jb->data[jb->len++] = c;
+    jb->data[jb->len] = '\0';
+}
+
+static void jb_append_str(JsonBuf* jb, const char* s) {
+    if (!s) s = "";
+    size_t n = strlen(s);
+    jb_reserve(jb, n);
+    memcpy(jb->data + jb->len, s, n);
+    jb->len += n;
+    jb->data[jb->len] = '\0';
+}
+
+static void jb_append_fmt(JsonBuf* jb, const char* fmt, ...) {
+    va_list args;
+    va_start(args, fmt);
+    char tmp[256];
+    int n = vsnprintf(tmp, sizeof(tmp), fmt, args);
+    va_end(args);
+    if (n < 0) return;
+    if ((size_t)n < sizeof(tmp)) {
+        jb_append_str(jb, tmp);
+        return;
+    }
+    char* buf = malloc((size_t)n + 1);
+    if (!buf) { fprintf(stderr, "Out of memory\n"); exit(1); }
+    va_start(args, fmt);
+    vsnprintf(buf, (size_t)n + 1, fmt, args);
+    va_end(args);
+    jb_append_str(jb, buf);
+    free(buf);
+}
+
+static void jb_free(JsonBuf* jb) {
+    free(jb->data);
+    jb->data = NULL;
+    jb->len = 0;
+    jb->cap = 0;
+}
+
+static void jb_append_json_string(JsonBuf* jb, const char* s) {
+    jb_append_char(jb, '"');
+    if (!s) s = "";
+    for (const unsigned char* p = (const unsigned char*)s; *p; p++) {
+        unsigned char c = *p;
+        switch (c) {
+            case '"': jb_append_str(jb, "\\\""); break;
+            case '\\': jb_append_str(jb, "\\\\"); break;
+            case '\b': jb_append_str(jb, "\\b"); break;
+            case '\f': jb_append_str(jb, "\\f"); break;
+            case '\n': jb_append_str(jb, "\\n"); break;
+            case '\r': jb_append_str(jb, "\\r"); break;
+            case '\t': jb_append_str(jb, "\\t"); break;
+            default:
+                if (c < 0x20 || c >= 0x7f) {
+                    jb_append_fmt(jb, "\\u%04x", (unsigned int)c);
+                } else {
+                    jb_append_char(jb, (char)c);
+                }
+                break;
+        }
+    }
+    jb_append_char(jb, '"');
+}
+
+static const char* decl_type_name(DeclType dt) {
+    switch (dt) {
+        case TYPE_INT: return "INT";
+        case TYPE_FLT: return "FLT";
+        case TYPE_STR: return "STR";
+        case TYPE_TNS: return "TNS";
+        case TYPE_FUNC: return "FUNC";
+        case TYPE_THR: return "THR";
+        default: return "UNKNOWN";
+    }
+}
+
+static DeclType decl_type_from_name(const char* name) {
+    if (!name) return TYPE_UNKNOWN;
+    if (strcmp(name, "INT") == 0) return TYPE_INT;
+    if (strcmp(name, "FLT") == 0) return TYPE_FLT;
+    if (strcmp(name, "STR") == 0) return TYPE_STR;
+    if (strcmp(name, "TNS") == 0) return TYPE_TNS;
+    if (strcmp(name, "FUNC") == 0) return TYPE_FUNC;
+    if (strcmp(name, "THR") == 0) return TYPE_THR;
+    return TYPE_UNKNOWN;
+}
+
+static EnvEntry* env_find_local_entry(Env* env, const char* name) {
+    if (!env || !name) return NULL;
+    for (size_t i = 0; i < env->count; i++) {
+        if (strcmp(env->entries[i].name, name) == 0) return &env->entries[i];
+    }
+    return NULL;
+}
+
+static Env* env_find_owner(Env* env, const char* name) {
+    for (Env* e = env; e != NULL; e = e->parent) {
+        if (env_find_local_entry(e, name)) return e;
+    }
+    return NULL;
+}
+
+// ---- JSON parsing ----
+typedef enum {
+    JSON_NULL,
+    JSON_BOOL,
+    JSON_NUM,
+    JSON_STR,
+    JSON_ARR,
+    JSON_OBJ
+} JsonType;
+
+typedef struct JsonValue JsonValue;
+
+typedef struct {
+    JsonValue** items;
+    size_t count;
+    size_t cap;
+} JsonArray;
+
+typedef struct {
+    char* key;
+    JsonValue* value;
+} JsonPair;
+
+typedef struct {
+    JsonPair* items;
+    size_t count;
+    size_t cap;
+} JsonObject;
+
+struct JsonValue {
+    JsonType type;
+    union {
+        int boolean;
+        double num;
+        char* str;
+        JsonArray arr;
+        JsonObject obj;
+    } as;
+};
+
+typedef struct {
+    const char* text;
+    size_t pos;
+    size_t len;
+    const char* error;
+} JsonParser;
+
+static void json_skip_ws(JsonParser* p) {
+    while (p->pos < p->len) {
+        char c = p->text[p->pos];
+        if (c == ' ' || c == '\t' || c == '\n' || c == '\r') {
+            p->pos++;
+            continue;
+        }
+        break;
+    }
+}
+
+static JsonValue* json_new(JsonType type) {
+    JsonValue* v = malloc(sizeof(JsonValue));
+    if (!v) { fprintf(stderr, "Out of memory\n"); exit(1); }
+    memset(v, 0, sizeof(JsonValue));
+    v->type = type;
+    return v;
+}
+
+static void json_arr_add(JsonArray* arr, JsonValue* v) {
+    if (arr->count + 1 > arr->cap) {
+        size_t new_cap = arr->cap == 0 ? 4 : arr->cap * 2;
+        arr->items = realloc(arr->items, new_cap * sizeof(JsonValue*));
+        if (!arr->items) { fprintf(stderr, "Out of memory\n"); exit(1); }
+        arr->cap = new_cap;
+    }
+    arr->items[arr->count++] = v;
+}
+
+static void json_obj_add(JsonObject* obj, const char* key, JsonValue* v) {
+    if (obj->count + 1 > obj->cap) {
+        size_t new_cap = obj->cap == 0 ? 4 : obj->cap * 2;
+        obj->items = realloc(obj->items, new_cap * sizeof(JsonPair));
+        if (!obj->items) { fprintf(stderr, "Out of memory\n"); exit(1); }
+        obj->cap = new_cap;
+    }
+    obj->items[obj->count].key = key ? strdup(key) : strdup("");
+    obj->items[obj->count].value = v;
+    obj->count++;
+}
+
+static char json_peek(JsonParser* p) {
+    if (p->pos >= p->len) return '\0';
+    return p->text[p->pos];
+}
+
+static char json_next(JsonParser* p) {
+    if (p->pos >= p->len) return '\0';
+    return p->text[p->pos++];
+}
+
+static JsonValue* json_parse_value(JsonParser* p);
+
+static char* json_parse_string_raw(JsonParser* p) {
+    if (json_next(p) != '"') return NULL;
+    JsonBuf sb; jb_init(&sb);
+    while (p->pos < p->len) {
+        char c = json_next(p);
+        if (c == '"') break;
+        if (c == '\\') {
+            char e = json_next(p);
+            switch (e) {
+                case '"': jb_append_char(&sb, '"'); break;
+                case '\\': jb_append_char(&sb, '\\'); break;
+                case '/': jb_append_char(&sb, '/'); break;
+                case 'b': jb_append_char(&sb, '\b'); break;
+                case 'f': jb_append_char(&sb, '\f'); break;
+                case 'n': jb_append_char(&sb, '\n'); break;
+                case 'r': jb_append_char(&sb, '\r'); break;
+                case 't': jb_append_char(&sb, '\t'); break;
+                case 'u': {
+                    int code = 0;
+                    for (int i = 0; i < 4; i++) {
+                        char h = json_next(p);
+                        int v = -1;
+                        if (h >= '0' && h <= '9') v = h - '0';
+                        else if (h >= 'a' && h <= 'f') v = h - 'a' + 10;
+                        else if (h >= 'A' && h <= 'F') v = h - 'A' + 10;
+                        if (v < 0) { p->error = "Invalid unicode escape"; jb_free(&sb); return NULL; }
+                        code = (code << 4) | v;
+                    }
+                    if (code <= 0x7f) {
+                        jb_append_char(&sb, (char)code);
+                    } else if (code <= 0x7ff) {
+                        jb_append_char(&sb, (char)(0xC0 | ((code >> 6) & 0x1F)));
+                        jb_append_char(&sb, (char)(0x80 | (code & 0x3F)));
+                    } else {
+                        jb_append_char(&sb, (char)(0xE0 | ((code >> 12) & 0x0F)));
+                        jb_append_char(&sb, (char)(0x80 | ((code >> 6) & 0x3F)));
+                        jb_append_char(&sb, (char)(0x80 | (code & 0x3F)));
+                    }
+                    break;
+                }
+                default:
+                    p->error = "Invalid escape";
+                    jb_free(&sb);
+                    return NULL;
+            }
+        } else {
+            jb_append_char(&sb, c);
+        }
+    }
+    char* out = sb.data ? strdup(sb.data) : strdup("");
+    jb_free(&sb);
+    return out;
+}
+
+static JsonValue* json_parse_string(JsonParser* p) {
+    char* s = json_parse_string_raw(p);
+    if (!s) return NULL;
+    JsonValue* v = json_new(JSON_STR);
+    v->as.str = s;
+    return v;
+}
+
+static JsonValue* json_parse_number(JsonParser* p) {
+    const char* start = p->text + p->pos;
+    char* end = NULL;
+    double val = strtod(start, &end);
+    if (end == start) { p->error = "Invalid number"; return NULL; }
+    p->pos = (size_t)(end - p->text);
+    JsonValue* v = json_new(JSON_NUM);
+    v->as.num = val;
+    return v;
+}
+
+static JsonValue* json_parse_array(JsonParser* p) {
+    if (json_next(p) != '[') return NULL;
+    JsonValue* v = json_new(JSON_ARR);
+    json_skip_ws(p);
+    if (json_peek(p) == ']') { json_next(p); return v; }
+    while (p->pos < p->len) {
+        json_skip_ws(p);
+        JsonValue* item = json_parse_value(p);
+        if (!item) return NULL;
+        json_arr_add(&v->as.arr, item);
+        json_skip_ws(p);
+        char c = json_next(p);
+        if (c == ']') break;
+        if (c != ',') { p->error = "Expected ',' in array"; return NULL; }
+    }
+    return v;
+}
+
+static JsonValue* json_parse_object(JsonParser* p) {
+    if (json_next(p) != '{') return NULL;
+    JsonValue* v = json_new(JSON_OBJ);
+    json_skip_ws(p);
+    if (json_peek(p) == '}') { json_next(p); return v; }
+    while (p->pos < p->len) {
+        json_skip_ws(p);
+        if (json_peek(p) != '"') { p->error = "Expected string key"; return NULL; }
+        char* key = json_parse_string_raw(p);
+        if (!key) return NULL;
+        json_skip_ws(p);
+        if (json_next(p) != ':') { free(key); p->error = "Expected ':'"; return NULL; }
+        json_skip_ws(p);
+        JsonValue* val = json_parse_value(p);
+        if (!val) { free(key); return NULL; }
+        json_obj_add(&v->as.obj, key, val);
+        free(key);
+        json_skip_ws(p);
+        char c = json_next(p);
+        if (c == '}') break;
+        if (c != ',') { p->error = "Expected ',' in object"; return NULL; }
+    }
+    return v;
+}
+
+static JsonValue* json_parse_value(JsonParser* p) {
+    json_skip_ws(p);
+    char c = json_peek(p);
+    if (c == '"') return json_parse_string(p);
+    if (c == '{') return json_parse_object(p);
+    if (c == '[') return json_parse_array(p);
+    if (c == '-' || (c >= '0' && c <= '9')) return json_parse_number(p);
+    if (strncmp(p->text + p->pos, "true", 4) == 0) {
+        p->pos += 4;
+        JsonValue* v = json_new(JSON_BOOL);
+        v->as.boolean = 1;
+        return v;
+    }
+    if (strncmp(p->text + p->pos, "false", 5) == 0) {
+        p->pos += 5;
+        JsonValue* v = json_new(JSON_BOOL);
+        v->as.boolean = 0;
+        return v;
+    }
+    if (strncmp(p->text + p->pos, "null", 4) == 0) {
+        p->pos += 4;
+        return json_new(JSON_NULL);
+    }
+    p->error = "Unexpected token";
+    return NULL;
+}
+
+static JsonValue* json_parse(const char* text, const char** err) {
+    JsonParser p = {0};
+    p.text = text ? text : "";
+    p.len = strlen(p.text);
+    JsonValue* v = json_parse_value(&p);
+    if (!v || p.error) {
+        if (err) *err = p.error ? p.error : "Invalid JSON";
+        return NULL;
+    }
+    json_skip_ws(&p);
+    if (p.pos < p.len) {
+        if (err) *err = "Trailing data";
+        return NULL;
+    }
+    return v;
+}
+
+static void json_free(JsonValue* v) {
+    if (!v) return;
+    switch (v->type) {
+        case JSON_STR:
+            free(v->as.str);
+            break;
+        case JSON_ARR:
+            for (size_t i = 0; i < v->as.arr.count; i++) json_free(v->as.arr.items[i]);
+            free(v->as.arr.items);
+            break;
+        case JSON_OBJ:
+            for (size_t i = 0; i < v->as.obj.count; i++) {
+                free(v->as.obj.items[i].key);
+                json_free(v->as.obj.items[i].value);
+            }
+            free(v->as.obj.items);
+            break;
+        default:
+            break;
+    }
+    free(v);
+}
+
+static JsonValue* json_obj_get(JsonValue* obj, const char* key) {
+    if (!obj || obj->type != JSON_OBJ || !key) return NULL;
+    for (size_t i = 0; i < obj->as.obj.count; i++) {
+        if (strcmp(obj->as.obj.items[i].key, key) == 0) return obj->as.obj.items[i].value;
+    }
+    return NULL;
+}
+
+typedef struct {
+    Env** envs;
+    char** env_ids;
+    int* env_state; // 0 = none, 1 = in_progress, 2 = done
+    size_t env_count;
+    size_t env_cap;
+    int next_env_id;
+    Func** funcs;
+    char** func_ids;
+    int* func_state;
+    size_t func_count;
+    size_t func_cap;
+    int next_func_id;
+    Thr** thrs;
+    char** thr_ids;
+    size_t thr_count;
+    size_t thr_cap;
+    int next_thr_id;
+} SerCtx;
+
+static void ser_ctx_init(SerCtx* ctx) {
+    memset(ctx, 0, sizeof(*ctx));
+}
+
+static void ser_ctx_free(SerCtx* ctx) {
+    for (size_t i = 0; i < ctx->env_count; i++) free(ctx->env_ids[i]);
+    for (size_t i = 0; i < ctx->func_count; i++) free(ctx->func_ids[i]);
+    for (size_t i = 0; i < ctx->thr_count; i++) free(ctx->thr_ids[i]);
+    free(ctx->envs);
+    free(ctx->env_ids);
+    free(ctx->env_state);
+    free(ctx->funcs);
+    free(ctx->func_ids);
+    free(ctx->func_state);
+    free(ctx->thrs);
+    free(ctx->thr_ids);
+}
+
+static const char* ser_env_id(SerCtx* ctx, Env* env, int* state) {
+    for (size_t i = 0; i < ctx->env_count; i++) {
+        if (ctx->envs[i] == env) {
+            if (state) *state = ctx->env_state[i];
+            return ctx->env_ids[i];
+        }
+    }
+    if (ctx->env_count + 1 > ctx->env_cap) {
+        size_t new_cap = ctx->env_cap == 0 ? 4 : ctx->env_cap * 2;
+        ctx->envs = realloc(ctx->envs, new_cap * sizeof(Env*));
+        ctx->env_ids = realloc(ctx->env_ids, new_cap * sizeof(char*));
+        ctx->env_state = realloc(ctx->env_state, new_cap * sizeof(int));
+        if (!ctx->envs || !ctx->env_ids || !ctx->env_state) { fprintf(stderr, "Out of memory\n"); exit(1); }
+        ctx->env_cap = new_cap;
+    }
+    ctx->next_env_id++;
+    char buf[32];
+    snprintf(buf, sizeof(buf), "e%d", ctx->next_env_id);
+    ctx->envs[ctx->env_count] = env;
+    ctx->env_ids[ctx->env_count] = strdup(buf);
+    ctx->env_state[ctx->env_count] = 0;
+    if (state) *state = 0;
+    ctx->env_count++;
+    return ctx->env_ids[ctx->env_count - 1];
+}
+
+static const char* ser_func_id(SerCtx* ctx, Func* func, int* state) {
+    for (size_t i = 0; i < ctx->func_count; i++) {
+        if (ctx->funcs[i] == func) {
+            if (state) *state = ctx->func_state[i];
+            return ctx->func_ids[i];
+        }
+    }
+    if (ctx->func_count + 1 > ctx->func_cap) {
+        size_t new_cap = ctx->func_cap == 0 ? 4 : ctx->func_cap * 2;
+        ctx->funcs = realloc(ctx->funcs, new_cap * sizeof(Func*));
+        ctx->func_ids = realloc(ctx->func_ids, new_cap * sizeof(char*));
+        ctx->func_state = realloc(ctx->func_state, new_cap * sizeof(int));
+        if (!ctx->funcs || !ctx->func_ids || !ctx->func_state) { fprintf(stderr, "Out of memory\n"); exit(1); }
+        ctx->func_cap = new_cap;
+    }
+    ctx->next_func_id++;
+    char buf[32];
+    snprintf(buf, sizeof(buf), "f%d", ctx->next_func_id);
+    ctx->funcs[ctx->func_count] = func;
+    ctx->func_ids[ctx->func_count] = strdup(buf);
+    ctx->func_state[ctx->func_count] = 0;
+    if (state) *state = 0;
+    ctx->func_count++;
+    return ctx->func_ids[ctx->func_count - 1];
+}
+
+static const char* ser_thr_id(SerCtx* ctx, Thr* thr) {
+    for (size_t i = 0; i < ctx->thr_count; i++) {
+        if (ctx->thrs[i] == thr) {
+            return ctx->thr_ids[i];
+        }
+    }
+    if (ctx->thr_count + 1 > ctx->thr_cap) {
+        size_t new_cap = ctx->thr_cap == 0 ? 4 : ctx->thr_cap * 2;
+        ctx->thrs = realloc(ctx->thrs, new_cap * sizeof(Thr*));
+        ctx->thr_ids = realloc(ctx->thr_ids, new_cap * sizeof(char*));
+        if (!ctx->thrs || !ctx->thr_ids) { fprintf(stderr, "Out of memory\n"); exit(1); }
+        ctx->thr_cap = new_cap;
+    }
+    ctx->next_thr_id++;
+    char buf[32];
+    snprintf(buf, sizeof(buf), "t%d", ctx->next_thr_id);
+    ctx->thrs[ctx->thr_count] = thr;
+    ctx->thr_ids[ctx->thr_count] = strdup(buf);
+    ctx->thr_count++;
+    return ctx->thr_ids[ctx->thr_count - 1];
+}
+
+static void json_obj_field(JsonBuf* jb, bool* first, const char* key) {
+    if (!*first) jb_append_char(jb, ',');
+    *first = false;
+    jb_append_json_string(jb, key);
+    jb_append_char(jb, ':');
+}
+
+static void ser_loc(JsonBuf* jb, int line, int col) {
+    jb_append_char(jb, '{');
+    bool first = true;
+    json_obj_field(jb, &first, "file");
+    jb_append_json_string(jb, "<unknown>");
+    json_obj_field(jb, &first, "line");
+    jb_append_fmt(jb, "%d", line > 0 ? line : 1);
+    json_obj_field(jb, &first, "column");
+    jb_append_fmt(jb, "%d", col > 0 ? col : 1);
+    json_obj_field(jb, &first, "statement");
+    jb_append_json_string(jb, "");
+    jb_append_char(jb, '}');
+}
+
+static void ser_expr(JsonBuf* jb, SerCtx* ctx, Interpreter* interp, Expr* expr);
+static void ser_stmt(JsonBuf* jb, SerCtx* ctx, Interpreter* interp, Stmt* stmt);
+static void ser_value(JsonBuf* jb, SerCtx* ctx, Interpreter* interp, Value v);
+
+static void ser_env(JsonBuf* jb, SerCtx* ctx, Interpreter* interp, Env* env) {
+    if (!env) {
+        jb_append_str(jb, "null");
+        return;
+    }
+    int state = 0;
+    const char* env_id = ser_env_id(ctx, env, &state);
+    if (state == 1 || state == 2) {
+        jb_append_char(jb, '{');
+        bool first = true;
+        json_obj_field(jb, &first, "t");
+        jb_append_json_string(jb, "ENV");
+        json_obj_field(jb, &first, "id");
+        jb_append_json_string(jb, env_id);
+        json_obj_field(jb, &first, "ref");
+        jb_append_str(jb, "true");
+        jb_append_char(jb, '}');
+        return;
+    }
+
+    for (size_t i = 0; i < ctx->env_count; i++) {
+        if (ctx->envs[i] == env) { ctx->env_state[i] = 1; break; }
+    }
+
+    jb_append_char(jb, '{');
+    bool first = true;
+    json_obj_field(jb, &first, "t");
+    jb_append_json_string(jb, "ENV");
+    json_obj_field(jb, &first, "id");
+    jb_append_json_string(jb, env_id);
+    json_obj_field(jb, &first, "def");
+
+    jb_append_char(jb, '{');
+    bool def_first = true;
+
+    json_obj_field(jb, &def_first, "values");
+    jb_append_char(jb, '{');
+    bool val_first = true;
+    for (size_t i = 0; i < env->count; i++) {
+        EnvEntry* entry = &env->entries[i];
+        if (!entry->initialized && !entry->alias_target) continue;
+        if (!val_first) jb_append_char(jb, ',');
+        val_first = false;
+        jb_append_json_string(jb, entry->name);
+        jb_append_char(jb, ':');
+        if (entry->alias_target) {
+            jb_append_char(jb, '{');
+            bool pf = true;
+            json_obj_field(jb, &pf, "t");
+            jb_append_json_string(jb, "PTR");
+            json_obj_field(jb, &pf, "name");
+            jb_append_json_string(jb, entry->alias_target);
+            json_obj_field(jb, &pf, "env");
+            Env* owner = env_find_owner(env, entry->alias_target);
+            ser_env(jb, ctx, interp, owner ? owner : env);
+            json_obj_field(jb, &pf, "value_type");
+            jb_append_json_string(jb, decl_type_name(entry->decl_type));
+            jb_append_char(jb, '}');
+        } else {
+            ser_value(jb, ctx, interp, entry->value);
+        }
+    }
+    jb_append_char(jb, '}');
+
+    json_obj_field(jb, &def_first, "declared");
+    jb_append_char(jb, '{');
+    bool dec_first = true;
+    for (size_t i = 0; i < env->count; i++) {
+        EnvEntry* entry = &env->entries[i];
+        if (entry->decl_type == TYPE_UNKNOWN) continue;
+        if (!dec_first) jb_append_char(jb, ',');
+        dec_first = false;
+        jb_append_json_string(jb, entry->name);
+        jb_append_char(jb, ':');
+        jb_append_json_string(jb, decl_type_name(entry->decl_type));
+    }
+    jb_append_char(jb, '}');
+
+    json_obj_field(jb, &def_first, "frozen");
+    jb_append_char(jb, '[');
+    bool fr_first = true;
+    for (size_t i = 0; i < env->count; i++) {
+        if (!env->entries[i].frozen) continue;
+        if (!fr_first) jb_append_char(jb, ',');
+        fr_first = false;
+        jb_append_json_string(jb, env->entries[i].name);
+    }
+    jb_append_char(jb, ']');
+
+    json_obj_field(jb, &def_first, "permafrozen");
+    jb_append_char(jb, '[');
+    bool pf_first = true;
+    for (size_t i = 0; i < env->count; i++) {
+        if (!env->entries[i].permafrozen) continue;
+        if (!pf_first) jb_append_char(jb, ',');
+        pf_first = false;
+        jb_append_json_string(jb, env->entries[i].name);
+    }
+    jb_append_char(jb, ']');
+
+    json_obj_field(jb, &def_first, "parent");
+    ser_env(jb, ctx, interp, env->parent);
+
+    jb_append_char(jb, '}');
+    jb_append_char(jb, '}');
+
+    for (size_t i = 0; i < ctx->env_count; i++) {
+        if (ctx->envs[i] == env) { ctx->env_state[i] = 2; break; }
+    }
+}
+
+static void ser_expr(JsonBuf* jb, SerCtx* ctx, Interpreter* interp, Expr* expr) {
+    if (!expr) {
+        jb_append_str(jb, "null");
+        return;
+    }
+    switch (expr->type) {
+        case EXPR_INT: {
+            jb_append_char(jb, '{');
+            bool first = true;
+            json_obj_field(jb, &first, "n");
+            jb_append_json_string(jb, "Literal");
+            json_obj_field(jb, &first, "loc");
+            ser_loc(jb, expr->line, expr->column);
+            json_obj_field(jb, &first, "value");
+            jb_append_fmt(jb, "%lld", (long long)expr->as.int_value);
+            json_obj_field(jb, &first, "literal_type");
+            jb_append_json_string(jb, "INT");
+            jb_append_char(jb, '}');
+            return;
+        }
+        case EXPR_FLT: {
+            jb_append_char(jb, '{');
+            bool first = true;
+            json_obj_field(jb, &first, "n");
+            jb_append_json_string(jb, "Literal");
+            json_obj_field(jb, &first, "loc");
+            ser_loc(jb, expr->line, expr->column);
+            json_obj_field(jb, &first, "value");
+            jb_append_fmt(jb, "%.17g", expr->as.flt_value);
+            json_obj_field(jb, &first, "literal_type");
+            jb_append_json_string(jb, "FLT");
+            jb_append_char(jb, '}');
+            return;
+        }
+        case EXPR_STR: {
+            jb_append_char(jb, '{');
+            bool first = true;
+            json_obj_field(jb, &first, "n");
+            jb_append_json_string(jb, "Literal");
+            json_obj_field(jb, &first, "loc");
+            ser_loc(jb, expr->line, expr->column);
+            json_obj_field(jb, &first, "value");
+            jb_append_json_string(jb, expr->as.str_value ? expr->as.str_value : "");
+            json_obj_field(jb, &first, "literal_type");
+            jb_append_json_string(jb, "STR");
+            jb_append_char(jb, '}');
+            return;
+        }
+        case EXPR_TNS: {
+            jb_append_char(jb, '{');
+            bool first = true;
+            json_obj_field(jb, &first, "n");
+            jb_append_json_string(jb, "TensorLiteral");
+            json_obj_field(jb, &first, "loc");
+            ser_loc(jb, expr->line, expr->column);
+            json_obj_field(jb, &first, "items");
+            jb_append_char(jb, '[');
+            for (size_t i = 0; i < expr->as.tns_items.count; i++) {
+                if (i > 0) jb_append_char(jb, ',');
+                ser_expr(jb, ctx, interp, expr->as.tns_items.items[i]);
+            }
+            jb_append_char(jb, ']');
+            jb_append_char(jb, '}');
+            return;
+        }
+        case EXPR_MAP: {
+            jb_append_char(jb, '{');
+            bool first = true;
+            json_obj_field(jb, &first, "n");
+            jb_append_json_string(jb, "MapLiteral");
+            json_obj_field(jb, &first, "loc");
+            ser_loc(jb, expr->line, expr->column);
+            json_obj_field(jb, &first, "items");
+            jb_append_char(jb, '[');
+            size_t count = expr->as.map_items.keys.count;
+            for (size_t i = 0; i < count; i++) {
+                if (i > 0) jb_append_char(jb, ',');
+                jb_append_char(jb, '{');
+                bool ifirst = true;
+                json_obj_field(jb, &ifirst, "k");
+                ser_expr(jb, ctx, interp, expr->as.map_items.keys.items[i]);
+                json_obj_field(jb, &ifirst, "v");
+                ser_expr(jb, ctx, interp, expr->as.map_items.values.items[i]);
+                jb_append_char(jb, '}');
+            }
+            jb_append_char(jb, ']');
+            jb_append_char(jb, '}');
+            return;
+        }
+        case EXPR_IDENT: {
+            jb_append_char(jb, '{');
+            bool first = true;
+            json_obj_field(jb, &first, "n");
+            jb_append_json_string(jb, "Identifier");
+            json_obj_field(jb, &first, "loc");
+            ser_loc(jb, expr->line, expr->column);
+            json_obj_field(jb, &first, "name");
+            jb_append_json_string(jb, expr->as.ident ? expr->as.ident : "");
+            jb_append_char(jb, '}');
+            return;
+        }
+        case EXPR_PTR: {
+            jb_append_char(jb, '{');
+            bool first = true;
+            json_obj_field(jb, &first, "n");
+            jb_append_json_string(jb, "PointerExpression");
+            json_obj_field(jb, &first, "loc");
+            ser_loc(jb, expr->line, expr->column);
+            json_obj_field(jb, &first, "target");
+            jb_append_json_string(jb, expr->as.ptr_name ? expr->as.ptr_name : "");
+            jb_append_char(jb, '}');
+            return;
+        }
+        case EXPR_CALL: {
+            jb_append_char(jb, '{');
+            bool first = true;
+            json_obj_field(jb, &first, "n");
+            jb_append_json_string(jb, "CallExpression");
+            json_obj_field(jb, &first, "loc");
+            ser_loc(jb, expr->line, expr->column);
+            json_obj_field(jb, &first, "callee");
+            ser_expr(jb, ctx, interp, expr->as.call.callee);
+            json_obj_field(jb, &first, "args");
+            jb_append_char(jb, '[');
+            size_t pos_count = expr->as.call.args.count;
+            size_t kw_count = expr->as.call.kw_count;
+            size_t total = pos_count + kw_count;
+            size_t idx = 0;
+            for (size_t i = 0; i < pos_count; i++, idx++) {
+                if (idx > 0) jb_append_char(jb, ',');
+                jb_append_char(jb, '{');
+                bool afirst = true;
+                json_obj_field(jb, &afirst, "n");
+                jb_append_json_string(jb, "CallArgument");
+                json_obj_field(jb, &afirst, "name");
+                jb_append_str(jb, "null");
+                json_obj_field(jb, &afirst, "expression");
+                ser_expr(jb, ctx, interp, expr->as.call.args.items[i]);
+                jb_append_char(jb, '}');
+            }
+            for (size_t i = 0; i < kw_count; i++, idx++) {
+                if (idx > 0) jb_append_char(jb, ',');
+                jb_append_char(jb, '{');
+                bool afirst = true;
+                json_obj_field(jb, &afirst, "n");
+                jb_append_json_string(jb, "CallArgument");
+                json_obj_field(jb, &afirst, "name");
+                jb_append_json_string(jb, expr->as.call.kw_names[i]);
+                json_obj_field(jb, &afirst, "expression");
+                ser_expr(jb, ctx, interp, expr->as.call.kw_args.items[i]);
+                jb_append_char(jb, '}');
+            }
+            (void)total;
+            jb_append_char(jb, ']');
+            jb_append_char(jb, '}');
+            return;
+        }
+        case EXPR_ASYNC: {
+            jb_append_char(jb, '{');
+            bool first = true;
+            json_obj_field(jb, &first, "n");
+            jb_append_json_string(jb, "AsyncExpression");
+            json_obj_field(jb, &first, "loc");
+            ser_loc(jb, expr->line, expr->column);
+            json_obj_field(jb, &first, "block");
+            ser_stmt(jb, ctx, interp, expr->as.async.block);
+            jb_append_char(jb, '}');
+            return;
+        }
+        case EXPR_INDEX: {
+            jb_append_char(jb, '{');
+            bool first = true;
+            json_obj_field(jb, &first, "n");
+            jb_append_json_string(jb, "IndexExpression");
+            json_obj_field(jb, &first, "loc");
+            ser_loc(jb, expr->line, expr->column);
+            json_obj_field(jb, &first, "base");
+            ser_expr(jb, ctx, interp, expr->as.index.target);
+            json_obj_field(jb, &first, "indices");
+            jb_append_char(jb, '[');
+            for (size_t i = 0; i < expr->as.index.indices.count; i++) {
+                if (i > 0) jb_append_char(jb, ',');
+                ser_expr(jb, ctx, interp, expr->as.index.indices.items[i]);
+            }
+            jb_append_char(jb, ']');
+            json_obj_field(jb, &first, "is_map");
+            jb_append_str(jb, "false");
+            jb_append_char(jb, '}');
+            return;
+        }
+        case EXPR_RANGE: {
+            jb_append_char(jb, '{');
+            bool first = true;
+            json_obj_field(jb, &first, "n");
+            jb_append_json_string(jb, "Range");
+            json_obj_field(jb, &first, "loc");
+            ser_loc(jb, expr->line, expr->column);
+            json_obj_field(jb, &first, "lo");
+            ser_expr(jb, ctx, interp, expr->as.range.start);
+            json_obj_field(jb, &first, "hi");
+            ser_expr(jb, ctx, interp, expr->as.range.end);
+            jb_append_char(jb, '}');
+            return;
+        }
+        case EXPR_WILDCARD: {
+            jb_append_char(jb, '{');
+            bool first = true;
+            json_obj_field(jb, &first, "n");
+            jb_append_json_string(jb, "Star");
+            json_obj_field(jb, &first, "loc");
+            ser_loc(jb, expr->line, expr->column);
+            jb_append_char(jb, '}');
+            return;
+        }
+        default:
+            jb_append_str(jb, "null");
+            return;
+    }
+}
+
+static void ser_stmt(JsonBuf* jb, SerCtx* ctx, Interpreter* interp, Stmt* stmt) {
+    if (!stmt) {
+        jb_append_str(jb, "null");
+        return;
+    }
+    switch (stmt->type) {
+        case STMT_BLOCK: {
+            jb_append_char(jb, '{');
+            bool first = true;
+            json_obj_field(jb, &first, "n");
+            jb_append_json_string(jb, "Block");
+            json_obj_field(jb, &first, "loc");
+            ser_loc(jb, stmt->line, stmt->column);
+            json_obj_field(jb, &first, "statements");
+            jb_append_char(jb, '[');
+            for (size_t i = 0; i < stmt->as.block.count; i++) {
+                if (i > 0) jb_append_char(jb, ',');
+                ser_stmt(jb, ctx, interp, stmt->as.block.items[i]);
+            }
+            jb_append_char(jb, ']');
+            jb_append_char(jb, '}');
+            return;
+        }
+        case STMT_ASSIGN: {
+            if (stmt->as.assign.target) {
+                jb_append_char(jb, '{');
+                bool first = true;
+                json_obj_field(jb, &first, "n");
+                jb_append_json_string(jb, "TensorSetStatement");
+                json_obj_field(jb, &first, "loc");
+                ser_loc(jb, stmt->line, stmt->column);
+                json_obj_field(jb, &first, "target");
+                ser_expr(jb, ctx, interp, stmt->as.assign.target);
+                json_obj_field(jb, &first, "value");
+                ser_expr(jb, ctx, interp, stmt->as.assign.value);
+                jb_append_char(jb, '}');
+                return;
+            }
+            jb_append_char(jb, '{');
+            bool first = true;
+            json_obj_field(jb, &first, "n");
+            jb_append_json_string(jb, "Assignment");
+            json_obj_field(jb, &first, "loc");
+            ser_loc(jb, stmt->line, stmt->column);
+            json_obj_field(jb, &first, "target");
+            jb_append_json_string(jb, stmt->as.assign.name ? stmt->as.assign.name : "");
+            json_obj_field(jb, &first, "declared_type");
+            if (stmt->as.assign.has_type) {
+                jb_append_json_string(jb, decl_type_name(stmt->as.assign.decl_type));
+            } else {
+                jb_append_str(jb, "null");
+            }
+            json_obj_field(jb, &first, "expression");
+            ser_expr(jb, ctx, interp, stmt->as.assign.value);
+            jb_append_char(jb, '}');
+            return;
+        }
+        case STMT_DECL: {
+            jb_append_char(jb, '{');
+            bool first = true;
+            json_obj_field(jb, &first, "n");
+            jb_append_json_string(jb, "Declaration");
+            json_obj_field(jb, &first, "loc");
+            ser_loc(jb, stmt->line, stmt->column);
+            json_obj_field(jb, &first, "name");
+            jb_append_json_string(jb, stmt->as.decl.name ? stmt->as.decl.name : "");
+            json_obj_field(jb, &first, "declared_type");
+            jb_append_json_string(jb, decl_type_name(stmt->as.decl.decl_type));
+            jb_append_char(jb, '}');
+            return;
+        }
+        case STMT_EXPR: {
+            jb_append_char(jb, '{');
+            bool first = true;
+            json_obj_field(jb, &first, "n");
+            jb_append_json_string(jb, "ExpressionStatement");
+            json_obj_field(jb, &first, "loc");
+            ser_loc(jb, stmt->line, stmt->column);
+            json_obj_field(jb, &first, "expression");
+            ser_expr(jb, ctx, interp, stmt->as.expr_stmt.expr);
+            jb_append_char(jb, '}');
+            return;
+        }
+        case STMT_IF: {
+            jb_append_char(jb, '{');
+            bool first = true;
+            json_obj_field(jb, &first, "n");
+            jb_append_json_string(jb, "IfStatement");
+            json_obj_field(jb, &first, "loc");
+            ser_loc(jb, stmt->line, stmt->column);
+            json_obj_field(jb, &first, "condition");
+            ser_expr(jb, ctx, interp, stmt->as.if_stmt.condition);
+            json_obj_field(jb, &first, "then_block");
+            ser_stmt(jb, ctx, interp, stmt->as.if_stmt.then_branch);
+            json_obj_field(jb, &first, "elifs");
+            jb_append_char(jb, '[');
+            for (size_t i = 0; i < stmt->as.if_stmt.elif_conditions.count; i++) {
+                if (i > 0) jb_append_char(jb, ',');
+                jb_append_char(jb, '{');
+                bool ef = true;
+                json_obj_field(jb, &ef, "n");
+                jb_append_json_string(jb, "IfBranch");
+                json_obj_field(jb, &ef, "condition");
+                ser_expr(jb, ctx, interp, stmt->as.if_stmt.elif_conditions.items[i]);
+                json_obj_field(jb, &ef, "block");
+                ser_stmt(jb, ctx, interp, stmt->as.if_stmt.elif_blocks.items[i]);
+                jb_append_char(jb, '}');
+            }
+            jb_append_char(jb, ']');
+            json_obj_field(jb, &first, "else_block");
+            if (stmt->as.if_stmt.else_branch) {
+                ser_stmt(jb, ctx, interp, stmt->as.if_stmt.else_branch);
+            } else {
+                jb_append_str(jb, "null");
+            }
+            jb_append_char(jb, '}');
+            return;
+        }
+        case STMT_WHILE: {
+            jb_append_char(jb, '{');
+            bool first = true;
+            json_obj_field(jb, &first, "n");
+            jb_append_json_string(jb, "WhileStatement");
+            json_obj_field(jb, &first, "loc");
+            ser_loc(jb, stmt->line, stmt->column);
+            json_obj_field(jb, &first, "condition");
+            ser_expr(jb, ctx, interp, stmt->as.while_stmt.condition);
+            json_obj_field(jb, &first, "block");
+            ser_stmt(jb, ctx, interp, stmt->as.while_stmt.body);
+            jb_append_char(jb, '}');
+            return;
+        }
+        case STMT_FOR: {
+            jb_append_char(jb, '{');
+            bool first = true;
+            json_obj_field(jb, &first, "n");
+            jb_append_json_string(jb, "ForStatement");
+            json_obj_field(jb, &first, "loc");
+            ser_loc(jb, stmt->line, stmt->column);
+            json_obj_field(jb, &first, "counter");
+            jb_append_json_string(jb, stmt->as.for_stmt.counter ? stmt->as.for_stmt.counter : "");
+            json_obj_field(jb, &first, "target_expr");
+            ser_expr(jb, ctx, interp, stmt->as.for_stmt.target);
+            json_obj_field(jb, &first, "block");
+            ser_stmt(jb, ctx, interp, stmt->as.for_stmt.body);
+            jb_append_char(jb, '}');
+            return;
+        }
+        case STMT_PARFOR: {
+            jb_append_char(jb, '{');
+            bool first = true;
+            json_obj_field(jb, &first, "n");
+            jb_append_json_string(jb, "ParForStatement");
+            json_obj_field(jb, &first, "loc");
+            ser_loc(jb, stmt->line, stmt->column);
+            json_obj_field(jb, &first, "counter");
+            jb_append_json_string(jb, stmt->as.parfor_stmt.counter ? stmt->as.parfor_stmt.counter : "");
+            json_obj_field(jb, &first, "target_expr");
+            ser_expr(jb, ctx, interp, stmt->as.parfor_stmt.target);
+            json_obj_field(jb, &first, "block");
+            ser_stmt(jb, ctx, interp, stmt->as.parfor_stmt.body);
+            jb_append_char(jb, '}');
+            return;
+        }
+        case STMT_FUNC: {
+            jb_append_char(jb, '{');
+            bool first = true;
+            json_obj_field(jb, &first, "n");
+            jb_append_json_string(jb, "FuncDef");
+            json_obj_field(jb, &first, "loc");
+            ser_loc(jb, stmt->line, stmt->column);
+            json_obj_field(jb, &first, "name");
+            jb_append_json_string(jb, stmt->as.func_stmt.name ? stmt->as.func_stmt.name : "");
+            json_obj_field(jb, &first, "params");
+            jb_append_char(jb, '[');
+            for (size_t i = 0; i < stmt->as.func_stmt.params.count; i++) {
+                if (i > 0) jb_append_char(jb, ',');
+                Param* p = &stmt->as.func_stmt.params.items[i];
+                jb_append_char(jb, '{');
+                bool pf = true;
+                json_obj_field(jb, &pf, "n");
+                jb_append_json_string(jb, "Param");
+                json_obj_field(jb, &pf, "type");
+                jb_append_json_string(jb, decl_type_name(p->type));
+                json_obj_field(jb, &pf, "name");
+                jb_append_json_string(jb, p->name ? p->name : "");
+                json_obj_field(jb, &pf, "default");
+                if (p->default_value) ser_expr(jb, ctx, interp, p->default_value);
+                else jb_append_str(jb, "null");
+                jb_append_char(jb, '}');
+            }
+            jb_append_char(jb, ']');
+            json_obj_field(jb, &first, "return_type");
+            jb_append_json_string(jb, decl_type_name(stmt->as.func_stmt.return_type));
+            json_obj_field(jb, &first, "body");
+            ser_stmt(jb, ctx, interp, stmt->as.func_stmt.body);
+            jb_append_char(jb, '}');
+            return;
+        }
+        case STMT_RETURN: {
+            jb_append_char(jb, '{');
+            bool first = true;
+            json_obj_field(jb, &first, "n");
+            jb_append_json_string(jb, "ReturnStatement");
+            json_obj_field(jb, &first, "loc");
+            ser_loc(jb, stmt->line, stmt->column);
+            json_obj_field(jb, &first, "expression");
+            ser_expr(jb, ctx, interp, stmt->as.return_stmt.value);
+            jb_append_char(jb, '}');
+            return;
+        }
+        case STMT_POP: {
+            jb_append_char(jb, '{');
+            bool first = true;
+            json_obj_field(jb, &first, "n");
+            jb_append_json_string(jb, "PopStatement");
+            json_obj_field(jb, &first, "loc");
+            ser_loc(jb, stmt->line, stmt->column);
+            json_obj_field(jb, &first, "expression");
+            jb_append_char(jb, '{');
+            bool ef = true;
+            json_obj_field(jb, &ef, "n");
+            jb_append_json_string(jb, "Identifier");
+            json_obj_field(jb, &ef, "loc");
+            ser_loc(jb, stmt->line, stmt->column);
+            json_obj_field(jb, &ef, "name");
+            jb_append_json_string(jb, stmt->as.pop_stmt.name ? stmt->as.pop_stmt.name : "");
+            jb_append_char(jb, '}');
+            jb_append_char(jb, '}');
+            return;
+        }
+        case STMT_BREAK: {
+            jb_append_char(jb, '{');
+            bool first = true;
+            json_obj_field(jb, &first, "n");
+            jb_append_json_string(jb, "BreakStatement");
+            json_obj_field(jb, &first, "loc");
+            ser_loc(jb, stmt->line, stmt->column);
+            json_obj_field(jb, &first, "expression");
+            ser_expr(jb, ctx, interp, stmt->as.break_stmt.value);
+            jb_append_char(jb, '}');
+            return;
+        }
+        case STMT_GOTO: {
+            jb_append_char(jb, '{');
+            bool first = true;
+            json_obj_field(jb, &first, "n");
+            jb_append_json_string(jb, "GotoStatement");
+            json_obj_field(jb, &first, "loc");
+            ser_loc(jb, stmt->line, stmt->column);
+            json_obj_field(jb, &first, "expression");
+            ser_expr(jb, ctx, interp, stmt->as.goto_stmt.target);
+            jb_append_char(jb, '}');
+            return;
+        }
+        case STMT_GOTOPOINT: {
+            jb_append_char(jb, '{');
+            bool first = true;
+            json_obj_field(jb, &first, "n");
+            jb_append_json_string(jb, "GotopointStatement");
+            json_obj_field(jb, &first, "loc");
+            ser_loc(jb, stmt->line, stmt->column);
+            json_obj_field(jb, &first, "expression");
+            ser_expr(jb, ctx, interp, stmt->as.gotopoint_stmt.target);
+            jb_append_char(jb, '}');
+            return;
+        }
+        case STMT_CONTINUE: {
+            jb_append_char(jb, '{');
+            bool first = true;
+            json_obj_field(jb, &first, "n");
+            jb_append_json_string(jb, "ContinueStatement");
+            json_obj_field(jb, &first, "loc");
+            ser_loc(jb, stmt->line, stmt->column);
+            jb_append_char(jb, '}');
+            return;
+        }
+        case STMT_ASYNC: {
+            jb_append_char(jb, '{');
+            bool first = true;
+            json_obj_field(jb, &first, "n");
+            jb_append_json_string(jb, "AsyncStatement");
+            json_obj_field(jb, &first, "loc");
+            ser_loc(jb, stmt->line, stmt->column);
+            json_obj_field(jb, &first, "block");
+            ser_stmt(jb, ctx, interp, stmt->as.async_stmt.body);
+            jb_append_char(jb, '}');
+            return;
+        }
+        case STMT_THR: {
+            jb_append_char(jb, '{');
+            bool first = true;
+            json_obj_field(jb, &first, "n");
+            jb_append_json_string(jb, "ThrStatement");
+            json_obj_field(jb, &first, "loc");
+            ser_loc(jb, stmt->line, stmt->column);
+            json_obj_field(jb, &first, "symbol");
+            jb_append_json_string(jb, stmt->as.thr_stmt.name ? stmt->as.thr_stmt.name : "");
+            json_obj_field(jb, &first, "block");
+            ser_stmt(jb, ctx, interp, stmt->as.thr_stmt.body);
+            jb_append_char(jb, '}');
+            return;
+        }
+        case STMT_TRY: {
+            jb_append_char(jb, '{');
+            bool first = true;
+            json_obj_field(jb, &first, "n");
+            jb_append_json_string(jb, "TryStatement");
+            json_obj_field(jb, &first, "loc");
+            ser_loc(jb, stmt->line, stmt->column);
+            json_obj_field(jb, &first, "try_block");
+            ser_stmt(jb, ctx, interp, stmt->as.try_stmt.try_block);
+            json_obj_field(jb, &first, "catch_symbol");
+            if (stmt->as.try_stmt.catch_name) jb_append_json_string(jb, stmt->as.try_stmt.catch_name);
+            else jb_append_str(jb, "null");
+            json_obj_field(jb, &first, "catch_block");
+            ser_stmt(jb, ctx, interp, stmt->as.try_stmt.catch_block);
+            jb_append_char(jb, '}');
+            return;
+        }
+        default:
+            jb_append_str(jb, "null");
+            return;
+    }
+}
+
+static void ser_value(JsonBuf* jb, SerCtx* ctx, Interpreter* interp, Value v) {
+    switch (v.type) {
+        case VAL_INT: {
+            char* s = int_to_binary_str(v.as.i);
+            jb_append_char(jb, '{');
+            bool first = true;
+            json_obj_field(jb, &first, "t");
+            jb_append_json_string(jb, "INT");
+            json_obj_field(jb, &first, "v");
+            jb_append_json_string(jb, s);
+            jb_append_char(jb, '}');
+            free(s);
+            return;
+        }
+        case VAL_FLT: {
+            char buf[64];
+            snprintf(buf, sizeof(buf), "%.17g", v.as.f);
+            jb_append_char(jb, '{');
+            bool first = true;
+            json_obj_field(jb, &first, "t");
+            jb_append_json_string(jb, "FLT");
+            json_obj_field(jb, &first, "v");
+            jb_append_json_string(jb, buf);
+            jb_append_char(jb, '}');
+            return;
+        }
+        case VAL_STR: {
+            jb_append_char(jb, '{');
+            bool first = true;
+            json_obj_field(jb, &first, "t");
+            jb_append_json_string(jb, "STR");
+            json_obj_field(jb, &first, "v");
+            jb_append_json_string(jb, v.as.s ? v.as.s : "");
+            jb_append_char(jb, '}');
+            return;
+        }
+        case VAL_TNS: {
+            Tensor* t = v.as.tns;
+            jb_append_char(jb, '{');
+            bool first = true;
+            json_obj_field(jb, &first, "t");
+            jb_append_json_string(jb, "TNS");
+            json_obj_field(jb, &first, "shape");
+            jb_append_char(jb, '[');
+            for (size_t i = 0; i < t->ndim; i++) {
+                if (i > 0) jb_append_char(jb, ',');
+                jb_append_fmt(jb, "%zu", t->shape[i]);
+            }
+            jb_append_char(jb, ']');
+            json_obj_field(jb, &first, "v");
+            jb_append_char(jb, '[');
+            for (size_t i = 0; i < t->length; i++) {
+                if (i > 0) jb_append_char(jb, ',');
+                ser_value(jb, ctx, interp, t->data[i]);
+            }
+            jb_append_char(jb, ']');
+            jb_append_char(jb, '}');
+            return;
+        }
+        case VAL_MAP: {
+            Map* m = v.as.map;
+            jb_append_char(jb, '{');
+            bool first = true;
+            json_obj_field(jb, &first, "t");
+            jb_append_json_string(jb, "MAP");
+            json_obj_field(jb, &first, "v");
+            jb_append_char(jb, '[');
+            for (size_t i = 0; i < m->count; i++) {
+                if (i > 0) jb_append_char(jb, ',');
+                jb_append_char(jb, '{');
+                bool pf = true;
+                json_obj_field(jb, &pf, "k");
+                ser_value(jb, ctx, interp, m->items[i].key);
+                json_obj_field(jb, &pf, "v");
+                ser_value(jb, ctx, interp, m->items[i].value);
+                jb_append_char(jb, '}');
+            }
+            jb_append_char(jb, ']');
+            jb_append_char(jb, '}');
+            return;
+        }
+        case VAL_FUNC: {
+            Func* fn = v.as.func;
+            int state = 0;
+            const char* id = ser_func_id(ctx, fn, &state);
+            if (state == 1) {
+                jb_append_char(jb, '{');
+                bool first = true;
+                json_obj_field(jb, &first, "t");
+                jb_append_json_string(jb, "FUNC");
+                json_obj_field(jb, &first, "id");
+                jb_append_json_string(jb, id);
+                json_obj_field(jb, &first, "ref");
+                jb_append_str(jb, "true");
+                jb_append_char(jb, '}');
+                return;
+            }
+            for (size_t i = 0; i < ctx->func_count; i++) {
+                if (ctx->funcs[i] == fn) { ctx->func_state[i] = 1; break; }
+            }
+            jb_append_char(jb, '{');
+            bool first = true;
+            json_obj_field(jb, &first, "t");
+            jb_append_json_string(jb, "FUNC");
+            json_obj_field(jb, &first, "id");
+            jb_append_json_string(jb, id);
+            json_obj_field(jb, &first, "name");
+            jb_append_json_string(jb, fn->name ? fn->name : "<anon>");
+            json_obj_field(jb, &first, "return");
+            jb_append_json_string(jb, decl_type_name(fn->return_type));
+            json_obj_field(jb, &first, "params");
+            jb_append_char(jb, '[');
+            for (size_t i = 0; i < fn->params.count; i++) {
+                if (i > 0) jb_append_char(jb, ',');
+                Param* p = &fn->params.items[i];
+                jb_append_char(jb, '{');
+                bool pf = true;
+                json_obj_field(jb, &pf, "name");
+                jb_append_json_string(jb, p->name ? p->name : "");
+                json_obj_field(jb, &pf, "type");
+                jb_append_json_string(jb, decl_type_name(p->type));
+                json_obj_field(jb, &pf, "default");
+                if (p->default_value) ser_expr(jb, ctx, interp, p->default_value);
+                else jb_append_str(jb, "null");
+                jb_append_char(jb, '}');
+            }
+            jb_append_char(jb, ']');
+            json_obj_field(jb, &first, "def");
+            jb_append_char(jb, '{');
+            bool df = true;
+            json_obj_field(jb, &df, "name");
+            jb_append_json_string(jb, fn->name ? fn->name : "<anon>");
+            json_obj_field(jb, &df, "return");
+            jb_append_json_string(jb, decl_type_name(fn->return_type));
+            json_obj_field(jb, &df, "params");
+            jb_append_char(jb, '[');
+            for (size_t i = 0; i < fn->params.count; i++) {
+                if (i > 0) jb_append_char(jb, ',');
+                Param* p = &fn->params.items[i];
+                jb_append_char(jb, '{');
+                bool pf = true;
+                json_obj_field(jb, &pf, "name");
+                jb_append_json_string(jb, p->name ? p->name : "");
+                json_obj_field(jb, &pf, "type");
+                jb_append_json_string(jb, decl_type_name(p->type));
+                json_obj_field(jb, &pf, "default");
+                if (p->default_value) ser_expr(jb, ctx, interp, p->default_value);
+                else jb_append_str(jb, "null");
+                jb_append_char(jb, '}');
+            }
+            jb_append_char(jb, ']');
+            json_obj_field(jb, &df, "body");
+            ser_stmt(jb, ctx, interp, fn->body);
+            json_obj_field(jb, &df, "closure");
+            ser_env(jb, ctx, interp, fn->closure);
+            jb_append_char(jb, '}');
+            jb_append_char(jb, '}');
+            for (size_t i = 0; i < ctx->func_count; i++) {
+                if (ctx->funcs[i] == fn) { ctx->func_state[i] = 2; break; }
+            }
+            return;
+        }
+        case VAL_THR: {
+            Thr* th = v.as.thr;
+            const char* id = ser_thr_id(ctx, th);
+            jb_append_char(jb, '{');
+            bool first = true;
+            json_obj_field(jb, &first, "t");
+            jb_append_json_string(jb, "THR");
+            json_obj_field(jb, &first, "id");
+            jb_append_json_string(jb, id);
+            json_obj_field(jb, &first, "state");
+            if (th->finished) jb_append_json_string(jb, "finished");
+            else if (th->paused) jb_append_json_string(jb, "paused");
+            else jb_append_json_string(jb, "running");
+            json_obj_field(jb, &first, "paused");
+            jb_append_str(jb, th->paused ? "true" : "false");
+            json_obj_field(jb, &first, "finished");
+            jb_append_str(jb, th->finished ? "true" : "false");
+            json_obj_field(jb, &first, "stop");
+            jb_append_str(jb, th->finished ? "true" : "false");
+            json_obj_field(jb, &first, "env");
+            ser_env(jb, ctx, interp, th->env);
+            json_obj_field(jb, &first, "block");
+            if (th->body) ser_stmt(jb, ctx, interp, th->body);
+            else jb_append_str(jb, "null");
+            jb_append_char(jb, '}');
+            return;
+        }
+        default:
+            jb_append_char(jb, '{');
+            bool first = true;
+            json_obj_field(jb, &first, "t");
+            jb_append_json_string(jb, value_type_name(v));
+            json_obj_field(jb, &first, "repr");
+            jb_append_json_string(jb, "<unsupported>");
+            jb_append_char(jb, '}');
+            return;
+    }
+}
+
+// ---- DESERIALIZATION ----
+typedef struct {
+    char** ids;
+    Env** envs;
+    size_t count;
+    size_t cap;
+} EnvRegistry;
+
+typedef struct {
+    char** ids;
+    Func** funcs;
+    size_t count;
+    size_t cap;
+} FuncRegistry;
+
+typedef struct {
+    char** ids;
+    Thr** thrs;
+    size_t count;
+    size_t cap;
+} ThrRegistry;
+
+typedef struct {
+    EnvRegistry envs;
+    FuncRegistry funcs;
+    ThrRegistry thrs;
+} UnserCtx;
+
+static void unser_ctx_init(UnserCtx* ctx) {
+    memset(ctx, 0, sizeof(*ctx));
+}
+
+static void unser_ctx_free(UnserCtx* ctx) {
+    for (size_t i = 0; i < ctx->envs.count; i++) free(ctx->envs.ids[i]);
+    for (size_t i = 0; i < ctx->funcs.count; i++) free(ctx->funcs.ids[i]);
+    for (size_t i = 0; i < ctx->thrs.count; i++) free(ctx->thrs.ids[i]);
+    free(ctx->envs.ids);
+    free(ctx->envs.envs);
+    free(ctx->funcs.ids);
+    free(ctx->funcs.funcs);
+    free(ctx->thrs.ids);
+    free(ctx->thrs.thrs);
+}
+
+static Env* unser_env_get(UnserCtx* ctx, const char* id) {
+    for (size_t i = 0; i < ctx->envs.count; i++) {
+        if (strcmp(ctx->envs.ids[i], id) == 0) return ctx->envs.envs[i];
+    }
+    return NULL;
+}
+
+static void unser_env_set(UnserCtx* ctx, const char* id, Env* env) {
+    if (ctx->envs.count + 1 > ctx->envs.cap) {
+        size_t new_cap = ctx->envs.cap == 0 ? 4 : ctx->envs.cap * 2;
+        ctx->envs.ids = realloc(ctx->envs.ids, new_cap * sizeof(char*));
+        ctx->envs.envs = realloc(ctx->envs.envs, new_cap * sizeof(Env*));
+        if (!ctx->envs.ids || !ctx->envs.envs) { fprintf(stderr, "Out of memory\n"); exit(1); }
+        ctx->envs.cap = new_cap;
+    }
+    ctx->envs.ids[ctx->envs.count] = strdup(id);
+    ctx->envs.envs[ctx->envs.count] = env;
+    ctx->envs.count++;
+}
+
+static Func* unser_func_get(UnserCtx* ctx, const char* id) {
+    for (size_t i = 0; i < ctx->funcs.count; i++) {
+        if (strcmp(ctx->funcs.ids[i], id) == 0) return ctx->funcs.funcs[i];
+    }
+    return NULL;
+}
+
+static void unser_func_set(UnserCtx* ctx, const char* id, Func* func) {
+    if (ctx->funcs.count + 1 > ctx->funcs.cap) {
+        size_t new_cap = ctx->funcs.cap == 0 ? 4 : ctx->funcs.cap * 2;
+        ctx->funcs.ids = realloc(ctx->funcs.ids, new_cap * sizeof(char*));
+        ctx->funcs.funcs = realloc(ctx->funcs.funcs, new_cap * sizeof(Func*));
+        if (!ctx->funcs.ids || !ctx->funcs.funcs) { fprintf(stderr, "Out of memory\n"); exit(1); }
+        ctx->funcs.cap = new_cap;
+    }
+    ctx->funcs.ids[ctx->funcs.count] = strdup(id);
+    ctx->funcs.funcs[ctx->funcs.count] = func;
+    ctx->funcs.count++;
+}
+
+static Thr* unser_thr_get(UnserCtx* ctx, const char* id) {
+    for (size_t i = 0; i < ctx->thrs.count; i++) {
+        if (strcmp(ctx->thrs.ids[i], id) == 0) return ctx->thrs.thrs[i];
+    }
+    return NULL;
+}
+
+static void unser_thr_set(UnserCtx* ctx, const char* id, Thr* thr) {
+    if (ctx->thrs.count + 1 > ctx->thrs.cap) {
+        size_t new_cap = ctx->thrs.cap == 0 ? 4 : ctx->thrs.cap * 2;
+        ctx->thrs.ids = realloc(ctx->thrs.ids, new_cap * sizeof(char*));
+        ctx->thrs.thrs = realloc(ctx->thrs.thrs, new_cap * sizeof(Thr*));
+        if (!ctx->thrs.ids || !ctx->thrs.thrs) { fprintf(stderr, "Out of memory\n"); exit(1); }
+        ctx->thrs.cap = new_cap;
+    }
+    ctx->thrs.ids[ctx->thrs.count] = strdup(id);
+    ctx->thrs.thrs[ctx->thrs.count] = thr;
+    ctx->thrs.count++;
+}
+
+static Expr* deser_expr(JsonValue* obj, UnserCtx* ctx, Interpreter* interp, const char** err);
+static Stmt* deser_stmt(JsonValue* obj, UnserCtx* ctx, Interpreter* interp, const char** err);
+static Env* deser_env(JsonValue* obj, UnserCtx* ctx, Interpreter* interp, const char** err);
+static Value deser_val(JsonValue* obj, UnserCtx* ctx, Interpreter* interp, const char** err);
+
+static int json_num_to_int(JsonValue* v, int default_val) {
+    if (!v || v->type != JSON_NUM) return default_val;
+    return (int)v->as.num;
+}
+
+static Expr* deser_default_expr(JsonValue* raw, UnserCtx* ctx, Interpreter* interp, const char** err) {
+    if (!raw || raw->type == JSON_NULL) return NULL;
+    if (raw->type == JSON_OBJ) {
+        JsonValue* n = json_obj_get(raw, "n");
+        if (n && n->type == JSON_STR) {
+            return deser_expr(raw, ctx, interp, err);
+        }
+    }
+    Value v = deser_val(raw, ctx, interp, err);
+    if (*err) return NULL;
+    if (v.type == VAL_INT) return expr_int(v.as.i, 1, 1);
+    if (v.type == VAL_FLT) return expr_flt(v.as.f, 1, 1);
+    if (v.type == VAL_STR) return expr_str(strdup(v.as.s ? v.as.s : ""), 1, 1);
+    return NULL;
+}
+
+static Expr* deser_expr(JsonValue* obj, UnserCtx* ctx, Interpreter* interp, const char** err) {
+    if (!obj || obj->type != JSON_OBJ) return NULL;
+    JsonValue* n = json_obj_get(obj, "n");
+    if (!n || n->type != JSON_STR) return NULL;
+    const char* name = n->as.str;
+    int line = json_num_to_int(json_obj_get(json_obj_get(obj, "loc"), "line"), 1);
+    int col = json_num_to_int(json_obj_get(json_obj_get(obj, "loc"), "column"), 1);
+
+    if (strcmp(name, "Literal") == 0) {
+        JsonValue* lit_type = json_obj_get(obj, "literal_type");
+        JsonValue* val = json_obj_get(obj, "value");
+        const char* lt = (lit_type && lit_type->type == JSON_STR) ? lit_type->as.str : "INT";
+        if (strcmp(lt, "INT") == 0) {
+            int64_t i = 0;
+            if (val && val->type == JSON_NUM) i = (int64_t)val->as.num;
+            return expr_int(i, line, col);
+        }
+        if (strcmp(lt, "FLT") == 0) {
+            double f = 0.0;
+            if (val && val->type == JSON_NUM) f = val->as.num;
+            else if (val && val->type == JSON_STR) f = strtod(val->as.str, NULL);
+            return expr_flt(f, line, col);
+        }
+        if (strcmp(lt, "STR") == 0) {
+            const char* s = (val && val->type == JSON_STR) ? val->as.str : "";
+            return expr_str(strdup(s), line, col);
+        }
+        return expr_int(0, line, col);
+    }
+    if (strcmp(name, "TensorLiteral") == 0) {
+        Expr* t = expr_tns(line, col);
+        JsonValue* items = json_obj_get(obj, "items");
+        if (items && items->type == JSON_ARR) {
+            for (size_t i = 0; i < items->as.arr.count; i++) {
+                Expr* it = deser_expr(items->as.arr.items[i], ctx, interp, err);
+                if (*err) return t;
+                if (it) expr_list_add(&t->as.tns_items, it);
+            }
+        }
+        return t;
+    }
+    if (strcmp(name, "MapLiteral") == 0) {
+        Expr* m = expr_map(line, col);
+        JsonValue* items = json_obj_get(obj, "items");
+        if (items && items->type == JSON_ARR) {
+            for (size_t i = 0; i < items->as.arr.count; i++) {
+                JsonValue* pair = items->as.arr.items[i];
+                if (!pair || pair->type != JSON_OBJ) continue;
+                Expr* k = deser_expr(json_obj_get(pair, "k"), ctx, interp, err);
+                Expr* v = deser_expr(json_obj_get(pair, "v"), ctx, interp, err);
+                if (*err) return m;
+                if (k && v) {
+                    expr_list_add(&m->as.map_items.keys, k);
+                    expr_list_add(&m->as.map_items.values, v);
+                }
+            }
+        }
+        return m;
+    }
+    if (strcmp(name, "Identifier") == 0) {
+        JsonValue* nm = json_obj_get(obj, "name");
+        const char* s = (nm && nm->type == JSON_STR) ? nm->as.str : "";
+        return expr_ident(strdup(s), line, col);
+    }
+    if (strcmp(name, "PointerExpression") == 0) {
+        JsonValue* nm = json_obj_get(obj, "target");
+        const char* s = (nm && nm->type == JSON_STR) ? nm->as.str : "";
+        return expr_ptr(strdup(s), line, col);
+    }
+    if (strcmp(name, "CallExpression") == 0) {
+        Expr* callee = deser_expr(json_obj_get(obj, "callee"), ctx, interp, err);
+        Expr* call = expr_call(callee, line, col);
+        JsonValue* args = json_obj_get(obj, "args");
+        if (args && args->type == JSON_ARR) {
+            for (size_t i = 0; i < args->as.arr.count; i++) {
+                JsonValue* a = args->as.arr.items[i];
+                if (!a || a->type != JSON_OBJ) continue;
+                JsonValue* nm = json_obj_get(a, "name");
+                JsonValue* ex = json_obj_get(a, "expression");
+                Expr* arg = deser_expr(ex, ctx, interp, err);
+                if (*err) return call;
+                if (nm && nm->type == JSON_STR && nm->as.str && nm->as.str[0]) {
+                    call_kw_add(call, strdup(nm->as.str), arg);
+                } else {
+                    expr_list_add(&call->as.call.args, arg);
+                }
+            }
+        }
+        return call;
+    }
+    if (strcmp(name, "AsyncExpression") == 0) {
+        Stmt* block = deser_stmt(json_obj_get(obj, "block"), ctx, interp, err);
+        return expr_async(block, line, col);
+    }
+    if (strcmp(name, "IndexExpression") == 0) {
+        Expr* base = deser_expr(json_obj_get(obj, "base"), ctx, interp, err);
+        Expr* idx = expr_index(base, line, col);
+        JsonValue* indices = json_obj_get(obj, "indices");
+        if (indices && indices->type == JSON_ARR) {
+            for (size_t i = 0; i < indices->as.arr.count; i++) {
+                Expr* it = deser_expr(indices->as.arr.items[i], ctx, interp, err);
+                if (*err) return idx;
+                if (it) expr_list_add(&idx->as.index.indices, it);
+            }
+        }
+        return idx;
+    }
+    if (strcmp(name, "Range") == 0) {
+        Expr* lo = deser_expr(json_obj_get(obj, "lo"), ctx, interp, err);
+        Expr* hi = deser_expr(json_obj_get(obj, "hi"), ctx, interp, err);
+        return expr_range(lo, hi, line, col);
+    }
+    if (strcmp(name, "Star") == 0) {
+        return expr_wildcard(line, col);
+    }
+    return NULL;
+}
+
+static Stmt* deser_stmt(JsonValue* obj, UnserCtx* ctx, Interpreter* interp, const char** err) {
+    if (!obj || obj->type != JSON_OBJ) return NULL;
+    JsonValue* n = json_obj_get(obj, "n");
+    if (!n || n->type != JSON_STR) return NULL;
+    const char* name = n->as.str;
+    int line = json_num_to_int(json_obj_get(json_obj_get(obj, "loc"), "line"), 1);
+    int col = json_num_to_int(json_obj_get(json_obj_get(obj, "loc"), "column"), 1);
+
+    if (strcmp(name, "Block") == 0) {
+        Stmt* b = stmt_block(line, col);
+        JsonValue* stmts = json_obj_get(obj, "statements");
+        if (stmts && stmts->type == JSON_ARR) {
+            for (size_t i = 0; i < stmts->as.arr.count; i++) {
+                Stmt* s = deser_stmt(stmts->as.arr.items[i], ctx, interp, err);
+                if (*err) return b;
+                if (s) stmt_list_add(&b->as.block, s);
+            }
+        }
+        return b;
+    }
+    if (strcmp(name, "Assignment") == 0) {
+        JsonValue* tgt = json_obj_get(obj, "target");
+        JsonValue* dt = json_obj_get(obj, "declared_type");
+        JsonValue* expr = json_obj_get(obj, "expression");
+        const char* tname = (tgt && tgt->type == JSON_STR) ? tgt->as.str : "";
+        DeclType dtype = TYPE_UNKNOWN;
+        bool has_type = false;
+        if (dt && dt->type == JSON_STR) {
+            dtype = decl_type_from_name(dt->as.str);
+            has_type = true;
+        }
+        Expr* ex = deser_expr(expr, ctx, interp, err);
+        return stmt_assign(has_type, dtype, strdup(tname), NULL, ex, line, col);
+    }
+    if (strcmp(name, "Declaration") == 0) {
+        JsonValue* nm = json_obj_get(obj, "name");
+        JsonValue* dt = json_obj_get(obj, "declared_type");
+        const char* nms = (nm && nm->type == JSON_STR) ? nm->as.str : "";
+        DeclType dtype = decl_type_from_name((dt && dt->type == JSON_STR) ? dt->as.str : NULL);
+        return stmt_decl(dtype, strdup(nms), line, col);
+    }
+    if (strcmp(name, "ExpressionStatement") == 0) {
+        Expr* ex = deser_expr(json_obj_get(obj, "expression"), ctx, interp, err);
+        return stmt_expr(ex, line, col);
+    }
+    if (strcmp(name, "IfStatement") == 0) {
+        Expr* cond = deser_expr(json_obj_get(obj, "condition"), ctx, interp, err);
+        Stmt* then_block = deser_stmt(json_obj_get(obj, "then_block"), ctx, interp, err);
+        Stmt* st = stmt_if(cond, then_block, line, col);
+        JsonValue* elifs = json_obj_get(obj, "elifs");
+        if (elifs && elifs->type == JSON_ARR) {
+            for (size_t i = 0; i < elifs->as.arr.count; i++) {
+                JsonValue* br = elifs->as.arr.items[i];
+                if (!br || br->type != JSON_OBJ) continue;
+                Expr* econd = deser_expr(json_obj_get(br, "condition"), ctx, interp, err);
+                Stmt* eblk = deser_stmt(json_obj_get(br, "block"), ctx, interp, err);
+                if (econd && eblk) {
+                    expr_list_add(&st->as.if_stmt.elif_conditions, econd);
+                    stmt_list_add(&st->as.if_stmt.elif_blocks, eblk);
+                }
+            }
+        }
+        JsonValue* else_block = json_obj_get(obj, "else_block");
+        if (else_block && else_block->type != JSON_NULL) {
+            st->as.if_stmt.else_branch = deser_stmt(else_block, ctx, interp, err);
+        }
+        return st;
+    }
+    if (strcmp(name, "WhileStatement") == 0) {
+        Expr* cond = deser_expr(json_obj_get(obj, "condition"), ctx, interp, err);
+        Stmt* block = deser_stmt(json_obj_get(obj, "block"), ctx, interp, err);
+        return stmt_while(cond, block, line, col);
+    }
+    if (strcmp(name, "ForStatement") == 0) {
+        JsonValue* counter = json_obj_get(obj, "counter");
+        Expr* target = deser_expr(json_obj_get(obj, "target_expr"), ctx, interp, err);
+        Stmt* block = deser_stmt(json_obj_get(obj, "block"), ctx, interp, err);
+        const char* cnt = (counter && counter->type == JSON_STR) ? counter->as.str : "";
+        return stmt_for(strdup(cnt), target, block, line, col);
+    }
+    if (strcmp(name, "ParForStatement") == 0) {
+        JsonValue* counter = json_obj_get(obj, "counter");
+        Expr* target = deser_expr(json_obj_get(obj, "target_expr"), ctx, interp, err);
+        Stmt* block = deser_stmt(json_obj_get(obj, "block"), ctx, interp, err);
+        const char* cnt = (counter && counter->type == JSON_STR) ? counter->as.str : "";
+        return stmt_parfor(strdup(cnt), target, block, line, col);
+    }
+    if (strcmp(name, "FuncDef") == 0) {
+        JsonValue* nm = json_obj_get(obj, "name");
+        JsonValue* params = json_obj_get(obj, "params");
+        JsonValue* ret = json_obj_get(obj, "return_type");
+        Stmt* body = deser_stmt(json_obj_get(obj, "body"), ctx, interp, err);
+        const char* fn = (nm && nm->type == JSON_STR) ? nm->as.str : "";
+        DeclType rt = decl_type_from_name((ret && ret->type == JSON_STR) ? ret->as.str : NULL);
+        Stmt* st = stmt_func(strdup(fn), rt, body, line, col);
+        if (params && params->type == JSON_ARR) {
+            for (size_t i = 0; i < params->as.arr.count; i++) {
+                JsonValue* p = params->as.arr.items[i];
+                if (!p || p->type != JSON_OBJ) continue;
+                JsonValue* pname = json_obj_get(p, "name");
+                JsonValue* ptype = json_obj_get(p, "type");
+                JsonValue* pdef = json_obj_get(p, "default");
+                Param pr;
+                pr.name = strdup((pname && pname->type == JSON_STR) ? pname->as.str : "");
+                pr.type = decl_type_from_name((ptype && ptype->type == JSON_STR) ? ptype->as.str : NULL);
+                pr.default_value = deser_default_expr(pdef, ctx, interp, err);
+                param_list_add(&st->as.func_stmt.params, pr);
+            }
+        }
+        return st;
+    }
+    if (strcmp(name, "ReturnStatement") == 0) {
+        Expr* ex = deser_expr(json_obj_get(obj, "expression"), ctx, interp, err);
+        return stmt_return(ex, line, col);
+    }
+    if (strcmp(name, "PopStatement") == 0) {
+        JsonValue* ex = json_obj_get(obj, "expression");
+        if (ex && ex->type == JSON_OBJ) {
+            JsonValue* nm = json_obj_get(ex, "name");
+            const char* name_s = (nm && nm->type == JSON_STR) ? nm->as.str : "";
+            return stmt_pop(strdup(name_s), line, col);
+        }
+        return stmt_pop(strdup(""), line, col);
+    }
+    if (strcmp(name, "BreakStatement") == 0) {
+        Expr* ex = deser_expr(json_obj_get(obj, "expression"), ctx, interp, err);
+        return stmt_break(ex, line, col);
+    }
+    if (strcmp(name, "GotoStatement") == 0) {
+        Expr* ex = deser_expr(json_obj_get(obj, "expression"), ctx, interp, err);
+        return stmt_goto(ex, line, col);
+    }
+    if (strcmp(name, "GotopointStatement") == 0) {
+        Expr* ex = deser_expr(json_obj_get(obj, "expression"), ctx, interp, err);
+        return stmt_gotopoint(ex, line, col);
+    }
+    if (strcmp(name, "ContinueStatement") == 0) {
+        return stmt_continue(line, col);
+    }
+    if (strcmp(name, "AsyncStatement") == 0) {
+        Stmt* block = deser_stmt(json_obj_get(obj, "block"), ctx, interp, err);
+        return stmt_async(block, line, col);
+    }
+    if (strcmp(name, "ThrStatement") == 0) {
+        JsonValue* sym = json_obj_get(obj, "symbol");
+        const char* s = (sym && sym->type == JSON_STR) ? sym->as.str : "";
+        Stmt* block = deser_stmt(json_obj_get(obj, "block"), ctx, interp, err);
+        return stmt_thr(strdup(s), block, line, col);
+    }
+    if (strcmp(name, "TryStatement") == 0) {
+        Stmt* try_block = deser_stmt(json_obj_get(obj, "try_block"), ctx, interp, err);
+        JsonValue* cs = json_obj_get(obj, "catch_symbol");
+        const char* s = (cs && cs->type == JSON_STR) ? cs->as.str : NULL;
+        Stmt* catch_block = deser_stmt(json_obj_get(obj, "catch_block"), ctx, interp, err);
+        return stmt_try(try_block, s ? strdup(s) : NULL, catch_block, line, col);
+    }
+    if (strcmp(name, "TensorSetStatement") == 0) {
+        Expr* target = deser_expr(json_obj_get(obj, "target"), ctx, interp, err);
+        Expr* value = deser_expr(json_obj_get(obj, "value"), ctx, interp, err);
+        return stmt_assign(false, TYPE_UNKNOWN, NULL, target, value, line, col);
+    }
+    return NULL;
+}
+
+static Env* deser_env(JsonValue* obj, UnserCtx* ctx, Interpreter* interp, const char** err) {
+    if (!obj || obj->type == JSON_NULL) return NULL;
+    if (obj->type != JSON_OBJ) { *err = "UNSER: invalid ENV"; return NULL; }
+    JsonValue* t = json_obj_get(obj, "t");
+    if (!t || t->type != JSON_STR || strcmp(t->as.str, "ENV") != 0) { *err = "UNSER: invalid ENV"; return NULL; }
+    JsonValue* idv = json_obj_get(obj, "id");
+    if (!idv || idv->type != JSON_STR) { *err = "UNSER: invalid ENV id"; return NULL; }
+    Env* existing = unser_env_get(ctx, idv->as.str);
+    if (existing) return existing;
+
+    Env* env = env_create(NULL);
+    unser_env_set(ctx, idv->as.str, env);
+
+    JsonValue* ref = json_obj_get(obj, "ref");
+    if (ref && ref->type == JSON_BOOL && ref->as.boolean) {
+        return env;
+    }
+
+    JsonValue* def = json_obj_get(obj, "def");
+    if (def && def->type == JSON_OBJ) {
+        env->parent = deser_env(json_obj_get(def, "parent"), ctx, interp, err);
+
+        JsonValue* declared = json_obj_get(def, "declared");
+        if (declared && declared->type == JSON_OBJ) {
+            for (size_t i = 0; i < declared->as.obj.count; i++) {
+                JsonPair* p = &declared->as.obj.items[i];
+                DeclType dt = decl_type_from_name(p->value && p->value->type == JSON_STR ? p->value->as.str : NULL);
+                if (!env_find_local_entry(env, p->key)) env_define(env, p->key, dt);
+            }
+        }
+
+        JsonValue* values = json_obj_get(def, "values");
+        if (values && values->type == JSON_OBJ) {
+            for (size_t i = 0; i < values->as.obj.count; i++) {
+                JsonPair* p = &values->as.obj.items[i];
+                JsonValue* vv = p->value;
+                if (!env_find_local_entry(env, p->key)) env_define(env, p->key, TYPE_UNKNOWN);
+                EnvEntry* entry = env_find_local_entry(env, p->key);
+                if (vv && vv->type == JSON_OBJ) {
+                    JsonValue* vt = json_obj_get(vv, "t");
+                    if (vt && vt->type == JSON_STR && strcmp(vt->as.str, "PTR") == 0) {
+                        JsonValue* pname = json_obj_get(vv, "name");
+                        JsonValue* vtype = json_obj_get(vv, "value_type");
+                        const char* target = (pname && pname->type == JSON_STR) ? pname->as.str : NULL;
+                        if (entry->alias_target) { free(entry->alias_target); entry->alias_target = NULL; }
+                        if (target) entry->alias_target = strdup(target);
+                        entry->decl_type = decl_type_from_name((vtype && vtype->type == JSON_STR) ? vtype->as.str : NULL);
+                        entry->initialized = true;
+                        continue;
+                    }
+                }
+                Value val = deser_val(vv, ctx, interp, err);
+                if (*err) return env;
+                if (entry->initialized) value_free(entry->value);
+                entry->value = value_copy(val);
+                entry->initialized = true;
+            }
+        }
+
+        JsonValue* frozen = json_obj_get(def, "frozen");
+        if (frozen && frozen->type == JSON_ARR) {
+            for (size_t i = 0; i < frozen->as.arr.count; i++) {
+                JsonValue* it = frozen->as.arr.items[i];
+                if (it && it->type == JSON_STR) {
+                    EnvEntry* e = env_find_local_entry(env, it->as.str);
+                    if (!e) { env_define(env, it->as.str, TYPE_UNKNOWN); e = env_find_local_entry(env, it->as.str); }
+                    if (e) e->frozen = true;
+                }
+            }
+        }
+
+        JsonValue* perma = json_obj_get(def, "permafrozen");
+        if (perma && perma->type == JSON_ARR) {
+            for (size_t i = 0; i < perma->as.arr.count; i++) {
+                JsonValue* it = perma->as.arr.items[i];
+                if (it && it->type == JSON_STR) {
+                    EnvEntry* e = env_find_local_entry(env, it->as.str);
+                    if (!e) { env_define(env, it->as.str, TYPE_UNKNOWN); e = env_find_local_entry(env, it->as.str); }
+                    if (e) { e->permafrozen = true; e->frozen = true; }
+                }
+            }
+        }
+    }
+    return env;
+}
+
+static Value deser_val(JsonValue* obj, UnserCtx* ctx, Interpreter* interp, const char** err) {
+    if (!obj || obj->type != JSON_OBJ) { *err = "UNSER: invalid serialized form"; return value_null(); }
+    JsonValue* t = json_obj_get(obj, "t");
+    if (!t || t->type != JSON_STR) { *err = "UNSER: invalid serialized form"; return value_null(); }
+    const char* tp = t->as.str;
+
+    if (strcmp(tp, "INT") == 0) {
+        JsonValue* v = json_obj_get(obj, "v");
+        const char* s = (v && v->type == JSON_STR) ? v->as.str : "0";
+        bool neg = s[0] == '-';
+        const char* core = neg ? s + 1 : s;
+        int64_t val = 0;
+        for (const char* p = core; *p; p++) {
+            if (*p == '0' || *p == '1') {
+                val = (val << 1) | (*p - '0');
+            }
+        }
+        if (neg) val = -val;
+        return value_int(val);
+    }
+    if (strcmp(tp, "FLT") == 0) {
+        JsonValue* v = json_obj_get(obj, "v");
+        const char* s = (v && v->type == JSON_STR) ? v->as.str : "0.0";
+        double f = strtod(s, NULL);
+        return value_flt(f);
+    }
+    if (strcmp(tp, "STR") == 0) {
+        JsonValue* v = json_obj_get(obj, "v");
+        const char* s = (v && v->type == JSON_STR) ? v->as.str : "";
+        return value_str(s);
+    }
+    if (strcmp(tp, "TNS") == 0) {
+        JsonValue* shape = json_obj_get(obj, "shape");
+        JsonValue* flat = json_obj_get(obj, "v");
+        if (!shape || shape->type != JSON_ARR || !flat || flat->type != JSON_ARR) {
+            *err = "UNSER: invalid TNS shape";
+            return value_null();
+        }
+        size_t ndim = shape->as.arr.count;
+        size_t* shp = malloc(sizeof(size_t) * (ndim > 0 ? ndim : 1));
+        if (!shp) { *err = "Out of memory"; return value_null(); }
+        for (size_t i = 0; i < ndim; i++) {
+            JsonValue* it = shape->as.arr.items[i];
+            size_t sv = (size_t)((it && it->type == JSON_NUM) ? it->as.num : 0);
+            shp[i] = sv;
+        }
+        size_t total = flat->as.arr.count;
+        Value* items = malloc(sizeof(Value) * (total > 0 ? total : 1));
+        if (!items) { free(shp); *err = "Out of memory"; return value_null(); }
+        DeclType elem_type = TYPE_UNKNOWN;
+        for (size_t i = 0; i < total; i++) {
+            items[i] = deser_val(flat->as.arr.items[i], ctx, interp, err);
+            if (*err) { free(shp); free(items); return value_null(); }
+            DeclType dt = TYPE_UNKNOWN;
+            if (items[i].type == VAL_INT) dt = TYPE_INT;
+            else if (items[i].type == VAL_FLT) dt = TYPE_FLT;
+            else if (items[i].type == VAL_STR) dt = TYPE_STR;
+            else if (items[i].type == VAL_TNS) dt = TYPE_TNS;
+            else if (items[i].type == VAL_FUNC) dt = TYPE_FUNC;
+            if (i == 0) elem_type = dt;
+            else if (elem_type != dt) elem_type = TYPE_UNKNOWN;
+        }
+        Value out = value_tns_from_values(elem_type, ndim, shp, items, total);
+        for (size_t i = 0; i < total; i++) value_free(items[i]);
+        free(items);
+        free(shp);
+        return out;
+    }
+    if (strcmp(tp, "MAP") == 0) {
+        JsonValue* items = json_obj_get(obj, "v");
+        if (!items || items->type != JSON_ARR) { *err = "UNSER: invalid MAP form"; return value_null(); }
+        Value mv = value_map_new();
+        for (size_t i = 0; i < items->as.arr.count; i++) {
+            JsonValue* pair = items->as.arr.items[i];
+            if (!pair || pair->type != JSON_OBJ) continue;
+            Value k = deser_val(json_obj_get(pair, "k"), ctx, interp, err);
+            if (*err) { value_free(mv); return value_null(); }
+            if (!(k.type == VAL_INT || k.type == VAL_FLT || k.type == VAL_STR)) {
+                value_free(k);
+                value_free(mv);
+                *err = "UNSER: invalid MAP key type";
+                return value_null();
+            }
+            Value v = deser_val(json_obj_get(pair, "v"), ctx, interp, err);
+            if (*err) { value_free(k); value_free(mv); return value_null(); }
+            value_map_set(&mv, k, v);
+            value_free(k);
+            value_free(v);
+        }
+        return mv;
+    }
+    if (strcmp(tp, "FUNC") == 0) {
+        JsonValue* idv = json_obj_get(obj, "id");
+        const char* id = (idv && idv->type == JSON_STR) ? idv->as.str : NULL;
+        if (id) {
+            Func* existing = unser_func_get(ctx, id);
+            if (existing) return value_func(existing);
+        }
+        JsonValue* def = json_obj_get(obj, "def");
+        if (def && def->type == JSON_OBJ) {
+            JsonValue* nm = json_obj_get(def, "name");
+            JsonValue* rt = json_obj_get(def, "return");
+            const char* name = (nm && nm->type == JSON_STR) ? nm->as.str : "<unser_func>";
+            DeclType ret = decl_type_from_name((rt && rt->type == JSON_STR) ? rt->as.str : NULL);
+
+            Func* fn = malloc(sizeof(Func));
+            if (!fn) { *err = "Out of memory"; return value_null(); }
+            memset(fn, 0, sizeof(Func));
+            fn->name = strdup(name);
+            fn->return_type = ret == TYPE_UNKNOWN ? TYPE_INT : ret;
+            fn->body = stmt_block(1, 1);
+            fn->closure = env_create(NULL);
+            if (id) unser_func_set(ctx, id, fn);
+
+            JsonValue* params = json_obj_get(def, "params");
+            if (params && params->type == JSON_ARR) {
+                for (size_t i = 0; i < params->as.arr.count; i++) {
+                    JsonValue* p = params->as.arr.items[i];
+                    if (!p || p->type != JSON_OBJ) continue;
+                    JsonValue* pn = json_obj_get(p, "name");
+                    JsonValue* pt = json_obj_get(p, "type");
+                    JsonValue* pd = json_obj_get(p, "default");
+                    Param pr;
+                    pr.name = strdup((pn && pn->type == JSON_STR) ? pn->as.str : "");
+                    pr.type = decl_type_from_name((pt && pt->type == JSON_STR) ? pt->as.str : NULL);
+                    pr.default_value = deser_default_expr(pd, ctx, interp, err);
+                    param_list_add(&fn->params, pr);
+                }
+            }
+
+            Stmt* body = deser_stmt(json_obj_get(def, "body"), ctx, interp, err);
+            if (body) fn->body = body;
+            Env* closure = deser_env(json_obj_get(def, "closure"), ctx, interp, err);
+            if (closure) fn->closure = closure;
+            return value_func(fn);
+        }
+
+        JsonValue* nm = json_obj_get(obj, "name");
+        if (nm && nm->type == JSON_STR) {
+            Func* existing = func_table_lookup(interp->functions, nm->as.str);
+            if (existing) {
+                if (id) unser_func_set(ctx, id, existing);
+                return value_func(existing);
+            }
+        }
+
+        const char* nm_s = (nm && nm->type == JSON_STR) ? nm->as.str : "<unser_func>";
+        Func* fn = malloc(sizeof(Func));
+        if (!fn) { *err = "Out of memory"; return value_null(); }
+        memset(fn, 0, sizeof(Func));
+        fn->name = strdup(nm_s);
+        fn->return_type = TYPE_INT;
+        fn->closure = env_create(NULL);
+
+        Stmt* block = stmt_block(1, 1);
+        Expr* callee = expr_ident(strdup("THROW"), 1, 1);
+        Expr* call = expr_call(callee, 1, 1);
+        Expr* arg = expr_str(strdup("UNSER: function not available"), 1, 1);
+        expr_list_add(&call->as.call.args, arg);
+        Stmt* exprs = stmt_expr(call, 1, 1);
+        stmt_list_add(&block->as.block, exprs);
+        fn->body = block;
+        if (id) unser_func_set(ctx, id, fn);
+        return value_func(fn);
+    }
+    if (strcmp(tp, "THR") == 0) {
+        JsonValue* idv = json_obj_get(obj, "id");
+        const char* id = (idv && idv->type == JSON_STR) ? idv->as.str : NULL;
+        if (id) {
+            Thr* existing = unser_thr_get(ctx, id);
+            if (existing) {
+                Value ret; ret.type = VAL_THR; ret.as.thr = existing; existing->refcount++;
+                return ret;
+            }
+        }
+        Value thr = value_thr_new();
+        Thr* th = thr.as.thr;
+        th->finished = 1;
+        th->paused = json_obj_get(obj, "paused") && json_obj_get(obj, "paused")->type == JSON_BOOL ? json_obj_get(obj, "paused")->as.boolean : 0;
+        th->started = 0;
+        th->body = NULL;
+        th->env = NULL;
+        JsonValue* blk = json_obj_get(obj, "block");
+        JsonValue* envv = json_obj_get(obj, "env");
+        if (blk && blk->type == JSON_OBJ) th->body = deser_stmt(blk, ctx, interp, err);
+        if (envv && envv->type == JSON_OBJ) th->env = deser_env(envv, ctx, interp, err);
+        if (id) unser_thr_set(ctx, id, th);
+        return thr;
+    }
+
+    *err = "UNSER: cannot reconstruct type";
+    return value_null();
+}
+
+static Value builtin_ser(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
+    (void)arg_nodes; (void)env;
+    if (argc != 1) {
+        RUNTIME_ERROR(interp, "SER expects 1 argument", line, col);
+    }
+    SerCtx ctx;
+    ser_ctx_init(&ctx);
+    JsonBuf jb;
+    jb_init(&jb);
+    ser_value(&jb, &ctx, interp, args[0]);
+    Value out = value_str(jb.data ? jb.data : "");
+    jb_free(&jb);
+    ser_ctx_free(&ctx);
+    return out;
+}
+
+static Value builtin_unser(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
+    (void)arg_nodes; (void)env;
+    if (argc != 1) {
+        RUNTIME_ERROR(interp, "UNSER expects 1 argument", line, col);
+    }
+    EXPECT_STR(args[0], "UNSER", interp, line, col);
+    const char* text = args[0].as.s ? args[0].as.s : "";
+    const char* jerr = NULL;
+    JsonValue* root = json_parse(text, &jerr);
+    if (!root) {
+        RUNTIME_ERROR(interp, "UNSER: invalid JSON", line, col);
+    }
+    UnserCtx ctx;
+    unser_ctx_init(&ctx);
+    const char* err = NULL;
+    Value out = deser_val(root, &ctx, interp, &err);
+    json_free(root);
+    unser_ctx_free(&ctx);
+    if (err) {
+        RUNTIME_ERROR(interp, err, line, col);
+    }
+    return out;
 }
 
 // ============ Arithmetic operators ============
@@ -1332,6 +3478,24 @@ static int value_deep_eq(Value a, Value b) {
             if (ta->length != tb->length) return 0;
             for (size_t i = 0; i < ta->length; i++) {
                 if (!value_deep_eq(ta->data[i], tb->data[i])) return 0;
+            }
+            return 1;
+        }
+        case VAL_MAP: {
+            Map* ma = a.as.map;
+            Map* mb = b.as.map;
+            if (ma == NULL || mb == NULL) return (ma == mb) ? 1 : 0;
+            if (ma->count != mb->count) return 0;
+            for (size_t i = 0; i < ma->count; i++) {
+                int found = 0;
+                for (size_t j = 0; j < mb->count; j++) {
+                    if (value_deep_eq(ma->items[i].key, mb->items[j].key)) {
+                        if (!value_deep_eq(ma->items[i].value, mb->items[j].value)) return 0;
+                        found = 1;
+                        break;
+                    }
+                }
+                if (!found) return 0;
             }
             return 1;
         }
@@ -3556,6 +5720,69 @@ static Value builtin_deepcopy(Interpreter* interp, Value* args, int argc, Expr**
     (void)arg_nodes; (void)env; (void)interp; (void)line; (void)col;
     return value_deep_copy(args[0]);
 }
+
+// ASSIGN(target, expr): evaluate expr, assign into target lvalue, return assigned value
+static Value builtin_assign(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
+    (void)argc;
+    if (!arg_nodes || !arg_nodes[0]) {
+        RUNTIME_ERROR(interp, "ASSIGN: missing target expression", line, col);
+    }
+
+    Expr* target = arg_nodes[0];
+
+    // RHS should have been evaluated into args[1]
+    if (args == NULL) RUNTIME_ERROR(interp, "ASSIGN internal error", line, col);
+
+    Value rhs = args[1];
+
+    // Identifier target
+    if (target->type == EXPR_IDENT) {
+        const char* name = target->as.ident;
+        EnvEntry* e = env_get_entry(env, name);
+        if (!e) {
+            RUNTIME_ERROR(interp, "ASSIGN requires target identifier to be declared", line, col);
+        }
+        // Check static type compatibility if present
+        DeclType expected = e->decl_type;
+        if (e->decl_type != TYPE_UNKNOWN) {
+            DeclType actual;
+            switch (rhs.type) {
+                case VAL_INT: actual = TYPE_INT; break;
+                case VAL_FLT: actual = TYPE_FLT; break;
+                case VAL_STR: actual = TYPE_STR; break;
+                case VAL_TNS: actual = TYPE_TNS; break;
+                case VAL_FUNC: actual = TYPE_FUNC; break;
+                case VAL_THR: actual = TYPE_THR; break;
+                default: actual = TYPE_UNKNOWN; break;
+            }
+            if (expected != actual) {
+                RUNTIME_ERROR(interp, "ASSIGN: type mismatch", line, col);
+            }
+        }
+
+        if (!env_assign(env, name, rhs, TYPE_UNKNOWN, false)) {
+            RUNTIME_ERROR(interp, "ASSIGN: cannot assign to target (frozen?)", line, col);
+        }
+        return value_copy(rhs);
+    }
+
+    // Indexed target (e.g., tns[...], map<...>)
+    if (target->type == EXPR_INDEX) {
+        ExecResult res = assign_index_chain(interp, env, target, rhs, line, col);
+        if (res.status == EXEC_ERROR) {
+            if (res.error) {
+                interp->error = strdup(res.error);
+                interp->error_line = res.error_line;
+                interp->error_col = res.error_column;
+                free(res.error);
+            }
+            return value_null();
+        }
+        return value_copy(rhs);
+    }
+
+    RUNTIME_ERROR(interp, "ASSIGN: unsupported target expression", line, col);
+}
 // ILEN - integer length (number of bits)
 static Value builtin_ilen(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
     (void)arg_nodes; (void)env;
@@ -4168,6 +6395,9 @@ static Value builtin_await(Interpreter* interp, Value* args, int argc, Expr** ar
     // the join).
     Value ret = value_copy(args[0]);
     Thr* th = ret.as.thr;
+    if (!th->started) {
+        return ret;
+    }
     // Wait for worker to mark finished; yield while spinning to be cooperative
     while (!th->finished) {
         thrd_yield();
@@ -4554,6 +6784,8 @@ static BuiltinFunction builtins_table[] = {
     {"FLT", 1, 1, builtin_flt},
     {"STR", 1, 1, builtin_str},
     {"BYTES", 1, 2, builtin_bytes},
+    {"SER", 1, 1, builtin_ser},
+    {"UNSER", 1, 1, builtin_unser},
 
     // Type checking
     {"ISINT", 1, 1, builtin_isint},
@@ -4616,6 +6848,7 @@ static BuiltinFunction builtins_table[] = {
     {"EXIST", 1, 1, builtin_exist},
     {"COPY", 1, 1, builtin_copy},
     {"DEEPCOPY", 1, 1, builtin_deepcopy},
+    {"ASSIGN", 2, 2, builtin_assign},
 
     // Variadic math
     {"SUM", 1, -1, builtin_sum},

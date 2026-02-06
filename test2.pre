@@ -156,6 +156,20 @@ DEL(x)
 DEL(y)
 PRINT("Pointers: PASS\n")
 
+PRINT("Testing ASSIGN inline operator...")
+# simple identifier assignment (target must already exist)
+INT: as_a = 0
+ASSIGN(as_a, 101)
+ASSERT(EQ(as_a, 101))
+DEL(as_a)
+
+# indexed assignment via ASSIGN
+TNS: atns = [1, 10, 11]
+ASSIGN(atns[1], 101)
+ASSERT(EQ(atns[1], 101))
+DEL(atns)
+PRINT("ASSIGN: PASS\n")
+
 # MATCH tests
 MAP: tpl = <"foo" = 101>
 ASSERT(MATCH(m, tpl))
@@ -887,5 +901,67 @@ DEL(wait_s)
 DEL(snapshot_stop)
 
 PRINT("THR: PASS\n")
+
+PRINT("Testing SER/UNSER...")
+
+INT: ia = 101
+FLT: fa = 0.01
+STR: sa = "hello"
+TNS: ta = [1, 10]
+MAP: ma = <"x" = 101, "y" = [1,10]>
+
+FUNC SIMPLE():INT{ RETURN(101) }
+
+STR: s_ia = SER(ia)
+INT: u_ia = UNSER(s_ia)
+ASSERT(EQ(u_ia, ia))
+
+STR: s_fa = SER(fa)
+FLT: u_fa = UNSER(s_fa)
+ASSERT(EQ(u_fa, fa))
+
+STR: s_sa = SER(sa)
+STR: u_sa = UNSER(s_sa)
+ASSERT(EQ(u_sa, sa))
+
+STR: s_ta = SER(ta)
+TNS: u_ta = UNSER(s_ta)
+ASSERT(EQ(u_ta, ta))
+
+STR: s_ma = SER(ma)
+MAP: u_ma = UNSER(s_ma)
+ASSERT(EQ(u_ma, ma))
+
+STR: s_fn = SER(SIMPLE)
+FUNC: u_fn = UNSER(s_fn)
+INT: r1 = SIMPLE()
+INT: r2 = u_fn()
+ASSERT(EQ(r1, r2))
+
+INT: caught_su = 0
+TRY{
+    UNSER("not a valid serialization")
+    ASSERT(0)
+}CATCH{ caught_su = 1 }
+ASSERT(EQ(caught_su, 1))
+
+DEL(ia)
+DEL(fa)
+DEL(sa)
+DEL(ta)
+DEL(ma)
+DEL(SIMPLE)
+DEL(s_ia)
+DEL(s_fa)
+DEL(s_sa)
+DEL(s_ta)
+DEL(s_ma)
+DEL(s_fn)
+DEL(u_fn)
+DEL(r1)
+DEL(r2)
+DEL(caught_su)
+
+PRINT("SER/UNSER: PASS\n")
 
 PRINT("=== All Stage 5 Tests PASSED ===")

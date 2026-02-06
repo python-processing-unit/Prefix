@@ -103,6 +103,8 @@ ExecResult exec_program_in_env(Interpreter* interp, Stmt* program, Env* env);
 // Functions needed by builtins.c
 Value eval_expr(Interpreter* interp, Expr* expr, Env* env);
 int value_truthiness(Value v);
+// Expose indexed-assignment helper so builtins can reuse it
+ExecResult assign_index_chain(Interpreter* interp, Env* env, Expr* idx_expr, Value rhs, int stmt_line, int stmt_col);
 // Restart a finished thread `thr_val` by re-launching its stored body/env.
 // Returns 0 on success, -1 on failure. On failure, sets interp->error/message.
 int interpreter_restart_thread(Interpreter* interp, Value thr_val, int line, int col);

@@ -525,7 +525,7 @@ Value eval_expr(Interpreter* interp, Expr* expr, Env* env) {
                         // Evaluate positional args
                         for (int i = 0; i < pos_argc; i++) {
                             arg_nodes[i] = expr->as.call.args.items[i];
-                            if (((strcmp(func_name, "DEL") == 0 || strcmp(func_name, "EXIST") == 0 || strcmp(func_name, "IMPORT") == 0) && i == 0)
+                            if (((strcmp(func_name, "DEL") == 0 || strcmp(func_name, "EXIST") == 0 || strcmp(func_name, "IMPORT") == 0 || strcmp(func_name, "ASSIGN") == 0) && i == 0)
                                 || (strcmp(func_name, "IMPORT_PATH") == 0 && i == 1)) {
                                 // leave as null placeholder
                                 continue;
@@ -1394,7 +1394,7 @@ static ExecResult assign_map_nested(Interpreter* interp, Env* env, Value* map_pt
     return make_ok(value_null());
 }
 
-static ExecResult assign_index_chain(Interpreter* interp, Env* env, Expr* idx_expr, Value rhs, int stmt_line, int stmt_col) {
+ExecResult assign_index_chain(Interpreter* interp, Env* env, Expr* idx_expr, Value rhs, int stmt_line, int stmt_col) {
     // Collect index nodes from outermost -> innermost, and require base to be an identifier.
     size_t chain_len = 0;
     Expr* walker = idx_expr;
@@ -1724,6 +1724,15 @@ static ExecResult exec_stmt(Interpreter* interp, Stmt* stmt, Env* env, LabelMap*
                 free(f->params.items);
                 free(f);
                 return make_error("Function name already defined", stmt->line, stmt->column);
+            }
+
+            // Also expose the function as a binding in the current environment
+            // so that builtins which operate on identifiers (DEL, EXIST, etc.)
+            // can find and manipulate the function by name.
+            Value fv = value_func(f);
+            if (!env_assign(env, f->name, fv, TYPE_FUNC, true)) {
+                // If we cannot assign the function into the environment, treat as error
+                return make_error("Failed to bind function name in environment", stmt->line, stmt->column);
             }
 
             return make_ok(value_null());
