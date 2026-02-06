@@ -151,8 +151,9 @@ static Expr* parse_primary(Parser* parser) {
         Token lb = parser->previous_token; // the '<' token
         Expr* mp = expr_map(lb.line, lb.column);
         if (parser->current_token.type == TOKEN_RANGLE) {
-            report_error(parser, "Empty map literal is not allowed");
-            return NULL;
+            // Allow empty map literal: consume '>' and return empty map
+            advance(parser);
+            return mp;
         }
         do {
             // parse key
