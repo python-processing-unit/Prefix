@@ -75,7 +75,7 @@ MAP: rev = INV(digits) # reverse mapping of digits
 
 FUNC VALUE(STR: num, INT: base):INT{
     IF(GT(base, 1000000)){
-        THROW("Base ", STR(base), " not supported. Max base is 1,000,000")
+        THROW("Base ", STR(base), " not supported. Max base is 0b1000000")
     }
     INT: value = 0
     # Support optional leading '-' for negative values.  Detect the minus
@@ -97,7 +97,9 @@ FUNC VALUE(STR: num, INT: base):INT{
         ADD(@value, MUL(digits<digit>, POW(base, idx)))
         # compute internal binary value as digit*base^(position from right)
     }
-    DEL(digit)
+    IF(GT(SLEN(s), 0)){
+        DEL(digit)
+    }
     IF(EQ(neg, 1)){
         MUL(@value, -1)
     }
