@@ -1,19 +1,19 @@
-# Statistics utilities for 1-D numeric tensors
-# Note: these routines expect a 1-D numeric `TNS` (INT/FLT elements).
-# They intentionally avoid complex type-dispatching and nested-tensor flattening
-# for simplicity; callers should pass a 1-D tensor (e.g. from SHAPE/SLICE or
-# constructed directly). Functions return INT or FLT as documented below.
+! Statistics utilities for 1-D numeric tensors
+! Note: these routines expect a 1-D numeric `TNS` (INT/FLT elements).
+! They intentionally avoid complex type-dispatching and nested-tensor flattening
+! for simplicity; callers should pass a 1-D tensor (e.g. from SHAPE/SLICE or
+! constructed directly). Functions return INT or FLT as documented below.
 
-# API:
-# MEAN(TNS: values):FLT
-# MEDIAN(TNS: values):FLT
-# MODE(TNS: values):TNS
-# HMEAN(TNS: values):FLT
-# QUANTILE(TNS: values, INT: q_num, INT: q_den):FLT
-# VARIANCE(TNS: values, INT: sample = 0):FLT
-# STDEV(TNS: values, INT: sample = 0):FLT
-# HISTOGRAM(TNS: values, INT: bins):TNS
-# DESCRIBE(TNS: values):TNS
+! API:
+! MEAN(TNS: values):FLT
+! MEDIAN(TNS: values):FLT
+! MODE(TNS: values):TNS
+! HMEAN(TNS: values):FLT
+! QUANTILE(TNS: values, INT: q_num, INT: q_den):FLT
+! VARIANCE(TNS: values, INT: sample = 0):FLT
+! STDEV(TNS: values, INT: sample = 0):FLT
+! HISTOGRAM(TNS: values, INT: bins):TNS
+! DESCRIBE(TNS: values):TNS
 
 FUNC MEAN(TNS: values):FLT{
     INT: n = TLEN(values, 1)
@@ -28,14 +28,14 @@ FUNC MEAN(TNS: values):FLT{
 FUNC MEDIAN(TNS: values):FLT{
     INT: n = TLEN(values, 1)
     IF(EQ(n, 0)) { THROW("empty input") }
-    # k1 is the lower median rank (1-based)
-    INT: k1 = DIV(ADD(n, 1), 10) # DIV by 2 (binary 10)
-    # if even, k2 is k1+1, else k2==k1
+    ! k1 is the lower median rank (1-based)
+    INT: k1 = DIV(ADD(n, 1), 10) ! DIV by 2 (binary 10)
+    ! if even, k2 is k1+1, else k2==k1
     INT: is_even = MOD(n, 10)
     INT: k2 = k1
     IF(EQ(is_even, 0)) { k2 = ADD(k1, 1) }
 
-    # find k1
+    ! find k1
     FLT: val1 = 0.0
     FOR(i, n){
         FLT: cand = FLT(values[i])
@@ -51,7 +51,7 @@ FUNC MEDIAN(TNS: values):FLT{
 
     IF(EQ(k1, k2)) { RETURN(val1) }
 
-    # find k2
+    ! find k2
     FLT: val2 = 0.0
     FOR(i, n){
         FLT: cand = FLT(values[i])
@@ -72,7 +72,7 @@ FUNC MODE(TNS: values):TNS{
     INT: n = TLEN(values, 1)
     IF(EQ(n, 0)) { RETURN([ ]) }
 
-    # Count frequencies via MAP to avoid O(n^2) rescans.
+    ! Count frequencies via MAP to avoid O(n^2) rescans.
     MAP: counts = < FLT(values[1]) = 1 >
     IF(GT(n, 1)){
         FOR(i, SUB(n, 1)){
@@ -122,7 +122,7 @@ FUNC HMEAN(TNS: values):FLT{
 FUNC QUANTILE(TNS: values, INT: q_num, INT: q_den):FLT{
     INT: n = TLEN(values, 1)
     IF(EQ(n, 0)) { THROW("empty input") }
-    # target index = floor(q * (n-1)) + 1, with q = q_num/q_den
+    ! target index = floor(q * (n-1)) + 1, with q = q_num/q_den
     INT: range = SUB(n, 1)
     INT: prod = MUL(q_num, range)
     INT: target = DIV(prod, q_den)
@@ -153,7 +153,7 @@ FUNC VARIANCE(TNS: values, INT: sample = 0):FLT{
         ADD(@var_sum, MUL(diff, diff))
     }
     INT: denom = SUB(n, sample)
-    # Tests expect integer-division semantics (truncation) for variance
+    ! Tests expect integer-division semantics (truncation) for variance
     FLT: raw = FDIV(var_sum, denom)
     FLT: truncated = FLT(INT(raw))
     RETURN(truncated)
@@ -161,7 +161,7 @@ FUNC VARIANCE(TNS: values, INT: sample = 0):FLT{
 
 FUNC STDEV(TNS: values, INT: sample = 0):FLT{
     FLT: var = VARIANCE(values, sample)
-    # Square root: exponent 1/2 -> binary literal 0.1 (equals 0.5)
+    ! Square root: exponent 1/2 -> binary literal 0.1 (equals 0.5)
     RETURN(POW(var, 0.1))
 }
 
@@ -169,7 +169,7 @@ FUNC HISTOGRAM(TNS: values, INT: bins):TNS{
     INT: n = TLEN(values, 1)
     IF(OR(EQ(n, 0), LT(bins, 1))) { RETURN(TNS([bins], 0)) }
 
-    # find min and max
+    ! find min and max
     FLT: mn = FLT(values[1])
     FLT: mx = FLT(values[1])
     FOR(i, n){
@@ -180,18 +180,18 @@ FUNC HISTOGRAM(TNS: values, INT: bins):TNS{
 
     TNS: hist = TNS([bins], 0)
     IF(EQ(mn, mx)){
-        # all values equal -> put all counts in first bin
+        ! all values equal -> put all counts in first bin
         hist[1] = n
         RETURN(hist)
     }
 
-    # width denominator: (mx - mn + 1) to ensure max maps to last bin
+    ! width denominator: (mx - mn + 1) to ensure max maps to last bin
     FLT: den = ADD(SUB(mx, mn), 1.0)
     FOR(i, n){
         FLT: offset = FSUB(values[i], mn)
         FLT: ratio = FDIV(FMUL(offset, bins), den)
         INT: bin = INT(ratio)
-        # bin ranges 0..bins-1 -> store at 1-based index
+        ! bin ranges 0..bins-1 -> store at 1-based index
         INT: bi = ADD(bin, 1)
         hist[bi] = ADD(hist[bi], 1)
     }
@@ -200,7 +200,7 @@ FUNC HISTOGRAM(TNS: values, INT: bins):TNS{
 
 FUNC DESCRIBE(TNS: values):TNS{
     INT: n = TLEN(values, 1)
-    # desc layout: [count, mean, stdev, min, max] -> length 5 (binary 101)
+    ! desc layout: [count, mean, stdev, min, max] -> length 5 (binary 101)
     TNS: desc = TNS([101], 0)
     IF(EQ(n, 0)){
         desc[1] = 0
@@ -210,7 +210,7 @@ FUNC DESCRIBE(TNS: values):TNS{
     desc[10] = INT(MEAN(values))
     desc[11] = INT(STDEV(values, 0))
 
-    # min / max
+    ! min / max
     FLT: mn = FLT(values[1])
     FLT: mx = FLT(values[1])
     FOR(i, n){

@@ -1,11 +1,11 @@
-# Primality and factorization functions
-#
-# API:
-# IS_PRIME(INT: n) -> INT
-# NEXT_PRIME(INT: start) -> INT
-# PREV_PRIME(INT: start) -> INT
-# IS_MERSENNE_PRIME(INT: p) -> INT
-# FACTOR(INT: n) -> TNS
+! Primality and factorization functions
+!
+! API:
+! IS_PRIME(INT: n) -> INT
+! NEXT_PRIME(INT: start) -> INT
+! PREV_PRIME(INT: start) -> INT
+! IS_MERSENNE_PRIME(INT: p) -> INT
+! FACTOR(INT: n) -> TNS
 
 FUNC IS_PRIME(INT: n):INT{
     IF(LTE(n, 1)){
@@ -14,7 +14,7 @@ FUNC IS_PRIME(INT: n):INT{
     IF(EQ(n, 10)){
         RETURN(1)
     }
-    # reject even numbers greater than 2
+    ! reject even numbers greater than 2
     IF(EQ(MOD(n, 10), 0)){
         RETURN(0)
     }
@@ -69,7 +69,7 @@ FUNC FACTOR(INT: n):TNS{
     }
     INT: p = 10
     INT: coll_len = 0
-    TNS: coll = [0]  # placeholder, real shape tracked by coll_len
+    TNS: coll = [0]  ! placeholder, real shape tracked by coll_len
     WHILE(LTE(MUL(p, p), n)){
         IF(EQ(MOD(n, p), 0)){
             IF(EQ(coll_len, 0)){

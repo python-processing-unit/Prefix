@@ -145,7 +145,7 @@ static void consume_line_continuation(Lexer* lexer) {
     } else if (next == '\r') {
         advance(lexer);
         if (peek(lexer) == '\n') advance(lexer);
-    } else if (next == '#') {
+    } else if (next == '!') {
         while (!is_at_end(lexer) && peek(lexer) != '\n') {
             advance(lexer);
         }
@@ -175,7 +175,7 @@ Token lexer_next_token(Lexer* lexer) {
         if (c == '^') {
             if (lexer->current + 1 < lexer->source_len) {
                 char next = lexer->source[lexer->current + 1];
-                if (next == '\n' || next == '\r' || next == '#') {
+                if (next == '\n' || next == '\r' || next == '!') {
                      consume_line_continuation(lexer); 
                      continue;
                 }
@@ -193,7 +193,7 @@ Token lexer_next_token(Lexer* lexer) {
             Token t = {TOKEN_NEWLINE, safe_strdup("\n"), lexer->line, lexer->column};
             return t;
         }
-        if (c == '#') {
+        if (c == '!') {
             while (!is_at_end(lexer) && peek(lexer) != '\n') {
                 advance(lexer);
             }
@@ -262,7 +262,7 @@ Token lexer_next_token(Lexer* lexer) {
             return number_token(lexer, false);
         }
 
-        if (strchr("abcdefghijklmnopqrstuvwxyz23456789/ABCDEFGHIJKLMNOPQRSTUVWXYZ!$%&~_+|?", c)) {
+        if (strchr("abcdefghijklmnopqrstuvwxyz23456789/ABCDEFGHIJKLMNOPQRSTUVWXYZ$%&~_+|?", c)) {
             return identifier_token(lexer);
         }
 
@@ -428,7 +428,7 @@ static Token identifier_token(Lexer* lexer) {
     
     while (!is_at_end(lexer)) {
         char c = peek(lexer);
-        if (strchr("abcdefghijklmnopqrstuvwxyz1234567890./ABCDEFGHIJKLMNOPQRSTUVWXYZ!$%&~_+|?", c)) {
+        if (strchr("abcdefghijklmnopqrstuvwxyz1234567890./ABCDEFGHIJKLMNOPQRSTUVWXYZ$%&~_+|?", c)) {
             advance(lexer);
             if (len_val + 1 >= capacity) { capacity *= 2; value = safe_realloc(value, capacity); }
             value[len_val++] = c;

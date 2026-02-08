@@ -1,13 +1,13 @@
-# Stage 5 Test - Tests INT, FLT, STR, FUNC, TNS, MAP, THR
+! Stage 5 Test - Tests INT, FLT, STR, FUNC, TNS, MAP, THR
 
 PRINT("=== Stage 5 Tests ===")
 
-# --- Literal formats ---
+! --- Literal formats ---
 PRINT("Testing literals...")
 INT: i0 = 0
 INT: i1 = 1
-INT: i5 = 101   # 5
-INT: i_neg = -101   # -5 (signed literal)
+INT: i5 = 101   ! 5
+INT: i_neg = -101   ! -5 (signed literal)
 ASSERT(EQ(i0, 0))
 ASSERT(EQ(i1, 1))
 ASSERT(EQ(i5, 101))
@@ -18,21 +18,21 @@ DEL(i5)
 DEL(i_neg)
 PRINT("Literals: PASS\n")
 
-# Floating-point binary fixed-point forms
+! Floating-point binary fixed-point forms
 PRINT("Testing floats...")
-FLT: f_half = 0.1    # 0.5
-FLT: f_quarter = 0.01 # 0.25
-FLT: f_threeq = 0.11  # 0.75
+FLT: f_half = 0.1    ! 0.5
+FLT: f_quarter = 0.01 ! 0.25
+FLT: f_threeq = 0.11  ! 0.75
 ASSERT(EQ(ADD(f_half, f_quarter), f_threeq))
 DEL(f_half)
 DEL(f_quarter)
 DEL(f_threeq)
 PRINT("Floats: PASS\n")
 
-# String literals
+! String literals
 PRINT("Testing strings...")
 STR: s1 = "Hello, World!"
-ASSERT(EQ(SLEN(s1), 1101))  # 13 in binary
+ASSERT(EQ(SLEN(s1), 1101))  ! 13 in binary
 STR: s2 = "test"
 ASSERT(EQ(UPPER(s2), "TEST"))
 ASSERT(EQ(LOWER("TEST"), "test"))
@@ -40,7 +40,7 @@ DEL(s1)
 DEL(s2)
 PRINT("Strings: PASS\n")
 
-# Tensor literals
+! Tensor literals
 PRINT("Testing tensors...")
 TNS: t = [[1, 10], [11, 100]]
 ASSERT(t[1, 10])
@@ -55,20 +55,20 @@ DEL(t)
 PRINT("Tensors: PASS\n")
 
 PRINT("Testing PAUSE/RESUME/PAUSED...")
-# Use a deterministic handshake: worker sets `pause_started` and
-# waits for `pause_go` to be set. Main waits for `pause_started`, then
-# PAUSE/RESUME and sets `pause_go` so the worker can finish. This
-# removes any timing/race reliance on loop duration.
+! Use a deterministic handshake: worker sets `pause_started` and
+! waits for `pause_go` to be set. Main waits for `pause_started`, then
+! PAUSE/RESUME and sets `pause_go` so the worker can finish. This
+! removes any timing/race reliance on loop duration.
 INT: pause_started = 0
 INT: pause_go = 0
 THR: pause_thr = ASYNC{
     pause_started = 1
     WHILE(EQ(pause_go, 0)){
-        # busy-wait; cooperative pause point
+        ! busy-wait; cooperative pause point
     }
 }
 
-# wait for the worker to start (with a small timeout)
+! wait for the worker to start (with a small timeout)
 INT: waited_p = 0
 WHILE(NOT(EQ(pause_started, 1))){
     waited_p = ADD(waited_p, 1)
@@ -84,7 +84,7 @@ IF(pause_thr){
     }CATCH{}
     IF(pause_ok){
         ASSERT(EQ(PAUSED(pause_thr), 1))
-        # set the flag so the worker can proceed once resumed
+        ! set the flag so the worker can proceed once resumed
         pause_go = 1
         RESUME(pause_thr)
         ASSERT(EQ(PAUSED(pause_thr), 0))
@@ -109,28 +109,28 @@ DEL(waited_p)
 PRINT("PAUSE/RESUME/PAUSED: PASS\n")
 
 PRINT("Testing maps...")
-# Simple map literal and lookup
+! Simple map literal and lookup
 MAP: m = <"foo" = 101, "bar" = 1010, "nested" = <"a" = 1, "b" = 10>>
 ASSERT(EQ(m<"foo">, 101))
 ASSERT(EQ(m<"bar">, 1010))
 ASSERT(EQ(m<"nested", "a">, 1))
 ASSERT(EQ(m<"nested", "b">, 10))
-# Missing key should return null/0 (treat as false)
+! Missing key should return null/0 (treat as false)
 ASSERT(NOT(m<"nope">))
 PRINT("Maps: PASS\n")
 
-# Additional map builtins tests
+! Additional map builtins tests
 ASSERT(KEYIN("foo", m))
 ASSERT(NOT(KEYIN("nope", m)))
 ASSERT(VALUEIN(101, m))
 ASSERT(NOT(VALUEIN(1000, m)))
 
-# uniform map for KEYS/VALUES/INV
+! uniform map for KEYS/VALUES/INV
 MAP: m2 = <"a" = 101, "b" = 1010>
 ASSERT(EQ(KEYS(m2), ["a", "b"]))
 ASSERT(EQ(VALUES(m2), [101, 1010]))
 
-# Pointer tests
+! Pointer tests
 PRINT("Testing pointers...")
 INT: x = 1
 INT: y = @x
@@ -141,7 +141,7 @@ ADD(@y, 1)
 ASSERT(EQ(x, 11))
 ASSERT(EQ(y, 11))
 TRY{
-    INT: x = @y # circular reference should fail
+    INT: x = @y ! circular reference should fail
     ASSERT(0)
 }CATCH{}
 FREEZE(x)
@@ -157,30 +157,30 @@ DEL(y)
 PRINT("Pointers: PASS\n")
 
 PRINT("Testing ASSIGN inline operator...")
-# simple identifier assignment (target must already exist)
+! simple identifier assignment (target must already exist)
 INT: as_a = 0
 ASSIGN(as_a, 101)
 ASSERT(EQ(as_a, 101))
 DEL(as_a)
 
-# indexed assignment via ASSIGN
+! indexed assignment via ASSIGN
 TNS: atns = [1, 10, 11]
 ASSIGN(atns[1], 101)
 ASSERT(EQ(atns[1], 101))
 DEL(atns)
 PRINT("ASSIGN: PASS\n")
 
-# MATCH tests
+! MATCH tests
 MAP: tpl = <"foo" = 101>
 ASSERT(MATCH(m, tpl))
-# typing enforcement: wrong type should fail when typing=1
+! typing enforcement: wrong type should fail when typing=1
 MAP: tpl2 = <"foo" = "101">
 ASSERT(NOT(MATCH(m, tpl2, 1)))
-# recurse: template nested matches nested map
+! recurse: template nested matches nested map
 MAP: tpl3 = <"nested" = <"a" = 1>>
 ASSERT(MATCH(m, tpl3, 0, 1))
 
-# INV (invert m2)
+! INV (invert m2)
 MAP: invm2 = INV(m2)
 ASSERT(EQ(invm2<101>, "a"))
 ASSERT(EQ(invm2<1010>, "b"))
@@ -190,9 +190,9 @@ DEL(tpl2)
 DEL(tpl3)
 DEL(invm2)
 
-# --- COPY / DEEPCOPY ---
+! --- COPY / DEEPCOPY ---
 PRINT("Testing COPY/DEEPCOPY...")
-# shallow vs deep copy for nested maps
+! shallow vs deep copy for nested maps
 MAP: inner = <"x" = 10>
 MAP: outer = <"a" = 101, "b" = inner>
 MAP: outer_sh = COPY(outer)
@@ -207,24 +207,24 @@ DEL(outer_dp)
 PRINT("COPY/DEEPCOPY: PASS\n")
 
 
-# --- TNS operator ---
+! --- TNS operator ---
 PRINT("Testing TNS operator...")
-# string -> 1-D tensor of single-character STRs
+! string -> 1-D tensor of single-character STRs
 ASSERT(EQ(TNS("foo"), ["f","o","o"]))
-# shape + value -> filled tensor
-TNS: shp = [10]   # shape [10] -> length 2
+! shape + value -> filled tensor
+TNS: shp = [10]   ! shape [10] -> length 2
 ASSERT(EQ(TNS(shp, 101), [101, 101]))
 DEL(shp)
 PRINT("TNS operator: PASS\n")
 
-# --- TINT / TFLT / TSTR ---
+! --- TINT / TFLT / TSTR ---
 PRINT("Testing TINT/TFLT/TSTR...")
 TNS: strnums = ["101", "0", ""]
 TNS: as_ints = TINT(strnums)
 ASSERT(EQ(as_ints[1], 101))
 ASSERT(EQ(as_ints[10], 0))
 ASSERT(EQ(as_ints[11], 0))
-TNS: as_flts = TFLT(["0.1", "1", "10"])  # 0.5,1.0,2.0
+TNS: as_flts = TFLT(["0.1", "1", "10"])  ! 0.5,1.0,2.0
 ASSERT(EQ(as_flts[1], 0.1))
 ASSERT(EQ(as_flts[10], 1.0))
 ASSERT(EQ(as_flts[11], 10.0))
@@ -238,16 +238,16 @@ DEL(as_flts)
 DEL(as_strs)
 PRINT("TINT/TFLT/TSTR: PASS\n")
 
-# --- CONV ---
+! --- CONV ---
 PRINT("Testing CONV...")
-# Simple 1-D identity kernel
+! Simple 1-D identity kernel
 TNS: c_in = [1, 10, 11]
 TNS: c_k = [1]
 ASSERT(EQ(CONV(c_in, c_k), c_in))
 DEL(c_in)
 DEL(c_k)
 
-# Simple 2-D identity kernel
+! Simple 2-D identity kernel
 TNS: img = [[1, 10], [11, 100]]
 TNS: k2 = [[1]]
 ASSERT(EQ(CONV(img, k2), img))
@@ -255,7 +255,7 @@ DEL(img)
 DEL(k2)
 PRINT("CONV: PASS\n")
 
-# --- FILL operator ---
+! --- FILL operator ---
 PRINT("Testing FILL...")
 TNS: base_fill = [1, 10, 11]
 TNS: filled = FILL(base_fill, 0)
@@ -266,7 +266,7 @@ DEL(base_fill)
 DEL(filled)
 PRINT("FILL: PASS\n")
 
-# --- SHAPE / TLEN / TFLIP ---
+! --- SHAPE / TLEN / TFLIP ---
 PRINT("Testing SHAPE/TLEN/TFLIP...")
 TNS: t2 = [[1, 10], [11, 100]]
 ASSERT(EQ(SHAPE(t2), [10, 10]))
@@ -277,7 +277,7 @@ ASSERT(EQ(TFLIP(t2, 10), [[10, 1], [100, 11]]))
 DEL(t2)
 PRINT("SHAPE/TLEN/TFLIP: PASS\n")
 
-# --- SCAT ---
+! --- SCAT ---
 PRINT("Testing SCAT...")
 TNS: dst_scat = [[0,0,0],[0,0,0]]
 TNS: src_scat = [[1, 10],[11, 100]]
@@ -288,20 +288,20 @@ DEL(src_scat)
 DEL(ind_scat)
 PRINT("SCAT: PASS\n")
 
-# --- Tensor-scalar arithmetic operators ---
+! --- Tensor-scalar arithmetic operators ---
 PRINT("Testing tensor-scalar arithmetic...")
 TNS: ta = [1, 10]
-ASSERT(EQ(TADD(ta, 1), [10, 11]))    # [1,2] + 1 -> [2,3]
-ASSERT(EQ(TSUB(ta, 1), [0, 1]))     # [1,2] - 1 -> [0,1]
-ASSERT(EQ(TMUL(ta, 10), [10, 100])) # [1,2] * 2 -> [2,4]
-ASSERT(EQ(TDIV(ta, 10), [0, 1]))    # [1,2] / 2 -> [0,1]
-ASSERT(EQ(TPOW(ta, 10), [1, 100]))  # [1,2]^2 -> [1,4]
-# scalar on left for non-commutative
+ASSERT(EQ(TADD(ta, 1), [10, 11]))    ! [1,2] + 1 -> [2,3]
+ASSERT(EQ(TSUB(ta, 1), [0, 1]))     ! [1,2] - 1 -> [0,1]
+ASSERT(EQ(TMUL(ta, 10), [10, 100])) ! [1,2] * 2 -> [2,4]
+ASSERT(EQ(TDIV(ta, 10), [0, 1]))    ! [1,2] / 2 -> [0,1]
+ASSERT(EQ(TPOW(ta, 10), [1, 100]))  ! [1,2]^2 -> [1,4]
+! scalar on left for non-commutative
 ASSERT(EQ(TSUB(10, ta), [1, 0]))
 DEL(ta)
 PRINT("Tensor-scalar arithmetic: PASS\n")
 
-# --- Matrix (elementwise) arithmetic operators ---
+! --- Matrix (elementwise) arithmetic operators ---
 PRINT("Testing matrix (elementwise) arithmetic...")
 TNS: m1 = [[1, 10], [11, 100]]
 TNS: m2 = [[10, 1], [100, 11]]
@@ -313,7 +313,7 @@ DEL(m1)
 DEL(m2)
 PRINT("Matrix arithmetic: PASS\n")
 
-# --- MSUM / MPROD ---
+! --- MSUM / MPROD ---
 PRINT("Testing MSUM/MPROD...")
 TNS: ma1 = [[1, 10], [11, 100]]
 TNS: ma2 = [[10, 1], [100, 11]]
@@ -326,19 +326,19 @@ DEL(ma2)
 DEL(ma3)
 PRINT("MSUM/MPROD: PASS\n")
 
-# --- Arithmetic operators ---
+! --- Arithmetic operators ---
 PRINT("Testing arithmetic...")
-ASSERT(EQ(ADD(10, 11), 101))     # 2 + 3 = 5
-ASSERT(EQ(SUB(101, 10), 11))     # 5 - 2 = 3
-ASSERT(EQ(MUL(10, 11), 110))     # 2 * 3 = 6
-ASSERT(EQ(DIV(110, 10), 11))     # 6 / 2 = 3
-ASSERT(EQ(MOD(111, 10), 1))      # 7 % 2 = 1
-ASSERT(EQ(POW(10, 11), 1000))    # 2^3 = 8
-ASSERT(EQ(NEG(101), -101))       # -5
-ASSERT(EQ(ABS(-101), 101))       # 5
+ASSERT(EQ(ADD(10, 11), 101))     ! 2 + 3 = 5
+ASSERT(EQ(SUB(101, 10), 11))     ! 5 - 2 = 3
+ASSERT(EQ(MUL(10, 11), 110))     ! 2 * 3 = 6
+ASSERT(EQ(DIV(110, 10), 11))     ! 6 / 2 = 3
+ASSERT(EQ(MOD(111, 10), 1))      ! 7 % 2 = 1
+ASSERT(EQ(POW(10, 11), 1000))    ! 2^3 = 8
+ASSERT(EQ(NEG(101), -101))       ! -5
+ASSERT(EQ(ABS(-101), 101))       ! 5
 PRINT("Arithmetic: PASS\n")
 
-# --- Comparison operators ---
+! --- Comparison operators ---
 PRINT("Testing comparisons...")
 ASSERT(EQ(10, 10))
 ASSERT(NOT(EQ(10, 11)))
@@ -350,7 +350,7 @@ ASSERT(LTE(10, 11))
 ASSERT(LTE(10, 10))
 PRINT("Comparisons: PASS\n")
 
-# --- Logical operators ---
+! --- Logical operators ---
 PRINT("Testing logical ops...")
 ASSERT(AND(1, 1))
 ASSERT(NOT(AND(1, 0)))
@@ -364,24 +364,24 @@ ASSERT(NOT(0))
 ASSERT(NOT(NOT(1)))
 PRINT("Logical: PASS\n")
 
-# --- Bitwise operators ---
+! --- Bitwise operators ---
 PRINT("Testing bitwise ops...")
-ASSERT(EQ(BAND(111, 101), 101))   # 7 & 5 = 5
-ASSERT(EQ(BOR(100, 10), 110))     # 4 | 2 = 6
-ASSERT(EQ(BXOR(111, 101), 10))    # 7 ^ 5 = 2
-ASSERT(EQ(SHL(1, 10), 100))       # 1 << 2 = 4
-ASSERT(EQ(SHR(1000, 10), 10))     # 8 >> 2 = 2
+ASSERT(EQ(BAND(111, 101), 101))   ! 7 & 5 = 5
+ASSERT(EQ(BOR(100, 10), 110))     ! 4 | 2 = 6
+ASSERT(EQ(BXOR(111, 101), 10))    ! 7 ^ 5 = 2
+ASSERT(EQ(SHL(1, 10), 100))       ! 1 << 2 = 4
+ASSERT(EQ(SHR(1000, 10), 10))     ! 8 >> 2 = 2
 PRINT("Bitwise: PASS\n")
 
-# --- Type conversions ---
+! --- Type conversions ---
 PRINT("Testing type conversions...")
-ASSERT(EQ(INT(0.1), 0))           # FLT->INT truncates
-ASSERT(EQ(FLT(10), 10.0))         # INT->FLT
-ASSERT(EQ(STR(101), "101"))       # INT->STR
-ASSERT(EQ(INT("101"), 101))       # STR->INT
+ASSERT(EQ(INT(0.1), 0))           ! FLT->INT truncates
+ASSERT(EQ(FLT(10), 10.0))         ! INT->FLT
+ASSERT(EQ(STR(101), "101"))       ! INT->STR
+ASSERT(EQ(INT("101"), 101))       ! STR->INT
 PRINT("Type conversions: PASS\n")
 
-# --- BYTES ---
+! --- BYTES ---
 PRINT("Testing BYTES...")
 ASSERT(EQ(BYTES(0), [0]))
 ASSERT(EQ(BYTES(1), [1]))
@@ -390,7 +390,7 @@ ASSERT(EQ(BYTES(100000000), [1,0]))
 ASSERT(EQ(BYTES(100000000, "little"), [0,1]))
 PRINT("BYTES: PASS\n")
 
-# --- Type checking ---
+! --- Type checking ---
 PRINT("Testing type checks...")
 INT: x = 101
 FLT: y = 1.1
@@ -409,33 +409,33 @@ DEL(y)
 DEL(z)
 PRINT("Type checks: PASS\n")
 
-# --- String operations ---
+! --- String operations ---
 PRINT("Testing string ops...")
 STR: s = "Hello, World!"
-ASSERT(EQ(SLICE(s, 1, 101), "Hello"))  # positions 1-5
+ASSERT(EQ(SLICE(s, 1, 101), "Hello"))  ! positions 1-5
 ASSERT(EQ(REPLACE(s, "World", "Prefix"), "Hello, Prefix!"))
 ASSERT(EQ(STRIP("  test  ", " "), "test"))
-# FLIP tests (INT and STR)
-ASSERT(EQ(FLIP(110), 11))    # 6 -> 3
-ASSERT(EQ(FLIP(-110), -11))  # -6 -> -3 (sign preserved)
+! FLIP tests (INT and STR)
+ASSERT(EQ(FLIP(110), 11))    ! 6 -> 3
+ASSERT(EQ(FLIP(-110), -11))  ! -6 -> -3 (sign preserved)
 ASSERT(EQ(FLIP(0), 0))
 ASSERT(EQ(FLIP("abc"), "cba"))
 PRINT("String ops: PASS\n")
 DEL(s)
 
-# --- Variadic math ---
+! --- Variadic math ---
 PRINT("Testing variadic math...")
-ASSERT(EQ(SUM(1, 10, 11), 110))    # 1+2+3 = 6
-ASSERT(EQ(PROD(10, 11), 110))      # 2*3 = 6
-ASSERT(EQ(MAX(1, 101, 11), 101))   # max(1,5,3) = 5
-ASSERT(EQ(MIN(1, 101, 11), 1))     # min(1,5,3) = 1
+ASSERT(EQ(SUM(1, 10, 11), 110))    ! 1+2+3 = 6
+ASSERT(EQ(PROD(10, 11), 110))      ! 2*3 = 6
+ASSERT(EQ(MAX(1, 101, 11), 101))   ! max(1,5,3) = 5
+ASSERT(EQ(MIN(1, 101, 11), 1))     ! min(1,5,3) = 1
 ASSERT(ANY(0, 0, 1))
 ASSERT(NOT(ANY(0, 0, 0)))
 ASSERT(ALL(1, 1, 1))
 ASSERT(NOT(ALL(1, 0, 1)))
 PRINT("Variadic math: PASS\n")
 
-# --- MAX/MIN with tensors ---
+! --- MAX/MIN with tensors ---
 PRINT("Testing MAX/MIN with tensors...")
 TNS: tm1 = [1, 10, 11]
 TNS: tm2 = [[1, 100], [11, 10]]
@@ -452,7 +452,7 @@ DEL(tm2)
 DEL(ts)
 PRINT("MAX/MIN with tensors: PASS\n")
 
-# --- Control flow: IF ---
+! --- Control flow: IF ---
 PRINT("Testing IF...")
 INT: result = 0
 IF(1){
@@ -480,7 +480,7 @@ ASSERT(EQ(result, 11))
 DEL(result)
 PRINT("IF: PASS\n")
 
-# --- Control flow: WHILE ---
+! --- Control flow: WHILE ---
 PRINT("Testing WHILE...")
 INT: counter = 0
 INT: sum = 0
@@ -488,22 +488,22 @@ WHILE(LT(counter, 101)){
     sum = ADD(sum, counter)
     counter = ADD(counter, 1)
 }
-ASSERT(EQ(sum, 1010))  # 0+1+2+3+4 = 10
+ASSERT(EQ(sum, 1010))  ! 0+1+2+3+4 = 10
 DEL(counter)
 DEL(sum)
 PRINT("WHILE: PASS\n")
 
-# --- Control flow: FOR ---
+! --- Control flow: FOR ---
 PRINT("Testing FOR...")
 INT: total = 0
-FOR(i, 100){  # 4 iterations: 1,2,3,4
+FOR(i, 100){  ! 4 iterations: 1,2,3,4
     total = ADD(total, i)
 }
-ASSERT(EQ(total, 1010))  # 0+1+2+3+4 = 10
+ASSERT(EQ(total, 1010))  ! 0+1+2+3+4 = 10
 DEL(total)
 PRINT("FOR: PASS\n")
 
-# --- Control flow: PARFOR ---
+! --- Control flow: PARFOR ---
 PRINT("Testing PARFOR...")
 TNS: p = [0,0,0,0,0]
 PARFOR(i, 101){
@@ -516,7 +516,7 @@ INT: caught_pf = 0
 TRY{
     PARFOR(j, 101){
         IF(EQ(j, 10)){
-            ASSERT(0)  # trigger runtime error in one iteration
+            ASSERT(0)  ! trigger runtime error in one iteration
         }
     }
 }CATCH(SYMBOL: e){
@@ -528,21 +528,21 @@ PRINT("PARFOR: PASS\n")
 
 PRINT("Testing PARALLEL...")
 
-# Simple no-op functions to exercise PARALLEL
+! Simple no-op functions to exercise PARALLEL
 FUNC NOOP_A():INT{ RETURN(0) }
 FUNC NOOP_B():INT{ RETURN(0) }
 FUNC NOOP_C():INT{ RETURN(0) }
 
-# Variadic form: pass functions as separate args
+! Variadic form: pass functions as separate args
 INT: par_res = PARALLEL(NOOP_A, NOOP_B, NOOP_C)
 ASSERT(EQ(par_res, 0))
 
-# Tensor form: pass a tensor containing functions
+! Tensor form: pass a tensor containing functions
 TNS: func_tns = [NOOP_A, NOOP_B, NOOP_C]
 INT: par_res2 = PARALLEL(func_tns)
 ASSERT(EQ(par_res2, 0))
 
-# Error propagation: a worker that throws should cause PARALLEL to raise
+! Error propagation: a worker that throws should cause PARALLEL to raise
 FUNC BAD():INT{ THROW("boom") }
 INT: caught_par = 0
 TRY{
@@ -559,7 +559,7 @@ DEL(func_tns)
 DEL(caught_par)
 PRINT("PARALLEL: PASS\n")
 
-# --- Control flow: BREAK ---
+! --- Control flow: BREAK ---
 PRINT("Testing BREAK...")
 INT: count = 0
 WHILE(1){
@@ -568,29 +568,29 @@ WHILE(1){
         BREAK(1)
     }
 }
-ASSERT(EQ(count, 11))  # broke at 3
+ASSERT(EQ(count, 11))  ! broke at 3
 DEL(count)
 PRINT("BREAK: PASS\n")
 
-# --- Control flow: CONTINUE ---
+! --- Control flow: CONTINUE ---
 PRINT("Testing CONTINUE...")
 INT: sum2 = 0
-FOR(j, 100){  # 4 iterations
+FOR(j, 100){  ! 4 iterations
     IF(EQ(j, 10)){
         CONTINUE()
     }
     sum2 = ADD(sum2, j)
 }
-ASSERT(EQ(sum2, 1000))  # 0+1+3+4 = 8 (skipped 2)
+ASSERT(EQ(sum2, 1000))  ! 0+1+3+4 = 8 (skipped 2)
 DEL(sum2)
 PRINT("CONTINUE: PASS\n")
 
-# --- Functions ---
+! --- Functions ---
 PRINT("Testing functions...")
 FUNC ADD_TWO(INT: a, INT: b):INT{
     RETURN(ADD(a, b))
 }
-ASSERT(EQ(ADD_TWO(10, 11), 101))  # 2+3=5
+ASSERT(EQ(ADD_TWO(10, 11), 101))  ! 2+3=5
 
 FUNC FACTORIAL(INT: n):INT{
     IF(LTE(n, 1)){
@@ -598,9 +598,9 @@ FUNC FACTORIAL(INT: n):INT{
     }
     RETURN(MUL(n, FACTORIAL(SUB(n, 1))))
 }
-ASSERT(EQ(FACTORIAL(101), 1111000))  # 5! = 120
+ASSERT(EQ(FACTORIAL(101), 1111000))  ! 5! = 120
 
-# Function with default argument
+! Function with default argument
 FUNC GREET(STR: name, STR: prefix = "Hello"):STR{
     RETURN(JOIN(" ", prefix, name))
 }
@@ -623,7 +623,7 @@ DEL(s2)
 DEL(v)
 PRINT("SIGNATURE: PASS\n")
 
-# --- POP ---
+! --- POP ---
 PRINT("Testing POP...")
 INT: tmp = 101
 FUNC TEST_POP():INT{
@@ -633,7 +633,7 @@ ASSERT(EQ(TEST_POP(), 101))
 ASSERT(NOT(EXIST(tmp)))
 PRINT("POP: PASS\n")
 
-# --- TRY/CATCH ---
+! --- TRY/CATCH ---
 PRINT("Testing TRY/CATCH...")
 INT: caught = 0
 TRY{
@@ -645,19 +645,19 @@ ASSERT(EQ(caught, 1))
 DEL(caught)
 PRINT("TRY/CATCH: PASS\n")
 
-# --- GCD/LCM ---
+! --- GCD/LCM ---
 PRINT("Testing GCD/LCM...")
-ASSERT(EQ(GCD(1100, 1000), 100))  # gcd(12, 8) = 4
-ASSERT(EQ(LCM(100, 110), 1100))   # lcm(4, 6) = 12
+ASSERT(EQ(GCD(1100, 1000), 100))  ! gcd(12, 8) = 4
+ASSERT(EQ(LCM(100, 110), 1100))   ! lcm(4, 6) = 12
 PRINT("GCD/LCM: PASS\n")
 
-# --- LOG ---
+! --- LOG ---
 PRINT("Testing LOG...")
-ASSERT(EQ(LOG(1000), 11))  # log2(8) = 3
-ASSERT(EQ(LOG(10000), 100))  # log2(16) = 4
+ASSERT(EQ(LOG(1000), 11))  ! log2(8) = 3
+ASSERT(EQ(LOG(10000), 100))  ! log2(16) = 4
 PRINT("LOG: PASS\n")
 
-# --- EXIST ---
+! --- EXIST ---
 PRINT("Testing EXIST...")
 INT: exists_test = 1
 ASSERT(EXIST(exists_test))
@@ -665,25 +665,25 @@ DEL(exists_test)
 ASSERT(NOT(EXIST(exists_test)))
 PRINT("EXIST: PASS\n")
 
-# --- IN (membership) ---
+! --- IN (membership) ---
 PRINT("Testing IN...")
-# element in tensor
+! element in tensor
 TNS: arr = [1, 10, 11]
 ASSERT(IN(10, arr))
 ASSERT(NOT(IN(100, arr)))
 DEL(arr)
 
-# --- JOIN ---
+! --- JOIN ---
 PRINT("Testing JOIN...")
 ASSERT(EQ(JOIN("Hello", " ", "World"), "Hello World"))
 ASSERT(EQ(JOIN(101, 1), 1011))
 TRY{
-    JOIN("Hello", 10)  # mixed types should raise an error
+    JOIN("Hello", 10)  ! mixed types should raise an error
     ASSERT(0)
 }CATCH{}
 PRINT("JOIN: PASS\n")
 
-# --- System ---
+! --- System ---
 PRINT("Testing system...")
 ASSERT(MAIN())
 STR: os_name = OS()
@@ -693,7 +693,7 @@ PRINT("System: PASS\n")
 
 PRINT("Testing ROUND...")
 
-# half-way cases (binary digits) - ndigits = 2 (binary `10`)
+! half-way cases (binary digits) - ndigits = 2 (binary `10`)
 FLT: r_half = 0.101
 ASSERT(EQ(ROUND(r_half, ndigits = 10), 0.10))
 ASSERT(EQ(ROUND(r_half, mode = "ceiling", ndigits = 10), 0.11))
@@ -701,16 +701,16 @@ ASSERT(EQ(ROUND(r_half, mode = "ceil", ndigits = 10), 0.11))
 ASSERT(EQ(ROUND(r_half, mode = "zero", ndigits = 10), 0.10))
 ASSERT(EQ(ROUND(r_half, mode = "logical", ndigits = 10), 0.11))
 ASSERT(EQ(ROUND(r_half, mode = "half-up", ndigits = 10), 0.11))
-# two-argument form: second arg INT -> ndigits with default "floor"
+! two-argument form: second arg INT -> ndigits with default "floor"
 ASSERT(EQ(ROUND(0.101, 10), 0.10))
 
-# negative half-case: sign effects differ for floor/zero/half-up
+! negative half-case: sign effects differ for floor/zero/half-up
 FLT: rn_half = -0.101
 ASSERT(EQ(ROUND(rn_half, ndigits = 10), -0.11))
 ASSERT(EQ(ROUND(rn_half, mode = "zero", ndigits = 10), -0.10))
 ASSERT(EQ(ROUND(rn_half, mode = "logical", ndigits = 10), -0.11))
 
-# negative ndigits (round to left of radix point)
+! negative ndigits (round to left of radix point)
 FLT: three = 11.0
 ASSERT(EQ(ROUND(three, ndigits = -1), 10.0))
 ASSERT(EQ(ROUND(three, mode = "logical", ndigits = -1), 100.0))
@@ -724,15 +724,15 @@ ASSERT(EQ(ROUND(neg_three, mode = "logical", ndigits = -1), -100.0))
 PRINT("ROUND: PASS\n")
 
 PRINT("Testing CL...")
-# Simple cross-platform check: `echo` should succeed and return 0
+! Simple cross-platform check: `echo` should succeed and return 0
 ASSERT(EQ(CL("echo hello"), 0))
-# Nonexistent command should return non-zero (platform-dependent code)
+! Nonexistent command should return non-zero (platform-dependent code)
 ASSERT(NOT(EQ(CL("this_command_does_not_exist_12345"), 0)))
 PRINT("CL: PASS\n")
 
 PRINT("Testing shushing...")
 ASSERT(EQ(SHUSH(), 0))
-PRINT("ERROR")  # should be silenced
+PRINT("ERROR")  ! should be silenced
 ASSERT(EQ(UNSHUSH(), 0))
 PRINT("Shushing: PASS\n")
 
@@ -741,7 +741,7 @@ ASSERT(ISSTR(ARGV()[1]))
 PRINT("ARGV: PASS\n")
 
 PRINT("Testing RUN...")
-# Run a small program string that defines a variable in the current env
+! Run a small program string that defines a variable in the current env
 RUN("INT: run_val = 101")
 ASSERT(EQ(run_val, 101))
 DEL(run_val)
@@ -758,7 +758,7 @@ ASSERT(EQ(READFILE("_pre_tmp.bin", "binary"), "01000001"))
 ASSERT(EQ(WRITEFILE("41", "_pre_tmp.hex", "hex"), 1))
 ASSERT(EQ(READFILE("_pre_tmp.hex", "hex"), "41"))
 
-# Cleanup temp files
+! Cleanup temp files
 DELETEFILE("_pre_tmp.txt")
 DELETEFILE("_pre_tmp.bin")
 DELETEFILE("_pre_tmp.hex")
@@ -768,7 +768,7 @@ ASSERT(EQ(EXISTFILE("_pre_tmp.hex"), 0))
 
 TRY{
     DELETEFILE("_pre_nonexistent_file.txt")
-    ASSERT(0)  # should not reach here
+    ASSERT(0)  ! should not reach here
 }CATCH{}
 PRINT("File I/O: PASS\n")
 
@@ -812,7 +812,7 @@ TRY{
 }CATCH{}
 PRINT("Freezing: PASS\n")
 
-# --- IMPORT / EXPORT ---
+! --- IMPORT / EXPORT ---
 PRINT("Testing IMPORT...")
 TRY{
     IMPORT(nonexistent_module)
@@ -848,12 +848,12 @@ PRINT("EXPORT: PASS\n")
 
 PRINT("Testing THR (thread-handle) semantics...")
 
-# --- ASYNC tests ---
+! --- ASYNC tests ---
 PRINT("Testing ASYNC...")
 
-# Statement form: returned THR ignored, block starts immediately
+! Statement form: returned THR ignored, block starts immediately
 INT: shared_async_s = 0
-# Bind the ASYNC to a thread handle and await it for determinism
+! Bind the ASYNC to a thread handle and await it for determinism
 THR: thr_async_stmt = ASYNC{ shared_async_s = 101 }
 ASSERT(EQ(AWAIT(thr_async_stmt), thr_async_stmt))
 ASSERT(NOT(thr_async_stmt))
@@ -862,7 +862,7 @@ DEL(shared_async_s)
 DEL(thr_async_stmt)
 
 
-# Additional AWAIT test
+! Additional AWAIT test
 INT: shared_await = 0
 THR: thr_await = ASYNC{ shared_await = 101 }
 ASSERT(EQ(AWAIT(thr_await), thr_await))
@@ -881,12 +881,12 @@ DEL(thr_async)
 
 PRINT("ASYNC: PASS\n")
 
-# Basic THR: start a thread that sets a shared variable.
+! Basic THR: start a thread that sets a shared variable.
 INT: shared = 0
 THR(th) {
     shared = 101
 }
-# Wait for thread to finish deterministically
+! Wait for thread to finish deterministically
 AWAIT(th)
 
 ASSERT(EQ(shared, 101))
@@ -899,7 +899,7 @@ PRINT("Testing STOP/RESTART...")
 INT: stop_shared = 0
 THR: stop_thr = ASYNC{
     INT: i = 0
-    # Signal immediate start so main thread can detect the worker
+    ! Signal immediate start so main thread can detect the worker
     stop_shared = ADD(stop_shared, 1)
     WHILE(LT(i, 1111010)){
         stop_shared = ADD(stop_shared, 1)
@@ -914,7 +914,7 @@ WHILE(NOT(stop_shared)){
 ASSERT(GT(stop_shared, 0))
 
 STOP(stop_thr)
-# Wait for cooperative stop to take effect (avoid immediate race)
+! Wait for cooperative stop to take effect (avoid immediate race)
 INT: wait_stop = 0
 WHILE(stop_thr){
     wait_stop = ADD(wait_stop, 1)

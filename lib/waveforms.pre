@@ -1,22 +1,22 @@
-# Waveform utilities
-#
-# API:
-# AUDIO_CLAMP(INT:v) -> INT
-# SQUARE(INT:freq, INT:ms, INT:amp, INT:sr) -> TNS
-# SAWTOOTH(INT:freq, INT:ms, INT:amp, INT:sr) -> TNS
-# TRIANGLE(INT:freq, INT:ms, INT:amp, INT:sr)
-# SINE(INT:freq, INT:ms, INT:amp, INT:sr) -> TNS
-# PULSE(INT:freq, INT:ms, INT:amp, INT:sr, INT:duty) -> TNS
-# ENVELOPE_ADSR(TNS:shape, INT:attack, INT:decay, INT:sustain, INT:release) -> TNS
-# LOWPASS(TNS:inp, INT:cutoff, INT:sr) -> TNS
-# HIGHPASS(TNS:inp, INT:cutoff, INT:sr) -> TNS
+! Waveform utilities
+!
+! API:
+! AUDIO_CLAMP(INT:v) -> INT
+! SQUARE(INT:freq, INT:ms, INT:amp, INT:sr) -> TNS
+! SAWTOOTH(INT:freq, INT:ms, INT:amp, INT:sr) -> TNS
+! TRIANGLE(INT:freq, INT:ms, INT:amp, INT:sr)
+! SINE(INT:freq, INT:ms, INT:amp, INT:sr) -> TNS
+! PULSE(INT:freq, INT:ms, INT:amp, INT:sr, INT:duty) -> TNS
+! ENVELOPE_ADSR(TNS:shape, INT:attack, INT:decay, INT:sustain, INT:release) -> TNS
+! LOWPASS(TNS:inp, INT:cutoff, INT:sr) -> TNS
+! HIGHPASS(TNS:inp, INT:cutoff, INT:sr) -> TNS
 
-# Constants / helpers local to this module.
-# MS_DEN is the number of milliseconds per second (1000).
-INT: MS_DEN = 1111101000  # 1000
+! Constants / helpers local to this module.
+! MS_DEN is the number of milliseconds per second (1000).
+INT: MS_DEN = 1111101000  ! 1000
 
-# Clamp audio-like values into a safe, conventional percent range [-100, 100].
-INT: AUDIO_MAX = 1100100  # 100
+! Clamp audio-like values into a safe, conventional percent range [-100, 100].
+INT: AUDIO_MAX = 1100100  ! 100
 
 FUNC AUDIO_CLAMP(INT: v):INT{
     IF(GT(v, AUDIO_MAX)){ RETURN(AUDIO_MAX) }
@@ -170,7 +170,7 @@ FUNC PULSE(INT: freq, INT: ms, INT: amp, INT: sr, INT: duty):TNS{
     RETURN(out)
 }
 
-# Filters
+! Filters
 
 FUNC ENVELOPE_ADSR( ^
     TNS: shape, ^
@@ -183,16 +183,16 @@ FUNC ENVELOPE_ADSR( ^
     ASSERT(GTE(decay, 0))
     ASSERT(GTE(sustain, 0))
     ASSERT(GTE(release, 0))
-    # determine frames from shape tensor ([1, frames] expected)
+    ! determine frames from shape tensor ([1, frames] expected)
     INT: slen = TLEN(shape, 1)
     INT: frames = 0
     IF(EQ(slen, 1)){
         frames = shape[1]
     } ELSE {
         frames = shape[10]
-    } # shape[10] -> ^shape[2] (binary '10')
+    } ! shape[10] -> ^shape[2] (binary '10')
     TNS: out = TNS(shape, 0)
-    # clamp segment lengths so they don't exceed frames
+    ! clamp segment lengths so they don't exceed frames
     INT: a = attack
     IF(GT(a, frames)){ a = frames }
     INT: d = decay
@@ -204,7 +204,7 @@ FUNC ENVELOPE_ADSR( ^
         INT: z = SUB(idx, 1)
         INT: v = 0
         IF(LT(z, a)){
-            # attack: ramp 0 -> 100
+            ! attack: ramp 0 -> 100
             IF(EQ(a, 0)){ v = 100 }ELSE{
                 INT: num = MUL(idx, 100)
                 v = DIV(num, a)
@@ -212,7 +212,7 @@ FUNC ENVELOPE_ADSR( ^
         } ELSE {
             INT: pos = SUB(z, a)
             IF(LT(pos, d)){
-                # decay: ramp 100 -> sustain
+                ! decay: ramp 100 -> sustain
                 IF(EQ(d, 0)){ v = sustain }ELSE{
                     INT: num = MUL(SUB(100, sustain), SUB(d, pos))
                     INT: tmp = DIV(num, d)
@@ -221,10 +221,10 @@ FUNC ENVELOPE_ADSR( ^
             }ELSE{
                 INT: pos2 = SUB(pos, d)
                 IF(LT(pos2, s_len)){
-                    # sustain region
+                    ! sustain region
                     v = sustain
                 }ELSE{
-                    # release region: ramp sustain -> 0
+                    ! release region: ramp sustain -> 0
                     INT: relpos = SUB(pos2, s_len)
                     INT: relrem = SUB(r, relpos)
                     IF(OR(EQ(r, 0), LTE(relrem, 0))){ v = 0 }ELSE{
@@ -257,7 +257,7 @@ FUNC LOWPASS(TNS: inp, INT: cutoff, INT: sr):TNS{
     IF(LTE(period, 0)){ RETURN(out) }
     PARFOR(idx, frames){
         INT: z = SUB(idx, 1)
-        # compute window start
+        ! compute window start
         INT: start = SUB(z, SUB(period, 1))
         IF(LT(start, 0)){ start = 0 }
         INT: j = start
@@ -284,7 +284,7 @@ FUNC LOWPASS(TNS: inp, INT: cutoff, INT: sr):TNS{
 }
 
 FUNC HIGHPASS(TNS: inp, INT: cutoff, INT: sr):TNS{
-    # highpass = original - lowpass
+    ! highpass = original - lowpass
     TNS: low = LOWPASS(inp, cutoff, sr)
     TNS: shape = SHAPE(inp)
     TNS: out = TNS(shape, 0)

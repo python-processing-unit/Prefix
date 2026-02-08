@@ -1,9 +1,9 @@
-# diff utilities for Prefix
-#
-# API:
-# UNIFIED(modified: STR, source: STR):STR
-# CONTEXT(modified: STR, source: STR):STR
-# SIDE_BY_SIDE(modified: STR, source: STR):STR
+! diff utilities for Prefix
+!
+! API:
+! UNIFIED(modified: STR, source: STR):STR
+! CONTEXT(modified: STR, source: STR):STR
+! SIDE_BY_SIDE(modified: STR, source: STR):STR
 
 FUNC _append_line(STR: acc, STR: line):STR{
     IF( EQ(acc, "") ){ RETURN(line) } ELSE { RETURN( JOIN(acc, "\n", line) ) }
@@ -42,10 +42,10 @@ FUNC UNIFIED(STR: mod, STR: src):STR{
 }
 
 FUNC CONTEXT(STR: mod, STR: src):STR{
-    # For simplicity, use the same output as UNIFIED but with a ' ' prefix
+    ! For simplicity, use the same output as UNIFIED but with a ' ' prefix
     STR: u = UNIFIED(mod, src)
     IF( EQ(u, "") ){ RETURN("") }
-    # Prepend a simple header to resemble context diff
+    ! Prepend a simple header to resemble context diff
     RETURN( JOIN("*** a", "\n", u) )
 }
 

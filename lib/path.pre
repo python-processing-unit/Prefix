@@ -1,16 +1,16 @@
-# Path utilities for Prefix
-#
-# API:
-# NORMALIZE_PATH(STR: path) -> STR
-# BASEPATH(STR: path) -> STR
-# BASENAME(STR: path) -> STR
-# SPLITEXT(STR: path) -> TNS
-# EXTNAME(STR: path) -> STR
-# DELEXT(STR: path) -> STR
-# STR: interpreter
-# STR: interpreter_dir
-# STR: script
-# STR: script_dir
+! Path utilities for Prefix
+!
+! API:
+! NORMALIZE_PATH(STR: path) -> STR
+! BASEPATH(STR: path) -> STR
+! BASENAME(STR: path) -> STR
+! SPLITEXT(STR: path) -> TNS
+! EXTNAME(STR: path) -> STR
+! DELEXT(STR: path) -> STR
+! STR: interpreter
+! STR: interpreter_dir
+! STR: script
+! STR: script_dir
 
 FUNC NORMALIZE_PATH(STR: path):STR{
     RETURN(REPLACE(path,"\\","/"))
@@ -20,7 +20,7 @@ FUNC WINPATH(STR: path):STR{
     RETURN(REPLACE(path,"/","\\"))
 }
 
-FUNC BASEPATH(STR: path):STR{ # returns directory portion of path
+FUNC BASEPATH(STR: path):STR{ ! returns directory portion of path
     STR: npath = NORMALIZE_PATH(path)
     STR: base = BASENAME(npath)
     IF(EQ(base, "")){
@@ -30,27 +30,27 @@ FUNC BASEPATH(STR: path):STR{ # returns directory portion of path
     POP(dir)
 }
 
-FUNC BASENAME(STR: path):STR{ # returns filename portion of path
+FUNC BASENAME(STR: path):STR{ ! returns filename portion of path
     TNS: tpath = SPLIT(NORMALIZE_PATH(path), "/")
     STR: basename = tpath[MAX(TLEN(tpath,1),1)]
     DEL(tpath)
     POP(basename)
 }
 
-FUNC SPLITEXT(STR: path):TNS{ # returns [name without ext, ext]
+FUNC SPLITEXT(STR: path):TNS{ ! returns [name without ext, ext]
     STR: npath = NORMALIZE_PATH(path)
     STR: base = BASENAME(npath)
     STR: dir = BASEPATH(npath)
     TNS: parts = SPLIT(base, ".")
-    # If there is no dot, return the path unchanged and empty ext
+    ! If there is no dot, return the path unchanged and empty ext
     IF(EQ(TLEN(parts,1),1)){
         DEL(base)
         TNS: result = [npath, ""]
         POP(result)
     }
-    # Extension is the last segment (1-based indexing)
+    ! Extension is the last segment (1-based indexing)
     STR: ext = parts[ TLEN(parts,1) ]
-    # Name is base without the final "." + ext suffix
+    ! Name is base without the final "." + ext suffix
     STR: name = REPLACE(base, JOIN(".", ext), "")
     DEL(parts)
     STR: delex = ""
@@ -69,11 +69,11 @@ FUNC SPLITEXT(STR: path):TNS{ # returns [name without ext, ext]
     POP(result)
 }
 
-FUNC EXTNAME(STR: path):STR{ # returns extension portion of path
+FUNC EXTNAME(STR: path):STR{ ! returns extension portion of path
     RETURN(SPLITEXT(path)[10])
 }
 
-FUNC DELEXT(STR: path):STR{ # returns path without extension
+FUNC DELEXT(STR: path):STR{ ! returns path without extension
     RETURN(SPLITEXT(path)[1])
 }
 
@@ -82,8 +82,8 @@ FUNC TEMPFILE(STR: local_path):STR{
         STR: temp = "C:/Windows/Temp/"
     } ELSEIF(EQ(OS(),"mac")){
         THROW("TEMPFILE not implemented for macOS yet")
-        # per-user temp dirs on macOS are more complex
-        # add later
+        ! per-user temp dirs on macOS are more complex
+        ! add later
     } ELSE {
         STR: temp = "/tmp/"
     }

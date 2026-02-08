@@ -1,8 +1,8 @@
-# Number system conversion utilities for Prefix
-#
-# API:
-# VALUE(STR: num, INT: base):INT
-# CONVERT(STR: num, INT: from, INT: to):STR
+! Number system conversion utilities for Prefix
+!
+! API:
+! VALUE(STR: num, INT: base):INT
+! CONVERT(STR: num, INT: from, INT: to):STR
 
 MAP: digits = < ^
     "0" = 0, ^
@@ -71,22 +71,22 @@ MAP: digits = < ^
     "_" = 111111  ^
 >
 
-MAP: rev = INV(digits) # reverse mapping of digits
+MAP: rev = INV(digits) ! reverse mapping of digits
 
 FUNC VALUE(STR: num, INT: base):INT{
     IF(GT(base, 1000000)){
         THROW("Base ", STR(base), " not supported. Max base is 0b1000000")
     }
     INT: value = 0
-    # Support optional leading '-' for negative values.  Detect the minus
-    # when it appears as the leftmost character during the digit loop so
-    # we don't rely on SLICE index conventions.
+    ! Support optional leading '-' for negative values.  Detect the minus
+    ! when it appears as the leftmost character during the digit loop so
+    ! we don't rely on SLICE index conventions.
     STR: s = num
     INT: neg = 0
     FOR(i, SLEN(s)){
         INT: idx = SUB(SLEN(s), i)
         STR: digit = SLICE(s, idx, idx)
-        # If the leftmost character is '-' treat as sign, otherwise error
+        ! If the leftmost character is '-' treat as sign, otherwise error
         IF(AND(EQ(digit, "-"), EQ(i, 1))){
             neg = 1
             CONTINUE()
@@ -95,7 +95,7 @@ FUNC VALUE(STR: num, INT: base):INT{
             THROW(JOIN("Digit \"", digit, "\" not valid for base ", STR(base)))
         }
         ADD(@value, MUL(digits<digit>, POW(base, idx)))
-        # compute internal binary value as digit*base^(position from right)
+        ! compute internal binary value as digit*base^(position from right)
     }
     IF(GT(SLEN(s), 0)){
         DEL(digit)
@@ -107,13 +107,13 @@ FUNC VALUE(STR: num, INT: base):INT{
 }
 
 FUNC CONVERT(STR: num, INT: from, INT: to):STR{
-    # Support optional fractional part (radix point) without breaking
-    # existing integer-only behavior. If `num` contains a '.', split
-    # into integer and fractional parts and convert each appropriately.
+    ! Support optional fractional part (radix point) without breaking
+    ! existing integer-only behavior. If `num` contains a '.', split
+    ! into integer and fractional parts and convert each appropriately.
     STR: s = num
     INT: dotpos = 0
-    # Find '.' by iterating characters left-to-right using the
-    # same right-indexing convention as VALUE (idx = SLEN(s) - i).
+    ! Find '.' by iterating characters left-to-right using the
+    ! same right-indexing convention as VALUE (idx = SLEN(s) - i).
     FOR(i, SLEN(s)){
         INT: idx = SUB(SLEN(s), i)
         STR: ch = SLICE(s, idx, idx)
@@ -126,15 +126,15 @@ FUNC CONVERT(STR: num, INT: from, INT: to):STR{
     STR: intpart = s
     STR: fracpart = ""
     IF(GT(dotpos, 0)){
-        # intpart is characters left of the dot. When dot is first
-        # character, use "0". Otherwise slice from left [0..dotpos-2].
+        ! intpart is characters left of the dot. When dot is first
+        ! character, use "0". Otherwise slice from left [0..dotpos-2].
         IF(EQ(dotpos, 1)){
             intpart = "0"
         } ELSE {
             STR: intpart = SLICE(s, SUB(SLEN(s), 1), SUB(ADD(SLEN(s), 1), dotpos))
         }
-        # fracpart is characters right of the dot; slice from left
-        # [dotpos..SLEN(s)-1], which maps to right-indices [SLEN(s)-dotpos-1 .. 0].
+        ! fracpart is characters right of the dot; slice from left
+        ! [dotpos..SLEN(s)-1], which maps to right-indices [SLEN(s)-dotpos-1 .. 0].
         IF(LT(dotpos, SLEN(s))){
             fracpart = SLICE(s, SUB(SLEN(s), ADD(dotpos, 1)), 0)
         } ELSE {
@@ -142,7 +142,7 @@ FUNC CONVERT(STR: num, INT: from, INT: to):STR{
         }
     }
 
-    # Convert integer part (preserve sign handling and zero behavior)
+    ! Convert integer part (preserve sign handling and zero behavior)
     INT: int_value = VALUE(intpart, from)
     STR: int_result = ""
     IF(AND(EQ(int_value, 0), EQ(fracpart, ""))){
@@ -171,7 +171,7 @@ FUNC CONVERT(STR: num, INT: from, INT: to):STR{
         int_result = JOIN("-", int_result)
     }
 
-    # If there's no fractional part, return the integer conversion now.
+    ! If there's no fractional part, return the integer conversion now.
     IF(EQ(fracpart, "")){
         DEL(num)
         DEL(intpart)
@@ -179,13 +179,13 @@ FUNC CONVERT(STR: num, INT: from, INT: to):STR{
         POP(int_result)
     }
 
-    # Convert fractional part: treat fracpart as an integer numerator over
-    # denom = from^len(fracpart). Produce digits by repeated multiply-by-`to`.
+    ! Convert fractional part: treat fracpart as an integer numerator over
+    ! denom = from^len(fracpart). Produce digits by repeated multiply-by-`to`.
     INT: frac_num = VALUE(fracpart, from)
     INT: denom = POW(from, SLEN(fracpart))
     STR: frac_res = ""
     INT: iter = 0
-    # Limit iterations to avoid infinite repeats; 64 digits is arbitrary
+    ! Limit iterations to avoid infinite repeats; 64 digits is arbitrary
     WHILE(AND(GT(frac_num, 0), LT(iter, 1000000))){
         ADD(@iter, 1)
         MUL(@frac_num, to)
