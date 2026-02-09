@@ -57,4 +57,17 @@ int env_frozen_state(Env* env, const char* name);
 // Returns 1 if permanently frozen, 0 otherwise (or not found)
 int env_permafrozen(Env* env, const char* name);
 
+// ---- Direct (unbuffered) entry points used by the namespace buffer ----
+// These perform the actual work and must NOT be called from outside
+// env.c / ns_buffer.c.  Public callers should use the non-_direct
+// versions above, which route through the write buffer when active.
+
+bool env_define_direct(Env* env, const char* name, DeclType type);
+bool env_assign_direct(Env* env, const char* name, Value value, DeclType type, bool declare_if_missing);
+bool env_delete_direct(Env* env, const char* name);
+bool env_set_alias_direct(Env* env, const char* name, const char* target_name, DeclType type, bool declare_if_missing);
+int  env_freeze_direct(Env* env, const char* name);
+int  env_thaw_direct(Env* env, const char* name);
+int  env_permafreeze_direct(Env* env, const char* name);
+
 #endif // ENV_H

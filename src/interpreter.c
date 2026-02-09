@@ -1,5 +1,6 @@
 #include "interpreter.h"
 #include "builtins.h"
+#include "ns_buffer.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -2311,6 +2312,7 @@ ExecResult exec_program(Stmt* program, const char* source_path) {
     builtins_init();
     mtx_init(&g_tns_lock, 0);
     mtx_init(&g_parfor_lock, 0);
+    ns_buffer_init();
     // Record source path of the primary program so imports and MAIN() work
     if (source_path && source_path[0] != '\0') {
         env_assign(interp.global_env, "__MODULE_SOURCE__", value_str(source_path), TYPE_STR, true);
@@ -2335,6 +2337,7 @@ ExecResult exec_program(Stmt* program, const char* source_path) {
         me = next;
     }
     
+    ns_buffer_shutdown();
     mtx_destroy(&g_tns_lock);
     mtx_destroy(&g_parfor_lock);
     return res;

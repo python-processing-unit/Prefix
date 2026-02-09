@@ -12,8 +12,8 @@
 // C11 Threading shim for Windows
 
 typedef HANDLE thrd_t;
-typedef HANDLE mtx_t;
-typedef HANDLE cnd_t;
+typedef CRITICAL_SECTION mtx_t;
+typedef CONDITION_VARIABLE cnd_t;
 
 typedef int (*thrd_start_t)(void*);
 
@@ -96,22 +96,50 @@ static inline int thrd_sleep(const void* duration, void* remaining) {
 }
 
 static inline int mtx_init(mtx_t* mtx, int type) {
-    *mtx = CreateMutex(NULL, FALSE, NULL);
-    if (!*mtx) return thrd_error;
     (void)type;
+    InitializeCriticalSection(mtx);
     return thrd_success;
 }
 
 static inline int mtx_lock(mtx_t* mtx) {
-    return WaitForSingleObject(*mtx, INFINITE) == WAIT_OBJECT_0 ? thrd_success : thrd_error;
+    EnterCriticalSection(mtx);
+    return thrd_success;
 }
 
 static inline int mtx_unlock(mtx_t* mtx) {
-    return ReleaseMutex(*mtx) ? thrd_success : thrd_error;
+    LeaveCriticalSection(mtx);
+    return thrd_success;
 }
 
 static inline void mtx_destroy(mtx_t* mtx) {
-    CloseHandle(*mtx);
+    DeleteCriticalSection(mtx);
+}
+
+// Condition variable functions
+
+static inline int cnd_init(cnd_t* cnd) {
+    InitializeConditionVariable(cnd);
+    return thrd_success;
+}
+
+static inline int cnd_signal(cnd_t* cnd) {
+    WakeConditionVariable(cnd);
+    return thrd_success;
+}
+
+static inline int cnd_broadcast(cnd_t* cnd) {
+    WakeAllConditionVariable(cnd);
+    return thrd_success;
+}
+
+static inline int cnd_wait(cnd_t* cnd, mtx_t* mtx) {
+    SleepConditionVariableCS(cnd, mtx, INFINITE);
+    return thrd_success;
+}
+
+static inline void cnd_destroy(cnd_t* cnd) {
+    // CONDITION_VARIABLE does not require explicit destruction on Windows
+    (void)cnd;
 }
 
 #endif // WIN32
