@@ -1610,7 +1610,11 @@ static ExecResult exec_stmt(Interpreter* interp, Stmt* stmt, Env* env, LabelMap*
         }
 
         case STMT_DECL: {
-            env_define(env, stmt->as.decl.name, stmt->as.decl.decl_type);
+            EnvEntry* existing = env_get_entry(env, stmt->as.decl.name);
+            if (!existing) {
+                Env* decl_env = env->parent ? env->parent : env;
+                env_define(decl_env, stmt->as.decl.name, stmt->as.decl.decl_type);
+            }
             return make_ok(value_null());
         }
 
@@ -1679,8 +1683,15 @@ static ExecResult exec_stmt(Interpreter* interp, Stmt* stmt, Env* env, LabelMap*
                     return make_error(buf, stmt->line, stmt->column);
                 }
 
-                env_define(env, stmt->as.assign.name, expected);
-                if (!env_assign(env, stmt->as.assign.name, v, expected, true)) {
+                EnvEntry* existing = env_get_entry(env, stmt->as.assign.name);
+                Env* assign_env = env;
+                if (!existing && env->parent) {
+                    assign_env = env->parent;
+                }
+                if (!existing) {
+                    env_define(assign_env, stmt->as.assign.name, expected);
+                }
+                if (!env_assign(assign_env, stmt->as.assign.name, v, expected, true)) {
                     char buf[256];
                     snprintf(buf, sizeof(buf), "Cannot assign to frozen identifier '%s'", stmt->as.assign.name);
                     value_free(v);
@@ -1741,7 +1752,12 @@ static ExecResult exec_stmt(Interpreter* interp, Stmt* stmt, Env* env, LabelMap*
             // so that builtins which operate on identifiers (DEL, EXIST, etc.)
             // can find and manipulate the function by name.
             Value fv = value_func(f);
-            if (!env_assign(env, f->name, fv, TYPE_FUNC, true)) {
+            EnvEntry* existing = env_get_entry(env, f->name);
+            Env* bind_env = env;
+            if (!existing && env->parent) {
+                bind_env = env->parent;
+            }
+            if (!env_assign(bind_env, f->name, fv, TYPE_FUNC, true)) {
                 // If we cannot assign the function into the environment, treat as error
                 return make_error("Failed to bind function name in environment", stmt->line, stmt->column);
             }
