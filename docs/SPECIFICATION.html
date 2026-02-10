@@ -255,7 +255,7 @@ Conditions accept `INT`, `STR`, or `TNS`. `STR` conditions are first converted t
 
 Loops are provided via `WHILE`, `FOR`, and `PARFOR`. A `WHILE` loop has the form `WHILE(condition){ block }`. On each iteration, the condition is evaluated; if it is non-zero, the block executes and control returns to the start of the loop to evaluate the condition again. If the condition evaluates to zero, the loop terminates and execution continues with the next statement.
 
-The `FOR` construct has the form `FOR(counter, target){ block }`, where `counter` is an identifier and `target` is an expression. At loop entry, `target` is evaluated once to a value `T` (must be `INT`), and `counter` is initialized to the `INT` value `0`, creating it as an `INT` if necessary. The loop then repeats: if the current value of `counter` is greater than or equal to `T`, the loop exits; otherwise, the block executes and `counter` is incremented by `1` before the next iteration.
+The `FOR` construct has the form `FOR(counter, target){ block }`, where `counter` is an identifier and `target` is an expression. At loop entry, `target` is evaluated once to a value `T` (must be `INT`), and `counter` is initialized to the `INT` value `1`, creating it as an `INT` if necessary. The loop then repeats: if the current value of `counter` is greater than `T`, the loop exits; otherwise, the block executes and `counter` is incremented by `1` before the next iteration.
 
 Note on scoping: the loop `counter` is loop-local and does not persist in the enclosing environment after the `FOR` completes (any prior binding with the same name is restored). Any other identifiers that are declared (first assigned with a `TYPE:` declaration) inside the `FOR` body are bound in the enclosing environment (that is, they persist after the loop finishes).
 
@@ -627,7 +627,7 @@ Tensor indexing uses the expression form `tensor[i1, i2, ..., iN]`. The number o
 
 - `SHR(INT: a, INT: b):INT` ; shift right
 
-- `SLICE(INT|STR: a, INT: hi, INT: lo):INT|STR` ; `INT` target -> bit-slice [hi:lo]; `STR` target -> inclusive char-slice counting from the right (index 0 = last char). `TNS` are not accepted.
+- `SLICE(INT|STR: a, INT: start, INT: end):INT|STR` ; `INT` target -> bit-slice [start:end]; `STR` target -> inclusive char-slice counting from the left (index 1 = first char).
 
 - `AND(ANY: a1, ..., ANY: aN):INT` ; Boolean AND
 

@@ -83,9 +83,15 @@ FUNC VALUE(STR: num, INT: base):INT{
     ! we don't rely on SLICE index conventions.
     STR: s = num
     INT: neg = 0
+    STR: digit = ""
     FOR(i, SLEN(s)){
-        INT: idx = SUB(SLEN(s), i)
-        STR: digit = SLICE(s, idx, idx)
+        INT: pos = i
+        INT: exp = SUB(SLEN(s), pos)
+        digit = SLICE(s, pos, pos)
+        ! If SLICE returned an empty string (out-of-range), skip safely.
+        IF(EQ(digit, "")){
+            CONTINUE()
+        }
         ! If the leftmost character is '-' treat as sign, otherwise error
         IF(AND(EQ(digit, "-"), EQ(i, 1))){
             neg = 1
@@ -94,7 +100,7 @@ FUNC VALUE(STR: num, INT: base):INT{
         IF(NOT(KEYIN(digit, digits))){
             THROW(JOIN("Digit \"", digit, "\" not valid for base ", STR(base)))
         }
-        ADD(@value, MUL(digits<digit>, POW(base, idx)))
+        ADD(@value, MUL(digits<digit>, POW(base, exp)))
         ! compute internal binary value as digit*base^(position from right)
     }
     IF(GT(SLEN(s), 0)){
@@ -112,11 +118,9 @@ FUNC CONVERT(STR: num, INT: from, INT: to):STR{
     ! into integer and fractional parts and convert each appropriately.
     STR: s = num
     INT: dotpos = 0
-    ! Find '.' by iterating characters left-to-right using the
-    ! same right-indexing convention as VALUE (idx = SLEN(s) - i).
+    ! Find '.' by iterating characters left-to-right.
     FOR(i, SLEN(s)){
-        INT: idx = SUB(SLEN(s), i)
-        STR: ch = SLICE(s, idx, idx)
+        STR: ch = SLICE(s, i, i)
         IF(EQ(ch, ".")){
             dotpos = i
             BREAK(1)
@@ -127,16 +131,16 @@ FUNC CONVERT(STR: num, INT: from, INT: to):STR{
     STR: fracpart = ""
     IF(GT(dotpos, 0)){
         ! intpart is characters left of the dot. When dot is first
-        ! character, use "0". Otherwise slice from left [0..dotpos-2].
+        ! character, use "0". Otherwise slice from left [1..dotpos-1].
         IF(EQ(dotpos, 1)){
             intpart = "0"
         } ELSE {
-            STR: intpart = SLICE(s, SUB(SLEN(s), 1), SUB(ADD(SLEN(s), 1), dotpos))
+            STR: intpart = SLICE(s, 1, SUB(dotpos, 1))
         }
         ! fracpart is characters right of the dot; slice from left
-        ! [dotpos..SLEN(s)-1], which maps to right-indices [SLEN(s)-dotpos-1 .. 0].
+        ! [dotpos+1..SLEN(s)].
         IF(LT(dotpos, SLEN(s))){
-            fracpart = SLICE(s, SUB(SLEN(s), ADD(dotpos, 1)), 0)
+            fracpart = SLICE(s, ADD(dotpos, 1), SLEN(s))
         } ELSE {
             fracpart = ""
         }
@@ -185,8 +189,8 @@ FUNC CONVERT(STR: num, INT: from, INT: to):STR{
     INT: denom = POW(from, SLEN(fracpart))
     STR: frac_res = ""
     INT: iter = 0
-    ! Limit iterations to avoid infinite repeats; 64 digits is arbitrary
-    WHILE(AND(GT(frac_num, 0), LT(iter, 1000000))){
+    ! Limit iterations to avoid infinite repeats; 1028 digits is arbitrary
+    WHILE(AND(GT(frac_num, 0), LT(iter, 10000000000))){
         ADD(@iter, 1)
         MUL(@frac_num, to)
         INT: d = DIV(frac_num, denom)

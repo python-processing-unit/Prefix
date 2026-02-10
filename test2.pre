@@ -1,6 +1,4 @@
-! Stage 5 Test - Tests INT, FLT, STR, FUNC, TNS, MAP, THR
-
-PRINT("=== Stage 5 Tests ===")
+PRINT("=== Testing built-ins... ===\n")
 
 ! --- Literal formats ---
 PRINT("Testing literals...")
@@ -996,4 +994,4 @@ DEL(caught_su)
 
 PRINT("SER/UNSER: PASS\n")
 
-PRINT("=== All Stage 5 Tests PASSED ===")
+PRINT("=== Built-in tests passed. ===")

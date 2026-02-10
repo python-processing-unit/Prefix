@@ -1028,7 +1028,7 @@ static void ser_expr(JsonBuf* jb, SerCtx* ctx, Interpreter* interp, Expr* expr) 
             ser_loc(jb, expr->line, expr->column);
             json_obj_field(jb, &first, "lo");
             ser_expr(jb, ctx, interp, expr->as.range.start);
-            json_obj_field(jb, &first, "hi");
+            json_obj_field(jb, &first, "start");
             ser_expr(jb, ctx, interp, expr->as.range.end);
             jb_append_char(jb, '}');
             return;
@@ -1815,8 +1815,8 @@ static Expr* deser_expr(JsonValue* obj, UnserCtx* ctx, Interpreter* interp, cons
     }
     if (strcmp(name, "Range") == 0) {
         Expr* lo = deser_expr(json_obj_get(obj, "lo"), ctx, interp, err);
-        Expr* hi = deser_expr(json_obj_get(obj, "hi"), ctx, interp, err);
-        return expr_range(lo, hi, line, col);
+        Expr* start = deser_expr(json_obj_get(obj, "start"), ctx, interp, err);
+        return expr_range(lo, start, line, col);
     }
     if (strcmp(name, "Star") == 0) {
         return expr_wildcard(line, col);
@@ -4345,36 +4345,84 @@ static Value builtin_import_path(Interpreter* interp, Value* args, int argc, Exp
 }
 static Value builtin_slice(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
     (void)arg_nodes; (void)env;
-    // SLICE can operate on STR or TNS for now. Syntax: SLICE(target, start, end)
+    // SLICE per spec: SLICE(INT|STR: a, INT: start, INT: end)
+    // INT -> bit-slice [start:end] (1-based, negatives from end)
+    // STR -> inclusive char-slice counting from the left (index 1 = first char)
+    if (args[0].type == VAL_INT) {
+        EXPECT_INT(args[1], "SLICE", interp, line, col);
+        EXPECT_INT(args[2], "SLICE", interp, line, col);
+
+        int64_t v = args[0].as.i;
+        uint64_t u = (v < 0) ? (uint64_t)(-v) : (uint64_t)v;
+
+        // compute bit length (ILEN semantics)
+        int64_t bitlen = 0;
+        if (u == 0) bitlen = 1;
+        else {
+            uint64_t tmp = u;
+            while (tmp > 0) { bitlen++; tmp >>= 1; }
+        }
+
+        int64_t start = args[1].as.i;
+        int64_t end = args[2].as.i;
+        if (start < 0) start = bitlen + start + 1;
+        if (end < 0) end = bitlen + end + 1;
+
+        if (start < 1) start = 1;
+        if (end < 1) end = 1;
+        if (start > bitlen) start = bitlen;
+        if (end > bitlen) end = bitlen;
+
+        // ensure start <= end for a non-empty inclusive slice
+        if (start > end) return value_int(0);
+
+        // convert positions (1-based from left/MSB) to bit indices (0-based from LSB)
+        int64_t hi_bit = bitlen - start; // index of high bit (from LSB)
+        int64_t lo_bit = bitlen - end; // index of low bit (from LSB)
+        int64_t nbits = hi_bit - lo_bit + 1;
+
+        uint64_t result = 0;
+        if (nbits > 0) {
+            // shift right by lo_bit then mask nbits
+            result = (u >> lo_bit) & ((nbits >= 64) ? UINT64_MAX : ((1ULL << nbits) - 1ULL));
+        }
+
+        return value_int((int64_t)result);
+    }
+
     if (args[0].type == VAL_STR) {
         EXPECT_INT(args[1], "SLICE", interp, line, col);
         EXPECT_INT(args[2], "SLICE", interp, line, col);
         const char* s = args[0].as.s;
         size_t len = strlen(s);
-        int64_t start = args[1].as.i;
-        int64_t end = args[2].as.i;
-        if (start < 0) start = (int64_t)len + start + 1;
-        if (end < 0) end = (int64_t)len + end + 1;
-        start--;
-        if (start < 0) start = 0;
-        if (end > (int64_t)len) end = (int64_t)len;
-        if (start >= end) return value_str("");
-        size_t result_len = (size_t)(end - start);
+          /* Treat string slice arguments as start,end (first -> start, second -> end).
+              This matches test usage where callers pass start then end positions. */
+          int64_t start = args[1].as.i;
+          int64_t end = args[2].as.i;
+          if (start < 0) start = (int64_t)len + start + 1;
+          if (end < 0) end = (int64_t)len + end + 1;
+
+          if (start < 1) start = 1;
+          if (end < 1) end = 1;
+          if (start > (int64_t)len) start = (int64_t)len;
+          if (end > (int64_t)len) end = (int64_t)len;
+
+          /* inclusive indices: start..end */
+          int64_t low_idx = start - 1;
+          int64_t high_idx = end - 1;
+          if (low_idx > high_idx) return value_str("");
+
+        size_t result_len = (size_t)(high_idx - low_idx + 1);
         char* result = malloc(result_len + 1);
-        memcpy(result, s + start, result_len);
+        if (!result) { RUNTIME_ERROR(interp, "Out of memory", line, col); }
+        memcpy(result, s + low_idx, result_len);
         result[result_len] = '\0';
         Value v = value_str(result);
         free(result);
         return v;
-    } else if (args[0].type == VAL_TNS) {
-        // slice along first axis using 1-based inclusive indices
-        EXPECT_INT(args[1], "SLICE", interp, line, col);
-        EXPECT_INT(args[2], "SLICE", interp, line, col);
-        int64_t starts[1] = { args[1].as.i };
-        int64_t ends[1] = { args[2].as.i };
-        return value_tns_slice(args[0], starts, ends, 1);
     }
-    RUNTIME_ERROR(interp, "SLICE expects STR or TNS", line, col);
+
+    RUNTIME_ERROR(interp, "SLICE expects INT or STR", line, col);
 }
 
 static Value builtin_replace(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
@@ -4719,10 +4767,10 @@ static Value builtin_writefile(Interpreter* interp, Value* args, int argc, Expr*
         }
         for (size_t i = 0; i < blen; i += 2) {
             char a = blob[i]; char b = blob[i+1];
-            int hi = (a >= '0' && a <= '9') ? a - '0' : (a >= 'a' && a <= 'f') ? a - 'a' + 10 : (a >= 'A' && a <= 'F') ? a - 'A' + 10 : -1;
+            int start = (a >= '0' && a <= '9') ? a - '0' : (a >= 'a' && a <= 'f') ? a - 'a' + 10 : (a >= 'A' && a <= 'F') ? a - 'A' + 10 : -1;
             int lo = (b >= '0' && b <= '9') ? b - '0' : (b >= 'a' && b <= 'f') ? b - 'a' + 10 : (b >= 'A' && b <= 'F') ? b - 'A' + 10 : -1;
-            if (hi < 0 || lo < 0) { fclose(f); RUNTIME_ERROR(interp, "WRITEFILE(hex) expects valid hex digits", line, col); }
-            unsigned char byte = (unsigned char)((hi << 4) | lo);
+            if (start < 0 || lo < 0) { fclose(f); RUNTIME_ERROR(interp, "WRITEFILE(hex) expects valid hex digits", line, col); }
+            unsigned char byte = (unsigned char)((start << 4) | lo);
             if (fwrite(&byte, 1, 1, f) != 1) { fclose(f); return value_int(0); }
         }
         fclose(f);
