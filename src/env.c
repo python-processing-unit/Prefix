@@ -228,19 +228,25 @@ bool env_set_alias_direct(Env* env, const char* name,
     /* Disallow aliasing to frozen / permafrozen target */
     if (cur->frozen || cur->permafrozen) return false;
 
-    /* Find or create local entry */
+    /* Type compatibility */
+    if (type != TYPE_UNKNOWN && type != cur->decl_type) return false;
+
+    /* Find existing local entry (but don't create it yet). Only create
+       the local entry after all validation succeeds to avoid leaving a
+       declared-but-uninitialized binding when alias setup fails. */
     EnvEntry* entry = env_find_local(env, name);
     if (!entry) {
         if (!declare_if_missing) return false;
+        /* create now */
         if (!env_define_direct(env, name, type)) return false;
         entry = env_find_local(env, name);
+        if (!entry) return false;
     }
 
     /* Respect frozen state on the entry itself */
     if (entry->frozen || entry->permafrozen) return false;
 
-    /* Type compatibility */
-    if (type != TYPE_UNKNOWN && type != cur->decl_type) return false;
+    /* Overwrite declared type with target's type */
     entry->decl_type = cur->decl_type;
 
     /* Clear any stored value and set alias */

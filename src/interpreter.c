@@ -1625,7 +1625,6 @@ static ExecResult exec_stmt(Interpreter* interp, Stmt* stmt, Env* env, LabelMap*
                 if (!tgt) return make_error("Invalid pointer literal", stmt->line, stmt->column);
                 if (stmt->as.assign.has_type) {
                     DeclType expected = stmt->as.assign.decl_type;
-                    env_define(env, stmt->as.assign.name, expected);
                     if (!env_set_alias(env, stmt->as.assign.name, tgt, expected, true)) {
                         char buf[256];
                         snprintf(buf, sizeof(buf), "Cannot create alias '%s' -> '%s'", stmt->as.assign.name, tgt);
