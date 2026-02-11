@@ -23,6 +23,67 @@
 #endif
 
 /* ================================================================== */
+/*  Thread-local snapshots for env_get_entry                           */
+/* ================================================================== */
+
+// env_get_entry historically returned a raw pointer into Env storage.
+// With the namespace buffer active, that pointer could be invalidated
+// immediately after returning (e.g. via realloc/value_free on the
+// prepare thread), causing use-after-free crashes.
+//
+// Fix: return a per-thread snapshot copy of the entry.
+//
+// NOTE: The returned pointer is valid until the calling thread makes
+// enough subsequent env_get_entry calls to wrap this ring buffer.
+
+#ifndef ENV_ENTRY_SNAPSHOT_RING
+#define ENV_ENTRY_SNAPSHOT_RING 32
+#endif
+
+static _Thread_local EnvEntry g_entry_snaps[ENV_ENTRY_SNAPSHOT_RING];
+static _Thread_local size_t g_entry_snap_idx = 0;
+
+static void env_entry_snap_clear(EnvEntry* e) {
+    if (!e) return;
+    if (e->name) {
+        free(e->name);
+        e->name = NULL;
+    }
+    if (e->alias_target) {
+        free(e->alias_target);
+        e->alias_target = NULL;
+    }
+    value_free(e->value);
+    e->value = value_null();
+    e->decl_type = TYPE_UNKNOWN;
+    e->initialized = false;
+    e->frozen = false;
+    e->permafrozen = false;
+}
+
+static EnvEntry* env_entry_snap_alloc(void) {
+    EnvEntry* slot = &g_entry_snaps[g_entry_snap_idx++ % ENV_ENTRY_SNAPSHOT_RING];
+    env_entry_snap_clear(slot);
+    return slot;
+}
+
+static void env_entry_snap_from_raw(EnvEntry* dst, const EnvEntry* src) {
+    if (!dst) return;
+    if (!src) {
+        // leave dst cleared
+        return;
+    }
+
+    dst->name = src->name ? strdup(src->name) : NULL;
+    dst->decl_type = src->decl_type;
+    dst->initialized = src->initialized;
+    dst->frozen = src->frozen;
+    dst->permafrozen = src->permafrozen;
+    dst->alias_target = src->alias_target ? strdup(src->alias_target) : NULL;
+    dst->value = value_copy(src->value);
+}
+
+/* ================================================================== */
 /*  Helpers                                                            */
 /* ================================================================== */
 
@@ -345,13 +406,27 @@ int env_permafreeze(Env* env, const char* name) {
 /* ================================================================== */
 
 EnvEntry* env_get_entry(Env* env, const char* name) {
+    EnvEntry* snap = env_entry_snap_alloc();
     if (ns_buffer_active()) {
         ns_buffer_read_lock(name);
         EnvEntry* entry = env_get_entry_raw(env, name);
+        env_entry_snap_from_raw(snap, entry);
         ns_buffer_read_unlock();
-        return entry;
+        if (!entry) {
+            env_entry_snap_clear(snap);
+            return NULL;
+        }
+        return snap;
     }
-    return env_get_entry_raw(env, name);
+
+    EnvEntry* entry = env_get_entry_raw(env, name);
+    env_entry_snap_from_raw(snap, entry);
+    if (!entry) {
+        // Clear to a canonical empty state and return NULL for not-found.
+        env_entry_snap_clear(snap);
+        return NULL;
+    }
+    return snap;
 }
 
 bool env_get(Env* env, const char* name, Value* out_value,

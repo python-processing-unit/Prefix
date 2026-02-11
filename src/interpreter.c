@@ -1452,21 +1452,34 @@ ExecResult assign_index_chain(Interpreter* interp, Env* env, Expr* idx_expr, Val
         return make_error("Indexed assignment base must be an identifier", stmt_line, stmt_col);
     }
 
-    EnvEntry* entry = env_get_entry(env, walker->as.ident);
-    if (!entry) {
+    const char* base_name = walker->as.ident;
+    Value base_val = value_null();
+    DeclType base_type = TYPE_UNKNOWN;
+    bool base_initialized = false;
+
+    if (!env_get(env, base_name, &base_val, &base_type, &base_initialized)) {
         char buf[256];
-        snprintf(buf, sizeof(buf), "Cannot assign to undeclared identifier '%s'", walker->as.ident);
+        snprintf(buf, sizeof(buf), "Cannot assign to undeclared identifier '%s'", base_name);
         return make_error(buf, stmt_line, stmt_col);
     }
 
-    // If uninitialized, default to map (matches previous indexed-assignment behavior).
-    if (!entry->initialized) {
-        entry->value = value_map_new();
-        entry->initialized = true;
+    // If uninitialized (or NULL), default to MAP (matches previous behaviour),
+    // and persist that into the environment via env_assign.
+    if (!base_initialized || base_val.type == VAL_NULL) {
+        Value nm = value_map_new();
+        if (!env_assign(env, base_name, nm, TYPE_UNKNOWN, false)) {
+            value_free(nm);
+            value_free(base_val);
+            return make_error("Cannot assign to identifier (frozen?)", stmt_line, stmt_col);
+        }
+        value_free(base_val);
+        base_val = nm;
+        base_initialized = true;
     }
 
     Expr** nodes = malloc(sizeof(Expr*) * (chain_len ? chain_len : 1));
     if (!nodes) {
+        value_free(base_val);
         return make_error("Out of memory", stmt_line, stmt_col);
     }
 
@@ -1476,15 +1489,16 @@ ExecResult assign_index_chain(Interpreter* interp, Env* env, Expr* idx_expr, Val
         walker = walker->as.index.target;
     }
 
-    Value* cur = &entry->value;
+    ExecResult out;
+    Value* cur = &base_val;
 
     // Process from innermost -> outermost
     for (int ni = (int)chain_len - 1; ni >= 0; ni--) {
         Expr* node = nodes[ni];
         ExprList* indices = &node->as.index.indices;
         if (indices->count == 0) {
-            free(nodes);
-            return make_error("Empty index list", node->line, node->column);
+            out = make_error("Empty index list", node->line, node->column);
+            goto cleanup;
         }
 
         // Auto-promote NULL to MAP when assigning through indexes.
@@ -1496,22 +1510,22 @@ ExecResult assign_index_chain(Interpreter* interp, Env* env, Expr* idx_expr, Val
             Tensor* t = cur->as.tns;
             // Lvalue assignment only supports full integer indexing (no ranges/wildcards).
             if (indices->count != t->ndim) {
-                free(nodes);
-                return make_error("Cannot assign through tensor slice", node->line, node->column);
+                out = make_error("Cannot assign through tensor slice", node->line, node->column);
+                goto cleanup;
             }
 
             size_t* idxs0 = malloc(sizeof(size_t) * indices->count);
             if (!idxs0) {
-                free(nodes);
-                return make_error("Out of memory", stmt_line, stmt_col);
+                out = make_error("Out of memory", stmt_line, stmt_col);
+                goto cleanup;
             }
 
             for (size_t i = 0; i < indices->count; i++) {
                 Expr* it = indices->items[i];
                 if (it->type == EXPR_WILDCARD || it->type == EXPR_RANGE) {
                     free(idxs0);
-                    free(nodes);
-                    return make_error("Cannot assign using ranges or wildcards", it->line, it->column);
+                    out = make_error("Cannot assign using ranges or wildcards", it->line, it->column);
+                    goto cleanup;
                 }
 
                 Value vi = eval_expr(interp, it, env);
@@ -1519,14 +1533,14 @@ ExecResult assign_index_chain(Interpreter* interp, Env* env, Expr* idx_expr, Val
                     ExecResult err = make_error(interp->error, interp->error_line, interp->error_col);
                     clear_error(interp);
                     free(idxs0);
-                    free(nodes);
-                    return err;
+                    out = err;
+                    goto cleanup;
                 }
                 if (vi.type != VAL_INT) {
                     value_free(vi);
                     free(idxs0);
-                    free(nodes);
-                    return make_error("Index expression must evaluate to INT", it->line, it->column);
+                    out = make_error("Index expression must evaluate to INT", it->line, it->column);
+                    goto cleanup;
                 }
 
                 int64_t v = vi.as.i;
@@ -1535,8 +1549,8 @@ ExecResult assign_index_chain(Interpreter* interp, Env* env, Expr* idx_expr, Val
                 if (v < 1 || v > dim) {
                     value_free(vi);
                     free(idxs0);
-                    free(nodes);
-                    return make_error("Index out of range", it->line, it->column);
+                    out = make_error("Index out of range", it->line, it->column);
+                    goto cleanup;
                 }
                 idxs0[i] = (size_t)(v - 1);
                 value_free(vi);
@@ -1545,8 +1559,8 @@ ExecResult assign_index_chain(Interpreter* interp, Env* env, Expr* idx_expr, Val
             Value* elem = value_tns_get_ptr(*cur, idxs0, indices->count);
             free(idxs0);
             if (!elem) {
-                free(nodes);
-                return make_error("Index out of range", node->line, node->column);
+                out = make_error("Index out of range", node->line, node->column);
+                goto cleanup;
             }
             cur = elem;
             continue;
@@ -1559,13 +1573,13 @@ ExecResult assign_index_chain(Interpreter* interp, Env* env, Expr* idx_expr, Val
                 if (interp->error) {
                     ExecResult err = make_error(interp->error, interp->error_line, interp->error_col);
                     clear_error(interp);
-                    free(nodes);
-                    return err;
+                    out = err;
+                    goto cleanup;
                 }
                 if (!(key.type == VAL_INT || key.type == VAL_STR || key.type == VAL_FLT)) {
                     value_free(key);
-                    free(nodes);
-                    return make_error("Map index must be INT, FLT or STR", it->line, it->column);
+                    out = make_error("Map index must be INT, FLT or STR", it->line, it->column);
+                    goto cleanup;
                 }
 
                 bool last_key_in_node = (i + 1 == indices->count);
@@ -1576,25 +1590,25 @@ ExecResult assign_index_chain(Interpreter* interp, Env* env, Expr* idx_expr, Val
                     Value* slot = value_map_get_ptr(cur, key, true);
                     value_free(key);
                     if (!slot) {
-                        free(nodes);
-                        return make_error("Internal error assigning to map", stmt_line, stmt_col);
+                        out = make_error("Internal error assigning to map", stmt_line, stmt_col);
+                        goto cleanup;
                     }
                     if (slot->type != VAL_NULL && value_type_to_decl(slot->type) != value_type_to_decl(rhs.type)) {
-                        free(nodes);
-                        return make_error("Map entry type mismatch", stmt_line, stmt_col);
+                        out = make_error("Map entry type mismatch", stmt_line, stmt_col);
+                        goto cleanup;
                     }
                     value_free(*slot);
                     *slot = value_copy(rhs);
-                    free(nodes);
-                    return make_ok(value_null());
+                    out = make_ok(value_null());
+                    goto cleanup;
                 }
 
                 // Descend into slot.
                 Value* slot = value_map_get_ptr(cur, key, true);
                 value_free(key);
                 if (!slot) {
-                    free(nodes);
-                    return make_error("Internal error indexing map", stmt_line, stmt_col);
+                    out = make_error("Internal error indexing map", stmt_line, stmt_col);
+                    goto cleanup;
                 }
 
                 if (slot->type == VAL_NULL) {
@@ -1608,21 +1622,26 @@ ExecResult assign_index_chain(Interpreter* interp, Env* env, Expr* idx_expr, Val
         }
 
         // Unsupported type for indexed assignment
-        free(nodes);
-        return make_error("Indexing assignment is supported only on tensors and maps", node->line, node->column);
+        out = make_error("Indexing assignment is supported only on tensors and maps", node->line, node->column);
+        goto cleanup;
     }
 
     // If we get here, the chain ended after resolving to a tensor element (e.g. a<1> = rhs)
     if (cur->type != VAL_NULL && value_type_to_decl(cur->type) != value_type_to_decl(rhs.type)) {
-        free(nodes);
-        return make_error("Element type mismatch", stmt_line, stmt_col);
+        out = make_error("Element type mismatch", stmt_line, stmt_col);
+        goto cleanup;
     }
     mtx_lock(&g_tns_lock);
     value_free(*cur);
     *cur = value_copy(rhs);
     mtx_unlock(&g_tns_lock);
+
+    out = make_ok(value_null());
+
+cleanup:
     free(nodes);
-    return make_ok(value_null());
+    value_free(base_val);
+    return out;
 }
 
 static ExecResult exec_stmt(Interpreter* interp, Stmt* stmt, Env* env, LabelMap* labels) {

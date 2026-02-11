@@ -29,8 +29,11 @@ bool env_assign(Env* env, const char* name, Value value, DeclType type, bool dec
 bool env_get(Env* env, const char* name, Value* out_value, DeclType* out_type, bool* out_initialized);
 bool env_delete(Env* env, const char* name);
 bool env_exists(Env* env, const char* name);
-// Return pointer to the EnvEntry for the given name, searching parents.
-// Caller must NOT free the returned pointer. Returns NULL if not found.
+// Return a per-thread snapshot of the EnvEntry for the given name, searching parents.
+// The snapshot is safe to read after the function returns even when the
+// namespace buffer is active (it does not point into Env storage).
+// Caller must NOT free the returned pointer.
+// Returns NULL if not found.
 EnvEntry* env_get_entry(Env* env, const char* name);
 
 // Create or update an alias (pointer) binding: `name` will become an alias to `target_name`.
