@@ -2213,7 +2213,7 @@ static Value deser_val(JsonValue* obj, UnserCtx* ctx, Interpreter* interp, const
 
         JsonValue* nm = json_obj_get(obj, "name");
         if (nm && nm->type == JSON_STR) {
-            Func* existing = func_table_lookup(interp->functions, nm->as.str);
+            Func* existing = func_table_lookup(interp->functions, nm->as.str, NULL);
             if (existing) {
                 if (id) unser_func_set(ctx, id, existing);
                 return value_func(existing);
@@ -4959,7 +4959,7 @@ static Value builtin_signature(Interpreter* interp, Value* args, int argc, Expr*
 
     // If not in environment or not a function there, check the interpreter function table
     Func* ff = NULL;
-    if (interp && interp->functions) ff = func_table_lookup(interp->functions, name);
+    if (interp && interp->functions) ff = func_table_lookup(interp->functions, name, env);
     if (ff != NULL) {
         struct Func* f = ff;
         size_t cap = 256;

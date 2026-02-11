@@ -113,7 +113,7 @@ int interpreter_restart_thread(Interpreter* interp, Value thr_val, int line, int
 FuncTable* func_table_create(void);
 void func_table_free(FuncTable* table);
 bool func_table_add(FuncTable* table, const char* name, Func* func);
-Func* func_table_lookup(FuncTable* table, const char* name);
+Func* func_table_lookup(FuncTable* table, const char* name, Env* caller_env);
 
 // Module registry helpers
 // Register a module name and create its isolated Env. Returns 0 on success, -1 on error.

@@ -153,6 +153,22 @@ static int label_map_find(LabelMap* map, Value key) {
 
 // ============ Function table ============
 
+// Walk to the root of an environment chain.
+static Env* env_root(Env* env) {
+    while (env && env->parent) {
+        env = env->parent;
+    }
+    return env;
+}
+
+// Returns true when `ancestor` appears in the parent chain of `env`.
+static bool env_is_ancestor(Env* ancestor, Env* env) {
+    for (Env* e = env; e != NULL; e = e->parent) {
+        if (e == ancestor) return true;
+    }
+    return false;
+}
+
 FuncTable* func_table_create(void) {
     FuncTable* table = safe_malloc(sizeof(FuncTable));
     return table;
@@ -205,16 +221,17 @@ void func_table_free(FuncTable* table) {
 }
 
 bool func_table_add(FuncTable* table, const char* name, Func* func) {
-    // Check if already exists
-    FuncEntry* entry = table->entries;
-    while (entry) {
-        if (strcmp(entry->name, name) == 0) {
-            return false;  // Already exists
+    for (FuncEntry* entry = table->entries; entry != NULL; entry = entry->next) {
+        if (strcmp(entry->name, name) != 0) continue;
+        // If either the existing entry or the new registration is an
+        // operator (func == NULL), do not allow the registration.
+        if (entry->func == NULL || func == NULL) {
+            return false; // Operator names cannot be overridden or shadowed
         }
-        entry = entry->next;
+        // Otherwise both are user functions: allow shadowing by inserting
+        // the new entry at the head (no rejection).
     }
-    
-    // Add new entry
+
     FuncEntry* new_entry = safe_malloc(sizeof(FuncEntry));
     new_entry->name = strdup(name);
     new_entry->func = func;
@@ -224,15 +241,32 @@ bool func_table_add(FuncTable* table, const char* name, Func* func) {
     return true;
 }
 
-Func* func_table_lookup(FuncTable* table, const char* name) {
-    FuncEntry* entry = table->entries;
-    while (entry) {
-        if (strcmp(entry->name, name) == 0) {
-            return entry->func;
+Func* func_table_lookup(FuncTable* table, const char* name, Env* caller_env) {
+    Func* fallback = NULL;
+    Env* caller_root = env_root(caller_env);
+
+    for (FuncEntry* entry = table->entries; entry != NULL; entry = entry->next) {
+        if (strcmp(entry->name, name) != 0) continue;
+        Func* f = entry->func;
+        if (!f) continue;
+
+        // Prefer functions whose closure is an ancestor of the caller's env.
+        if (f->closure && caller_env && env_is_ancestor(f->closure, caller_env)) {
+            return f;
         }
-        entry = entry->next;
+
+        // Next preference: matching environment roots (same module/global tree).
+        Env* closure_root = env_root(f->closure);
+        if (!fallback && closure_root && caller_root && closure_root == caller_root) {
+            fallback = f;
+            continue;
+        }
+
+        // As a final option, remember the first match.
+        if (!fallback) fallback = f;
     }
-    return NULL;
+
+    return fallback;
 }
 
 // ============ Value truthiness ============
@@ -402,7 +436,7 @@ Value eval_expr(Interpreter* interp, Expr* expr, Env* env) {
             bool initialized;
             if (!env_get(env, expr->as.ident, &v, &dtype, &initialized)) {
                 // Check if it's a function name
-                Func* func = func_table_lookup(interp->functions, expr->as.ident);
+                Func* func = func_table_lookup(interp->functions, expr->as.ident, env);
                 if (func) {
                     return value_func(func);
                 }
@@ -624,7 +658,7 @@ Value eval_expr(Interpreter* interp, Expr* expr, Env* env) {
                 }
                 
                 // Check user-defined functions
-                user_func = func_table_lookup(interp->functions, func_name);
+                user_func = func_table_lookup(interp->functions, func_name, env);
                 if (!user_func) {
                     // If not found, check if it's a variable holding a function
                     Value v;
