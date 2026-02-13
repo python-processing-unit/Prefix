@@ -75,6 +75,9 @@ typedef struct Interpreter {
     int shushed;
     // Current thread handle when executing in a background thread (NULL in main thread)
     struct Thr* current_thr;
+    // When true, first-declarations/typed first-assignment stay in the current
+    // env instead of being redirected to parent env (used by PARFOR workers).
+    bool isolate_env_writes;
 } Interpreter;
 
 // Main entry point

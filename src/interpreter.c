@@ -17,13 +17,16 @@ static void wait_if_paused(Interpreter* interp) {
     if (!interp || !interp->current_thr) return;
     Thr* th = interp->current_thr;
     if (!th) return;
-    while (th->paused && !th->finished) {
+    Value thv;
+    thv.type = VAL_THR;
+    thv.as.thr = th;
+    while (value_thr_get_paused(thv) && !value_thr_get_finished(thv)) {
         thrd_yield();
     }
 }
 
 static mtx_t g_tns_lock;
-static mtx_t g_parfor_lock;
+static mtx_t g_parfor_merge_lock;
 // Thread worker for THR blocks
 typedef struct {
     Interpreter* interp;
@@ -69,15 +72,64 @@ typedef struct {
     Value thr_val;
     int* err_lines;
     int* err_cols;
+    const char* counter_name;
 } ParforStart;
+
+static int parfor_merge_iteration_env(ParforStart* start, char** merge_error) {
+    if (merge_error) *merge_error = NULL;
+    if (!start || !start->env || !start->env->parent) return 0;
+
+    Env* iter_env = start->env;
+    Env* parent_env = iter_env->parent;
+
+    mtx_lock(&g_parfor_merge_lock);
+    for (size_t i = 0; i < iter_env->count; i++) {
+        EnvEntry* entry = &iter_env->entries[i];
+        if (!entry->name) continue;
+        if (start->counter_name && strcmp(entry->name, start->counter_name) == 0) continue;
+
+        if (entry->alias_target) {
+            if (!env_set_alias(parent_env, entry->name, entry->alias_target, entry->decl_type, true)) {
+                char buf[256];
+                snprintf(buf, sizeof(buf), "PARFOR merge failed for alias '%s'", entry->name);
+                if (merge_error) *merge_error = strdup(buf);
+                mtx_unlock(&g_parfor_merge_lock);
+                return -1;
+            }
+            continue;
+        }
+
+        if (!env_get_entry(parent_env, entry->name)) {
+            env_define(parent_env, entry->name, entry->decl_type);
+        }
+
+        if (entry->initialized) {
+            Value merged = value_copy(entry->value);
+            if (!env_assign(parent_env, entry->name, merged, entry->decl_type, true)) {
+                value_free(merged);
+                char buf[256];
+                snprintf(buf, sizeof(buf), "PARFOR merge failed for identifier '%s'", entry->name);
+                if (merge_error) *merge_error = strdup(buf);
+                mtx_unlock(&g_parfor_merge_lock);
+                return -1;
+            }
+            value_free(merged);
+        }
+    }
+    mtx_unlock(&g_parfor_merge_lock);
+    return 0;
+}
 
 static int parfor_worker(void* arg) {
     ParforStart* start = (ParforStart*)arg;
     LabelMap labels = {0};
     start->interp->current_thr = start->thr_val.as.thr;
-    mtx_lock(&g_parfor_lock);
     ExecResult res = exec_stmt(start->interp, start->body, start->env, &labels);
-    mtx_unlock(&g_parfor_lock);
+
+    char* merge_error = NULL;
+    if (res.status != EXEC_ERROR) {
+        (void)parfor_merge_iteration_env(start, &merge_error);
+    }
 
     for (size_t i = 0; i < labels.count; i++) value_free(labels.items[i].key);
     free(labels.items);
@@ -88,6 +140,12 @@ static int parfor_worker(void* arg) {
         /* record original error location so parent can report/handle it */
         if (start->err_lines) start->err_lines[start->index] = res.error_line;
         if (start->err_cols) start->err_cols[start->index] = res.error_column;
+    } else if (merge_error) {
+        if (res.status == EXEC_RETURN || res.status == EXEC_OK || res.status == EXEC_GOTO) {
+            value_free(res.value);
+        }
+        if (res.status == EXEC_ERROR && res.error) free(res.error);
+        start->errors[start->index] = merge_error;
     } else {
         if (res.status == EXEC_RETURN || res.status == EXEC_OK || res.status == EXEC_GOTO) {
             value_free(res.value);
@@ -1015,7 +1073,7 @@ tns_eval_fail:
             /* record body/env on the Thr so restart is possible */
             thr_for_worker.as.thr->body = start->body;
             thr_for_worker.as.thr->env = start->env;
-            thr_for_worker.as.thr->started = 1;
+            value_thr_set_started(thr_for_worker, 1);
 
             if (thrd_create(&thr_for_worker.as.thr->thread, thr_worker, start) != thrd_success) {
                 value_thr_set_finished(thr_for_worker, 1);
@@ -1520,7 +1578,10 @@ static ExecResult exec_stmt(Interpreter* interp, Stmt* stmt, Env* env, LabelMap*
         case STMT_DECL: {
             EnvEntry* existing = env_get_entry(env, stmt->as.decl.name);
             if (!existing) {
-                Env* decl_env = env->parent ? env->parent : env;
+                Env* decl_env = env;
+                if (!interp->isolate_env_writes && env->parent) {
+                    decl_env = env->parent;
+                }
                 env_define(decl_env, stmt->as.decl.name, stmt->as.decl.decl_type);
             }
             return make_ok(value_null());
@@ -1592,7 +1653,7 @@ static ExecResult exec_stmt(Interpreter* interp, Stmt* stmt, Env* env, LabelMap*
 
                 EnvEntry* existing = env_get_entry(env, stmt->as.assign.name);
                 Env* assign_env = env;
-                if (!existing && env->parent) {
+                if (!interp->isolate_env_writes && !existing && env->parent) {
                     assign_env = env->parent;
                 }
                 if (!existing) {
@@ -1668,7 +1729,7 @@ static ExecResult exec_stmt(Interpreter* interp, Stmt* stmt, Env* env, LabelMap*
             Value fv = value_func(f);
             EnvEntry* existing = env_get_entry(env, f->name);
             Env* bind_env = env;
-            if (!existing && env->parent) {
+            if (!interp->isolate_env_writes && !existing && env->parent) {
                 bind_env = env->parent;
             }
             if (!env_assign(bind_env, f->name, fv, TYPE_FUNC, true)) {
@@ -1840,7 +1901,7 @@ static ExecResult exec_stmt(Interpreter* interp, Stmt* stmt, Env* env, LabelMap*
             /* record body/env on the Thr so restart is possible */
             thr_for_worker.as.thr->body = start->body;
             thr_for_worker.as.thr->env = start->env;
-            thr_for_worker.as.thr->started = 1;
+            value_thr_set_started(thr_for_worker, 1);
 
             if (thrd_create(&thr_for_worker.as.thr->thread, thr_worker, start) != thrd_success) {
                 value_thr_set_finished(thr_for_worker, 1);
@@ -1876,7 +1937,7 @@ static ExecResult exec_stmt(Interpreter* interp, Stmt* stmt, Env* env, LabelMap*
             /* record body/env on the Thr so restart is possible */
             thr_for_worker.as.thr->body = start->body;
             thr_for_worker.as.thr->env = start->env;
-            thr_for_worker.as.thr->started = 1;
+            value_thr_set_started(thr_for_worker, 1);
 
             if (thrd_create(&thr_for_worker.as.thr->thread, thr_worker, start) != thrd_success) {
                 value_thr_set_finished(thr_for_worker, 1);
@@ -2090,6 +2151,7 @@ static ExecResult exec_stmt(Interpreter* interp, Stmt* stmt, Env* env, LabelMap*
                 thr_interp->in_try_block = interp->in_try_block;
                 thr_interp->modules = interp->modules;
                 thr_interp->shushed = interp->shushed;
+                thr_interp->isolate_env_writes = true;
 
                 start->interp = thr_interp;
                 /* Create a per-iteration child env so each PARFOR iteration
@@ -2116,6 +2178,7 @@ static ExecResult exec_stmt(Interpreter* interp, Stmt* stmt, Env* env, LabelMap*
                 start->err_lines = err_lines;
                 start->err_cols = err_cols;
                 start->index = (int)i;
+                start->counter_name = stmt->as.parfor_stmt.counter;
                 start->thr_val = value_copy(thr_vals[i]);
                 starts[i] = start;
 
@@ -2132,13 +2195,13 @@ static ExecResult exec_stmt(Interpreter* interp, Stmt* stmt, Env* env, LabelMap*
                     /* continue launching others */
                 } else {
                     /* only mark started after successful thread creation */
-                    thr_vals[i].as.thr->started = 1;
+                    value_thr_set_started(thr_vals[i], 1);
                 }
             }
 
             // Join only threads that were actually started
             for (size_t i = 0; i < n; i++) {
-                if (thr_vals[i].type == VAL_THR && thr_vals[i].as.thr && thr_vals[i].as.thr->started) {
+                if (thr_vals[i].type == VAL_THR && thr_vals[i].as.thr && value_thr_get_started(thr_vals[i])) {
                     if (thrd_join(thr_vals[i].as.thr->thread, NULL) != thrd_success) {
                         // ignore join failures but mark finished
                     }
@@ -2237,7 +2300,7 @@ ExecResult exec_program(Stmt* program, const char* source_path) {
 
     builtins_init();
     mtx_init(&g_tns_lock, 0);
-    mtx_init(&g_parfor_lock, 0);
+    mtx_init(&g_parfor_merge_lock, 0);
     ns_buffer_init();
     // Record source path of the primary program so imports and MAIN() work
     if (source_path && source_path[0] != '\0') {
@@ -2264,7 +2327,7 @@ ExecResult exec_program(Stmt* program, const char* source_path) {
     
     ns_buffer_shutdown();
     mtx_destroy(&g_tns_lock);
-    mtx_destroy(&g_parfor_lock);
+    mtx_destroy(&g_parfor_merge_lock);
     return res;
 }
 
@@ -2280,7 +2343,7 @@ int interpreter_restart_thread(Interpreter* interp, Value thr_val, int line, int
         if (interp) interp->error = strdup("Cannot restart: no stored thread body/env");
         return -1;
     }
-    if (!th->finished) {
+    if (!value_thr_get_finished(thr_val)) {
         if (interp) interp->error = strdup("Cannot restart running thread");
         return -1;
     }
@@ -2301,11 +2364,11 @@ int interpreter_restart_thread(Interpreter* interp, Value thr_val, int line, int
     start->body = th->body;
     start->thr_val = value_copy(thr_val);
 
-    th->finished = 0;
-    th->paused = 0;
-    th->started = 1;
+    value_thr_set_finished(thr_val, 0);
+    value_thr_set_paused(thr_val, 0);
+    value_thr_set_started(thr_val, 1);
     if (thrd_create(&th->thread, thr_worker, start) != thrd_success) {
-        th->finished = 1;
+        value_thr_set_finished(thr_val, 1);
         value_free(start->thr_val);
         free(thr_interp);
         free(start);

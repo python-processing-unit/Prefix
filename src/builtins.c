@@ -1556,6 +1556,9 @@ static void ser_value(JsonBuf* jb, SerCtx* ctx, Interpreter* interp, Value v) {
         }
         case VAL_THR: {
             Thr* th = v.as.thr;
+            Value thv = value_null();
+            thv.type = VAL_THR;
+            thv.as.thr = th;
             const char* id = ser_thr_id(ctx, th);
             jb_append_char(jb, '{');
             bool first = true;
@@ -1564,15 +1567,15 @@ static void ser_value(JsonBuf* jb, SerCtx* ctx, Interpreter* interp, Value v) {
             json_obj_field(jb, &first, "id");
             jb_append_json_string(jb, id);
             json_obj_field(jb, &first, "state");
-            if (th->finished) jb_append_json_string(jb, "finished");
-            else if (th->paused) jb_append_json_string(jb, "paused");
+            if (value_thr_get_finished(thv)) jb_append_json_string(jb, "finished");
+            else if (value_thr_get_paused(thv)) jb_append_json_string(jb, "paused");
             else jb_append_json_string(jb, "running");
             json_obj_field(jb, &first, "paused");
-            jb_append_str(jb, th->paused ? "true" : "false");
+            jb_append_str(jb, value_thr_get_paused(thv) ? "true" : "false");
             json_obj_field(jb, &first, "finished");
-            jb_append_str(jb, th->finished ? "true" : "false");
+            jb_append_str(jb, value_thr_get_finished(thv) ? "true" : "false");
             json_obj_field(jb, &first, "stop");
-            jb_append_str(jb, th->finished ? "true" : "false");
+            jb_append_str(jb, value_thr_get_finished(thv) ? "true" : "false");
             json_obj_field(jb, &first, "env");
             ser_env(jb, ctx, interp, th->env);
             json_obj_field(jb, &first, "block");
@@ -2269,22 +2272,21 @@ static Value deser_val(JsonValue* obj, UnserCtx* ctx, Interpreter* interp, const
         if (id) {
             Thr* existing = unser_thr_get(ctx, id);
             if (existing) {
-                Value ret; ret.type = VAL_THR; ret.as.thr = existing; existing->refcount++;
-                return ret;
+                Value ret; ret.type = VAL_THR; ret.as.thr = existing;
+                return value_copy(ret);
             }
         }
         Value thr = value_thr_new();
-        Thr* th = thr.as.thr;
-        th->finished = 1;
-        th->paused = json_obj_get(obj, "paused") && json_obj_get(obj, "paused")->type == JSON_BOOL ? json_obj_get(obj, "paused")->as.boolean : 0;
-        th->started = 0;
-        th->body = NULL;
-        th->env = NULL;
+        value_thr_set_finished(thr, 1);
+        value_thr_set_paused(thr, json_obj_get(obj, "paused") && json_obj_get(obj, "paused")->type == JSON_BOOL ? json_obj_get(obj, "paused")->as.boolean : 0);
+        value_thr_set_started(thr, 0);
+        thr.as.thr->body = NULL;
+        thr.as.thr->env = NULL;
         JsonValue* blk = json_obj_get(obj, "block");
         JsonValue* envv = json_obj_get(obj, "env");
-        if (blk && blk->type == JSON_OBJ) th->body = deser_stmt(blk, ctx, interp, err);
-        if (envv && envv->type == JSON_OBJ) th->env = deser_env(envv, ctx, interp, err);
-        if (id) unser_thr_set(ctx, id, th);
+        if (blk && blk->type == JSON_OBJ) thr.as.thr->body = deser_stmt(blk, ctx, interp, err);
+        if (envv && envv->type == JSON_OBJ) thr.as.thr->env = deser_env(envv, ctx, interp, err);
+        if (id) unser_thr_set(ctx, id, thr.as.thr);
         return thr;
     }
 
@@ -6390,16 +6392,15 @@ static Value builtin_await(Interpreter* interp, Value* args, int argc, Expr** ar
     // where the worker could free the Thr between the check and
     // the join).
     Value ret = value_copy(args[0]);
-    Thr* th = ret.as.thr;
-    if (!th->started) {
+    if (!value_thr_get_started(ret)) {
         return ret;
     }
     // Wait for worker to mark finished; yield while spinning to be cooperative
-    while (!th->finished) {
+    while (!value_thr_get_finished(ret)) {
         thrd_yield();
     }
     // Join to reclaim thread resources; ignore join errors
-    thrd_join(th->thread, NULL);
+    thrd_join(ret.as.thr->thread, NULL);
     return ret;
 }
 
@@ -6420,7 +6421,7 @@ static int pause_timer_worker(void* arg) {
         thrd_sleep(&ts, NULL);
     }
     if (pt->thr_val.type == VAL_THR && pt->thr_val.as.thr) {
-        pt->thr_val.as.thr->paused = 0;
+        value_thr_set_paused(pt->thr_val, 0);
     }
     value_free(pt->thr_val);
     free(pt);
@@ -6436,11 +6437,10 @@ static Value builtin_pause(Interpreter* interp, Value* args, int argc, Expr** ar
     if (args[0].type != VAL_THR || !args[0].as.thr) {
         RUNTIME_ERROR(interp, "PAUSE expects THR argument", line, col);
     }
-    Thr* th = args[0].as.thr;
-    if (th->finished) {
+    if (value_thr_get_finished(args[0])) {
         RUNTIME_ERROR(interp, "Cannot pause finished thread", line, col);
     }
-    if (th->paused) {
+    if (value_thr_get_paused(args[0])) {
         RUNTIME_ERROR(interp, "Thread already paused", line, col);
     }
 
@@ -6455,7 +6455,7 @@ static Value builtin_pause(Interpreter* interp, Value* args, int argc, Expr** ar
         }
     }
 
-    th->paused = 1;
+    value_thr_set_paused(args[0], 1);
 
     if (seconds >= 0) {
         PauseTimer* pt = malloc(sizeof(PauseTimer));
@@ -6466,7 +6466,7 @@ static Value builtin_pause(Interpreter* interp, Value* args, int argc, Expr** ar
         if (thrd_create(&t, pause_timer_worker, pt) != thrd_success) {
             value_free(pt->thr_val);
             free(pt);
-            th->paused = 0;
+            value_thr_set_paused(args[0], 0);
             RUNTIME_ERROR(interp, "Failed to schedule resume", line, col);
         }
         thrd_detach(t);
@@ -6484,11 +6484,10 @@ static Value builtin_resume(Interpreter* interp, Value* args, int argc, Expr** a
     if (args[0].type != VAL_THR || !args[0].as.thr) {
         RUNTIME_ERROR(interp, "RESUME expects THR argument", line, col);
     }
-    Thr* th = args[0].as.thr;
-    if (!th->paused) {
+    if (!value_thr_get_paused(args[0])) {
         RUNTIME_ERROR(interp, "Thread is not paused", line, col);
     }
-    th->paused = 0;
+    value_thr_set_paused(args[0], 0);
     return value_copy(args[0]);
 }
 
@@ -6501,7 +6500,7 @@ static Value builtin_paused(Interpreter* interp, Value* args, int argc, Expr** a
     if (args[0].type != VAL_THR || !args[0].as.thr) {
         RUNTIME_ERROR(interp, "PAUSED expects THR argument", line, col);
     }
-    return value_int(args[0].as.thr->paused ? 1 : 0);
+    return value_int(value_thr_get_paused(args[0]) ? 1 : 0);
 }
 
 // STOP(THR: thread):THR — cooperatively stop a running thread and mark finished
@@ -6513,12 +6512,11 @@ static Value builtin_stop(Interpreter* interp, Value* args, int argc, Expr** arg
     if (args[0].type != VAL_THR || !args[0].as.thr) {
         RUNTIME_ERROR(interp, "STOP expects THR argument", line, col);
     }
-    Thr* th = args[0].as.thr;
-    if (th->finished) {
+    if (value_thr_get_finished(args[0])) {
         return value_copy(args[0]);
     }
-    th->paused = 0;
-    th->finished = 1;
+    value_thr_set_paused(args[0], 0);
+    value_thr_set_finished(args[0], 1);
     return value_copy(args[0]);
 }
 
@@ -6535,7 +6533,7 @@ static Value builtin_restart(Interpreter* interp, Value* args, int argc, Expr** 
     if (!th->body || !th->env) {
         RUNTIME_ERROR(interp, "Cannot restart: no stored thread body/env", line, col);
     }
-    if (!th->finished) {
+    if (!value_thr_get_finished(args[0])) {
         RUNTIME_ERROR(interp, "Cannot restart running thread", line, col);
     }
     // Delegate to interpreter helper that knows how to launch thr_worker

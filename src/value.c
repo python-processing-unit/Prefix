@@ -37,18 +37,66 @@ Value value_thr_new(void) {
     t->started = 0;
     t->body = NULL;
     t->env = NULL;
+    mtx_init(&t->state_lock, 0);
     memset(&t->thread, 0, sizeof(thrd_t));
     Value v; v.type = VAL_THR; v.as.thr = t; return v;
 }
 
 int value_thr_is_running(Value v) {
     if (v.type != VAL_THR || !v.as.thr) return 0;
-    return v.as.thr->finished ? 0 : 1;
+    int finished = 0;
+    mtx_lock(&v.as.thr->state_lock);
+    finished = v.as.thr->finished;
+    mtx_unlock(&v.as.thr->state_lock);
+    return finished ? 0 : 1;
 }
 
 void value_thr_set_finished(Value v, int finished) {
     if (v.type != VAL_THR || !v.as.thr) return;
+    mtx_lock(&v.as.thr->state_lock);
     v.as.thr->finished = finished ? 1 : 0;
+    mtx_unlock(&v.as.thr->state_lock);
+}
+
+int value_thr_get_finished(Value v) {
+    if (v.type != VAL_THR || !v.as.thr) return 1;
+    int finished = 1;
+    mtx_lock(&v.as.thr->state_lock);
+    finished = v.as.thr->finished;
+    mtx_unlock(&v.as.thr->state_lock);
+    return finished;
+}
+
+void value_thr_set_paused(Value v, int paused) {
+    if (v.type != VAL_THR || !v.as.thr) return;
+    mtx_lock(&v.as.thr->state_lock);
+    v.as.thr->paused = paused ? 1 : 0;
+    mtx_unlock(&v.as.thr->state_lock);
+}
+
+int value_thr_get_paused(Value v) {
+    if (v.type != VAL_THR || !v.as.thr) return 0;
+    int paused = 0;
+    mtx_lock(&v.as.thr->state_lock);
+    paused = v.as.thr->paused;
+    mtx_unlock(&v.as.thr->state_lock);
+    return paused;
+}
+
+void value_thr_set_started(Value v, int started) {
+    if (v.type != VAL_THR || !v.as.thr) return;
+    mtx_lock(&v.as.thr->state_lock);
+    v.as.thr->started = started ? 1 : 0;
+    mtx_unlock(&v.as.thr->state_lock);
+}
+
+int value_thr_get_started(Value v) {
+    if (v.type != VAL_THR || !v.as.thr) return 0;
+    int started = 0;
+    mtx_lock(&v.as.thr->state_lock);
+    started = v.as.thr->started;
+    mtx_unlock(&v.as.thr->state_lock);
+    return started;
 }
 
 // Create a pointer value referring to a binding name
@@ -78,6 +126,7 @@ Value value_tns_new(DeclType elem_type, size_t ndim, const size_t* shape) {
     t->data = malloc(sizeof(Value) * (t->length));
     for (size_t i = 0; i < t->length; i++) t->data[i] = value_null();
     t->refcount = 1;
+    mtx_init(&t->lock, 0);
     v.as.tns = t;
     return v;
 }
@@ -237,6 +286,7 @@ Value value_map_new(void) {
     m->count = 0;
     m->capacity = 0;
     m->refcount = 1;
+    mtx_init(&m->lock, 0);
     v.as.map = m;
     return v;
 }
@@ -338,15 +388,21 @@ Value value_copy(Value v) {
         out.as.s = strdup(v.as.s);
     } else if (v.type == VAL_TNS && v.as.tns) {
         Tensor* t = v.as.tns;
+        mtx_lock(&t->lock);
         t->refcount++;
+        mtx_unlock(&t->lock);
         out.as.tns = t;
     } else if (v.type == VAL_MAP && v.as.map) {
         Map* m = v.as.map;
+        mtx_lock(&m->lock);
         m->refcount++;
+        mtx_unlock(&m->lock);
         out.as.map = m;
     } else if (v.type == VAL_THR && v.as.thr) {
         Thr* th = v.as.thr;
+        mtx_lock(&th->state_lock);
         th->refcount++;
+        mtx_unlock(&th->state_lock);
         out.as.thr = th;
     }
     return out;
@@ -370,6 +426,7 @@ Value value_deep_copy(Value v) {
         t2->data = malloc(sizeof(Value) * t2->length);
         for (size_t i = 0; i < t2->length; i++) t2->data[i] = value_deep_copy(t->data[i]);
         t2->refcount = 1;
+        mtx_init(&t2->lock, 0);
         out.as.tns = t2;
     } else if (v.type == VAL_MAP && v.as.map) {
         Map* m = v.as.map;
@@ -383,11 +440,14 @@ Value value_deep_copy(Value v) {
             m2->items[i].value = value_deep_copy(m->items[i].value);
         }
         m2->refcount = 1;
+        mtx_init(&m2->lock, 0);
         out.as.map = m2;
     } else if (v.type == VAL_THR && v.as.thr) {
         // Threads are not deep-copyable; preserve handle semantics (share)
         Thr* th = v.as.thr;
+        mtx_lock(&th->state_lock);
         th->refcount++;
+        mtx_unlock(&th->state_lock);
         out.as.thr = th;
     }
     return out;
@@ -398,18 +458,27 @@ void value_free(Value v) {
         free(v.as.s);
     } else if (v.type == VAL_TNS && v.as.tns) {
         Tensor* t = v.as.tns;
-        if (--t->refcount <= 0) {
+        int free_now = 0;
+        mtx_lock(&t->lock);
+        if (--t->refcount <= 0) free_now = 1;
+        mtx_unlock(&t->lock);
+        if (free_now) {
             if (t->data) {
                 for (size_t i = 0; i < t->length; i++) value_free(t->data[i]);
                 free(t->data);
             }
             if (t->shape) free(t->shape);
             if (t->strides) free(t->strides);
+            mtx_destroy(&t->lock);
             free(t);
         }
     } else if (v.type == VAL_MAP && v.as.map) {
         Map* m = v.as.map;
-        if (--m->refcount <= 0) {
+        int free_now = 0;
+        mtx_lock(&m->lock);
+        if (--m->refcount <= 0) free_now = 1;
+        mtx_unlock(&m->lock);
+        if (free_now) {
             if (m->items) {
                 for (size_t i = 0; i < m->count; i++) {
                     value_free(m->items[i].key);
@@ -417,11 +486,17 @@ void value_free(Value v) {
                 }
                 free(m->items);
             }
+            mtx_destroy(&m->lock);
             free(m);
         }
     } else if (v.type == VAL_THR && v.as.thr) {
         Thr* th = v.as.thr;
-        if (--th->refcount <= 0) {
+        int free_now = 0;
+        mtx_lock(&th->state_lock);
+        if (--th->refcount <= 0) free_now = 1;
+        mtx_unlock(&th->state_lock);
+        if (free_now) {
+            mtx_destroy(&th->state_lock);
             free(th);
         }
     }

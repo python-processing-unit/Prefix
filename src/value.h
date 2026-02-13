@@ -31,6 +31,7 @@ typedef struct Thr {
     struct Stmt* body;
     struct Env* env;
 #endif
+    mtx_t state_lock;
     thrd_t thread;
 } Thr;
 
@@ -42,6 +43,7 @@ typedef struct Tensor {
     size_t length;    // total elements
     struct Value* data;      // length elements, contiguous row-major
     int refcount;
+    mtx_t lock;
 } Tensor;
 
 typedef struct Value {
@@ -67,6 +69,7 @@ typedef struct Map {
     size_t count;
     size_t capacity;
     int refcount;
+    mtx_t lock;
 } Map;
 
 // Tensor helpers
@@ -99,6 +102,11 @@ Value value_func(struct Func* func);
 Value value_thr_new(void);
 int value_thr_is_running(Value v);
 void value_thr_set_finished(Value v, int finished);
+int value_thr_get_finished(Value v);
+void value_thr_set_paused(Value v, int paused);
+int value_thr_get_paused(Value v);
+void value_thr_set_started(Value v, int started);
+int value_thr_get_started(Value v);
 // Note: pointer semantics are implemented at the EnvEntry (alias) level; no PTR Value type.
 
 Value value_copy(Value v);
