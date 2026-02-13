@@ -568,7 +568,7 @@ Value eval_expr(Interpreter* interp, Expr* expr, Env* env) {
                         for (int i = 0; i < pos_argc; i++) {
                             arg_nodes[i] = expr->as.call.args.items[i];
                             if (((strcmp(func_name, "DEL") == 0 || strcmp(func_name, "EXIST") == 0 || strcmp(func_name, "IMPORT") == 0 || strcmp(func_name, "ASSIGN") == 0) && i == 0)
-                                || (strcmp(func_name, "IMPORT_PATH") == 0 && i == 1)) {
+                                || ((strcmp(func_name, "IMPORT") == 0 || strcmp(func_name, "IMPORT_PATH") == 0) && i == 1)) {
                                 // leave as null placeholder
                                 continue;
                             }

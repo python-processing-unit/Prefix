@@ -4251,6 +4251,11 @@ static Value builtin_import_path(Interpreter* interp, Value* args, int argc, Exp
     if (found_path && strcmp(found_path, cache_key) != 0) {
         (void)module_register_alias(interp, found_path, mod_env);
     }
+    // Register provided alias name in module registry so callers can
+    // refer to the module by that identifier (EXPORT relies on this).
+    if (alias && strcmp(alias, cache_key) != 0) {
+        (void)module_register_alias(interp, alias, mod_env);
+    }
 
     // If not already loaded, execute module source once.
     EnvEntry* marker = env_get_entry(mod_env, "__MODULE_LOADED__");
@@ -4332,10 +4337,14 @@ static Value builtin_import_path(Interpreter* interp, Value* args, int argc, Exp
         }
         if (!belongs) continue;
 
-        size_t qlen = alias_len + 1 + strlen(fe->name) + 1;
+        const char* fname = fe->name ? fe->name : "";
+        const char* unq = strchr(fname, '.');
+        if (unq) unq = unq + 1; else unq = fname;
+
+        size_t qlen = alias_len + 1 + strlen(unq) + 1;
         char* qualified = malloc(qlen);
         if (!qualified) { RUNTIME_ERROR(interp, "Out of memory", line, col); }
-        snprintf(qualified, qlen, "%s.%s", alias, fe->name);
+        snprintf(qualified, qlen, "%s.%s", alias, unq);
         Value fv = value_func(fe->func);
 
         // Try to assign qualified symbol into caller env
@@ -6208,10 +6217,14 @@ static Value builtin_import(Interpreter* interp, Value* args, int argc, Expr** a
         }
         if (!belongs) continue;
 
-        size_t qlen = alias_len + 1 + strlen(fe->name) + 1;
+        const char* fname = fe->name ? fe->name : "";
+        const char* unq = strchr(fname, '.');
+        if (unq) unq = unq + 1; else unq = fname;
+
+        size_t qlen = alias_len + 1 + strlen(unq) + 1;
         char* qualified = malloc(qlen);
         if (!qualified) { RUNTIME_ERROR(interp, "Out of memory", line, col); }
-        snprintf(qualified, qlen, "%s.%s", alias, fe->name);
+        snprintf(qualified, qlen, "%s.%s", alias, unq);
         Value fv = value_func(fe->func);
         if (!env_assign(env, qualified, fv, TYPE_FUNC, true)) {
             value_free(fv);
