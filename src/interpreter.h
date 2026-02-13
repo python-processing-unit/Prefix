@@ -61,23 +61,9 @@ typedef struct {
     LabelMap labels;
 } Frame;
 
-// Function table entry
-typedef struct FuncEntry {
-    char* name;
-    Func* func;
-    struct FuncEntry* next;
-} FuncEntry;
-
-// Function table
-typedef struct {
-    FuncEntry* entries;
-    size_t count;
-} FuncTable;
-
 // Interpreter state
 typedef struct Interpreter {
     Env* global_env;
-    FuncTable* functions;
     int loop_depth;
     char* error;
     int error_line;
@@ -108,12 +94,6 @@ ExecResult assign_index_chain(Interpreter* interp, Env* env, Expr* idx_expr, Val
 // Restart a finished thread `thr_val` by re-launching its stored body/env.
 // Returns 0 on success, -1 on failure. On failure, sets interp->error/message.
 int interpreter_restart_thread(Interpreter* interp, Value thr_val, int line, int col);
-
-// Function table operations
-FuncTable* func_table_create(void);
-void func_table_free(FuncTable* table);
-bool func_table_add(FuncTable* table, const char* name, Func* func);
-Func* func_table_lookup(FuncTable* table, const char* name, Env* caller_env);
 
 // Module registry helpers
 // Register a module name and create its isolated Env. Returns 0 on success, -1 on error.

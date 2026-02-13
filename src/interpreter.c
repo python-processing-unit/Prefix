@@ -151,29 +151,6 @@ static int label_map_find(LabelMap* map, Value key) {
     return -1;
 }
 
-// ============ Function table ============
-
-// Walk to the root of an environment chain.
-static Env* env_root(Env* env) {
-    while (env && env->parent) {
-        env = env->parent;
-    }
-    return env;
-}
-
-// Returns true when `ancestor` appears in the parent chain of `env`.
-static bool env_is_ancestor(Env* ancestor, Env* env) {
-    for (Env* e = env; e != NULL; e = e->parent) {
-        if (e == ancestor) return true;
-    }
-    return false;
-}
-
-FuncTable* func_table_create(void) {
-    FuncTable* table = safe_malloc(sizeof(FuncTable));
-    return table;
-}
-
 // ============ Module registry ============
 
 typedef struct ModuleEntry {
@@ -227,68 +204,6 @@ Env* module_env_lookup(Interpreter* interp, const char* name) {
         e = e->next;
     }
     return NULL;
-}
-
-void func_table_free(FuncTable* table) {
-    if (!table) return;
-    FuncEntry* entry = table->entries;
-    while (entry) {
-        FuncEntry* next = entry->next;
-        free(entry->name);
-        // Don't free func itself as it may be referenced by values
-        free(entry);
-        entry = next;
-    }
-    free(table);
-}
-
-bool func_table_add(FuncTable* table, const char* name, Func* func) {
-    for (FuncEntry* entry = table->entries; entry != NULL; entry = entry->next) {
-        if (strcmp(entry->name, name) != 0) continue;
-        // If either the existing entry or the new registration is an
-        // operator (func == NULL), do not allow the registration.
-        if (entry->func == NULL || func == NULL) {
-            return false; // Operator names cannot be overridden or shadowed
-        }
-        // Otherwise both are user functions: allow shadowing by inserting
-        // the new entry at the head (no rejection).
-    }
-
-    FuncEntry* new_entry = safe_malloc(sizeof(FuncEntry));
-    new_entry->name = strdup(name);
-    new_entry->func = func;
-    new_entry->next = table->entries;
-    table->entries = new_entry;
-    table->count++;
-    return true;
-}
-
-Func* func_table_lookup(FuncTable* table, const char* name, Env* caller_env) {
-    Func* fallback = NULL;
-    Env* caller_root = env_root(caller_env);
-
-    for (FuncEntry* entry = table->entries; entry != NULL; entry = entry->next) {
-        if (strcmp(entry->name, name) != 0) continue;
-        Func* f = entry->func;
-        if (!f) continue;
-
-        // Prefer functions whose closure is an ancestor of the caller's env.
-        if (f->closure && caller_env && env_is_ancestor(f->closure, caller_env)) {
-            return f;
-        }
-
-        // Next preference: matching environment roots (same module/global tree).
-        Env* closure_root = env_root(f->closure);
-        if (!fallback && closure_root && caller_root && closure_root == caller_root) {
-            fallback = f;
-            continue;
-        }
-
-        // As a final option, remember the first match.
-        if (!fallback) fallback = f;
-    }
-
-    return fallback;
 }
 
 // ============ Value truthiness ============
@@ -457,12 +372,6 @@ Value eval_expr(Interpreter* interp, Expr* expr, Env* env) {
             DeclType dtype;
             bool initialized;
             if (!env_get(env, expr->as.ident, &v, &dtype, &initialized)) {
-                // Check if it's a function name
-                Func* func = func_table_lookup(interp->functions, expr->as.ident, env);
-                if (func) {
-                    return value_func(func);
-                }
-                
                 char buf[128];
                 snprintf(buf, sizeof(buf), "Undefined identifier '%s'", expr->as.ident);
                 interp->error = strdup(buf);
@@ -679,66 +588,15 @@ Value eval_expr(Interpreter* interp, Expr* expr, Env* env) {
                     return result;
                 }
                 
-                // Check user-defined functions
-                user_func = func_table_lookup(interp->functions, func_name, env);
-                if (!user_func) {
-                    // If not found, check if it's a variable holding a function
-                    Value v;
-                    DeclType dtype;
-                    bool initialized;
-                    if (env_get(env, func_name, &v, &dtype, &initialized) && initialized && v.type == VAL_FUNC) {
+                // Check user-defined functions in the shared namespace
+                Value v;
+                DeclType dtype;
+                bool initialized;
+                if (env_get(env, func_name, &v, &dtype, &initialized)) {
+                    if (initialized && v.type == VAL_FUNC) {
                         user_func = v.as.func;
                     }
-                }
-
-                // Fallback: if name contains a dot (module-qualified like "mod.fn") and
-                // the direct lookup failed, try to resolve by locating the module env
-                // and finding a function whose declared name matches the suffix and
-                // whose closure ancestry contains the module env. This helps when
-                // IMPORT did not register the qualified name in the global func table.
-                if (!user_func && func_name && strchr(func_name, '.')) {
-                    // find last '.' so module prefixes with dots in names are supported
-                    const char* last_dot = strrchr(func_name, '.');
-                    if (last_dot && last_dot > func_name) {
-                        size_t modlen = (size_t)(last_dot - func_name);
-                        char* modname = malloc(modlen + 1);
-                        if (modname) {
-                            memcpy(modname, func_name, modlen);
-                            modname[modlen] = '\0';
-                            const char* fname = last_dot + 1;
-                            Env* mod_env = module_env_lookup(interp, modname);
-                            // If exact name lookup failed, try matching module entries by
-                            // their basename (strip directories and extension). This
-                            // handles modules registered via IMPORT_PATH using full paths.
-                            if (!mod_env && interp->modules) {
-                                for (ModuleEntry* me = interp->modules; me != NULL; me = me->next) {
-                                    if (!me->name) continue;
-                                    const char* p = me->name + strlen(me->name);
-                                    // find last path separator
-                                    while (p > me->name && *(p-1) != '/' && *(p-1) != '\\') p--;
-                                    char basebuf[512];
-                                    snprintf(basebuf, sizeof(basebuf), "%s", p);
-                                    // strip extension
-                                    char* dot = strrchr(basebuf, '.');
-                                    if (dot) *dot = '\0';
-                                    if (strcmp(basebuf, modname) == 0) { mod_env = me->env; break; }
-                                }
-                            }
-                            if (mod_env) {
-                                for (FuncEntry* fe = interp->functions->entries; fe != NULL; fe = fe->next) {
-                                    if (!fe->func || !fe->name) continue;
-                                    if (strcmp(fe->name, fname) != 0) continue;
-                                    Env* c = fe->func->closure;
-                                    while (c) {
-                                        if (c == mod_env) { user_func = fe->func; break; }
-                                        c = c->parent;
-                                    }
-                                    if (user_func) break;
-                                }
-                            }
-                            free(modname);
-                        }
-                    }
+                    value_free(v);
                 }
             } else {
                 // Callee is an expression (like tns[1]())
@@ -756,30 +614,6 @@ Value eval_expr(Interpreter* interp, Expr* expr, Env* env) {
             }
             
             if (!user_func) {
-                // Final fallback: try to match functions whose registered
-                // name is either the full qualified name or ends with the
-                // requested suffix. This covers cases where IMPORT added
-                // qualified names into the func table but direct lookup
-                // somehow failed earlier.
-                if (func_name && strchr(func_name, '.')) {
-                    const char* last_dot = strrchr(func_name, '.');
-                    const char* suffix = last_dot ? last_dot + 1 : func_name;
-                    for (FuncEntry* fe = interp->functions->entries; fe != NULL && !user_func; fe = fe->next) {
-                        if (!fe->name || !fe->func) continue;
-                        // exact match (qualified)
-                        if (strcmp(fe->name, func_name) == 0) { user_func = fe->func; break; }
-                        // suffix match: either stored as basename or qualified
-                        size_t len = strlen(fe->name);
-                        size_t slen = strlen(suffix);
-                        if (len >= slen && strcmp(fe->name + (len - slen), suffix) == 0) {
-                            // ensure the trailing match is a full identifier segment
-                            if (len == slen || fe->name[len - slen - 1] == '.') {
-                                user_func = fe->func;
-                                break;
-                            }
-                        }
-                    }
-                }
                 char buf[128];
                 snprintf(buf, sizeof(buf), "Unknown function '%s'", func_name ? func_name : "<expr>");
                 interp->error = strdup(buf);
@@ -1165,7 +999,6 @@ tns_eval_fail:
             Interpreter* thr_interp = safe_malloc(sizeof(Interpreter));
             *thr_interp = (Interpreter){0};
             thr_interp->global_env = interp->global_env;
-            thr_interp->functions = interp->functions;
             thr_interp->loop_depth = 0;
             thr_interp->error = NULL;
             thr_interp->error_line = 0;
@@ -1746,7 +1579,7 @@ static ExecResult exec_stmt(Interpreter* interp, Stmt* stmt, Env* env, LabelMap*
                 if (expected != actual) {
                     char buf[128];
                     snprintf(buf, sizeof(buf), "Type mismatch: expected %s but got %s",
-                             expected == TYPE_INT ? "INT" : 
+                             expected == TYPE_INT ? "INT" :
                              expected == TYPE_FLT ? "FLT" :
                              expected == TYPE_STR ? "STR" :
                              expected == TYPE_TNS ? "TNS" :
@@ -1812,14 +1645,21 @@ static ExecResult exec_stmt(Interpreter* interp, Stmt* stmt, Env* env, LabelMap*
             // Closure is current environment
             f->closure = env;
 
-            if (!func_table_add(interp->functions, f->name, f)) {
-                // Name conflict
+            if (builtin_lookup(f->name)) {
                 free(f->name);
-                // free params names
                 for (size_t i = 0; i < f->params.count; i++) free(f->params.items[i].name);
                 free(f->params.items);
                 free(f);
-                return make_error("Function name already defined", stmt->line, stmt->column);
+                return make_error("Function name conflicts with built-in", stmt->line, stmt->column);
+            }
+
+            EnvEntry* prior = env_get_entry(env, f->name);
+            if (prior && prior->decl_type != TYPE_FUNC) {
+                free(f->name);
+                for (size_t i = 0; i < f->params.count; i++) free(f->params.items[i].name);
+                free(f->params.items);
+                free(f);
+                return make_error("Function name conflicts with existing symbol", stmt->line, stmt->column);
             }
 
             // Also expose the function as a binding in the current environment
@@ -1984,7 +1824,6 @@ static ExecResult exec_stmt(Interpreter* interp, Stmt* stmt, Env* env, LabelMap*
             Interpreter* thr_interp = safe_malloc(sizeof(Interpreter));
             *thr_interp = (Interpreter){0};
             thr_interp->global_env = interp->global_env;
-            thr_interp->functions = interp->functions;
             thr_interp->loop_depth = 0;
             thr_interp->error = NULL;
             thr_interp->error_line = 0;
@@ -2021,7 +1860,6 @@ static ExecResult exec_stmt(Interpreter* interp, Stmt* stmt, Env* env, LabelMap*
             Interpreter* thr_interp = safe_malloc(sizeof(Interpreter));
             *thr_interp = (Interpreter){0};
             thr_interp->global_env = interp->global_env;
-            thr_interp->functions = interp->functions;
             thr_interp->loop_depth = 0;
             thr_interp->error = NULL;
             thr_interp->error_line = 0;
@@ -2245,7 +2083,6 @@ static ExecResult exec_stmt(Interpreter* interp, Stmt* stmt, Env* env, LabelMap*
                 Interpreter* thr_interp = safe_malloc(sizeof(Interpreter));
                 *thr_interp = (Interpreter){0};
                 thr_interp->global_env = interp->global_env;
-                thr_interp->functions = interp->functions;
                 thr_interp->loop_depth = 0;
                 thr_interp->error = NULL;
                 thr_interp->error_line = 0;
@@ -2392,7 +2229,6 @@ static ExecResult exec_stmt_list(Interpreter* interp, StmtList* list, Env* env, 
 ExecResult exec_program(Stmt* program, const char* source_path) {
     Interpreter interp = {0};
     interp.global_env = env_create(NULL);
-    interp.functions = func_table_create();
     interp.loop_depth = 0;
     interp.error = NULL;
     interp.in_try_block = false;
@@ -2416,7 +2252,6 @@ ExecResult exec_program(Stmt* program, const char* source_path) {
     free(labels.items);
     
     env_free(interp.global_env);
-    func_table_free(interp.functions);
     // Free modules
     ModuleEntry* me = interp.modules;
     while (me) {
@@ -2453,7 +2288,6 @@ int interpreter_restart_thread(Interpreter* interp, Value thr_val, int line, int
     Interpreter* thr_interp = safe_malloc(sizeof(Interpreter));
     *thr_interp = (Interpreter){0};
     thr_interp->global_env = interp->global_env;
-    thr_interp->functions = interp->functions;
     thr_interp->loop_depth = 0;
     thr_interp->error = NULL;
     thr_interp->error_line = 0;

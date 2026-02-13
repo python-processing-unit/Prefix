@@ -2230,10 +2230,17 @@ static Value deser_val(JsonValue* obj, UnserCtx* ctx, Interpreter* interp, const
 
         JsonValue* nm = json_obj_get(obj, "name");
         if (nm && nm->type == JSON_STR) {
-            Func* existing = func_table_lookup(interp->functions, nm->as.str, NULL);
-            if (existing) {
-                if (id) unser_func_set(ctx, id, existing);
-                return value_func(existing);
+            Value existing = value_null();
+            DeclType dt = TYPE_UNKNOWN;
+            bool initialized = false;
+            if (interp && interp->global_env && env_get(interp->global_env, nm->as.str, &existing, &dt, &initialized)) {
+                if (initialized && existing.type == VAL_FUNC && existing.as.func) {
+                    if (id) unser_func_set(ctx, id, existing.as.func);
+                    Value ret = value_func(existing.as.func);
+                    value_free(existing);
+                    return ret;
+                }
+                value_free(existing);
             }
         }
 
@@ -4326,42 +4333,6 @@ static Value builtin_import_path(Interpreter* interp, Value* args, int argc, Exp
 
     // Expose module symbols into caller env under alias prefix: alias.name -> value
     size_t alias_len = strlen(alias);
-    // Expose functions defined in this module as alias.name by matching closure ancestry
-    for (FuncEntry* fe = interp->functions->entries; fe != NULL; fe = fe->next) {
-        if (!fe->func || !fe->func->closure) continue;
-        Env* c = fe->func->closure;
-        bool belongs = false;
-        while (c) {
-            if (c == mod_env) { belongs = true; break; }
-            c = c->parent;
-        }
-        if (!belongs) continue;
-
-        const char* fname = fe->name ? fe->name : "";
-        const char* unq = strchr(fname, '.');
-        if (unq) unq = unq + 1; else unq = fname;
-
-        size_t qlen = alias_len + 1 + strlen(unq) + 1;
-        char* qualified = malloc(qlen);
-        if (!qualified) { RUNTIME_ERROR(interp, "Out of memory", line, col); }
-        snprintf(qualified, qlen, "%s.%s", alias, unq);
-        Value fv = value_func(fe->func);
-
-        // Try to assign qualified symbol into caller env
-        if (!env_assign(env, qualified, fv, TYPE_FUNC, true)) {
-            value_free(fv);
-            free(qualified);
-            RUNTIME_ERROR(interp, "IMPORT failed to assign qualified function name", line, col);
-        }
-
-        // Also register a qualified name in the global function table so
-        // calls written as 'alias.name()' can be resolved via func_table_lookup
-        // (some call sites may appear as a single IDENT with a dot).
-        (void)func_table_add(interp->functions, qualified, fe->func);
-
-        value_free(fv);
-        free(qualified);
-    }
     for (size_t i = 0; i < mod_env->count; i++) {
         EnvEntry* e = &mod_env->entries[i];
         if (!e->initialized) continue;
@@ -5002,80 +4973,6 @@ static Value builtin_signature(Interpreter* interp, Value* args, int argc, Expr*
             free(buf);
             return out;
         }
-    }
-
-    // If not in environment or not a function there, check the interpreter function table
-    Func* ff = NULL;
-    if (interp && interp->functions) ff = func_table_lookup(interp->functions, name, env);
-    if (ff != NULL) {
-        struct Func* f = ff;
-        size_t cap = 256;
-        char* buf = malloc(cap);
-        if (!buf) RUNTIME_ERROR(interp, "Out of memory", line, col);
-        buf[0] = '\0';
-        strcat(buf, f->name ? f->name : name);
-        strcat(buf, "(");
-        for (size_t i = 0; i < f->params.count; i++) {
-            Param p = f->params.items[i];
-            const char* tname = "UNKNOWN";
-            switch (p.type) {
-                case TYPE_INT: tname = "INT"; break;
-                case TYPE_FLT: tname = "FLT"; break;
-                case TYPE_STR: tname = "STR"; break;
-                case TYPE_TNS: tname = "TNS"; break;
-                case TYPE_FUNC: tname = "FUNC"; break;
-                case TYPE_THR: tname = "THR"; break;
-                default: tname = "ANY"; break;
-            }
-            if (i > 0) strcat(buf, ", ");
-            strcat(buf, tname);
-            strcat(buf, ": ");
-            strcat(buf, p.name ? p.name : "");
-            if (p.default_value != NULL) {
-                Value dv = eval_expr(interp, p.default_value, f->closure);
-                strcat(buf, " = ");
-                if (dv.type == VAL_STR) {
-                    size_t need = strlen(buf) + strlen(dv.as.s) + 4;
-                    if (need > cap) { cap = need * 2; buf = realloc(buf, cap); }
-                    strcat(buf, "\"");
-                    strcat(buf, dv.as.s);
-                    strcat(buf, "\"");
-                } else if (dv.type == VAL_INT) {
-                    char* s = int_to_binary_str(dv.as.i);
-                    size_t need = strlen(buf) + strlen(s) + 2;
-                    if (need > cap) { cap = need * 2; buf = realloc(buf, cap); }
-                    strcat(buf, s);
-                    free(s);
-                } else if (dv.type == VAL_FLT) {
-                    char* s = flt_to_binary_str(dv.as.f);
-                    size_t need = strlen(buf) + strlen(s) + 2;
-                    if (need > cap) { cap = need * 2; buf = realloc(buf, cap); }
-                    strcat(buf, s);
-                    free(s);
-                } else {
-                    const char* tn = value_type_name(dv);
-                    size_t need = strlen(buf) + strlen(tn) + 2;
-                    if (need > cap) { cap = need * 2; buf = realloc(buf, cap); }
-                    strcat(buf, tn);
-                }
-                value_free(dv);
-            }
-        }
-        strcat(buf, "):");
-        const char* rname = "ANY";
-        switch (f->return_type) {
-            case TYPE_INT: rname = "INT"; break;
-            case TYPE_FLT: rname = "FLT"; break;
-            case TYPE_STR: rname = "STR"; break;
-            case TYPE_TNS: rname = "TNS"; break;
-            case TYPE_FUNC: rname = "FUNC"; break;
-            case TYPE_THR: rname = "THR"; break;
-            default: rname = "ANY"; break;
-        }
-        strcat(buf, rname);
-        Value out = value_str(buf);
-        free(buf);
-        return out;
     }
 
     // Non-function: return "TYPE: name" using declared type if available
@@ -6206,37 +6103,6 @@ static Value builtin_import(Interpreter* interp, Value* args, int argc, Expr** a
     // Expose module symbols into caller env under alias prefix: alias.name -> value
     size_t alias_len = strlen(alias);
 
-    // Expose functions defined in this module as alias.name by matching closure ancestry
-    for (FuncEntry* fe = interp->functions->entries; fe != NULL; fe = fe->next) {
-        if (!fe->func || !fe->func->closure) continue;
-        Env* c = fe->func->closure;
-        bool belongs = false;
-        while (c) {
-            if (c == mod_env) { belongs = true; break; }
-            c = c->parent;
-        }
-        if (!belongs) continue;
-
-        const char* fname = fe->name ? fe->name : "";
-        const char* unq = strchr(fname, '.');
-        if (unq) unq = unq + 1; else unq = fname;
-
-        size_t qlen = alias_len + 1 + strlen(unq) + 1;
-        char* qualified = malloc(qlen);
-        if (!qualified) { RUNTIME_ERROR(interp, "Out of memory", line, col); }
-        snprintf(qualified, qlen, "%s.%s", alias, unq);
-        Value fv = value_func(fe->func);
-        if (!env_assign(env, qualified, fv, TYPE_FUNC, true)) {
-            value_free(fv);
-            free(qualified);
-            RUNTIME_ERROR(interp, "IMPORT failed to assign qualified function name", line, col);
-        }
-
-        (void)func_table_add(interp->functions, qualified, fe->func);
-        value_free(fv);
-        free(qualified);
-    }
-
     for (size_t i = 0; i < mod_env->count; i++) {
         EnvEntry* e = &mod_env->entries[i];
         if (!e->initialized) continue;
@@ -6775,7 +6641,6 @@ static Value builtin_parallel(Interpreter* interp, Value* args, int argc, Expr**
         }
         *thr_interp = (Interpreter){0};
         thr_interp->global_env = interp->global_env;
-        thr_interp->functions = interp->functions;
         thr_interp->loop_depth = 0;
         thr_interp->error = NULL;
         thr_interp->error_line = 0;
