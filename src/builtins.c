@@ -11,6 +11,7 @@
 #include <sys/stat.h>
 #include <time.h>
 #include <stdarg.h>
+#include <limits.h>
 #ifndef _MSC_VER
 #include <sys/wait.h>
 #endif
@@ -93,6 +94,22 @@ static bool writeback_first_ptr(Interpreter* interp, Expr** arg_nodes, Env* env,
         return false;
     }
     return true;
+}
+
+static char* canonicalize_existing_path(const char* path) {
+    if (!path || path[0] == '\0') return NULL;
+#ifdef _WIN32
+    char full[_MAX_PATH];
+    if (_fullpath(full, path, _MAX_PATH)) {
+        return strdup(full);
+    }
+#else
+    char full[PATH_MAX];
+    if (realpath(path, full)) {
+        return strdup(full);
+    }
+#endif
+    return strdup(path);
 }
 
     // Global argv storage (set by main via builtins_set_argv)
@@ -4183,103 +4200,124 @@ static Value builtin_import_path(Interpreter* interp, Value* args, int argc, Exp
         alias = alias_dup;
     }
 
-    // Register module using the canonical path string as name to ensure uniqueness
-    if (module_register(interp, inpath) != 0) {
-        if (alias_dup) free(alias_dup);
-        RUNTIME_ERROR(interp, "IMPORT_PATH failed to register module", line, col);
-    }
+    // Determine if path is file or directory and resolve an import source path.
+    struct stat st;
+    char candidate[2048];
+    char* found_path = NULL;
 
-    Env* mod_env = module_env_lookup(interp, inpath);
-    if (!mod_env) {
-        if (alias_dup) free(alias_dup);
-        RUNTIME_ERROR(interp, "IMPORT_PATH failed to lookup module env", line, col);
-    }
-
-    // If not already loaded, attempt to load file or directory
-    EnvEntry* marker = env_get_entry(mod_env, "__MODULE_LOADED__");
-    if (!marker || !marker->initialized) {
-        // Determine if path is file or directory
-        struct stat st;
-        char candidate[2048];
-        char* found_path = NULL;
-
-        if (stat(inpath, &st) == 0 && (st.st_mode & S_IFMT) == S_IFDIR) {
-            // directory -> require init.pre
-            if (snprintf(candidate, sizeof(candidate), "%s/init.pre", inpath) >= 0) {
-                if (stat(candidate, &st) == 0 && (st.st_mode & S_IFMT) == S_IFREG) {
-                    found_path = strdup(candidate);
-                } else {
-                    if (alias_dup) free(alias_dup);
-                    RUNTIME_ERROR(interp, "IMPORT_PATH: package missing init.pre", line, col);
-                }
-            }
-        } else {
-            // try file as given
-            if (stat(inpath, &st) == 0 && (st.st_mode & S_IFMT) == S_IFREG) {
-                found_path = strdup(inpath);
+    if (stat(inpath, &st) == 0 && (st.st_mode & S_IFMT) == S_IFDIR) {
+        if (snprintf(candidate, sizeof(candidate), "%s/init.pre", inpath) >= 0) {
+            if (stat(candidate, &st) == 0 && (st.st_mode & S_IFMT) == S_IFREG) {
+                found_path = strdup(candidate);
             } else {
-                // try appending .pre
-                if (snprintf(candidate, sizeof(candidate), "%s.pre", inpath) >= 0) {
-                    if (stat(candidate, &st) == 0 && (st.st_mode & S_IFMT) == S_IFREG) {
-                        found_path = strdup(candidate);
-                    }
-                }
+                if (alias_dup) free(alias_dup);
+                RUNTIME_ERROR(interp, "IMPORT_PATH: package missing init.pre", line, col);
             }
         }
+    } else {
+        if (stat(inpath, &st) == 0 && (st.st_mode & S_IFMT) == S_IFREG) {
+            found_path = strdup(inpath);
+        } else if (snprintf(candidate, sizeof(candidate), "%s.pre", inpath) >= 0) {
+            if (stat(candidate, &st) == 0 && (st.st_mode & S_IFMT) == S_IFREG) {
+                found_path = strdup(candidate);
+            }
+        }
+    }
 
-        if (found_path) {
-            FILE* f = fopen(found_path, "rb");
-            char* srcbuf = NULL;
-            if (f) {
-                fseek(f, 0, SEEK_END);
-                long len = ftell(f);
-                fseek(f, 0, SEEK_SET);
-                srcbuf = malloc((size_t)len + 1);
-                if (!srcbuf) { fclose(f); free(found_path); if (alias_dup) free(alias_dup); RUNTIME_ERROR(interp, "Out of memory", line, col); }
-                if (fread(srcbuf, 1, (size_t)len, f) != (size_t)len) { free(srcbuf); fclose(f); free(found_path); srcbuf = NULL; }
-                if (srcbuf) {
-                    srcbuf[len] = '\0';
-                    fclose(f);
-                    // Set module source so nested IMPORTs prefer this dir
-                    env_assign(mod_env, "__MODULE_SOURCE__", value_str(found_path), TYPE_STR, true);
+    char* canonical_path = found_path ? canonicalize_existing_path(found_path) : NULL;
+    const char* cache_key = canonical_path ? canonical_path : inpath;
 
-                    Lexer lex;
-                    lexer_init(&lex, srcbuf, found_path);
-                    Parser parser;
-                    parser_init(&parser, &lex);
-                    Stmt* program = parser_parse(&parser);
-                    if (parser.had_error) {
-                        free(srcbuf);
-                        free(found_path);
-                        if (alias_dup) free(alias_dup);
-                        interp->error = strdup("IMPORT_PATH: parse error");
-                        interp->error_line = parser.current_token.line;
-                        interp->error_col = parser.current_token.column;
-                        return value_null();
-                    }
+    Env* mod_env = module_env_lookup(interp, cache_key);
+    if (!mod_env) {
+        if (module_register(interp, cache_key) != 0) {
+            free(found_path);
+            free(canonical_path);
+            if (alias_dup) free(alias_dup);
+            RUNTIME_ERROR(interp, "IMPORT_PATH failed to register module", line, col);
+        }
+        mod_env = module_env_lookup(interp, cache_key);
+        if (!mod_env) {
+            free(found_path);
+            free(canonical_path);
+            if (alias_dup) free(alias_dup);
+            RUNTIME_ERROR(interp, "IMPORT_PATH failed to lookup module env", line, col);
+        }
+    }
 
-                    ExecResult res = exec_program_in_env(interp, program, mod_env);
-                    if (res.status == EXEC_ERROR) {
-                        free(srcbuf);
-                        free(found_path);
-                        if (res.error) interp->error = strdup(res.error);
-                        interp->error_line = res.error_line;
-                        interp->error_col = res.error_column;
-                        free(res.error);
-                        if (alias_dup) free(alias_dup);
-                        return value_null();
-                    }
+    // Add aliases so equivalent spellings/path forms reuse the same cache entry.
+    if (strcmp(inpath, cache_key) != 0) {
+        (void)module_register_alias(interp, inpath, mod_env);
+    }
+    if (found_path && strcmp(found_path, cache_key) != 0) {
+        (void)module_register_alias(interp, found_path, mod_env);
+    }
 
-                    // mark loaded
-                    env_assign(mod_env, "__MODULE_LOADED__", value_int(1), TYPE_INT, true);
+    // If not already loaded, execute module source once.
+    EnvEntry* marker = env_get_entry(mod_env, "__MODULE_LOADED__");
+    if ((!marker || !marker->initialized) && found_path) {
+        FILE* f = fopen(found_path, "rb");
+        char* srcbuf = NULL;
+        if (f) {
+            fseek(f, 0, SEEK_END);
+            long len = ftell(f);
+            fseek(f, 0, SEEK_SET);
+            srcbuf = malloc((size_t)len + 1);
+            if (!srcbuf) {
+                fclose(f);
+                free(found_path);
+                free(canonical_path);
+                if (alias_dup) free(alias_dup);
+                RUNTIME_ERROR(interp, "Out of memory", line, col);
+            }
+            if (fread(srcbuf, 1, (size_t)len, f) != (size_t)len) {
+                free(srcbuf);
+                srcbuf = NULL;
+            }
+            if (srcbuf) {
+                srcbuf[len] = '\0';
+                fclose(f);
 
+                env_assign(mod_env, "__MODULE_SOURCE__", value_str(cache_key), TYPE_STR, true);
+
+                Lexer lex;
+                lexer_init(&lex, srcbuf, found_path);
+                Parser parser;
+                parser_init(&parser, &lex);
+                Stmt* program = parser_parse(&parser);
+                if (parser.had_error) {
                     free(srcbuf);
                     free(found_path);
+                    free(canonical_path);
+                    if (alias_dup) free(alias_dup);
+                    interp->error = strdup("IMPORT_PATH: parse error");
+                    interp->error_line = parser.current_token.line;
+                    interp->error_col = parser.current_token.column;
+                    return value_null();
                 }
+
+                ExecResult res = exec_program_in_env(interp, program, mod_env);
+                if (res.status == EXEC_ERROR) {
+                    free(srcbuf);
+                    free(found_path);
+                    free(canonical_path);
+                    if (res.error) interp->error = strdup(res.error);
+                    interp->error_line = res.error_line;
+                    interp->error_col = res.error_column;
+                    free(res.error);
+                    if (alias_dup) free(alias_dup);
+                    return value_null();
+                }
+
+                env_assign(mod_env, "__MODULE_LOADED__", value_int(1), TYPE_INT, true);
+                free(srcbuf);
+            } else {
+                fclose(f);
             }
         }
-        // If not found, allow module env to be populated by extensions
     }
+
+    free(found_path);
+    free(canonical_path);
 
     // Expose module symbols into caller env under alias prefix: alias.name -> value
     size_t alias_len = strlen(alias);
@@ -5956,199 +5994,205 @@ static Value builtin_import(Interpreter* interp, Value* args, int argc, Expr** a
         alias = modname;
     }
 
-    // Ensure module registry entry exists
-    if (module_register(interp, modname) != 0) {
-        RUNTIME_ERROR(interp, "IMPORT failed to register module", line, col);
+    // Determine referring directory from caller env's __MODULE_SOURCE__ if present
+    const char* referer_source = NULL;
+    EnvEntry* src_entry = env_get_entry(env, "__MODULE_SOURCE__");
+    if (src_entry && src_entry->initialized && src_entry->value.type == VAL_STR) {
+        referer_source = src_entry->value.as.s;
     }
 
-    // Lookup module env
-    Env* mod_env = module_env_lookup(interp, modname);
-    if (!mod_env) {
-        RUNTIME_ERROR(interp, "IMPORT failed to lookup module env", line, col);
+    char referer_dir[1024] = {0};
+    if (referer_source && referer_source[0] != '\0') {
+        strncpy(referer_dir, referer_source, sizeof(referer_dir)-1);
+        char* last_sep = NULL;
+        for (char* p = referer_dir; *p; p++) if (*p == '/' || *p == '\\') last_sep = p;
+        if (last_sep) *last_sep = '\0';
+    } else {
+        strncpy(referer_dir, ".", sizeof(referer_dir)-1);
     }
 
-    // If not already loaded, attempt to locate and load a .pre file
-    EnvEntry* marker = env_get_entry(mod_env, "__MODULE_LOADED__");
-    if (!marker || !marker->initialized) {
-        // Determine referring directory from caller env's __MODULE_SOURCE__ if present
-        const char* referer_source = NULL;
-        EnvEntry* src_entry = env_get_entry(env, "__MODULE_SOURCE__");
-        if (src_entry && src_entry->initialized && src_entry->value.type == VAL_STR) {
-            referer_source = src_entry->value.as.s;
-        }
-
-        char referer_dir[1024] = {0};
-        if (referer_source && referer_source[0] != '\0') {
-            // Extract directory portion
-            strncpy(referer_dir, referer_source, sizeof(referer_dir)-1);
-            char* last_sep = NULL;
-            for (char* p = referer_dir; *p; p++) if (*p == '/' || *p == '\\') last_sep = p;
-            if (last_sep) *last_sep = '\0';
-        } else {
-            // Empty string => use current working directory (.)
-            strncpy(referer_dir, ".", sizeof(referer_dir)-1);
-        }
-
-        // Build base path by replacing '..' separators with platform path sep
+    // Build base path by replacing '..' separators with platform path sep
 #ifdef _WIN32
-        const char PATH_SEP = '\\';
+    const char PATH_SEP = '\\';
 #else
-        const char PATH_SEP = '/';
+    const char PATH_SEP = '/';
 #endif
-        char base[1024]; base[0] = '\0';
-        const char* p = modname;
-        char* b = base;
-        while (*p && (size_t)(b - base) + 1 < sizeof(base)) {
-            if (p[0] == '.' && p[1] == '.') { *b++ = PATH_SEP; p += 2; continue; }
-            *b++ = *p++;
+    char base[1024]; base[0] = '\0';
+    const char* p = modname;
+    char* b = base;
+    while (*p && (size_t)(b - base) + 1 < sizeof(base)) {
+        if (p[0] == '.' && p[1] == '.') { *b++ = PATH_SEP; p += 2; continue; }
+        *b++ = *p++;
+    }
+    *b = '\0';
+
+    struct stat st;
+    char candidate[2048];
+    char* found_path = NULL;
+    char* srcbuf = NULL;
+
+    // Search locations: referring dir, then primary-source lib/, then executable lib/.
+    const char* search_dirs[3];
+    search_dirs[0] = referer_dir;
+
+    EnvEntry* primary_src_entry = interp && interp->global_env ? env_get_entry(interp->global_env, "__MODULE_SOURCE__") : NULL;
+    char primary_lib_dir[1024];
+    primary_lib_dir[0] = '\0';
+    if (primary_src_entry && primary_src_entry->initialized && primary_src_entry->value.type == VAL_STR && primary_src_entry->value.as.s && primary_src_entry->value.as.s[0] != '\0') {
+        strncpy(primary_lib_dir, primary_src_entry->value.as.s, sizeof(primary_lib_dir)-1);
+        primary_lib_dir[sizeof(primary_lib_dir)-1] = '\0';
+        char* last_sep = NULL;
+        for (char* q = primary_lib_dir; *q; q++) if (*q == '/' || *q == '\\') last_sep = q;
+        if (last_sep) *last_sep = '\0';
+        size_t used = strnlen(primary_lib_dir, sizeof(primary_lib_dir));
+        if (used + 4 < sizeof(primary_lib_dir)) {
+            primary_lib_dir[used] = '/';
+            primary_lib_dir[used+1] = 'l';
+            primary_lib_dir[used+2] = 'i';
+            primary_lib_dir[used+3] = 'b';
+            primary_lib_dir[used+4] = '\0';
         }
-        *b = '\0';
+        search_dirs[1] = primary_lib_dir;
+    } else {
+        search_dirs[1] = "lib";
+    }
 
-        // Helper to test file/dir existence
-        struct stat st;
-        char candidate[2048];
-        char* found_path = NULL;
-        char* srcbuf = NULL;
-
-        // Search locations: referring dir, then the interpreter's `lib/`
-        // directory next to the primary program source (per specification),
-        // then the interpreter executable's own lib/ directory.
-        const char* search_dirs[3];
-        search_dirs[0] = referer_dir;
-
-        // Determine interpreter primary source dir and use its lib/ subdir
-        EnvEntry* primary_src_entry = interp && interp->global_env ? env_get_entry(interp->global_env, "__MODULE_SOURCE__") : NULL;
-        char primary_lib_dir[1024];
-        primary_lib_dir[0] = '\0';
-        if (primary_src_entry && primary_src_entry->initialized && primary_src_entry->value.type == VAL_STR && primary_src_entry->value.as.s && primary_src_entry->value.as.s[0] != '\0') {
-            // Extract directory portion of primary source
-            strncpy(primary_lib_dir, primary_src_entry->value.as.s, sizeof(primary_lib_dir)-1);
-            primary_lib_dir[sizeof(primary_lib_dir)-1] = '\0';
-            char* last_sep = NULL;
-            for (char* q = primary_lib_dir; *q; q++) if (*q == '/' || *q == '\\') last_sep = q;
-            if (last_sep) *last_sep = '\0';
-            // Append /lib
-            size_t used = strnlen(primary_lib_dir, sizeof(primary_lib_dir));
-            if (used + 4 < sizeof(primary_lib_dir)) {
-                primary_lib_dir[used] = '/';
-                primary_lib_dir[used+1] = 'l';
-                primary_lib_dir[used+2] = 'i';
-                primary_lib_dir[used+3] = 'b';
-                primary_lib_dir[used+4] = '\0';
-            }
-            search_dirs[1] = primary_lib_dir;
-        } else {
-            // Fallback to plain "lib" relative to CWD
-            search_dirs[1] = "lib";
-        }
-
-        // Derive exe lib dir from argv[0] if available
-        char exe_lib_dir[1024];
-        exe_lib_dir[0] = '\0';
-        if (g_argv && g_argv[0] && g_argv[0][0] != '\0') {
-            strncpy(exe_lib_dir, g_argv[0], sizeof(exe_lib_dir)-1);
-            exe_lib_dir[sizeof(exe_lib_dir)-1] = '\0';
-            char* last_sep = NULL;
-            for (char* q = exe_lib_dir; *q; q++) if (*q == '/' || *q == '\\') last_sep = q;
-            if (last_sep) *last_sep = '\0';
-            size_t used = strnlen(exe_lib_dir, sizeof(exe_lib_dir));
-            if (used + 4 < sizeof(exe_lib_dir)) {
-                exe_lib_dir[used] = '/';
-                exe_lib_dir[used+1] = 'l';
-                exe_lib_dir[used+2] = 'i';
-                exe_lib_dir[used+3] = 'b';
-                exe_lib_dir[used+4] = '\0';
-                search_dirs[2] = exe_lib_dir;
-            } else {
-                search_dirs[2] = NULL;
-            }
+    char exe_lib_dir[1024];
+    exe_lib_dir[0] = '\0';
+    if (g_argv && g_argv[0] && g_argv[0][0] != '\0') {
+        strncpy(exe_lib_dir, g_argv[0], sizeof(exe_lib_dir)-1);
+        exe_lib_dir[sizeof(exe_lib_dir)-1] = '\0';
+        char* last_sep = NULL;
+        for (char* q = exe_lib_dir; *q; q++) if (*q == '/' || *q == '\\') last_sep = q;
+        if (last_sep) *last_sep = '\0';
+        size_t used = strnlen(exe_lib_dir, sizeof(exe_lib_dir));
+        if (used + 4 < sizeof(exe_lib_dir)) {
+            exe_lib_dir[used] = '/';
+            exe_lib_dir[used+1] = 'l';
+            exe_lib_dir[used+2] = 'i';
+            exe_lib_dir[used+3] = 'b';
+            exe_lib_dir[used+4] = '\0';
+            search_dirs[2] = exe_lib_dir;
         } else {
             search_dirs[2] = NULL;
         }
-
-        for (int sd = 0; sd < 3 && !found_path; sd++) {
-            const char* sdir = search_dirs[sd];
-            if (!sdir) continue;
-
-            // For package-name (single component) and for multi-component both
-            // we use package precedence: if directory exists, require init.pre; else try .pre file
-            if (snprintf(candidate, sizeof(candidate), "%s/%s", sdir, base) < 0) continue;
-            if (stat(candidate, &st) == 0 && (st.st_mode & S_IFMT) == S_IFDIR) {
-                // directory exists -> require init.pre inside
-                char initpath[2048];
-                if (snprintf(initpath, sizeof(initpath), "%s/%s/init.pre", sdir, base) < 0) continue;
-                if (stat(initpath, &st) == 0 && (st.st_mode & S_IFMT) == S_IFREG) {
-                    found_path = strdup(initpath);
-                    break;
-                } else {
-                    // Directory exists but no init.pre -> error per spec
-                    char buf[256];
-                    snprintf(buf, sizeof(buf), "IMPORT: package '%s' missing init.pre", modname);
-                    RUNTIME_ERROR(interp, buf, line, col);
-                }
-            }
-
-            // Otherwise try file sdir/base.pre
-            char filepath[2048];
-            if (snprintf(filepath, sizeof(filepath), "%s/%s.pre", sdir, base) < 0) continue;
-            if (stat(filepath, &st) == 0 && (st.st_mode & S_IFMT) == S_IFREG) {
-                found_path = strdup(filepath);
-                break;
-            }
-        }
-
-        if (found_path) {
-            FILE* f = fopen(found_path, "rb");
-            if (f) {
-                fseek(f, 0, SEEK_END);
-                long len = ftell(f);
-                fseek(f, 0, SEEK_SET);
-                srcbuf = malloc((size_t)len + 1);
-                if (!srcbuf) { fclose(f); free(found_path); RUNTIME_ERROR(interp, "Out of memory", line, col); }
-                if (fread(srcbuf, 1, (size_t)len, f) != (size_t)len) { free(srcbuf); fclose(f); free(found_path); srcbuf = NULL; }
-                if (srcbuf) {
-                    srcbuf[len] = '\0';
-                    fclose(f);
-                    // Set module source so nested IMPORTs prefer this dir
-                    env_assign(mod_env, "__MODULE_SOURCE__", value_str(found_path), TYPE_STR, true);
-
-                    // Parse and execute in module env
-                    Lexer lex;
-                    lexer_init(&lex, srcbuf, found_path);
-                    Parser parser;
-                    parser_init(&parser, &lex);
-                    Stmt* program = parser_parse(&parser);
-                    if (parser.had_error) {
-                        free(srcbuf);
-                        free(found_path);
-                        interp->error = strdup("IMPORT: parse error");
-                        interp->error_line = parser.current_token.line;
-                        interp->error_col = parser.current_token.column;
-                        return value_null();
-                    }
-
-                    ExecResult res = exec_program_in_env(interp, program, mod_env);
-                    if (res.status == EXEC_ERROR) {
-                        free(srcbuf);
-                        free(found_path);
-                        interp->error = res.error ? strdup(res.error) : strdup("Runtime error in IMPORT");
-                        interp->error_line = res.error_line;
-                        interp->error_col = res.error_column;
-                        free(res.error);
-                        return value_null();
-                    }
-
-                    // mark loaded
-                    env_assign(mod_env, "__MODULE_LOADED__", value_int(1), TYPE_INT, true);
-
-                    free(srcbuf);
-                    srcbuf = NULL;
-                    free(found_path);
-                }
-            }
-        }
-        // If not found, do nothing (module env may be populated by extensions)
+    } else {
+        search_dirs[2] = NULL;
     }
+
+    for (int sd = 0; sd < 3 && !found_path; sd++) {
+        const char* sdir = search_dirs[sd];
+        if (!sdir) continue;
+
+        if (snprintf(candidate, sizeof(candidate), "%s/%s", sdir, base) < 0) continue;
+        if (stat(candidate, &st) == 0 && (st.st_mode & S_IFMT) == S_IFDIR) {
+            char initpath[2048];
+            if (snprintf(initpath, sizeof(initpath), "%s/%s/init.pre", sdir, base) < 0) continue;
+            if (stat(initpath, &st) == 0 && (st.st_mode & S_IFMT) == S_IFREG) {
+                found_path = strdup(initpath);
+                break;
+            } else {
+                char buf[256];
+                snprintf(buf, sizeof(buf), "IMPORT: package '%s' missing init.pre", modname);
+                RUNTIME_ERROR(interp, buf, line, col);
+            }
+        }
+
+        char filepath[2048];
+        if (snprintf(filepath, sizeof(filepath), "%s/%s.pre", sdir, base) < 0) continue;
+        if (stat(filepath, &st) == 0 && (st.st_mode & S_IFMT) == S_IFREG) {
+            found_path = strdup(filepath);
+            break;
+        }
+    }
+
+    char* canonical_path = found_path ? canonicalize_existing_path(found_path) : NULL;
+    const char* cache_key = canonical_path ? canonical_path : modname;
+
+    Env* mod_env = module_env_lookup(interp, cache_key);
+    if (!mod_env) mod_env = module_env_lookup(interp, modname);
+    if (!mod_env) {
+        if (module_register(interp, cache_key) != 0) {
+            free(found_path);
+            free(canonical_path);
+            RUNTIME_ERROR(interp, "IMPORT failed to register module", line, col);
+        }
+        mod_env = module_env_lookup(interp, cache_key);
+    }
+    if (!mod_env) {
+        free(found_path);
+        free(canonical_path);
+        RUNTIME_ERROR(interp, "IMPORT failed to lookup module env", line, col);
+    }
+
+    if (strcmp(modname, cache_key) != 0) {
+        (void)module_register_alias(interp, modname, mod_env);
+    }
+    if (found_path && strcmp(found_path, cache_key) != 0) {
+        (void)module_register_alias(interp, found_path, mod_env);
+    }
+
+    EnvEntry* marker = env_get_entry(mod_env, "__MODULE_LOADED__");
+    if ((!marker || !marker->initialized) && found_path) {
+        FILE* f = fopen(found_path, "rb");
+        if (f) {
+            fseek(f, 0, SEEK_END);
+            long len = ftell(f);
+            fseek(f, 0, SEEK_SET);
+            srcbuf = malloc((size_t)len + 1);
+            if (!srcbuf) {
+                fclose(f);
+                free(found_path);
+                free(canonical_path);
+                RUNTIME_ERROR(interp, "Out of memory", line, col);
+            }
+            if (fread(srcbuf, 1, (size_t)len, f) != (size_t)len) {
+                free(srcbuf);
+                srcbuf = NULL;
+            }
+            if (srcbuf) {
+                srcbuf[len] = '\0';
+                fclose(f);
+
+                env_assign(mod_env, "__MODULE_SOURCE__", value_str(cache_key), TYPE_STR, true);
+
+                Lexer lex;
+                lexer_init(&lex, srcbuf, found_path);
+                Parser parser;
+                parser_init(&parser, &lex);
+                Stmt* program = parser_parse(&parser);
+                if (parser.had_error) {
+                    free(srcbuf);
+                    free(found_path);
+                    free(canonical_path);
+                    interp->error = strdup("IMPORT: parse error");
+                    interp->error_line = parser.current_token.line;
+                    interp->error_col = parser.current_token.column;
+                    return value_null();
+                }
+
+                ExecResult res = exec_program_in_env(interp, program, mod_env);
+                if (res.status == EXEC_ERROR) {
+                    free(srcbuf);
+                    free(found_path);
+                    free(canonical_path);
+                    interp->error = res.error ? strdup(res.error) : strdup("Runtime error in IMPORT");
+                    interp->error_line = res.error_line;
+                    interp->error_col = res.error_column;
+                    free(res.error);
+                    return value_null();
+                }
+
+                env_assign(mod_env, "__MODULE_LOADED__", value_int(1), TYPE_INT, true);
+                free(srcbuf);
+            } else {
+                fclose(f);
+            }
+        }
+    }
+
+    free(found_path);
+    free(canonical_path);
 
     // Expose module symbols into caller env under alias prefix: alias.name -> value
     size_t alias_len = strlen(alias);

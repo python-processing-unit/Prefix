@@ -179,6 +179,7 @@ FuncTable* func_table_create(void) {
 typedef struct ModuleEntry {
     char* name;
     Env* env;
+    int owns_env;
     struct ModuleEntry* next;
 } ModuleEntry;
 
@@ -192,6 +193,27 @@ int module_register(Interpreter* interp, const char* name) {
     ModuleEntry* me = safe_malloc(sizeof(ModuleEntry));
     me->name = strdup(name);
     me->env = env_create(NULL);
+    me->owns_env = 1;
+    me->next = interp->modules;
+    interp->modules = me;
+    return 0;
+}
+
+int module_register_alias(Interpreter* interp, const char* name, Env* env) {
+    if (!interp || !name || !env) return -1;
+
+    ModuleEntry* e = interp->modules;
+    while (e) {
+        if (strcmp(e->name, name) == 0) {
+            return e->env == env ? 0 : -1;
+        }
+        e = e->next;
+    }
+
+    ModuleEntry* me = safe_malloc(sizeof(ModuleEntry));
+    me->name = strdup(name);
+    me->env = env;
+    me->owns_env = 0;
     me->next = interp->modules;
     interp->modules = me;
     return 0;
@@ -2400,7 +2422,7 @@ ExecResult exec_program(Stmt* program, const char* source_path) {
     while (me) {
         ModuleEntry* next = me->next;
         free(me->name);
-        env_free(me->env);
+        if (me->owns_env) env_free(me->env);
         free(me);
         me = next;
     }

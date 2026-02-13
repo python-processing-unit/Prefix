@@ -118,6 +118,9 @@ Func* func_table_lookup(FuncTable* table, const char* name, Env* caller_env);
 // Module registry helpers
 // Register a module name and create its isolated Env. Returns 0 on success, -1 on error.
 int module_register(Interpreter* interp, const char* name);
+// Register another module name as an alias to an existing module Env.
+// Returns 0 on success, -1 on error.
+int module_register_alias(Interpreter* interp, const char* name, Env* env);
 // Lookup a module's Env by name; returns NULL if not found.
 Env* module_env_lookup(Interpreter* interp, const char* name);
 
