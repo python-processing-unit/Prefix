@@ -416,9 +416,16 @@ This section documents how the reference interpreter accepts program input and h
 
 - Program argument: the interpreter reads a single *program* argument as its input program. If the `-source` flag is not present, the program argument is interpreted as a path to a source file and the interpreter loads and parses that file. If the `-source` flag is present, the program argument is treated as the source text itself (a string containing the program) and is parsed directly without reading a file.
 
-- Extensions: the interpreter may also accept zero or more *extension* arguments that load Python extension modules before parsing and execution. Extensions may add new operators, new runtime types, and runtime hooks (including custom REPL implementations), but MUST NOT replace or modify existing built-in operators or types.
+- Extensions: the interpreter may also accept zero or more *extension* arguments that load compiled extension modules before parsing and execution. Extensions may add new operators, new runtime types, and runtime hooks (including custom REPL implementations), but MUST NOT replace or modify existing built-in operators or types.
 
-  - A Python extension is a `.py` file that defines `PREFIX_EXTENSION_API_VERSION = 1` (optional; defaults to 1) and a callable `prefix_register(ext)` entrypoint.
+  - A compiled extension is a platform-specific dynamically-linked library (`.dll` on Windows, `.so` on Unix/Linux, `.dylib` on macOS) built from C code. Extensions must define a single public C function with C calling convention: `void prefix_extension_init(struct prefix_ext_context *ctx)` that the interpreter invokes at load time to register operators, types, and hooks.
+  
+  - Extension API: Extensions include the public header `prefix_extension.h` which defines the extension API, including:
+    - `PREFIX_EXTENSION_API_VERSION`: a version constant that the extension must match (currently 1).
+    - Registration function pointers (supplied in `prefix_ext_context`) for registering operators: `register_operator(const char *name, prefix_operator_fn fn, int asmodule)`.
+    - Registration for type constructors and custom type hooks.
+    - Registration for event handlers: `on_event(const char *event_name, prefix_event_fn fn)` for events such as `program_start`, `program_end`, `on_error`, `before_statement`, `after_statement`, `before_call`, and `after_call`.
+    - Utilities for allocating and manipulating Prefix runtime values (`prefix_value_t`).
   
   - A pointer file is a `.prex` text file containing one extension path per line. Lines are trimmed; blank lines are ignored; lines beginning with `!` are comments. Relative paths are resolved relative to the `.prex` file's directory; when a referenced path is not found there the interpreter will also try the current working directory and, as a final fallback, the interpreter's own `ext/` subdirectory.
   
@@ -426,17 +433,17 @@ This section documents how the reference interpreter accepts program input and h
   
   - If no explicit extension arguments are provided, the interpreter will automatically look for a pointer file named `.prex` in the current working directory. When a program path is being executed (not when `-source` is used), the interpreter also checks the program's directory for a `.prex` pointer file and will additionally accept a pointer file that shares the program's basename but ends with `.prex` (for example `program.pre` alongside `program.prex`). If any pointer file is found the extensions listed in that pointer file are loaded as if supplied on the command line.
   
-  - Extensions are loaded before parsing so that extension-defined type names are recognized in typed assignments and function signatures.
+  - Extensions are loaded before parsing so that extension-defined type names are recognized in typed assignments and function signatures. At load time, the interpreter uses platform-specific mechanisms (`LoadLibraryEx` on Windows, `dlopen` on Unix-like systems) to load the extension library, locates the `prefix_extension_init` symbol, invokes it with a context pointer, and records all registered operators and hooks.
   
   - If the only supplied positional inputs are extensions (and no program is supplied), the interpreter runs the REPL with the loaded extensions.
   
-  - Hook surfaces exposed by the reference implementation include:
+  - Hook surfaces and registration: Extensions register operators and hooks by calling registration functions provided in the `prefix_ext_context` structure. Supported operations include:
 
-    - Operators: additional call names dispatched like built-ins. Extensions may opt into module-qualifying all of their operators by defining the module-level flag `PREFIX_EXTENSION_ASMODULE = True`. When an extension sets this flag every operator it registers will be exposed under the extension's name as a dotted prefix (for example, an extension named `mymod` registering `FOO` will expose `mymod.FOO`). This mirrors imported module-qualified bindings and avoids global name collisions.
+    - Operators: Extensions call `register_operator(name, handler_fn, flags)` to add new operators dispatched like built-ins. The `flags` parameter includes `PREFIX_EXTENSION_ASMODULE` to opt into module-qualifying all of an extension's operators with the extension's name as a dotted prefix (for example, an extension named `mymod` registering `FOO` will expose `mymod.FOO`). This mirrors imported module-qualified bindings and avoids global name collisions.
 
-    - Per-N-steps rules: `every_n_steps(N, handler)` runs the handler after state-log step indices where `step_index % N == 0`.
+    - Per-N-steps rules: `register_periodic_hook(N, handler_fn)` registers a handler to run after state-log step indices where `step_index % N == 0`.
 
-    - Event-bound rules: `on_event(name, handler)` for the following event names:
+    - Event-bound rules: `register_event_handler(event_name, handler_fn)` for the following event names:
 
       - `program_start(interpreter, program, env)`
 
@@ -448,7 +455,7 @@ This section documents how the reference interpreter accepts program input and h
 
       - `before_call(interpreter, name, args, env, location)` / `after_call(interpreter, name, result, env, location)`
 
-    - REPL: extensions may provide a replacement REPL implementation.
+    - REPL: Extensions may register a custom REPL implementation via `register_repl_handler(repl_fn)`.
 
 - Verbose tracebacks: if the `-verbose` flag is supplied on the command line, tracebacks include the environment snapshots described in Section 10.8. In concise traceback mode the `-verbose` flag causes the interpreter to attach an `env_snapshot` entry to each frame shown; in verbose traceback mode the same flag expands the printed `State snapshot: blocks to include the selected local environment and any small set of globals included by policy. The snapshot contents follow the requirements in Section 10.2 and are suitable for deterministic replay.
 
@@ -464,15 +471,15 @@ Example invocations (illustrative):
 
 - Source-string mode: `prefix -source "foo = INPUT\nPRINT(foo)" -verbose`
 
-- With extensions (file mode): `prefix myext.py program.pre`
+- With compiled extension (file mode): `prefix myext.dll program.pre` (Windows) or `prefix myext.so program.pre` (Unix/Linux)
 
 - With pointer file: `prefix extensions.prex program.pre`
 
-- REPL / Interactive mode: `prefix` (no program argument), or `prefix myext.py` (extensions only)
+- REPL / Interactive mode: `prefix` (no program argument), or `prefix myext.dll` (extensions only)
 
 ## 11. REPL (Interactive Mode)
 
-When the interpreter is invoked without a program path or a `-source` string argument it enters an interactive read–eval–print loop (REPL). The REPL is a convenient development and exploration environment that executes Prefix statements using the same parser, runtime, built-ins, and state-logging semantics as file-mode execution. The following rules describe REPL behaviour:
+When the interpreter is invoked without a program path or a `-source` string argument it enters an interactive read-eval-print loop (REPL). The REPL is a convenient development and exploration environment that executes Prefix statements using the same parser, runtime, built-ins, and state-logging semantics as file-mode execution. The following rules describe REPL behaviour:
 
 - Invocation: running `prefix` with no program argument launches the REPL. If one or more extensions are supplied and no program argument is supplied, the interpreter launches a REPL with those extensions loaded; if an extension provides a replacement REPL, that REPL may be used.
 

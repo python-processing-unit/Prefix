@@ -6875,17 +6875,109 @@ static BuiltinFunction builtins_table[] = {
     {NULL, 0, 0, NULL}
 };
 
-void builtins_init(void) {
-    // Nothing to initialize for now, table is static
-}
+typedef struct DynamicBuiltin {
+    BuiltinFunction fn;
+    struct DynamicBuiltin* next;
+} DynamicBuiltin;
 
-BuiltinFunction* builtin_lookup(const char* name) {
+static DynamicBuiltin* g_dynamic_builtins = NULL;
+
+static BuiltinFunction* builtin_lookup_static(const char* name) {
     for (int i = 0; builtins_table[i].name != NULL; i++) {
         if (strcmp(builtins_table[i].name, name) == 0) {
             return &builtins_table[i];
         }
     }
     return NULL;
+}
+
+static BuiltinFunction* builtin_lookup_dynamic(const char* name) {
+    for (DynamicBuiltin* n = g_dynamic_builtins; n != NULL; n = n->next) {
+        if (n->fn.name && strcmp(n->fn.name, name) == 0) {
+            return &n->fn;
+        }
+    }
+    return NULL;
+}
+
+void builtins_reset_dynamic(void) {
+    DynamicBuiltin* n = g_dynamic_builtins;
+    while (n) {
+        DynamicBuiltin* next = n->next;
+        free((char*)n->fn.name);
+        if (n->fn.param_names) {
+            for (int i = 0; i < n->fn.param_count; i++) {
+                free((char*)n->fn.param_names[i]);
+            }
+            free((void*)n->fn.param_names);
+        }
+        free(n);
+        n = next;
+    }
+    g_dynamic_builtins = NULL;
+}
+
+int builtins_register_operator(const char* name, BuiltinImplFn impl, int min_args, int max_args, const char** param_names, int param_count) {
+    if (!name || name[0] == '\0' || !impl) return -1;
+    if (min_args < 0) return -1;
+    if (max_args >= 0 && max_args < min_args) return -1;
+    if (builtin_lookup_static(name) || builtin_lookup_dynamic(name)) {
+        return -1;
+    }
+
+    DynamicBuiltin* node = calloc(1, sizeof(DynamicBuiltin));
+    if (!node) return -1;
+
+    node->fn.name = strdup(name);
+    node->fn.min_args = min_args;
+    node->fn.max_args = max_args;
+    node->fn.impl = impl;
+    node->fn.param_names = NULL;
+    node->fn.param_count = 0;
+
+    if (!node->fn.name) {
+        free(node);
+        return -1;
+    }
+
+    if (param_names && param_count > 0) {
+        const char** copy_names = calloc((size_t)param_count, sizeof(char*));
+        if (!copy_names) {
+            free((char*)node->fn.name);
+            free(node);
+            return -1;
+        }
+        for (int i = 0; i < param_count; i++) {
+            if (!param_names[i]) {
+                copy_names[i] = strdup("");
+            } else {
+                copy_names[i] = strdup(param_names[i]);
+            }
+            if (!copy_names[i]) {
+                for (int j = 0; j < i; j++) free((char*)copy_names[j]);
+                free((void*)copy_names);
+                free((char*)node->fn.name);
+                free(node);
+                return -1;
+            }
+        }
+        node->fn.param_names = copy_names;
+        node->fn.param_count = param_count;
+    }
+
+    node->next = g_dynamic_builtins;
+    g_dynamic_builtins = node;
+    return 0;
+}
+
+void builtins_init(void) {
+    // Nothing to initialize for now, table is static
+}
+
+BuiltinFunction* builtin_lookup(const char* name) {
+    BuiltinFunction* b = builtin_lookup_static(name);
+    if (b) return b;
+    return builtin_lookup_dynamic(name);
 }
 
 bool is_builtin(const char* name) {

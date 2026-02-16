@@ -1,1 +1,6 @@
+# Ignore binaries (both executables and libraries)
 *.exe
+*.app
+*.dll
+*.so
+*.dylib

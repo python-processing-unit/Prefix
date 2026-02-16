@@ -994,4 +994,24 @@ DEL(caught_su)
 
 PRINT("SER/UNSER: PASS\n")
 
+PRINT("Testing extensions...")
+
+ASSERT(EQ(test_ext.PING(), 0))
+ASSERT(EQ(test_ext.PING(1), 1))
+ASSERT(EQ(test_ext.IADD(1, 10, 11), 110))
+ASSERT(EQ(test_ext.IADD(1, "x"), -1))
+
+! Test global registration
+PRINT("Testing GLOBAL_PING (global operator)...")
+ASSERT(EQ(GLOBAL_PING(101), 1))
+
+! Test extension state operators (runtime-visible smoke test)
+PRINT("Testing extension state operators...")
+test_ext.RESET_COUNTER()
+ASSERT(EQ(test_ext.GET_COUNTER(), 0))
+test_ext.RESET_COUNTER()
+ASSERT(EQ(test_ext.GET_COUNTER(), 0))
+
+PRINT("Extensions: PASS\n")
+
 PRINT("=== Built-in tests passed. ===")
