@@ -98,6 +98,13 @@ try {
                 $extSourcePath
             )
 
+            # Link the object files produced when building the main interpreter
+            # so extensions can resolve internal runtime symbols (value_* helpers).
+            $objFiles = Get-ChildItem -Path $buildDir -Filter *.obj -File -Recurse | ForEach-Object { $_.FullName }
+            if ($objFiles.Count -gt 0) {
+                $extArgs += $objFiles
+            }
+
             Write-Host "Invoking: cl.exe $($extArgs -join ' ')"
             & cl.exe @extArgs
             if ($LASTEXITCODE -ne 0) {
