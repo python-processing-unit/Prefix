@@ -17,12 +17,13 @@ struct Expr;
 typedef struct Interpreter Interpreter;
 typedef struct Env Env;
 typedef struct Expr Expr;
+typedef struct prefix_ext_context prefix_ext_context;
 
 typedef Value (*prefix_operator_fn)(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col);
 typedef void (*prefix_event_fn)(Interpreter* interp, const char* event_name);
 typedef int (*prefix_repl_fn)(void);
 
-typedef struct prefix_ext_context {
+struct prefix_ext_context {
     int api_version;
     const char* extension_name;
 
@@ -30,7 +31,7 @@ typedef struct prefix_ext_context {
     int (*register_periodic_hook)(int n, prefix_event_fn fn);
     int (*register_event_handler)(const char* event_name, prefix_event_fn fn);
     int (*register_repl_handler)(prefix_repl_fn repl_fn);
-} prefix_ext_context;
+};
 
 typedef void (*prefix_extension_init_fn)(prefix_ext_context* ctx);
 

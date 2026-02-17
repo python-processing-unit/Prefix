@@ -178,6 +178,40 @@ static char* resolve_extension_path(const char* input, const char* base_dir) {
         free(p);
     }
 
+    /* Also check the interpreter's lib/ directory for extensions. This
+       allows pointer files that list a bare filename (e.g. "image.dll") to
+       resolve to lib/<name>/<file> or lib/<file>. */
+    if (g_interpreter_dir && g_interpreter_dir[0] != '\0') {
+        char* lib_dir = path_join2(g_interpreter_dir, "lib");
+        if (lib_dir) {
+            char* p1 = path_join2(lib_dir, input);
+            if (p1 && file_exists_regular(p1)) {
+                char* c = canonicalize_existing_path(p1);
+                free(p1);
+                free(lib_dir);
+                return c;
+            }
+            free(p1);
+
+            /* Try lib/<basename_no_ext>/<input> e.g. lib/image/image.dll */
+            char* base = path_basename_no_ext_dup(input);
+            char* subdir = path_join2(lib_dir, base);
+            char* p2 = path_join2(subdir, input);
+            if (p2 && file_exists_regular(p2)) {
+                char* c = canonicalize_existing_path(p2);
+                free(p2);
+                free(subdir);
+                free(base);
+                free(lib_dir);
+                return c;
+            }
+            free(p2);
+            free(subdir);
+            free(base);
+            free(lib_dir);
+        }
+    }
+
     return NULL;
 }
 
@@ -369,7 +403,23 @@ int extensions_load_prex_file(const char* prex_path, char** error_out) {
         if (t[0] == '\0' || t[0] == '!') continue;
 
         char* err = NULL;
-        if (extensions_load_library(t, base_dir, &err) != 0) {
+        int load_result = -1;
+        
+        size_t tl = strlen(t);
+        if (tl >= 5 && (strcmp(t + tl - 5, ".prex") == 0)) {
+            char* resolved_prex = resolve_extension_path(t, base_dir);
+            if (resolved_prex) {
+                load_result = extensions_load_prex_file(resolved_prex, &err);
+                free(resolved_prex);
+            } else {
+                set_errorf(&err, "Extension not found: ", t);
+                load_result = -1;
+            }
+        } else {
+            load_result = extensions_load_library(t, base_dir, &err);
+        }
+        
+        if (load_result != 0) {
             if (err) {
                 size_t n = strlen(err) + 64;
                 char* out = malloc(n);

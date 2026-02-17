@@ -24,7 +24,7 @@ FUNC BASEPATH(STR: path):STR{ ! returns directory portion of path
     STR: npath = NORMALIZE_PATH(path)
     STR: base = BASENAME(npath)
     IF(EQ(base, "")){
-        POP("")
+        RETURN("")
     }
     STR: dir = REPLACE(npath, JOIN("/", base), "")
     POP(dir)

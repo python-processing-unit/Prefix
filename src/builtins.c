@@ -2,6 +2,7 @@
 #include "interpreter.h"
 #include "lexer.h"
 #include "parser.h"
+#include "extensions.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -5862,13 +5863,13 @@ static Value builtin_main(Interpreter* interp, Value* args, int argc, Expr** arg
 static Value builtin_os(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
     (void)args; (void)argc; (void)arg_nodes; (void)env; (void)interp; (void)line; (void)col;
 #ifdef _WIN32
-    return value_str("Windows");
+    return value_str("win");
 #elif defined(__APPLE__)
-    return value_str("Darwin");
+    return value_str("macos");
 #elif defined(__linux__)
-    return value_str("Linux");
+    return value_str("linux");
 #else
-    return value_str("Unknown");
+    return value_str("unix"); // probably...
 #endif
 }
 
@@ -6016,6 +6017,40 @@ static Value builtin_import(Interpreter* interp, Value* args, int argc, Expr** a
 
     char* canonical_path = found_path ? canonicalize_existing_path(found_path) : NULL;
     const char* cache_key = canonical_path ? canonical_path : modname;
+
+    /* Attempt to load a companion .prex pointer file next to the resolved
+       module file so that any extension libraries listed there are available
+       during module execution (e.g. lib/image/init.prex -> win32.dll). */
+    if (found_path) {
+        char noext[2048];
+        strncpy(noext, found_path, sizeof(noext)-1);
+        noext[sizeof(noext)-1] = '\0';
+        char* dot = strrchr(noext, '.');
+        if (dot) *dot = '\0';
+        size_t need = strlen(noext) + strlen(".prex") + 1;
+        char* companion_prex = malloc(need);
+        if (companion_prex) {
+            snprintf(companion_prex, need, "%s.prex", noext);
+            char* ext_err = NULL;
+            int loaded_any = 0;
+            if (extensions_load_prex_if_exists(companion_prex, &loaded_any, &ext_err) != 0) {
+                if (ext_err) {
+                    interp->error = strdup(ext_err);
+                    free(ext_err);
+                } else {
+                    interp->error = strdup("Failed to load companion .prex");
+                }
+                interp->error_line = line;
+                interp->error_col = col;
+                free(companion_prex);
+                free(found_path);
+                free(canonical_path);
+                return value_null();
+            }
+            free(ext_err);
+            free(companion_prex);
+        }
+    }
 
     Env* mod_env = module_env_lookup(interp, cache_key);
     if (!mod_env) mod_env = module_env_lookup(interp, modname);
