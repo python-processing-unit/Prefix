@@ -80,6 +80,11 @@ typedef struct Interpreter {
     bool isolate_env_writes;
 } Interpreter;
 
+// Initialize/destroy a reusable interpreter session.
+// `source_path` sets the primary module source label (e.g. script path or "<repl>").
+void interpreter_init(Interpreter* interp, const char* source_path);
+void interpreter_destroy(Interpreter* interp);
+
 // Main entry point
 ExecResult exec_program(Stmt* program, const char* source_path);
 

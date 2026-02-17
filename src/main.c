@@ -94,6 +94,190 @@ static int load_extension_input(const char* arg, char** err_out) {
     return extensions_load_library(arg, NULL, err_out);
 }
 
+static int buf_append(char** buf, size_t* len, size_t* cap, const char* s) {
+    if (!buf || !len || !cap || !s) return -1;
+    size_t add = strlen(s);
+    if (*len + add + 1 > *cap) {
+        size_t new_cap = (*cap == 0) ? 256 : *cap;
+        while (*len + add + 1 > new_cap) new_cap *= 2;
+        char* next = realloc(*buf, new_cap);
+        if (!next) return -1;
+        *buf = next;
+        *cap = new_cap;
+    }
+    memcpy(*buf + *len, s, add);
+    *len += add;
+    (*buf)[*len] = '\0';
+    return 0;
+}
+
+static char* read_line_dynamic(FILE* in) {
+    if (!in) return NULL;
+    char* line = NULL;
+    size_t len = 0;
+    size_t cap = 0;
+    char chunk[512];
+
+    while (fgets(chunk, sizeof(chunk), in)) {
+        if (buf_append(&line, &len, &cap, chunk) != 0) {
+            free(line);
+            return NULL;
+        }
+        size_t n = strlen(chunk);
+        if (n > 0 && chunk[n - 1] == '\n') break;
+    }
+
+    if (len == 0 && feof(in)) {
+        free(line);
+        return NULL;
+    }
+
+    if (!line) {
+        line = strdup("");
+    }
+    return line;
+}
+
+static int is_exit_meta_command(const char* text) {
+    if (!text) return 0;
+    const char* p = text;
+    while (*p == ' ' || *p == '\t' || *p == '\r' || *p == '\n') p++;
+    if (strncmp(p, ".exit", 5) != 0) return 0;
+    p += 5;
+    while (*p == ' ' || *p == '\t' || *p == '\r' || *p == '\n') p++;
+    return *p == '\0';
+}
+
+static void repl_update_line_state(const char* line, int* brace_depth, int* line_continuation) {
+    if (!line || !brace_depth || !line_continuation) return;
+
+    int in_single = 0;
+    int in_double = 0;
+    int escaped = 0;
+    size_t comment_pos = strlen(line);
+
+    for (size_t i = 0; line[i] != '\0'; i++) {
+        char c = line[i];
+        if (escaped) {
+            escaped = 0;
+            continue;
+        }
+        if (in_single) {
+            if (c == '\\') escaped = 1;
+            else if (c == '\'') in_single = 0;
+            continue;
+        }
+        if (in_double) {
+            if (c == '\\') escaped = 1;
+            else if (c == '"') in_double = 0;
+            continue;
+        }
+
+        if (c == '!') {
+            comment_pos = i;
+            break;
+        }
+        if (c == '\'') {
+            in_single = 1;
+            continue;
+        }
+        if (c == '"') {
+            in_double = 1;
+            continue;
+        }
+        if (c == '{') {
+            (*brace_depth)++;
+        } else if (c == '}' && *brace_depth > 0) {
+            (*brace_depth)--;
+        }
+    }
+
+    size_t end = comment_pos;
+    while (end > 0) {
+        char c = line[end - 1];
+        if (c == ' ' || c == '\t' || c == '\r' || c == '\n') {
+            end--;
+            continue;
+        }
+        break;
+    }
+    *line_continuation = (end > 0 && line[end - 1] == '^') ? 1 : 0;
+}
+
+static int run_repl(void) {
+    Interpreter interp;
+    interpreter_init(&interp, "<repl>");
+
+    char* entry = NULL;
+    size_t entry_len = 0;
+    size_t entry_cap = 0;
+    int brace_depth = 0;
+    int line_continuation = 0;
+    fprintf(stdout, "\x1b[38;2;153;221;255mPrefix REPL. Enter statements, blank line to run buffer.\033[0m\n");
+
+    for (;;) {
+        int in_continuation = (brace_depth > 0) || line_continuation;
+        fputs(in_continuation ? "\x1b[38;2;153;221;255m..>\033[0m " : "\x1b[38;2;153;221;255m>>>\033[0m ", stdout);
+        fflush(stdout);
+
+        char* line = read_line_dynamic(stdin);
+        int eof = (line == NULL);
+
+        if (!eof) {
+            if (buf_append(&entry, &entry_len, &entry_cap, line) != 0) {
+                free(line);
+                free(entry);
+                interpreter_destroy(&interp);
+                fprintf(stderr, "Out of memory\n");
+                return PREFIX_ERROR_MEMORY;
+            }
+            repl_update_line_state(line, &brace_depth, &line_continuation);
+            free(line);
+        }
+
+        if (!eof && ((brace_depth > 0) || line_continuation)) {
+            continue;
+        }
+
+        if (entry_len == 0) {
+            if (eof) break;
+            continue;
+        }
+
+        if (is_exit_meta_command(entry)) {
+            break;
+        }
+
+        Lexer lex;
+        lexer_init(&lex, entry, "<repl>");
+
+        Parser parser;
+        parser_init(&parser, &lex);
+        Stmt* program = parser_parse(&parser);
+
+        if (!parser.had_error) {
+            ExecResult res = exec_program_in_env(&interp, program, interp.global_env);
+            if (res.status == EXEC_ERROR) {
+                fprintf(stderr, "Runtime error: %s at %d:%d\n",
+                        res.error ? res.error : "error",
+                        res.error_line,
+                        res.error_column);
+            }
+        }
+
+        entry_len = 0;
+        if (entry) entry[0] = '\0';
+        brace_depth = 0;
+        line_continuation = 0;
+
+        if (eof) break;
+    }
+
+    free(entry);
+    interpreter_destroy(&interp);
+    return PREFIX_SUCCESS;
+}
+
 int main(int argc, char** argv) {
     const char* path = NULL;
     int verbose_flag = 0;
@@ -232,13 +416,10 @@ int main(int argc, char** argv) {
     }
 
     if (!path) {
-        if (explicit_ext_count > 0) {
-            fprintf(stderr, "No program provided. REPL mode is not implemented in this build.\n");
-            extensions_shutdown();
-            builtins_reset_dynamic();
-            return PREFIX_SUCCESS;
-        }
-        path = "../test.pre";
+        int repl_rc = run_repl();
+        extensions_shutdown();
+        builtins_reset_dynamic();
+        return repl_rc;
     }
 
     (void)verbose_flag;

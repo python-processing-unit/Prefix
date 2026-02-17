@@ -2289,23 +2289,57 @@ static ExecResult exec_stmt_list(Interpreter* interp, StmtList* list, Env* env, 
 
 // ============ Main entry point ============
 
-ExecResult exec_program(Stmt* program, const char* source_path) {
-    Interpreter interp = {0};
-    interp.global_env = env_create(NULL);
-    interp.loop_depth = 0;
-    interp.error = NULL;
-    interp.in_try_block = false;
-    interp.modules = NULL;
-    interp.current_thr = NULL;
+void interpreter_init(Interpreter* interp, const char* source_path) {
+    if (!interp) return;
+    memset(interp, 0, sizeof(*interp));
+    interp->global_env = env_create(NULL);
+    interp->loop_depth = 0;
+    interp->error = NULL;
+    interp->in_try_block = false;
+    interp->modules = NULL;
+    interp->current_thr = NULL;
 
     builtins_init();
     mtx_init(&g_tns_lock, 0);
     mtx_init(&g_parfor_merge_lock, 0);
     ns_buffer_init();
-    // Record source path of the primary program so imports and MAIN() work
+
     if (source_path && source_path[0] != '\0') {
-        env_assign(interp.global_env, "__MODULE_SOURCE__", value_str(source_path), TYPE_STR, true);
+        env_assign(interp->global_env, "__MODULE_SOURCE__", value_str(source_path), TYPE_STR, true);
     }
+}
+
+void interpreter_destroy(Interpreter* interp) {
+    if (!interp) return;
+
+    if (interp->global_env) {
+        env_free(interp->global_env);
+        interp->global_env = NULL;
+    }
+
+    ModuleEntry* me = interp->modules;
+    while (me) {
+        ModuleEntry* next = me->next;
+        free(me->name);
+        if (me->owns_env) env_free(me->env);
+        free(me);
+        me = next;
+    }
+    interp->modules = NULL;
+
+    if (interp->error) {
+        free(interp->error);
+        interp->error = NULL;
+    }
+
+    ns_buffer_shutdown();
+    mtx_destroy(&g_tns_lock);
+    mtx_destroy(&g_parfor_merge_lock);
+}
+
+ExecResult exec_program(Stmt* program, const char* source_path) {
+    Interpreter interp;
+    interpreter_init(&interp, source_path);
     
     LabelMap labels = {0};
     ExecResult res = exec_stmt_list(&interp, &program->as.block, interp.global_env, &labels);
@@ -2314,20 +2348,7 @@ ExecResult exec_program(Stmt* program, const char* source_path) {
     for (size_t i = 0; i < labels.count; i++) value_free(labels.items[i].key);
     free(labels.items);
     
-    env_free(interp.global_env);
-    // Free modules
-    ModuleEntry* me = interp.modules;
-    while (me) {
-        ModuleEntry* next = me->next;
-        free(me->name);
-        if (me->owns_env) env_free(me->env);
-        free(me);
-        me = next;
-    }
-    
-    ns_buffer_shutdown();
-    mtx_destroy(&g_tns_lock);
-    mtx_destroy(&g_parfor_merge_lock);
+    interpreter_destroy(&interp);
     return res;
 }
 
