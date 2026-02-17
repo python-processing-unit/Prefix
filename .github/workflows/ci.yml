@@ -35,4 +35,4 @@ jobs:
           if (-not $inst) { Write-Error 'Visual Studio installation not found'; exit 1 }
           $vsDevCmd = Join-Path $inst 'Common7\Tools\VsDevCmd.bat'
           if (-not (Test-Path $vsDevCmd)) { Write-Error "VsDevCmd.bat not found: $vsDevCmd"; exit 1 }
-          cmd /c "`"$vsDevCmd`" -noLogo && powershell -NoProfile -ExecutionPolicy Bypass -Command .\prefix.exe .\tests\test2.pre"
+          cmd /c "`"$vsDevCmd`" -noLogo && .\prefix.exe .\tests\test2.pre"
