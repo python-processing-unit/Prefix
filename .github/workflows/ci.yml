@@ -12,27 +12,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Visual Studio
-        uses: microsoft/setup-msbuild@v1.1
+      - name: Setup MSVC
+        uses: ilammy/msvc-dev-cmd@v1
 
-      - name: Build interpreter and extensions (Developer PowerShell)
-        shell: powershell
-        run: |
-          $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
-          if (-not (Test-Path $vswhere)) { Write-Error "vswhere not found at $vswhere"; exit 1 }
-          $inst = & $vswhere -latest -products * -requires Microsoft.Component.MSBuild -property installationPath
-          if (-not $inst) { Write-Error 'Visual Studio installation not found'; exit 1 }
-          $vsDevCmd = Join-Path $inst 'Common7\Tools\VsDevCmd.bat'
-          if (-not (Test-Path $vsDevCmd)) { Write-Error "VsDevCmd.bat not found: $vsDevCmd"; exit 1 }
-          cmd /c "`"$vsDevCmd`" -noLogo && powershell -NoProfile -ExecutionPolicy Bypass -File .\build.ps1"
+      - name: Build interpreter and extensions
+        run: .\build.ps1
 
-      - name: Run tests (Developer PowerShell)
-        shell: powershell
-        run: |
-          $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
-          if (-not (Test-Path $vswhere)) { Write-Error "vswhere not found at $vswhere"; exit 1 }
-          $inst = & $vswhere -latest -products * -requires Microsoft.Component.MSBuild -property installationPath
-          if (-not $inst) { Write-Error 'Visual Studio installation not found'; exit 1 }
-          $vsDevCmd = Join-Path $inst 'Common7\Tools\VsDevCmd.bat'
-          if (-not (Test-Path $vsDevCmd)) { Write-Error "VsDevCmd.bat not found: $vsDevCmd"; exit 1 }
-          cmd /c "`"$vsDevCmd`" -noLogo && .\prefix.exe .\tests\test2.pre"
+      - name: Run tests
+        run: .\prefix.exe .\tests\test2.pre
