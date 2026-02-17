@@ -1,0 +1,26 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build-and-test:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Visual Studio
+        uses: microsoft/setup-msbuild@v1.1
+
+      - name: Build interpreter and extensions
+        shell: powershell
+        run: |
+          .\build.ps1
+
+      - name: Run tests
+        shell: powershell
+        run: |
+          .\prefix.exe .\tests\test2.pre
