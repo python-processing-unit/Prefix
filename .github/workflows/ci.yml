@@ -19,5 +19,4 @@ jobs:
         run: .\build.ps1
 
       - name: Run tests
-        working-directory: .\tests
         run: .\prefix.exe .\tests\test2.pre
