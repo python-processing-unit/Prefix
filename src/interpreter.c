@@ -2305,7 +2305,18 @@ void interpreter_init(Interpreter* interp, const char* source_path) {
     ns_buffer_init();
 
     if (source_path && source_path[0] != '\0') {
-        env_assign(interp->global_env, "__MODULE_SOURCE__", value_str(source_path), TYPE_STR, true);
+        char* canonical = NULL;
+#if defined(_WIN32)
+        canonical = _fullpath(NULL, source_path, 0);
+#else
+        canonical = realpath(source_path, NULL);
+#endif
+        if (canonical) {
+            env_assign(interp->global_env, "__MODULE_SOURCE__", value_str(canonical), TYPE_STR, true);
+            free(canonical);
+        } else {
+            env_assign(interp->global_env, "__MODULE_SOURCE__", value_str(source_path), TYPE_STR, true);
+        }
     }
 }
 
