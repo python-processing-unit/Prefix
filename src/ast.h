@@ -8,6 +8,7 @@ typedef enum {
     TYPE_FLT,
     TYPE_STR,
     TYPE_TNS,
+    TYPE_MAP,
     TYPE_FUNC,
     TYPE_THR,
     TYPE_UNKNOWN

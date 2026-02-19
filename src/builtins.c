@@ -276,6 +276,7 @@ static const char* decl_type_name(DeclType dt) {
         case TYPE_FLT: return "FLT";
         case TYPE_STR: return "STR";
         case TYPE_TNS: return "TNS";
+        case TYPE_MAP: return "MAP";
         case TYPE_FUNC: return "FUNC";
         case TYPE_THR: return "THR";
         default: return "UNKNOWN";
@@ -288,6 +289,7 @@ static DeclType decl_type_from_name(const char* name) {
     if (strcmp(name, "FLT") == 0) return TYPE_FLT;
     if (strcmp(name, "STR") == 0) return TYPE_STR;
     if (strcmp(name, "TNS") == 0) return TYPE_TNS;
+    if (strcmp(name, "MAP") == 0) return TYPE_MAP;
     if (strcmp(name, "FUNC") == 0) return TYPE_FUNC;
     if (strcmp(name, "THR") == 0) return TYPE_THR;
     return TYPE_UNKNOWN;
@@ -4932,6 +4934,7 @@ static Value builtin_signature(Interpreter* interp, Value* args, int argc, Expr*
                     case TYPE_FLT: tname = "FLT"; break;
                     case TYPE_STR: tname = "STR"; break;
                     case TYPE_TNS: tname = "TNS"; break;
+                    case TYPE_MAP: tname = "MAP"; break;
                     case TYPE_FUNC: tname = "FUNC"; break;
                     case TYPE_THR: tname = "THR"; break;
                     default: tname = "ANY"; break;
@@ -4977,6 +4980,7 @@ static Value builtin_signature(Interpreter* interp, Value* args, int argc, Expr*
                 case TYPE_FLT: rname = "FLT"; break;
                 case TYPE_STR: rname = "STR"; break;
                 case TYPE_TNS: rname = "TNS"; break;
+                case TYPE_MAP: rname = "MAP"; break;
                 case TYPE_FUNC: rname = "FUNC"; break;
                 case TYPE_THR: rname = "THR"; break;
                 default: rname = "ANY"; break;
@@ -4998,6 +5002,7 @@ static Value builtin_signature(Interpreter* interp, Value* args, int argc, Expr*
         case TYPE_FLT: tname = "FLT"; break;
         case TYPE_STR: tname = "STR"; break;
         case TYPE_TNS: tname = "TNS"; break;
+        case TYPE_MAP: tname = "MAP"; break;
         case TYPE_FUNC: tname = "FUNC"; break;
         case TYPE_THR: tname = "THR"; break;
         default: tname = value_type_name(entry->value); break;
@@ -5781,6 +5786,7 @@ static Value builtin_assign(Interpreter* interp, Value* args, int argc, Expr** a
                 case VAL_FLT: actual = TYPE_FLT; break;
                 case VAL_STR: actual = TYPE_STR; break;
                 case VAL_TNS: actual = TYPE_TNS; break;
+                case VAL_MAP: actual = TYPE_MAP; break;
                 case VAL_FUNC: actual = TYPE_FUNC; break;
                 case VAL_THR: actual = TYPE_THR; break;
                 default: actual = TYPE_UNKNOWN; break;

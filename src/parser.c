@@ -64,6 +64,7 @@ static DeclType parse_type_name(const char* name) {
     if (strcmp(name, "INT") == 0) return TYPE_INT;
     if (strcmp(name, "FLT") == 0) return TYPE_FLT;
     if (strcmp(name, "STR") == 0) return TYPE_STR;
+    if (strcmp(name, "MAP") == 0) return TYPE_MAP;
     if (strcmp(name, "FUNC") == 0) return TYPE_FUNC;
     if (strcmp(name, "THR") == 0) return TYPE_THR;
     if (strcmp(name, "TNS") == 0) return TYPE_TNS;

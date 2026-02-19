@@ -472,9 +472,23 @@ static DeclType value_type_to_decl(ValueType vt) {
         case VAL_FLT: return TYPE_FLT;
         case VAL_STR: return TYPE_STR;
         case VAL_TNS: return TYPE_TNS;
+        case VAL_MAP: return TYPE_MAP;
         case VAL_FUNC: return TYPE_FUNC;
         case VAL_THR: return TYPE_THR;
         default: return TYPE_UNKNOWN;
+    }
+}
+
+static const char* decl_type_name(DeclType dt) {
+    switch (dt) {
+        case TYPE_INT: return "INT";
+        case TYPE_FLT: return "FLT";
+        case TYPE_STR: return "STR";
+        case TYPE_TNS: return "TNS";
+        case TYPE_MAP: return "MAP";
+        case TYPE_FUNC: return "FUNC";
+        case TYPE_THR: return "THR";
+        default: return "UNKNOWN";
     }
 }
 
@@ -484,6 +498,7 @@ static ValueType decl_type_to_value(DeclType dt) {
         case TYPE_FLT: return VAL_FLT;
         case TYPE_STR: return VAL_STR;
         case TYPE_TNS: return VAL_TNS;
+        case TYPE_MAP: return VAL_MAP;
         case TYPE_FUNC: return VAL_FUNC;
         case TYPE_THR: return VAL_THR;
         default: return VAL_NULL;
@@ -1846,6 +1861,7 @@ static ExecResult exec_stmt(Interpreter* interp, Stmt* stmt, Env* env, LabelMap*
                              expected == TYPE_FLT ? "FLT" :
                              expected == TYPE_STR ? "STR" :
                              expected == TYPE_TNS ? "TNS" :
+                             expected == TYPE_MAP ? "MAP" :
                              expected == TYPE_FUNC ? "FUNC" :
                              expected == TYPE_THR ? "THR" : "UNKNOWN",
                              value_type_name(v));
@@ -1854,6 +1870,13 @@ static ExecResult exec_stmt(Interpreter* interp, Stmt* stmt, Env* env, LabelMap*
                 }
 
                 EnvEntry* existing = env_get_entry(env, stmt->as.assign.name);
+                if (existing && existing->decl_type != expected) {
+                    char buf[128];
+                    snprintf(buf, sizeof(buf), "Type mismatch: expected %s but got %s",
+                             decl_type_name(existing->decl_type), decl_type_name(expected));
+                    value_free(v);
+                    return make_error(buf, stmt->line, stmt->column);
+                }
                 Env* assign_env = env;
                 if (!interp->isolate_env_writes && !existing && env->parent) {
                     assign_env = env->parent;
@@ -1862,6 +1885,14 @@ static ExecResult exec_stmt(Interpreter* interp, Stmt* stmt, Env* env, LabelMap*
                     env_define(assign_env, stmt->as.assign.name, expected);
                 }
                 if (!env_assign(assign_env, stmt->as.assign.name, v, expected, true)) {
+                    EnvEntry* echeck = env_get_entry(assign_env, stmt->as.assign.name);
+                    if (echeck && echeck->decl_type != actual) {
+                        char buf[128];
+                        snprintf(buf, sizeof(buf), "Type mismatch: expected %s but got %s",
+                                 decl_type_name(echeck->decl_type), value_type_name(v));
+                        value_free(v);
+                        return make_error(buf, stmt->line, stmt->column);
+                    }
                     char buf[256];
                     snprintf(buf, sizeof(buf), "Cannot assign to frozen identifier '%s'", stmt->as.assign.name);
                     value_free(v);
@@ -1871,6 +1902,14 @@ static ExecResult exec_stmt(Interpreter* interp, Stmt* stmt, Env* env, LabelMap*
                 if (!env_assign(env, stmt->as.assign.name, v, TYPE_UNKNOWN, false)) {
                     EnvEntry* echeck = env_get_entry(env, stmt->as.assign.name);
                     if (echeck) {
+                        DeclType actual = value_type_to_decl(v.type);
+                        if (echeck->decl_type != TYPE_UNKNOWN && echeck->decl_type != actual) {
+                            char buf[128];
+                            snprintf(buf, sizeof(buf), "Type mismatch: expected %s but got %s",
+                                     decl_type_name(echeck->decl_type), value_type_name(v));
+                            value_free(v);
+                            return make_error(buf, stmt->line, stmt->column);
+                        }
                         char buf[256];
                         snprintf(buf, sizeof(buf), "Cannot assign to frozen identifier '%s'", stmt->as.assign.name);
                         value_free(v);

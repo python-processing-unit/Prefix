@@ -188,6 +188,19 @@ static int env_permafrozen_raw(Env* env, const char* name) {
     return entry->permafrozen ? 1 : 0;
 }
 
+static DeclType env_decl_type_from_value(Value value) {
+    switch (value.type) {
+        case VAL_INT: return TYPE_INT;
+        case VAL_FLT: return TYPE_FLT;
+        case VAL_STR: return TYPE_STR;
+        case VAL_TNS: return TYPE_TNS;
+        case VAL_MAP: return TYPE_MAP;
+        case VAL_FUNC: return TYPE_FUNC;
+        case VAL_THR: return TYPE_THR;
+        default:      return TYPE_UNKNOWN;
+    }
+}
+
 /* ================================================================== */
 /*  Direct (unbuffered) write implementations                          */
 /*  Called by the prepare thread or when the buffer is inactive.       */
@@ -225,6 +238,12 @@ bool env_assign_direct(Env* env, const char* name, Value value,
                 const char* target_name = entry->alias_target;
                 EnvEntry* target = env_get_entry_raw(env, target_name);
                 if (!target) return false;
+                if (type != TYPE_UNKNOWN && target->decl_type != type) return false;
+                DeclType actual_type = env_decl_type_from_value(value);
+                if (target->decl_type != TYPE_UNKNOWN && actual_type != TYPE_UNKNOWN &&
+                    target->decl_type != actual_type) {
+                    return false;
+                }
                 if (target->frozen || target->permafrozen) return false;
                 if (target->initialized) value_free(target->value);
                 target->value = value_copy(value);
@@ -235,6 +254,14 @@ bool env_assign_direct(Env* env, const char* name, Value value,
             /* Respect frozen / permafrozen bindings */
             if (entry->frozen || entry->permafrozen) return false;
 
+            if (type != TYPE_UNKNOWN && entry->decl_type != type) return false;
+
+            DeclType actual_type = env_decl_type_from_value(value);
+            if (entry->decl_type != TYPE_UNKNOWN && actual_type != TYPE_UNKNOWN &&
+                entry->decl_type != actual_type) {
+                return false;
+            }
+
             if (entry->initialized) value_free(entry->value);
             entry->value = value_copy(value);
             entry->initialized = true;
@@ -242,8 +269,14 @@ bool env_assign_direct(Env* env, const char* name, Value value,
         }
     }
     if (!declare_if_missing) return false;
-    env_define_direct(env, name, type);
+    if (type == TYPE_UNKNOWN) return false;
+    DeclType actual_type = env_decl_type_from_value(value);
+    if (actual_type != TYPE_UNKNOWN && actual_type != type) {
+        return false;
+    }
+    if (!env_define_direct(env, name, type)) return false;
     EnvEntry* entry = env_find_local(env, name);
+    if (!entry) return false;
     entry->value = value_copy(value);
     entry->initialized = true;
     return true;

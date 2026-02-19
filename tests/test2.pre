@@ -301,27 +301,27 @@ PRINT("Tensor-scalar arithmetic: PASS\n")
 
 ! --- Matrix (elementwise) arithmetic operators ---
 PRINT("Testing matrix (elementwise) arithmetic...")
-TNS: m1 = [[1, 10], [11, 100]]
-TNS: m2 = [[10, 1], [100, 11]]
-ASSERT(EQ(MADD(m1, m2), [[11, 11], [111, 111]]))
-ASSERT(EQ(MSUB(m1, m2), [[-1, 1], [-1, 1]]))
-ASSERT(EQ(MMUL(m1, m2), [[10, 10], [1100, 1100]]))
-ASSERT(EQ(MDIV(m1, m2), [[0, 10], [0, 1]]))
-DEL(m1)
-DEL(m2)
+TNS: t1 = [[1, 10], [11, 100]]
+TNS: t2 = [[10, 1], [100, 11]]
+ASSERT(EQ(MADD(t1, t2), [[11, 11], [111, 111]]))
+ASSERT(EQ(MSUB(t1, t2), [[-1, 1], [-1, 1]]))
+ASSERT(EQ(MMUL(t1, t2), [[10, 10], [1100, 1100]]))
+ASSERT(EQ(MDIV(t1, t2), [[0, 10], [0, 1]]))
+DEL(t1)
+DEL(t2)
 PRINT("Matrix arithmetic: PASS\n")
 
 ! --- MSUM / MPROD ---
 PRINT("Testing MSUM/MPROD...")
-TNS: ma1 = [[1, 10], [11, 100]]
-TNS: ma2 = [[10, 1], [100, 11]]
-TNS: ma3 = [[1, 1], [1, 1]]
-ASSERT(EQ(MSUM(ma1, ma2, ma3), [[100, 100], [1000, 1000]]))
-ASSERT(EQ(MSUM(ma1, ma2), [[11, 11], [111, 111]]))
-ASSERT(EQ(MPROD(ma1, ma2, ma3), [[10, 10], [1100, 1100]]))
-DEL(ma1)
-DEL(ma2)
-DEL(ma3)
+TNS: t1 = [[1, 10], [11, 100]]
+TNS: t2 = [[10, 1], [100, 11]]
+TNS: t3 = [[1, 1], [1, 1]]
+ASSERT(EQ(MSUM(t1, t2, t3), [[100, 100], [1000, 1000]]))
+ASSERT(EQ(MSUM(t1, t2), [[11, 11], [111, 111]]))
+ASSERT(EQ(MPROD(t1, t2, t3), [[10, 10], [1100, 1100]]))
+DEL(t1)
+DEL(t2)
+DEL(t3)
 PRINT("MSUM/MPROD: PASS\n")
 
 ! --- Arithmetic operators ---
@@ -390,21 +390,21 @@ PRINT("BYTES: PASS\n")
 
 ! --- Type checking ---
 PRINT("Testing type checks...")
-INT: x = 101
-FLT: y = 1.1
-STR: z = "test"
-ASSERT(ISINT(x))
-ASSERT(NOT(ISINT(y)))
-ASSERT(ISFLT(y))
-ASSERT(NOT(ISFLT(x)))
-ASSERT(ISSTR(z))
-ASSERT(NOT(ISSTR(x)))
-ASSERT(EQ(TYPE(x), "INT"))
-ASSERT(EQ(TYPE(y), "FLT"))
-ASSERT(EQ(TYPE(z), "STR"))
-DEL(x)
-DEL(y)
-DEL(z)
+INT: i1 = 101
+FLT: f1 = 1.1
+STR: s1 = "test"
+ASSERT(ISINT(i1))
+ASSERT(NOT(ISINT(f1)))
+ASSERT(ISFLT(f1))
+ASSERT(NOT(ISFLT(i1)))
+ASSERT(ISSTR(s1))
+ASSERT(NOT(ISSTR(i1)))
+ASSERT(EQ(TYPE(i1), "INT"))
+ASSERT(EQ(TYPE(f1), "FLT"))
+ASSERT(EQ(TYPE(s1), "STR"))
+DEL(i1)
+DEL(f1)
+DEL(s1)
 PRINT("Type checks: PASS\n")
 
 ! --- String operations ---
