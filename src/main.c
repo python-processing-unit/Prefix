@@ -425,7 +425,16 @@ int main(int argc, char** argv) {
     (void)verbose_flag;
 
     char* src = NULL;
-    const char* source_label = path;
+    char* source_label = NULL;
+    /* Canonicalize the provided program path now so it's correct even if
+       the process changes cwd below. This prevents relative paths like
+       "./tests/test2.pre" from resolving incorrectly after chdir. */
+#if defined(_MSC_VER)
+    if (path) source_label = _fullpath(NULL, path, 0);
+#else
+    if (path) source_label = realpath(path, NULL);
+#endif
+    if (!source_label && path) source_label = strdup(path);
 
     FILE* f = fopen(path, "rb");
         if (!f) {
@@ -498,6 +507,7 @@ int main(int argc, char** argv) {
     }
 
     free(src);
+    if (source_label) free(source_label);
     extensions_shutdown();
     builtins_reset_dynamic();
     return PREFIX_SUCCESS;
