@@ -279,6 +279,8 @@ static int run_repl(int verbose) {
 
 int main(int argc, char** argv) {
     const char* path = NULL;
+    int source_mode = 0;
+    char* source_text = NULL;
     int verbose_flag = 0;
     int explicit_ext_count = 0;
 
@@ -301,6 +303,24 @@ int main(int argc, char** argv) {
 
         if (strcmp(arg, "-verbose") == 0) {
             verbose_flag = 1;
+            continue;
+        }
+
+        if (strcmp(arg, "-source") == 0) {
+            if (i + 1 >= argc) {
+                fprintf(stderr, "Missing argument for -source\n");
+                extensions_shutdown();
+                builtins_reset_dynamic();
+                return PREFIX_ERROR_IO;
+            }
+            source_mode = 1;
+            source_text = strdup(argv[++i]);
+            if (!source_text) {
+                extensions_shutdown();
+                builtins_reset_dynamic();
+                fprintf(stderr, "Out of memory\n");
+                return PREFIX_ERROR_MEMORY;
+            }
             continue;
         }
 
@@ -342,7 +362,7 @@ int main(int argc, char** argv) {
         }
         free(err);
 
-        if (path) {
+        if (path && !source_mode) {
             char* prog_dir = path_dirname_dup(path);
             char* base = path_basename_no_ext_dup(path);
             if (!prog_dir || !base) {
@@ -414,7 +434,7 @@ int main(int argc, char** argv) {
         }
     }
 
-    if (!path) {
+    if (!path && !source_mode) {
         int repl_rc = run_repl(verbose_flag);
         extensions_shutdown();
         builtins_reset_dynamic();
@@ -423,17 +443,30 @@ int main(int argc, char** argv) {
 
     char* src = NULL;
     char* source_label = NULL;
-    /* Canonicalize the provided program path now so it's correct even if
-       the process changes cwd below. This prevents relative paths like
-       "./tests/test2.pre" from resolving incorrectly after chdir. */
-#if defined(_MSC_VER)
-    if (path) source_label = _fullpath(NULL, path, 0);
-#else
-    if (path) source_label = realpath(path, NULL);
-#endif
-    if (!source_label && path) source_label = strdup(path);
 
-    FILE* f = fopen(path, "rb");
+    if (source_mode) {
+        source_label = strdup("<source>");
+        src = strdup(source_text ? source_text : "");
+        if (!source_label || !src) {
+            free(source_label);
+            free(src);
+            extensions_shutdown();
+            builtins_reset_dynamic();
+            fprintf(stderr, "Out of memory\n");
+            return PREFIX_ERROR_MEMORY;
+        }
+    } else {
+        /* Canonicalize the provided program path now so it's correct even if
+           the process changes cwd below. This prevents relative paths like
+           "./tests/test2.pre" from resolving incorrectly after chdir. */
+#if defined(_MSC_VER)
+        if (path) source_label = _fullpath(NULL, path, 0);
+#else
+        if (path) source_label = realpath(path, NULL);
+#endif
+        if (!source_label && path) source_label = strdup(path);
+
+        FILE* f = fopen(path, "rb");
         if (!f) {
             fprintf(stderr, "Failed to open '%s'\n", path);
             extensions_shutdown();
@@ -462,6 +495,7 @@ int main(int argc, char** argv) {
         size_t r = fread(src, 1, (size_t)sz, f);
         src[r] = '\0';
         fclose(f);
+    }
 
     Lexer lex;
     lexer_init(&lex, src, source_label);
@@ -472,6 +506,7 @@ int main(int argc, char** argv) {
     Stmt* program = parser_parse(&parser);
     if (parser.had_error) {
         free(src);
+        if (source_text) free(source_text);
         extensions_shutdown();
         builtins_reset_dynamic();
         return PREFIX_ERROR_SYNTAX;
@@ -503,6 +538,7 @@ int main(int argc, char** argv) {
         if (res.error) free(res.error);
         free(src);
         if (source_label) free(source_label);
+        if (source_text) free(source_text);
         extensions_shutdown();
         builtins_reset_dynamic();
         return PREFIX_ERROR_RUNTIME;
@@ -510,6 +546,7 @@ int main(int argc, char** argv) {
 
     free(src);
     if (source_label) free(source_label);
+    if (source_text) free(source_text);
     extensions_shutdown();
     builtins_reset_dynamic();
     return PREFIX_SUCCESS;
