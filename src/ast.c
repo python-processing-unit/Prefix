@@ -3,6 +3,10 @@
 #include <string.h>
 #include <stdio.h>
 
+#ifdef _MSC_VER
+#define strdup _strdup
+#endif
+
 static void* ast_alloc(size_t size) {
     void* ptr = malloc(size);
     if (!ptr) {
@@ -494,7 +498,8 @@ void free_stmt(Stmt* stmt) {
         default:
             break;
     }
-    free(stmt);
+        if (stmt->src_text) free(stmt->src_text);
+        free(stmt);
 }
 
 Expr* expr_ptr(char* name, int line, int column) {
@@ -504,4 +509,14 @@ Expr* expr_ptr(char* name, int line, int column) {
     expr->column = column;
     expr->as.ptr_name = name;
     return expr;
+}
+
+void stmt_set_src(Stmt* stmt, const char* src) {
+    if (!stmt) return;
+    if (stmt->src_text) free(stmt->src_text);
+    if (!src) {
+        stmt->src_text = NULL;
+        return;
+    }
+    stmt->src_text = strdup(src);
 }

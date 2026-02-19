@@ -204,9 +204,9 @@ static void repl_update_line_state(const char* line, int* brace_depth, int* line
     *line_continuation = (end > 0 && line[end - 1] == '^') ? 1 : 0;
 }
 
-static int run_repl(void) {
+static int run_repl(int verbose) {
     Interpreter interp;
-    interpreter_init(&interp, "<repl>");
+    interpreter_init(&interp, "<repl>", verbose != 0);
 
     char* entry = NULL;
     size_t entry_len = 0;
@@ -258,10 +258,9 @@ static int run_repl(void) {
         if (!parser.had_error) {
             ExecResult res = exec_program_in_env(&interp, program, interp.global_env);
             if (res.status == EXEC_ERROR) {
-                fprintf(stderr, "Runtime error: %s at %d:%d\n",
-                        res.error ? res.error : "error",
-                        res.error_line,
-                        res.error_column);
+                fprintf(stderr, "%s\n", res.error ? res.error : "RuntimeError");
+                if (res.error) free(res.error);
+                interpreter_reset_traceback(&interp, interp.global_env);
             }
         }
 
@@ -416,13 +415,11 @@ int main(int argc, char** argv) {
     }
 
     if (!path) {
-        int repl_rc = run_repl();
+        int repl_rc = run_repl(verbose_flag);
         extensions_shutdown();
         builtins_reset_dynamic();
         return repl_rc;
     }
-
-    (void)verbose_flag;
 
     char* src = NULL;
     char* source_label = NULL;
@@ -497,10 +494,15 @@ int main(int argc, char** argv) {
         free(dir);
     }
 
-    ExecResult res = exec_program(program, source_label);
+    Interpreter interp;
+    interpreter_init(&interp, source_label, verbose_flag != 0);
+    ExecResult res = exec_program_in_env(&interp, program, interp.global_env);
+    interpreter_destroy(&interp);
     if (res.status == EXEC_ERROR) {
-        fprintf(stderr, "Runtime error: %s at %d:%d\n", res.error ? res.error : "error", res.error_line, res.error_column);
+        fprintf(stderr, "%s\n", res.error ? res.error : "RuntimeError");
+        if (res.error) free(res.error);
         free(src);
+        if (source_label) free(source_label);
         extensions_shutdown();
         builtins_reset_dynamic();
         return PREFIX_ERROR_RUNTIME;

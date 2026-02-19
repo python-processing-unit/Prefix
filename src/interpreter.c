@@ -27,6 +27,187 @@ static void wait_if_paused(Interpreter* interp) {
 
 static mtx_t g_tns_lock;
 static mtx_t g_parfor_merge_lock;
+
+static const char* stmt_type_name(StmtType type) {
+    switch (type) {
+        case STMT_BLOCK: return "BLOCK";
+        case STMT_ASYNC: return "ASYNC";
+        case STMT_EXPR: return "EXPR";
+        case STMT_ASSIGN: return "ASSIGN";
+        case STMT_DECL: return "DECL";
+        case STMT_IF: return "IF";
+        case STMT_WHILE: return "WHILE";
+        case STMT_FOR: return "FOR";
+        case STMT_PARFOR: return "PARFOR";
+        case STMT_FUNC: return "FUNC";
+        case STMT_RETURN: return "RETURN";
+        case STMT_BREAK: return "BREAK";
+        case STMT_CONTINUE: return "CONTINUE";
+        case STMT_THR: return "THR";
+        case STMT_POP: return "POP";
+        case STMT_TRY: return "TRY";
+        case STMT_GOTO: return "GOTO";
+        case STMT_GOTOPOINT: return "GOTOPOINT";
+        default: return "UNKNOWN";
+    }
+}
+
+static int trace_stack_grow(Interpreter* interp) {
+    if (!interp) return -1;
+    if (interp->trace_stack_count + 1 <= interp->trace_stack_capacity) return 0;
+    size_t new_cap = interp->trace_stack_capacity == 0 ? 8 : interp->trace_stack_capacity * 2;
+    TraceFrame* grown = realloc(interp->trace_stack, new_cap * sizeof(TraceFrame));
+    if (!grown) return -1;
+    interp->trace_stack = grown;
+    interp->trace_stack_capacity = new_cap;
+    return 0;
+}
+
+static int trace_push_frame(Interpreter* interp, const char* name, Env* env, int call_line, int call_col, int has_call_location) {
+    if (!interp) return -1;
+    if (trace_stack_grow(interp) != 0) return -1;
+    TraceFrame* frame = &interp->trace_stack[interp->trace_stack_count];
+    memset(frame, 0, sizeof(*frame));
+    frame->name = strdup(name ? name : "<frame>");
+    if (!frame->name) return -1;
+    interp->trace_stack_count++;
+    frame->env = env;
+    frame->call_line = call_line;
+    frame->call_col = call_col;
+    frame->has_call_location = has_call_location;
+    frame->last_step_index = -1;
+    return 0;
+}
+
+static void trace_pop_frame(Interpreter* interp) {
+    if (!interp || interp->trace_stack_count == 0) return;
+    TraceFrame* frame = &interp->trace_stack[interp->trace_stack_count - 1];
+    free(frame->name);
+    frame->name = NULL;
+    interp->trace_stack_count--;
+}
+
+static void trace_log_step(Interpreter* interp, Stmt* stmt, Env* env) {
+    if (!interp || !stmt) return;
+    if (interp->trace_stack_count == 0) {
+        if (trace_push_frame(interp, "<top-level>", env ? env : interp->global_env, 0, 0, 0) != 0) return;
+    }
+
+    TraceFrame* frame = &interp->trace_stack[interp->trace_stack_count - 1];
+    frame->env = env;
+    frame->last_step_index = interp->trace_next_step_index;
+    snprintf(frame->state_id, sizeof(frame->state_id), "s_%06d", interp->trace_next_step_index);
+    frame->has_state_entry = 1;
+    frame->last_line = stmt->line;
+    frame->last_col = stmt->column;
+    if (stmt && stmt->src_text && stmt->src_text[0]) {
+        // store a short snippet of the original source line
+        snprintf(frame->last_statement, sizeof(frame->last_statement), "%s", stmt->src_text);
+    } else {
+        snprintf(frame->last_statement, sizeof(frame->last_statement), "%s", stmt_type_name(stmt->type));
+    }
+
+    snprintf(interp->trace_last_state_id, sizeof(interp->trace_last_state_id), "%s", frame->state_id);
+    snprintf(interp->trace_last_rule, sizeof(interp->trace_last_rule), "%s", stmt_type_name(stmt->type));
+    interp->trace_next_step_index++;
+}
+
+static void trace_append(char** dst, size_t* len, size_t* cap, const char* text) {
+    if (!dst || !len || !cap || !text) return;
+    size_t add = strlen(text);
+    size_t need = *len + add + 1;
+    if (need > *cap) {
+        size_t new_cap = *cap == 0 ? 256 : *cap;
+        while (new_cap < need) new_cap *= 2;
+        char* grown = realloc(*dst, new_cap);
+        if (!grown) return;
+        *dst = grown;
+        *cap = new_cap;
+    }
+    memcpy(*dst + *len, text, add);
+    *len += add;
+    (*dst)[*len] = '\0';
+}
+
+static char* trace_env_snapshot(Env* env) {
+    if (!env || env->count == 0) return strdup("");
+    char* out = NULL;
+    size_t len = 0, cap = 0;
+    size_t shown = 0;
+    for (size_t i = 0; i < env->count; i++) {
+        EnvEntry* e = &env->entries[i];
+        if (!e->name || !e->initialized) continue;
+        if (shown >= 8) {
+            trace_append(&out, &len, &cap, ", ...");
+            break;
+        }
+        if (shown > 0) trace_append(&out, &len, &cap, ", ");
+        trace_append(&out, &len, &cap, e->name);
+        trace_append(&out, &len, &cap, "=");
+        trace_append(&out, &len, &cap, value_type_name(e->value));
+        shown++;
+    }
+    if (!out) return strdup("");
+    return out;
+}
+
+char* interpreter_format_traceback(Interpreter* interp, const char* error_msg, int line, int col) {
+    (void)col;
+    if (!interp) return strdup(error_msg ? error_msg : "Runtime error");
+
+    char* out = NULL;
+    size_t len = 0, cap = 0;
+    trace_append(&out, &len, &cap, "Traceback (most recent call last):\n");
+
+    const char* file = (interp->source_path && interp->source_path[0] != '\0') ? interp->source_path : "<unknown>";
+    for (size_t i = 0; i < interp->trace_stack_count; i++) {
+        TraceFrame* frame = &interp->trace_stack[i];
+        int frame_line = 0;
+        if (frame->has_state_entry) frame_line = frame->last_line;
+        else if (frame->has_call_location) frame_line = frame->call_line;
+        else frame_line = line;
+
+        char row[512];
+        snprintf(row, sizeof(row), "  File \"%s\", line %d, in %s\n", file, frame_line > 0 ? frame_line : 0, frame->name ? frame->name : "<frame>");
+        trace_append(&out, &len, &cap, row);
+
+        if (frame->has_state_entry && frame->last_statement[0] != '\0') {
+            snprintf(row, sizeof(row), "    %s\n", frame->last_statement);
+            trace_append(&out, &len, &cap, row);
+            snprintf(row, sizeof(row), "    State log index: %d  State id: %s\n", frame->last_step_index, frame->state_id);
+            trace_append(&out, &len, &cap, row);
+            if (interp->verbose) {
+                char* snap = trace_env_snapshot(frame->env);
+                if (snap && snap[0] != '\0') {
+                    trace_append(&out, &len, &cap, "    Env snapshot: ");
+                    trace_append(&out, &len, &cap, snap);
+                    trace_append(&out, &len, &cap, "\n");
+                }
+                if (snap) free(snap);
+            }
+        }
+    }
+
+    char tail[512];
+    snprintf(tail, sizeof(tail), "RuntimeError: %s (rewrite: %s)",
+             error_msg ? error_msg : "runtime error",
+             interp->trace_last_rule[0] ? interp->trace_last_rule : "runtime");
+    trace_append(&out, &len, &cap, tail);
+
+    if (!out) return strdup(error_msg ? error_msg : "Runtime error");
+    return out;
+}
+
+void interpreter_reset_traceback(Interpreter* interp, Env* top_env) {
+    if (!interp) return;
+    while (interp->trace_stack_count > 0) trace_pop_frame(interp);
+    interp->trace_next_step_index = 0;
+    snprintf(interp->trace_last_state_id, sizeof(interp->trace_last_state_id), "seed");
+    interp->trace_last_rule[0] = '\0';
+    if (top_env) {
+        (void)trace_push_frame(interp, "<top-level>", top_env, 0, 0, 0);
+    }
+}
 // Thread worker for THR blocks
 typedef struct {
     Interpreter* interp;
@@ -898,6 +1079,19 @@ Value eval_expr(Interpreter* interp, Expr* expr, Env* env) {
             if (kw_used) free(kw_used);
             
             // Execute function body
+            if (trace_push_frame(interp,
+                                 user_func->name ? user_func->name : "<lambda>",
+                                 call_env,
+                                 expr->line,
+                                 expr->column,
+                                 1) != 0) {
+                env_free(call_env);
+                interp->error = strdup("Out of memory");
+                interp->error_line = expr->line;
+                interp->error_col = expr->column;
+                return value_null();
+            }
+
             LabelMap local_labels = {0};
             ExecResult res = exec_stmt(interp, user_func->body, call_env, &local_labels);
             
@@ -930,14 +1124,21 @@ Value eval_expr(Interpreter* interp, Expr* expr, Env* env) {
                     value_free(res.value);
                     return value_null();
                 }
+                trace_pop_frame(interp);
                 return res.value;
             }
             
             // No explicit return - return default value
             switch (user_func->return_type) {
-                case TYPE_INT: return value_int(0);
-                case TYPE_FLT: return value_flt(0.0);
-                case TYPE_STR: return value_str("");
+                case TYPE_INT:
+                    trace_pop_frame(interp);
+                    return value_int(0);
+                case TYPE_FLT:
+                    trace_pop_frame(interp);
+                    return value_flt(0.0);
+                case TYPE_STR:
+                    trace_pop_frame(interp);
+                    return value_str("");
                 case TYPE_TNS:
                     interp->error = strdup("TNS-returning function must return a value");
                     interp->error_line = expr->line;
@@ -1559,6 +1760,7 @@ cleanup:
 
 static ExecResult exec_stmt(Interpreter* interp, Stmt* stmt, Env* env, LabelMap* labels) {
     if (!stmt) return make_ok(value_null());
+    trace_log_step(interp, stmt, env);
 
     switch (stmt->type) {
         case STMT_BLOCK:
@@ -2289,7 +2491,7 @@ static ExecResult exec_stmt_list(Interpreter* interp, StmtList* list, Env* env, 
 
 // ============ Main entry point ============
 
-void interpreter_init(Interpreter* interp, const char* source_path) {
+void interpreter_init(Interpreter* interp, const char* source_path, bool verbose) {
     if (!interp) return;
     memset(interp, 0, sizeof(*interp));
     interp->global_env = env_create(NULL);
@@ -2298,6 +2500,19 @@ void interpreter_init(Interpreter* interp, const char* source_path) {
     interp->in_try_block = false;
     interp->modules = NULL;
     interp->current_thr = NULL;
+    interp->verbose = verbose ? 1 : 0;
+    interp->source_path = source_path ? strdup(source_path) : NULL;
+    interp->trace_stack = NULL;
+    interp->trace_stack_count = 0;
+    interp->trace_stack_capacity = 0;
+    interp->trace_next_step_index = 0;
+    snprintf(interp->trace_last_state_id, sizeof(interp->trace_last_state_id), "seed");
+    interp->trace_last_rule[0] = '\0';
+
+    if (trace_push_frame(interp, "<top-level>", interp->global_env, 0, 0, 0) != 0) {
+        fprintf(stderr, "Out of memory\n");
+        exit(1);
+    }
 
     builtins_init();
     mtx_init(&g_tns_lock, 0);
@@ -2343,6 +2558,16 @@ void interpreter_destroy(Interpreter* interp) {
         interp->error = NULL;
     }
 
+    if (interp->source_path) {
+        free(interp->source_path);
+        interp->source_path = NULL;
+    }
+
+    while (interp->trace_stack_count > 0) trace_pop_frame(interp);
+    free(interp->trace_stack);
+    interp->trace_stack = NULL;
+    interp->trace_stack_capacity = 0;
+
     ns_buffer_shutdown();
     mtx_destroy(&g_tns_lock);
     mtx_destroy(&g_parfor_merge_lock);
@@ -2350,10 +2575,16 @@ void interpreter_destroy(Interpreter* interp) {
 
 ExecResult exec_program(Stmt* program, const char* source_path) {
     Interpreter interp;
-    interpreter_init(&interp, source_path);
+    interpreter_init(&interp, source_path, false);
     
     LabelMap labels = {0};
     ExecResult res = exec_stmt_list(&interp, &program->as.block, interp.global_env, &labels);
+
+    if (res.status == EXEC_ERROR) {
+        char* tb = interpreter_format_traceback(&interp, res.error, res.error_line, res.error_column);
+        free(res.error);
+        res.error = tb;
+    }
     
     // Clean up
     for (size_t i = 0; i < labels.count; i++) value_free(labels.items[i].key);
@@ -2420,8 +2651,18 @@ ExecResult exec_program_in_env(Interpreter* interp, Stmt* program, Env* env) {
         return r;
     }
 
+    if (interp->trace_stack_count == 0) {
+        (void)trace_push_frame(interp, "<top-level>", env, 0, 0, 0);
+    }
+
     LabelMap labels = {0};
     ExecResult res = exec_stmt_list(interp, &program->as.block, env, &labels);
+
+    if (res.status == EXEC_ERROR) {
+        char* tb = interpreter_format_traceback(interp, res.error, res.error_line, res.error_column);
+        free(res.error);
+        res.error = tb;
+    }
 
     for (size_t i = 0; i < labels.count; i++) value_free(labels.items[i].key);
     free(labels.items);

@@ -61,6 +61,20 @@ typedef struct {
     LabelMap labels;
 } Frame;
 
+typedef struct {
+    char* name;
+    Env* env;
+    int call_line;
+    int call_col;
+    int has_call_location;
+    int last_step_index;
+    char state_id[24];
+    int has_state_entry;
+    int last_line;
+    int last_col;
+    char last_statement[64];
+} TraceFrame;
+
 // Interpreter state
 typedef struct Interpreter {
     Env* global_env;
@@ -78,11 +92,20 @@ typedef struct Interpreter {
     // When true, first-declarations/typed first-assignment stay in the current
     // env instead of being redirected to parent env (used by PARFOR workers).
     bool isolate_env_writes;
+    // Traceback/logging state
+    int verbose;
+    char* source_path;
+    TraceFrame* trace_stack;
+    size_t trace_stack_count;
+    size_t trace_stack_capacity;
+    int trace_next_step_index;
+    char trace_last_state_id[24];
+    char trace_last_rule[32];
 } Interpreter;
 
 // Initialize/destroy a reusable interpreter session.
 // `source_path` sets the primary module source label (e.g. script path or "<repl>").
-void interpreter_init(Interpreter* interp, const char* source_path);
+void interpreter_init(Interpreter* interp, const char* source_path, bool verbose);
 void interpreter_destroy(Interpreter* interp);
 
 // Main entry point
@@ -94,6 +117,14 @@ ExecResult exec_program(Stmt* program, const char* source_path);
 // the global environment). Returns an ExecResult similar to
 // `exec_program`.
 ExecResult exec_program_in_env(Interpreter* interp, Stmt* program, Env* env);
+
+// Build and return a traceback string for the current interpreter call stack.
+// Caller owns the returned string.
+char* interpreter_format_traceback(Interpreter* interp, const char* error_msg, int line, int col);
+
+// Reset traceback stack for interactive recovery while preserving the current
+// top-level frame.
+void interpreter_reset_traceback(Interpreter* interp, Env* top_env);
 // Functions needed by builtins.c
 Value eval_expr(Interpreter* interp, Expr* expr, Env* env);
 int value_truthiness(Value v);

@@ -293,6 +293,9 @@ static Stmt* parse_block(Parser* parser) {
     while (parser->current_token.type != TOKEN_RBRACE && parser->current_token.type != TOKEN_EOF) {
         Stmt* stmt = parse_statement(parser);
         if (stmt) {
+            char* line_text = lexer_get_line(parser->lexer, stmt->line);
+            stmt_set_src(stmt, line_text);
+            free(line_text);
             stmt_list_add(&block->as.block, stmt);
         }
         skip_newlines(parser);
@@ -619,6 +622,9 @@ Stmt* parser_parse(Parser* parser) {
     while (parser->current_token.type != TOKEN_EOF) {
         Stmt* stmt = parse_statement(parser);
         if (stmt) {
+            char* line_text = lexer_get_line(parser->lexer, stmt->line);
+            stmt_set_src(stmt, line_text);
+            free(line_text);
             stmt_list_add(&program->as.block, stmt);
             skip_newlines(parser);
             continue;

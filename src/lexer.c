@@ -86,6 +86,35 @@ void lexer_init(Lexer* lexer, const char* source, const char* filename) {
     lexer->column = 1;
 }
 
+char* lexer_get_line(Lexer* lexer, int line_num) {
+    if (!lexer || !lexer->source || line_num <= 0) return strdup("");
+    size_t idx = 0;
+    int cur_line = 1;
+    size_t start = 0;
+    // Advance to the start of the requested line
+    while (idx < lexer->source_len && cur_line < line_num) {
+        if (lexer->source[idx] == '\n') cur_line++;
+        idx++;
+    }
+    if (cur_line != line_num || idx >= lexer->source_len) {
+        // Requested line is past end; return empty string
+        return strdup("");
+    }
+    start = idx;
+    size_t end = start;
+    while (end < lexer->source_len && lexer->source[end] != '\n' && lexer->source[end] != '\r') end++;
+    size_t len = end - start;
+    char* out = (char*)malloc(len + 1);
+    if (!out) return strdup("");
+    memcpy(out, lexer->source + start, len);
+    out[len] = '\0';
+    // Trim trailing whitespace
+    while (len > 0 && (out[len-1] == ' ' || out[len-1] == '\t' || out[len-1] == '\r' || out[len-1] == '\n')) {
+        out[--len] = '\0';
+    }
+    return out;
+}
+
 static bool is_at_end(Lexer* lexer) {
     return lexer->current >= lexer->source_len;
 }

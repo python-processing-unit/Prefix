@@ -115,6 +115,7 @@ struct Stmt {
     StmtType type;
     int line;
     int column;
+    char* src_text;
     union {
         StmtList block;
         struct { Expr* expr; } expr_stmt;
@@ -178,6 +179,9 @@ Stmt* stmt_gotopoint(Expr* target, int line, int column);
 
 void stmt_list_add(StmtList* list, Stmt* stmt);
 void param_list_add(ParamList* list, Param param);
+
+// Attach original source text (single line) to a statement node.
+void stmt_set_src(Stmt* stmt, const char* src);
 
 void free_expr(Expr* expr);
 void free_stmt(Stmt* stmt);
