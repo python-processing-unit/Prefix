@@ -4237,6 +4237,16 @@ static Value builtin_import_path(Interpreter* interp, Value* args, int argc, Exp
     char* canonical_path = found_path ? canonicalize_existing_path(found_path) : NULL;
     const char* cache_key = canonical_path ? canonical_path : inpath;
 
+    // If the path did not resolve to an existing file/dir and the module
+    // isn't already registered, treat this as a missing module error.
+    if (!found_path) {
+        Env* existing = module_env_lookup(interp, cache_key);
+        if (!existing) {
+            if (alias_dup) free(alias_dup);
+            RUNTIME_ERROR(interp, "IMPORT_PATH: module not found", line, col);
+        }
+    }
+
     Env* mod_env = module_env_lookup(interp, cache_key);
     if (!mod_env) {
         if (module_register(interp, cache_key) != 0) {
@@ -6017,6 +6027,19 @@ static Value builtin_import(Interpreter* interp, Value* args, int argc, Expr** a
 
     char* canonical_path = found_path ? canonicalize_existing_path(found_path) : NULL;
     const char* cache_key = canonical_path ? canonical_path : modname;
+
+    /* If we couldn't locate a file for the requested module and there is no
+       previously-registered module with this name, report a clear error. */
+    if (!found_path) {
+        Env* existing = module_env_lookup(interp, cache_key);
+        if (!existing) {
+            free(found_path);
+            free(canonical_path);
+            char buf[256];
+            snprintf(buf, sizeof(buf), "IMPORT: module '%s' not found", modname);
+            RUNTIME_ERROR(interp, buf, line, col);
+        }
+    }
 
     /* Attempt to load a companion .prex pointer file next to the resolved
        module file so that any extension libraries listed there are available
