@@ -1,0 +1,5 @@
+INT: sym = 101
+
+FUNC FUN():INT{
+    RETURN(0)
+}
