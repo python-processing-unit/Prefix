@@ -1682,61 +1682,168 @@ ExecResult assign_index_chain(Interpreter* interp, Env* env, Expr* idx_expr, Val
 
         if (cur->type == VAL_TNS) {
             Tensor* t = cur->as.tns;
-            // Lvalue assignment only supports full integer indexing (no ranges/wildcards).
-            if (indices->count != t->ndim) {
-                out = make_error("Cannot assign through tensor slice", node->line, node->column);
-                goto cleanup;
-            }
 
-            size_t* idxs0 = malloc(sizeof(size_t) * indices->count);
-            if (!idxs0) {
+            // Allow indexing with ranges/wildcards or integers. Indices may be fewer than ndim.
+            // Build per-dimension start/end (1-based inclusive) arrays for the full tensor dims.
+            int64_t* starts = malloc(sizeof(int64_t) * t->ndim);
+            int64_t* ends = malloc(sizeof(int64_t) * t->ndim);
+            if (!starts || !ends) {
+                free(starts); free(ends);
                 out = make_error("Out of memory", stmt_line, stmt_col);
                 goto cleanup;
             }
 
+            // default full spans
+            for (size_t i = 0; i < t->ndim; i++) { starts[i] = 1; ends[i] = (int64_t)t->shape[i]; }
+
+            // fill from provided indices
             for (size_t i = 0; i < indices->count; i++) {
                 Expr* it = indices->items[i];
-                if (it->type == EXPR_WILDCARD || it->type == EXPR_RANGE) {
-                    free(idxs0);
-                    out = make_error("Cannot assign using ranges or wildcards", it->line, it->column);
-                    goto cleanup;
+                if (it->type == EXPR_WILDCARD) {
+                    starts[i] = 1; ends[i] = (int64_t)t->shape[i];
+                    continue;
+                }
+                if (it->type == EXPR_RANGE) {
+                    // range node holds start and end expressions as children
+                    Expr* rs = it->as.range.start;
+                    Expr* re = it->as.range.end;
+                    Value vs = eval_expr(interp, rs, env);
+                    if (interp->error) { ExecResult err = make_error(interp->error, interp->error_line, interp->error_col); clear_error(interp); free(starts); free(ends); out = err; goto cleanup; }
+                    Value ve = eval_expr(interp, re, env);
+                    if (interp->error) { ExecResult err = make_error(interp->error, interp->error_line, interp->error_col); clear_error(interp); value_free(vs); free(starts); free(ends); out = err; goto cleanup; }
+                    if (vs.type != VAL_INT || ve.type != VAL_INT) { value_free(vs); value_free(ve); free(starts); free(ends); out = make_error("Range endpoints must evaluate to INT", it->line, it->column); goto cleanup; }
+                    starts[i] = vs.as.i; ends[i] = ve.as.i;
+                    value_free(vs); value_free(ve);
+                    continue;
                 }
 
+                // single index expression
                 Value vi = eval_expr(interp, it, env);
-                if (interp->error) {
-                    ExecResult err = make_error(interp->error, interp->error_line, interp->error_col);
-                    clear_error(interp);
-                    free(idxs0);
-                    out = err;
-                    goto cleanup;
-                }
-                if (vi.type != VAL_INT) {
-                    value_free(vi);
-                    free(idxs0);
-                    out = make_error("Index expression must evaluate to INT", it->line, it->column);
-                    goto cleanup;
-                }
-
-                int64_t v = vi.as.i;
-                int64_t dim = (int64_t)t->shape[i];
-                if (v < 0) v = dim + v + 1;
-                if (v < 1 || v > dim) {
-                    value_free(vi);
-                    free(idxs0);
-                    out = make_error("Index out of range", it->line, it->column);
-                    goto cleanup;
-                }
-                idxs0[i] = (size_t)(v - 1);
+                if (interp->error) { ExecResult err = make_error(interp->error, interp->error_line, interp->error_col); clear_error(interp); free(starts); free(ends); out = err; goto cleanup; }
+                if (vi.type != VAL_INT) { value_free(vi); free(starts); free(ends); out = make_error("Index expression must evaluate to INT", it->line, it->column); goto cleanup; }
+                starts[i] = vi.as.i; ends[i] = vi.as.i; // fixed single element
                 value_free(vi);
             }
 
-            Value* elem = value_tns_get_ptr(*cur, idxs0, indices->count);
-            free(idxs0);
-            if (!elem) {
-                out = make_error("Index out of range", node->line, node->column);
+            // Normalize negative indices and clamp; compute lengths
+            size_t new_ndim = 0;
+            int* orig_to_out = malloc(sizeof(int) * t->ndim);
+            if (!orig_to_out) { free(starts); free(ends); out = make_error("Out of memory", stmt_line, stmt_col); goto cleanup; }
+            for (size_t i = 0; i < t->ndim; i++) {
+                int64_t s = starts[i];
+                int64_t e = ends[i];
+                int64_t dim = (int64_t)t->shape[i];
+                if (s < 0) s = dim + s + 1;
+                if (e < 0) e = dim + e + 1;
+                if (s < 1) s = 1;
+                if (e > dim) e = dim;
+                if (s > e) { starts[i] = 1; ends[i] = 0; orig_to_out[i] = -1; continue; }
+                starts[i] = s; ends[i] = e;
+                size_t len = (size_t)(e - s + 1);
+                if (len <= 1) orig_to_out[i] = -1; else orig_to_out[i] = (int)new_ndim++;
+            }
+
+            if (new_ndim == 0) {
+                // All dimensions fixed -> single element assignment
+                size_t src_offset = 0;
+                for (size_t i = 0; i < t->ndim; i++) {
+                    size_t pos = (starts[i] <= ends[i]) ? (size_t)(starts[i] - 1) : 0;
+                    src_offset += pos * t->strides[i];
+                }
+
+                // type compatibility
+                if (rhs.type != VAL_TNS && value_type_to_decl(rhs.type) != t->elem_type) {
+                    free(starts); free(ends); free(orig_to_out);
+                    out = make_error("Element type mismatch", stmt_line, stmt_col);
+                    goto cleanup;
+                }
+
+                mtx_lock(&t->lock);
+                value_free(t->data[src_offset]);
+                if (rhs.type == VAL_TNS) {
+                    // RHS is a tensor but single-element selection: copy whole RHS value
+                    t->data[src_offset] = value_copy(rhs);
+                } else {
+                    t->data[src_offset] = value_copy(rhs);
+                }
+                mtx_unlock(&t->lock);
+                free(starts); free(ends); free(orig_to_out);
+                // Set cur to point at this element for further chaining
+                cur = &t->data[src_offset];
+                continue;
+            }
+
+            // Build output shape and validate RHS
+            size_t* out_shape = malloc(sizeof(size_t) * new_ndim);
+            if (!out_shape) { free(starts); free(ends); free(orig_to_out); out = make_error("Out of memory", stmt_line, stmt_col); goto cleanup; }
+            for (size_t i = 0; i < t->ndim; i++) {
+                if (orig_to_out[i] >= 0) {
+                    out_shape[orig_to_out[i]] = (size_t)(ends[i] - starts[i] + 1);
+                }
+            }
+
+            if (rhs.type != VAL_TNS) {
+                free(starts); free(ends); free(orig_to_out); free(out_shape);
+                out = make_error("Right-hand side must be a TNS matching slice shape", node->line, node->column);
                 goto cleanup;
             }
-            cur = elem;
+
+            Tensor* rt = rhs.as.tns;
+            if (rt->ndim != new_ndim) {
+                free(starts); free(ends); free(orig_to_out); free(out_shape);
+                out = make_error("Right-hand side tensor dimensionality mismatch", node->line, node->column);
+                goto cleanup;
+            }
+            for (size_t d = 0; d < new_ndim; d++) {
+                if (rt->shape[d] != out_shape[d]) {
+                    free(starts); free(ends); free(orig_to_out); free(out_shape);
+                    out = make_error("Right-hand side tensor shape mismatch", node->line, node->column);
+                    goto cleanup;
+                }
+            }
+
+            if (rt->elem_type != t->elem_type) {
+                free(starts); free(ends); free(orig_to_out); free(out_shape);
+                out = make_error("Element type mismatch", stmt_line, stmt_col);
+                goto cleanup;
+            }
+
+            // Write RHS elements into target tensor region
+            // Iterate over output positions and compute corresponding source offset
+            for (size_t out_idx = 0; out_idx < rt->length; out_idx++) {
+                // compute multi-index for out
+                size_t rem = out_idx;
+                size_t src_offset = 0;
+                for (size_t d = 0; d < new_ndim; d++) {
+                    size_t pos = rem / rt->strides[d];
+                    rem = rem % rt->strides[d];
+                    // find orig dim for this d
+                    size_t orig = 0;
+                    for (size_t k = 0; k < t->ndim; k++) {
+                        if (orig_to_out[k] == (int)d) { orig = k; break; }
+                    }
+                    size_t src_pos = pos + (size_t)(starts[orig] - 1);
+                    src_offset += src_pos * t->strides[orig];
+                }
+                // add fixed-dimension offsets
+                for (size_t k = 0; k < t->ndim; k++) {
+                    if (orig_to_out[k] == -1) {
+                        size_t pos = (ends[k] >= starts[k]) ? (size_t)(starts[k] - 1) : 0;
+                        src_offset += pos * t->strides[k];
+                    }
+                }
+
+                // assign element
+                mtx_lock(&t->lock);
+                value_free(t->data[src_offset]);
+                t->data[src_offset] = value_copy(rt->data[out_idx]);
+                mtx_unlock(&t->lock);
+            }
+
+            free(out_shape);
+            free(starts); free(ends); free(orig_to_out);
+            // After slice assignment, set cur to base (no further chaining into this node)
+            cur = &base_val;
             continue;
         }
 

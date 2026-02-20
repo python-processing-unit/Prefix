@@ -498,6 +498,81 @@ static Stmt* parse_statement(Parser* parser) {
         char* name = parser->current_token.literal;
         advance(parser);
         DeclType dtype = parse_type_name(type_tok.literal);
+        // Support typed declaration with indexed-assignment target, e.g. `TNS: t[1-10] = ...`
+        if (parser->current_token.type == TOKEN_LBRACKET || parser->current_token.type == TOKEN_LANGLE) {
+            // construct base identifier expr and parse trailing indexers
+            Expr* base = expr_ident(name, type_tok.line, type_tok.column);
+            while (parser->current_token.type == TOKEN_LBRACKET || parser->current_token.type == TOKEN_LANGLE) {
+                if (parser->current_token.type == TOKEN_LBRACKET) {
+                    int line = parser->current_token.line;
+                    int column = parser->current_token.column;
+                    advance(parser); // consume '['
+                    Expr* idx = expr_index(base, line, column);
+                    if (parser->current_token.type == TOKEN_RBRACKET) {
+                        report_error(parser, "Empty index list");
+                        return NULL;
+                    }
+                    while (parser->current_token.type != TOKEN_RBRACKET && parser->current_token.type != TOKEN_EOF) {
+                        if (match(parser, TOKEN_STAR)) {
+                            Expr* wc = expr_wildcard(parser->previous_token.line, parser->previous_token.column);
+                            expr_list_add(&idx->as.index.indices, wc);
+                        } else {
+                            Expr* start = parse_expression(parser);
+                            if (!start) return NULL;
+                            bool is_range = false;
+                            if (parser->current_token.type == TOKEN_DASH) is_range = true;
+                            else if (parser->current_token.type == TOKEN_NUMBER && parser->current_token.literal && parser->current_token.literal[0] == '-') is_range = true;
+                            if (is_range) {
+                                if (parser->current_token.type == TOKEN_DASH) advance(parser);
+                                Expr* end = parse_expression(parser);
+                                if (!end) return NULL;
+                                Expr* range = expr_range(start, end, start->line, start->column);
+                                expr_list_add(&idx->as.index.indices, range);
+                            } else {
+                                expr_list_add(&idx->as.index.indices, start);
+                            }
+                        }
+
+                        if (parser->current_token.type == TOKEN_COMMA) { advance(parser); continue; }
+                        break;
+                    }
+                    consume(parser, TOKEN_RBRACKET, "Expected ']' after index list");
+                    base = idx;
+                    continue;
+                }
+
+                // angle-bracket indexing for maps
+                if (parser->current_token.type == TOKEN_LANGLE) {
+                    int line = parser->current_token.line;
+                    int column = parser->current_token.column;
+                    advance(parser); // consume '<'
+                    Expr* idx = expr_index(base, line, column);
+                    if (parser->current_token.type == TOKEN_RANGLE) {
+                        report_error(parser, "Empty index list");
+                        return NULL;
+                    }
+                    while (parser->current_token.type != TOKEN_RANGLE && parser->current_token.type != TOKEN_EOF) {
+                        Expr* key = parse_expression(parser);
+                        if (!key) return NULL;
+                        expr_list_add(&idx->as.index.indices, key);
+                        if (parser->current_token.type == TOKEN_COMMA) { advance(parser); continue; }
+                        break;
+                    }
+                    consume(parser, TOKEN_RANGLE, "Expected '>' after index list");
+                    base = idx;
+                    continue;
+                }
+            }
+
+            if (match(parser, TOKEN_EQUALS)) {
+                Expr* expr = parse_expression(parser);
+                if (!expr) return NULL;
+                return stmt_assign(true, dtype, NULL, base, expr, type_tok.line, type_tok.column);
+            }
+            report_error(parser, "Expected '=' after typed indexed target");
+            return NULL;
+        }
+
         if (match(parser, TOKEN_EQUALS)) {
             Expr* expr = parse_expression(parser);
             if (!expr) return NULL;
