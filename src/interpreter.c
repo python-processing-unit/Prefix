@@ -2113,10 +2113,21 @@ static ExecResult exec_stmt(Interpreter* interp, Stmt* stmt, Env* env, LabelMap*
                 value_free(v);
                 return make_error("BREAK requires INT argument", stmt->line, stmt->column);
             }
+            int64_t bc = v.as.i;
+            if (bc <= 0) {
+                value_free(v);
+                return make_error("BREAK count must be > 0", stmt->line, stmt->column);
+            }
+            if (bc > interp->loop_depth) {
+                char buf[128];
+                snprintf(buf, sizeof(buf), "BREAK count %lld exceeds current loop nesting depth %d", (long long)bc, interp->loop_depth);
+                value_free(v);
+                return make_error(buf, stmt->line, stmt->column);
+            }
             ExecResult res;
             res.status = EXEC_BREAK;
             res.value = value_null();
-            res.break_count = (int)v.as.i;
+            res.break_count = (int)bc;
             res.jump_index = -1;
             res.error = NULL;
             res.error_line = 0;
