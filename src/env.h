@@ -19,9 +19,11 @@ typedef struct Env {
     EnvEntry* entries;
     size_t count;
     size_t capacity;
+    int refcount;
 } Env;
 
 Env* env_create(Env* parent);
+void env_retain(Env* env);
 void env_free(Env* env);
 
 bool env_define(Env* env, const char* name, DeclType type);

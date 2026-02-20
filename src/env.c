@@ -104,11 +104,18 @@ static void* env_alloc(size_t size) {
 Env* env_create(Env* parent) {
     Env* env = env_alloc(sizeof(Env));
     env->parent = parent;
+    env->refcount = 1;
     return env;
+}
+
+void env_retain(Env* env) {
+    if (!env) return;
+    env->refcount++;
 }
 
 void env_free(Env* env) {
     if (!env) return;
+    if (--env->refcount > 0) return;
     for (size_t i = 0; i < env->count; i++) {
         free(env->entries[i].name);
         if (env->entries[i].initialized) {

@@ -358,6 +358,42 @@ static void* safe_malloc(size_t size) {
     return ptr;
 }
 
+static Func* create_runtime_function(const char* name,
+                                     DeclType return_type,
+                                     ParamList* src_params,
+                                     Stmt* body,
+                                     Env* closure) {
+    Func* f = safe_malloc(sizeof(Func));
+    f->name = name ? strdup(name) : NULL;
+    f->return_type = return_type;
+    f->body = body;
+    f->params.count = src_params ? src_params->count : 0;
+    f->params.items = NULL;
+    f->params.capacity = src_params ? src_params->capacity : 0;
+    if (src_params && src_params->count > 0) {
+        f->params.items = safe_malloc(sizeof(Param) * src_params->count);
+        for (size_t i = 0; i < src_params->count; i++) {
+            f->params.items[i].type = src_params->items[i].type;
+            f->params.items[i].name = strdup(src_params->items[i].name);
+            f->params.items[i].default_value = src_params->items[i].default_value;
+        }
+    }
+    f->closure = closure;
+    env_retain(f->closure);
+    return f;
+}
+
+static void free_runtime_function(Func* f) {
+    if (!f) return;
+    if (f->name) free(f->name);
+    for (size_t i = 0; i < f->params.count; i++) {
+        free(f->params.items[i].name);
+    }
+    free(f->params.items);
+    env_free(f->closure);
+    free(f);
+}
+
 static int builtin_param_index(BuiltinFunction* builtin, const char* kw) {
     if (!builtin || !kw) return -1;
     if (!builtin->param_names || builtin->param_count <= 0) return -1;
@@ -665,6 +701,15 @@ Value eval_expr(Interpreter* interp, Expr* expr, Env* env) {
                 return value_null();
             }
             return v;
+        }
+
+        case EXPR_LAMBDA: {
+            Func* f = create_runtime_function(NULL,
+                                              expr->as.lambda.return_type,
+                                              &expr->as.lambda.params,
+                                              expr->as.lambda.body,
+                                              env);
+            return value_func(f);
         }
         
         case EXPR_CALL: {
@@ -1927,40 +1972,20 @@ static ExecResult exec_stmt(Interpreter* interp, Stmt* stmt, Env* env, LabelMap*
 
         case STMT_FUNC: {
             // Register user-defined function in the interpreter
-            Func* f = safe_malloc(sizeof(Func));
-            f->name = strdup(stmt->as.func_stmt.name);
-            f->return_type = stmt->as.func_stmt.return_type;
-            f->body = stmt->as.func_stmt.body;
-            // Copy parameters
-            ParamList* src = &stmt->as.func_stmt.params;
-            f->params.count = src->count;
-            f->params.items = NULL;
-            f->params.capacity = src->capacity;
-            if (src->count > 0) {
-                f->params.items = safe_malloc(sizeof(Param) * src->count);
-                for (size_t i = 0; i < src->count; i++) {
-                    f->params.items[i].type = src->items[i].type;
-                    f->params.items[i].name = strdup(src->items[i].name);
-                    f->params.items[i].default_value = src->items[i].default_value; // share AST node
-                }
-            }
-            // Closure is current environment
-            f->closure = env;
+            Func* f = create_runtime_function(stmt->as.func_stmt.name,
+                                              stmt->as.func_stmt.return_type,
+                                              &stmt->as.func_stmt.params,
+                                              stmt->as.func_stmt.body,
+                                              env);
 
             if (builtin_lookup(f->name)) {
-                free(f->name);
-                for (size_t i = 0; i < f->params.count; i++) free(f->params.items[i].name);
-                free(f->params.items);
-                free(f);
+                free_runtime_function(f);
                 return make_error("Function name conflicts with built-in", stmt->line, stmt->column);
             }
 
             EnvEntry* prior = env_get_entry(env, f->name);
             if (prior && prior->decl_type != TYPE_FUNC) {
-                free(f->name);
-                for (size_t i = 0; i < f->params.count; i++) free(f->params.items[i].name);
-                free(f->params.items);
-                free(f);
+                free_runtime_function(f);
                 return make_error("Function name conflicts with existing symbol", stmt->line, stmt->column);
             }
 

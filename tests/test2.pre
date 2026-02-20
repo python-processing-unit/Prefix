@@ -604,6 +604,32 @@ FUNC GREET(STR: name, STR: prefix = "Hello"):STR{
 }
 ASSERT(EQ(GREET("World"), "Hello World"))
 ASSERT(EQ(GREET("World", prefix = "Hi"), "Hi World"))
+
+INT: base = 1
+FUNC: add_base = LAMBDA(INT: x):INT{ RETURN(ADD(x, base)) }
+ASSERT(EQ(add_base(1), 10))
+base = 10
+ASSERT(EQ(add_base(1), 11))
+
+FUNC: greet_lambda = LAMBDA(STR: name, STR: prefix = "Hi"):STR{ RETURN(JOIN(" ", prefix, name)) }
+ASSERT(EQ(greet_lambda("World"), "Hi World"))
+ASSERT(EQ(greet_lambda("World", prefix = "Hello"), "Hello World"))
+
+FUNC MAKE_ADDER(INT: seed):FUNC{
+    INT: local = seed
+    RETURN(LAMBDA(INT: delta):INT{ RETURN(ADD(local, delta)) })
+}
+FUNC: escaped_lambda = MAKE_ADDER(10)
+ASSERT(EQ(escaped_lambda(1), 11))
+
+TNS: func_slots = [add_base]
+ASSERT(EQ(func_slots[1](1), 11))
+DEL(func_slots)
+DEL(greet_lambda)
+DEL(escaped_lambda)
+DEL(MAKE_ADDER)
+DEL(add_base)
+DEL(base)
 PRINT("Functions: PASS\n")
 
 PRINT("Testing SIGNATURE...")

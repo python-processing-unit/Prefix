@@ -17,6 +17,18 @@ typedef enum {
 typedef struct Expr Expr;
 typedef struct Stmt Stmt;
 
+typedef struct Param {
+    DeclType type;
+    char* name;
+    Expr* default_value; // optional
+} Param;
+
+typedef struct ParamList {
+    Param* items;
+    size_t count;
+    size_t capacity;
+} ParamList;
+
 typedef enum {
     EXPR_INT,
     EXPR_FLT,
@@ -29,7 +41,8 @@ typedef enum {
     EXPR_MAP,
     EXPR_INDEX,
     EXPR_RANGE,
-    EXPR_WILDCARD
+    EXPR_WILDCARD,
+    EXPR_LAMBDA
 } ExprType;
 
 typedef struct {
@@ -69,6 +82,11 @@ struct Expr {
             ExprList keys;
             ExprList values;
         } map_items;
+        struct {
+            ParamList params;
+            DeclType return_type;
+            Stmt* body;
+        } lambda;
         ExprList tns_items;
     } as;
 };
@@ -99,18 +117,6 @@ typedef struct {
     size_t count;
     size_t capacity;
 } StmtList;
-
-typedef struct {
-    DeclType type;
-    char* name;
-    Expr* default_value; // optional
-} Param;
-
-typedef struct {
-    Param* items;
-    size_t count;
-    size_t capacity;
-} ParamList;
 
 struct Stmt {
     StmtType type;
@@ -157,6 +163,7 @@ Expr* expr_map(int line, int column);
 Expr* expr_index(Expr* target, int line, int column);
 Expr* expr_range(Expr* start, Expr* end, int line, int column);
 Expr* expr_wildcard(int line, int column);
+Expr* expr_lambda(ParamList params, DeclType return_type, Stmt* body, int line, int column);
 void expr_list_add(ExprList* list, Expr* expr);
 
 Stmt* stmt_block(int line, int column);

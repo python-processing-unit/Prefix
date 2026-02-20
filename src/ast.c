@@ -126,6 +126,17 @@ Expr* expr_wildcard(int line, int column) {
     return expr;
 }
 
+Expr* expr_lambda(ParamList params, DeclType return_type, Stmt* body, int line, int column) {
+    Expr* expr = ast_alloc(sizeof(Expr));
+    expr->type = EXPR_LAMBDA;
+    expr->line = line;
+    expr->column = column;
+    expr->as.lambda.params = params;
+    expr->as.lambda.return_type = return_type;
+    expr->as.lambda.body = body;
+    return expr;
+}
+
 Expr* expr_async(Stmt* block, int line, int column) {
     Expr* expr = ast_alloc(sizeof(Expr));
     expr->type = EXPR_ASYNC;
@@ -402,6 +413,14 @@ void free_expr(Expr* expr) {
         case EXPR_RANGE:
             free_expr(expr->as.range.start);
             free_expr(expr->as.range.end);
+            break;
+        case EXPR_LAMBDA:
+            for (size_t i = 0; i < expr->as.lambda.params.count; i++) {
+                free(expr->as.lambda.params.items[i].name);
+                free_expr(expr->as.lambda.params.items[i].default_value);
+            }
+            free(expr->as.lambda.params.items);
+            free_stmt(expr->as.lambda.body);
             break;
         case EXPR_IDENT:
             free(expr->as.ident);

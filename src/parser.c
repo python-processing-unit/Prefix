@@ -75,6 +75,38 @@ static Expr* parse_expression(Parser* parser);
 static Stmt* parse_statement(Parser* parser);
 static Stmt* parse_block(Parser* parser);
 
+static bool is_type_token(PTokenType type) {
+    return type == TOKEN_IDENT || type == TOKEN_FUNC || type == TOKEN_THR;
+}
+
+static bool parse_param_list(Parser* parser, ParamList* params) {
+    if (parser->current_token.type == TOKEN_RPAREN) return true;
+    do {
+        if (!is_type_token(parser->current_token.type)) {
+            report_error(parser, "Expected parameter type");
+            return false;
+        }
+        DeclType ptype = parse_type_name(parser->current_token.literal);
+        advance(parser);
+        consume(parser, TOKEN_COLON, "Expected ':' after parameter type");
+        if (parser->current_token.type != TOKEN_IDENT) {
+            report_error(parser, "Expected parameter name");
+            return false;
+        }
+        Param param;
+        param.type = ptype;
+        param.name = parser->current_token.literal;
+        param.default_value = NULL;
+        advance(parser);
+        if (match(parser, TOKEN_EQUALS)) {
+            param.default_value = parse_expression(parser);
+            if (!param.default_value) return false;
+        }
+        param_list_add(params, param);
+    } while (match(parser, TOKEN_COMMA));
+    return true;
+}
+
 static Expr* parse_primary(Parser* parser) {
     Token token = parser->current_token;
     if (parser->current_token.type == TOKEN_ASYNC) {
@@ -124,6 +156,24 @@ static Expr* parse_primary(Parser* parser) {
         Token id = parser->current_token;
         advance(parser);
         return expr_ptr(id.literal, id.line, id.column);
+    }
+    if (match(parser, TOKEN_LAMBDA)) {
+        Token lambda_tok = token;
+        consume(parser, TOKEN_LPAREN, "Expected '(' after LAMBDA");
+
+        ParamList params = {0};
+        if (!parse_param_list(parser, &params)) return NULL;
+
+        consume(parser, TOKEN_RPAREN, "Expected ')' after parameters");
+        consume(parser, TOKEN_COLON, "Expected ':' before return type");
+        if (!is_type_token(parser->current_token.type)) {
+            report_error(parser, "Expected return type");
+            return NULL;
+        }
+        DeclType ret = parse_type_name(parser->current_token.literal);
+        advance(parser);
+        Stmt* body = parse_block(parser);
+        return expr_lambda(params, ret, body, lambda_tok.line, lambda_tok.column);
     }
     if (match(parser, TOKEN_IDENT)) {
         return expr_ident(token.literal, token.line, token.column);
@@ -419,34 +469,10 @@ static Stmt* parse_func(Parser* parser) {
     consume(parser, TOKEN_LPAREN, "Expected '(' after function name");
 
     ParamList params = {0};
-    if (parser->current_token.type != TOKEN_RPAREN) {
-        do {
-            if (parser->current_token.type != TOKEN_IDENT) {
-                report_error(parser, "Expected parameter type");
-                break;
-            }
-            DeclType ptype = parse_type_name(parser->current_token.literal);
-            advance(parser);
-            consume(parser, TOKEN_COLON, "Expected ':' after parameter type");
-            if (parser->current_token.type != TOKEN_IDENT) {
-                report_error(parser, "Expected parameter name");
-                break;
-            }
-            Param param;
-            param.type = ptype;
-            param.name = parser->current_token.literal;
-            param.default_value = NULL;
-            advance(parser);
-            if (match(parser, TOKEN_EQUALS)) {
-                param.default_value = parse_expression(parser);
-                if (!param.default_value) return NULL;
-            }
-            param_list_add(&params, param);
-        } while (match(parser, TOKEN_COMMA));
-    }
+    if (!parse_param_list(parser, &params)) return NULL;
     consume(parser, TOKEN_RPAREN, "Expected ')' after parameters");
     consume(parser, TOKEN_COLON, "Expected ':' before return type");
-    if (!(parser->current_token.type == TOKEN_IDENT || parser->current_token.type == TOKEN_FUNC || parser->current_token.type == TOKEN_THR)) {
+    if (!is_type_token(parser->current_token.type)) {
         report_error(parser, "Expected return type");
         return NULL;
     }
