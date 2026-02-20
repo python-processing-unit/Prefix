@@ -2137,6 +2137,11 @@ static ExecResult exec_stmt(Interpreter* interp, Stmt* stmt, Env* env, LabelMap*
         }
 
         case STMT_CONTINUE: {
+            // CONTINUE is only valid inside a loop
+            if (interp->loop_depth == 0) {
+                return make_error("CONTINUE used outside loop", stmt->line, stmt->column);
+            }
+
             ExecResult res;
             res.status = EXEC_CONTINUE;
             res.value = value_null();
