@@ -2184,17 +2184,30 @@ static ExecResult exec_stmt(Interpreter* interp, Stmt* stmt, Env* env, LabelMap*
                 // Clear interpreter error state
                 clear_error(interp);
 
-                // If a catch block exists, bind the catch name (if any) and execute it
+                // If a catch block exists, execute it. For the parameterized
+                // form `CATCH(SYMBOL: name)` create a child environment so the
+                // binding is temporary and shadows any outer binding only for
+                // the duration of the catch block (per specification).
                 if (stmt->as.try_stmt.catch_block) {
+                    Env* exec_env = env; /* default: use existing env */
+                    Env* child_env = NULL;
                     if (stmt->as.try_stmt.catch_name) {
-                        env_define(env, stmt->as.try_stmt.catch_name, TYPE_STR);
-                        if (!env_assign(env, stmt->as.try_stmt.catch_name, value_str(msg), TYPE_STR, true)) {
+                        child_env = env_create(env);
+                        exec_env = child_env;
+                        if (!env_define(exec_env, stmt->as.try_stmt.catch_name, TYPE_STR)) {
                             free(msg);
+                            env_free(child_env);
+                            return make_error("Cannot bind catch name (frozen or existing)", stmt->line, stmt->column);
+                        }
+                        if (!env_assign(exec_env, stmt->as.try_stmt.catch_name, value_str(msg), TYPE_STR, true)) {
+                            free(msg);
+                            env_free(child_env);
                             return make_error("Cannot bind catch name (frozen)", stmt->line, stmt->column);
                         }
                     }
                     free(msg);
-                    ExecResult cres = exec_stmt(interp, stmt->as.try_stmt.catch_block, env, labels);
+                    ExecResult cres = exec_stmt(interp, stmt->as.try_stmt.catch_block, exec_env, labels);
+                    if (child_env) env_free(child_env);
                     if (cres.status == EXEC_ERROR) return cres;
                     return cres;
                 }
