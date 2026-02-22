@@ -495,6 +495,44 @@ int value_truthiness(Value v) {
             return 1;  // Functions are always truthy
         case VAL_THR:
             return value_thr_is_running(v);
+        case VAL_TNS: {
+            Tensor* t = v.as.tns;
+            if (!t || t->length == 0) return 0;
+            for (size_t i = 0; i < t->length; i++) {
+                Value e = t->data[i];
+                switch (e.type) {
+                    case VAL_INT:
+                        if (e.as.i != 0) return 1;
+                        break;
+                    case VAL_FLT:
+                        if (e.as.f != 0.0) return 1;
+                        break;
+                    case VAL_STR:
+                        if (e.as.s && e.as.s[0] != '\0') return 1;
+                        break;
+                    case VAL_FUNC:
+                        return 1;
+                    case VAL_THR:
+                        if (value_thr_is_running(e)) return 1;
+                        break;
+                    case VAL_TNS:
+                        if (value_truthiness(e)) return 1;
+                        break;
+                    case VAL_MAP: {
+                        struct Map* m = e.as.map;
+                        if (m) {
+                            for (size_t j = 0; j < m->count; j++) {
+                                if (value_truthiness(m->items[j].value)) return 1;
+                            }
+                        }
+                        break;
+                    }
+                    default:
+                        break;
+                }
+            }
+            return 0;
+        }
         default:
             return 0;
     }
