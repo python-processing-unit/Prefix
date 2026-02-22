@@ -307,6 +307,8 @@ Prefix supports pointer (alias) literals using the `@` prefix. A pointer literal
 
 - Freezing rule: creating a new pointer to a binding that is frozen or permanently frozen is forbidden. If the identifier `name` is marked frozen or permafrozen, evaluating `@name` raises a runtime error. An identifier that already has pointers bound to it may still be frozen or permafrozen; freezing prevents any *new* pointer aliasing from being created to that binding until it is thawed.
 
+- Deletion behavior: when a variable is deleted using `DEL(name)`, the binding (value) is removed from the environment and the pointer state is erased. The symbol's static type information remains recorded, even after deletion. Subsequent assignment to the deleted identifier must match the original declared type, but reading the deleted identifier before a new assignment results in an undefined-identifier error.
+
 Pointers are a convenience for aliasing and in-place update patterns; implementations should reflect pointer creation and dereference operations in the state log so that tracebacks and state replay remain deterministic.
 
 
