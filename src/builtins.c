@@ -143,6 +143,12 @@ static char* int_to_binary_str(int64_t val) {
 // Helper: convert float to binary string
 static char* flt_to_binary_str(double val) {
     char buf[128];
+    if (isnan(val)) {
+        return strdup("NaN");
+    }
+    if (isinf(val)) {
+        return strdup(signbit(val) ? "-INF" : "INF");
+    }
     int is_negative = val < 0;
     if (is_negative) val = -val;
     
@@ -877,7 +883,14 @@ static void ser_expr(JsonBuf* jb, SerCtx* ctx, Interpreter* interp, Expr* expr) 
             json_obj_field(jb, &first, "loc");
             ser_loc(jb, expr->line, expr->column);
             json_obj_field(jb, &first, "value");
-            jb_append_fmt(jb, "%.17g", expr->as.flt_value);
+            if (isnan(expr->as.flt_value)) {
+                jb_append_json_string(jb, "NaN");
+            } else if (isinf(expr->as.flt_value)) {
+                if (signbit(expr->as.flt_value)) jb_append_json_string(jb, "-INF");
+                else jb_append_json_string(jb, "INF");
+            } else {
+                jb_append_fmt(jb, "%.17g", expr->as.flt_value);
+            }
             json_obj_field(jb, &first, "literal_type");
             jb_append_json_string(jb, "FLT");
             jb_append_char(jb, '}');
@@ -1410,14 +1423,21 @@ static void ser_value(JsonBuf* jb, SerCtx* ctx, Interpreter* interp, Value v) {
             return;
         }
         case VAL_FLT: {
-            char buf[64];
-            snprintf(buf, sizeof(buf), "%.17g", v.as.f);
             jb_append_char(jb, '{');
             bool first = true;
             json_obj_field(jb, &first, "t");
             jb_append_json_string(jb, "FLT");
             json_obj_field(jb, &first, "v");
-            jb_append_json_string(jb, buf);
+            if (isnan(v.as.f)) {
+                jb_append_json_string(jb, "NaN");
+            } else if (isinf(v.as.f)) {
+                if (signbit(v.as.f)) jb_append_json_string(jb, "-INF");
+                else jb_append_json_string(jb, "INF");
+            } else {
+                char buf[64];
+                snprintf(buf, sizeof(buf), "%.17g", v.as.f);
+                jb_append_json_string(jb, buf);
+            }
             jb_append_char(jb, '}');
             return;
         }
@@ -3739,6 +3759,10 @@ static Value builtin_flt(Interpreter* interp, Value* args, int argc, Expr** arg_
         if (s == NULL || *s == '\0') {
             return value_flt(0.0);
         }
+        // Accept special textual FLT values
+        if (strcmp(s, "INF") == 0) return value_flt(INFINITY);
+        if (strcmp(s, "-INF") == 0) return value_flt(-INFINITY);
+        if (strcmp(s, "NaN") == 0) return value_flt(NAN);
         bool neg = false;
         if (*s == '-') {
             neg = true;

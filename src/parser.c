@@ -1,4 +1,5 @@
 #include "parser.h"
+#include <math.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -109,6 +110,32 @@ static bool parse_param_list(Parser* parser, ParamList* params) {
 
 static Expr* parse_primary(Parser* parser) {
     Token token = parser->current_token;
+    // Recognize FLT literal names `INF` and `NaN` as primary expressions
+    if (parser->current_token.type == TOKEN_IDENT) {
+        if (strcmp(parser->current_token.literal, "INF") == 0) {
+            Token t = parser->current_token;
+            advance(parser);
+            return expr_flt(INFINITY, t.line, t.column);
+        }
+        if (strcmp(parser->current_token.literal, "NaN") == 0) {
+            Token t = parser->current_token;
+            advance(parser);
+            return expr_flt(NAN, t.line, t.column);
+        }
+    }
+    // Support negative INF written as `-INF` (but disallow `-NaN`)
+    if (parser->current_token.type == TOKEN_DASH && parser->next_token.type == TOKEN_IDENT) {
+        if (strcmp(parser->next_token.literal, "INF") == 0) {
+            Token dash = parser->current_token;
+            advance(parser); // consume '-'
+            advance(parser); // consume 'INF'
+            return expr_flt(-INFINITY, dash.line, dash.column);
+        }
+        if (strcmp(parser->next_token.literal, "NaN") == 0) {
+            report_error(parser, "NaN must not be negative");
+            return NULL;
+        }
+    }
     if (parser->current_token.type == TOKEN_ASYNC) {
         Token kw = parser->current_token;
         advance(parser);

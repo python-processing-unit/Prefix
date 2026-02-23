@@ -27,6 +27,31 @@ DEL(f_quarter)
 DEL(f_threeq)
 PRINT("Floats: PASS\n")
 
+PRINT("Testing INF/NaN literals and conversions...")
+FLT: f_inf = INF
+FLT: f_ninf = -INF
+FLT: f_nan = NaN
+ASSERT(ISFLT(f_inf))
+ASSERT(ISFLT(f_ninf))
+ASSERT(ISFLT(f_nan))
+
+ASSERT(EQ(f_inf, INF))
+ASSERT(EQ(f_ninf, -INF))
+ASSERT(NOT(EQ(f_nan, NaN)))    ! NaN is not equal to itself
+
+TNS: tflts = TFLT(["INF", "-INF", "NaN"])
+ASSERT(ISFLT(tflts[1]))
+ASSERT(ISFLT(tflts[10]))
+ASSERT(ISFLT(tflts[11]))
+ASSERT(EQ(tflts[1], INF))
+ASSERT(EQ(tflts[10], -INF))
+ASSERT(NOT(EQ(tflts[11], NaN)))
+DEL(tflts)
+DEL(f_inf)
+DEL(f_ninf)
+DEL(f_nan)
+PRINT("INF/NaN: PASS\n")
+
 ! String literals
 PRINT("Testing strings...")
 STR: s1 = "Hello, World!"

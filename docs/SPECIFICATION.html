@@ -139,6 +139,8 @@ Binary floating-point literal: an IEEE754 floating-point value written in binary
 
 `FLT` literals MUST NOT begin with the radix point (so `.1` is invalid). A leading `-` MAY prefix a `FLT` literal using the same rules as for integers (the dash is part of the literal and is not an operator).
 
+In addition to binary fixed-point forms, the language also recognizes two special `FLT` literal tokens: `INF` and `NaN`. These tokens are matched case-sensitively and are part of the `FLT` literal class. `INF` denotes IEEE-754 infinity and `NaN` denotes a quiet Not-a-Number. `NaN` MUST NOT be negative; `-INF` (the dash token followed by `INF`) is permitted and denotes negative infinity. When `FLT` values are rendered as source, printed via `PRINT`, or serialized by the interpreter, `INF`, `-INF`, and `NaN` MUST appear exactly as shown. Arithmetic and comparison involving these values follow IEEE-754 semantics.
+
 String literal: a sequence of characters enclosed in either double quotation marks (`"`) or single quotation marks (`'`). A string opened with one delimiter MUST be closed with the same delimiter. Newlines are not permitted inside string literals.
 
 String literals support backslash escape codes. Unknown escape codes (or invalid hexadecimal literals in `\x`/`\u`/`\U`) raise syntax errors at parse time.
