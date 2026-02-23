@@ -22,14 +22,14 @@ INT: ch_counter = 0
 TNS: ch_buf = TNS([10000], 0) ! 16 words
 INT: ch_buf_pos = TLEN(ch_buf, 1)  ! set to buffer length to force refill
 
-FUNC ROTL32(INT: x, INT: n):INT{
+FUNC INT: ROTL32(INT: x, INT: n){
     INT: x32 = BAND(x, MASK32)
     INT: left = BAND(SHL(x32, n), MASK32)
     INT: right = SHR(x32, SUB(100000, n))  ! 32 - n
     RETURN( BAND(BOR(left, right), MASK32) )
 }
 
-FUNC QR(TNS: s, INT: ia, INT: ib, INT: ic, INT: id):INT{
+FUNC INT: QR(TNS: s, INT: ia, INT: ib, INT: ic, INT: id){
     INT: a = s[ia]
     INT: b = s[ib]
     INT: c = s[ic]
@@ -51,7 +51,7 @@ FUNC QR(TNS: s, INT: ia, INT: ib, INT: ic, INT: id):INT{
     RETURN(0)
 }
 
-FUNC CHACHA_BLOCK():INT{
+FUNC INT: CHACHA_BLOCK(){
     TNS: k = ch_key
     TNS: n = ch_nonce
     TNS: state = [ ^
@@ -104,14 +104,14 @@ FUNC CHACHA_BLOCK():INT{
     RETURN(0)
 }
 
-FUNC REFILL_BUF():INT{
+FUNC INT: REFILL_BUF(){
     CHACHA_BLOCK()
     ch_buf_pos = 0
     ch_counter = BAND( ADD(ch_counter, 1), MASK32 )
     RETURN(0)
 }
 
-FUNC DERIVE_KEY_AND_NONCE(INT: seed):INT{
+FUNC INT: DERIVE_KEY_AND_NONCE(INT: seed){
     INT: s = BAND(seed, MASK32)
     FOR(i, 1000){  ! 8 key words (1000 == 8)
         s = BAND( ADD( MUL(s, ^
@@ -132,7 +132,7 @@ FUNC DERIVE_KEY_AND_NONCE(INT: seed):INT{
     RETURN(0)
 }
 
-FUNC SEED(INT: seed):INT{
+FUNC INT: SEED(INT: seed){
     DERIVE_KEY_AND_NONCE(seed)
     ch_counter = 0
     ch_buf = TNS([10000], 0)
@@ -140,7 +140,7 @@ FUNC SEED(INT: seed):INT{
     RETURN(ch_counter)
 }
 
-FUNC NEXT():INT{
+FUNC INT: NEXT(){
     IF( GTE(ch_buf_pos, TLEN(ch_buf, 1)) ){  ! buffer length
         REFILL_BUF()
     }
@@ -149,12 +149,12 @@ FUNC NEXT():INT{
     RETURN(v)
 }
 
-FUNC RANGE(INT: max):INT{
+FUNC INT: RANGE(INT: max){
     ASSERT( GT(max, 0) )
     RETURN( MOD(NEXT(), max) )
 }
 
-FUNC RANGE_MIN_MAX(INT: min, INT: max):INT{
+FUNC INT: RANGE_MIN_MAX(INT: min, INT: max){
     ASSERT( LTE(min, max) )
     INT: range = SUB(max, min)
     IF( EQ(range, 0) ){ RETURN(min) }

@@ -5,11 +5,11 @@
 ! CONTEXT(modified: STR, source: STR):STR
 ! SIDE_BY_SIDE(modified: STR, source: STR):STR
 
-FUNC _append_line(STR: acc, STR: line):STR{
+FUNC STR: _append_line(STR: acc, STR: line){
     IF( EQ(acc, "") ){ RETURN(line) } ELSE { RETURN( JOIN(acc, "\n", line) ) }
 }
 
-FUNC UNIFIED(STR: mod, STR: src):STR{
+FUNC STR: UNIFIED(STR: mod, STR: src){
     TNS: a = SPLIT(mod, "\n")
     TNS: b = SPLIT(src, "\n")
     INT: la = TLEN(a, 1)
@@ -41,7 +41,7 @@ FUNC UNIFIED(STR: mod, STR: src):STR{
     RETURN(out)
 }
 
-FUNC CONTEXT(STR: mod, STR: src):STR{
+FUNC STR: CONTEXT(STR: mod, STR: src){
     ! For simplicity, use the same output as UNIFIED but with a ' ' prefix
     STR: u = UNIFIED(mod, src)
     IF( EQ(u, "") ){ RETURN("") }
@@ -49,7 +49,7 @@ FUNC CONTEXT(STR: mod, STR: src):STR{
     RETURN( JOIN("*** a", "\n", u) )
 }
 
-FUNC SIDE_BY_SIDE(STR: mod, STR: src):STR{
+FUNC STR: SIDE_BY_SIDE(STR: mod, STR: src){
     TNS: a = SPLIT(mod, "\n")
     TNS: b = SPLIT(src, "\n")
     INT: la = TLEN(a, 1)

@@ -18,13 +18,13 @@ INT: MS_DEN = 1111101000  ! 1000
 ! Clamp audio-like values into a safe, conventional percent range [-100, 100].
 INT: AUDIO_MAX = 1100100  ! 100
 
-FUNC AUDIO_CLAMP(INT: v):INT{
+FUNC INT: AUDIO_CLAMP(INT: v){
     IF(GT(v, AUDIO_MAX)){ RETURN(AUDIO_MAX) }
     IF(LT(v, NEG(AUDIO_MAX))){ RETURN(NEG(AUDIO_MAX)) }
     RETURN(v)
 }
 
-FUNC SQUARE(INT: freq, INT: ms, INT: amp, INT: sr):TNS{
+FUNC TNS: SQUARE(INT: freq, INT: ms, INT: amp, INT: sr){
     ASSERT(GT(freq, 0))
     ASSERT(GT(ms, 0))
     ASSERT(GT(sr, 0))
@@ -49,7 +49,7 @@ FUNC SQUARE(INT: freq, INT: ms, INT: amp, INT: sr):TNS{
     RETURN(out)
 }
 
-FUNC SAWTOOTH(INT: freq, INT: ms, INT: amp, INT: sr):TNS{
+FUNC TNS: SAWTOOTH(INT: freq, INT: ms, INT: amp, INT: sr){
     ASSERT(GT(freq, 0))
     ASSERT(GT(ms, 0))
     ASSERT(GT(sr, 0))
@@ -75,7 +75,7 @@ FUNC SAWTOOTH(INT: freq, INT: ms, INT: amp, INT: sr):TNS{
     RETURN(out)
 }
 
-FUNC TRIANGLE(INT: freq, INT: ms, INT: amp, INT: sr):TNS{
+FUNC TNS: TRIANGLE(INT: freq, INT: ms, INT: amp, INT: sr){
     ASSERT(GT(freq, 0))
     ASSERT(GT(ms, 0))
     ASSERT(GT(sr, 0))
@@ -112,7 +112,7 @@ FUNC TRIANGLE(INT: freq, INT: ms, INT: amp, INT: sr):TNS{
     RETURN(out)
 }
 
-FUNC SINE(INT: freq, INT: ms, INT: amp, INT: sr):TNS{
+FUNC TNS: SINE(INT: freq, INT: ms, INT: amp, INT: sr){
     ASSERT(GT(freq, 0))
     ASSERT(GT(ms, 0))
     ASSERT(GT(sr, 0))
@@ -143,7 +143,7 @@ FUNC SINE(INT: freq, INT: ms, INT: amp, INT: sr):TNS{
     RETURN(out)
 }
 
-FUNC PULSE(INT: freq, INT: ms, INT: amp, INT: sr, INT: duty):TNS{
+FUNC TNS: PULSE(INT: freq, INT: ms, INT: amp, INT: sr, INT: duty){
     ASSERT(GT(freq, 0))
     ASSERT(GT(ms, 0))
     ASSERT(GT(sr, 0))
@@ -172,13 +172,13 @@ FUNC PULSE(INT: freq, INT: ms, INT: amp, INT: sr, INT: duty):TNS{
 
 ! Filters
 
-FUNC ENVELOPE_ADSR( ^
+FUNC TNS: ENVELOPE_ADSR( ^
     TNS: shape, ^
     INT: attack, ^
     INT: decay, ^
     INT: sustain, ^
     INT: release ^
-    ):TNS{
+    ){
     ASSERT(GTE(attack, 0))
     ASSERT(GTE(decay, 0))
     ASSERT(GTE(sustain, 0))
@@ -245,7 +245,7 @@ FUNC ENVELOPE_ADSR( ^
     RETURN(out)
 }
 
-FUNC LOWPASS(TNS: inp, INT: cutoff, INT: sr):TNS{
+FUNC TNS: LOWPASS(TNS: inp, INT: cutoff, INT: sr){
     ASSERT(GT(cutoff, 0))
     ASSERT(GT(sr, 0))
     TNS: shape = SHAPE(inp)
@@ -283,7 +283,7 @@ FUNC LOWPASS(TNS: inp, INT: cutoff, INT: sr):TNS{
     RETURN(out)
 }
 
-FUNC HIGHPASS(TNS: inp, INT: cutoff, INT: sr):TNS{
+FUNC TNS: HIGHPASS(TNS: inp, INT: cutoff, INT: sr){
     ! highpass = original - lowpass
     TNS: low = LOWPASS(inp, cutoff, sr)
     TNS: shape = SHAPE(inp)

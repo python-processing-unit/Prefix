@@ -159,19 +159,20 @@ static Expr* parse_primary(Parser* parser) {
     }
     if (match(parser, TOKEN_LAMBDA)) {
         Token lambda_tok = token;
-        consume(parser, TOKEN_LPAREN, "Expected '(' after LAMBDA");
+        /* LAMBDA R: ( params ) { body } */
+        if (!is_type_token(parser->current_token.type)) {
+            report_error(parser, "Expected return type after LAMBDA");
+            return NULL;
+        }
+        DeclType ret = parse_type_name(parser->current_token.literal);
+        advance(parser);
+        consume(parser, TOKEN_COLON, "Expected ':' after return type");
+        consume(parser, TOKEN_LPAREN, "Expected '(' after LAMBDA parameter list");
 
         ParamList params = {0};
         if (!parse_param_list(parser, &params)) return NULL;
 
         consume(parser, TOKEN_RPAREN, "Expected ')' after parameters");
-        consume(parser, TOKEN_COLON, "Expected ':' before return type");
-        if (!is_type_token(parser->current_token.type)) {
-            report_error(parser, "Expected return type");
-            return NULL;
-        }
-        DeclType ret = parse_type_name(parser->current_token.literal);
-        advance(parser);
         Stmt* body = parse_block(parser);
         return expr_lambda(params, ret, body, lambda_tok.line, lambda_tok.column);
     }
@@ -460,6 +461,15 @@ static Stmt* parse_try(Parser* parser) {
 static Stmt* parse_func(Parser* parser) {
     Token tok = parser->current_token;
     consume(parser, TOKEN_FUNC, "Expected 'FUNC'");
+    /* FUNC R: name( params ) { body } */
+    if (!is_type_token(parser->current_token.type)) {
+        report_error(parser, "Expected return type after FUNC");
+        return NULL;
+    }
+    DeclType ret = parse_type_name(parser->current_token.literal);
+    advance(parser);
+    consume(parser, TOKEN_COLON, "Expected ':' after return type");
+
     if (parser->current_token.type != TOKEN_IDENT) {
         report_error(parser, "Expected function name");
         return NULL;
@@ -471,13 +481,6 @@ static Stmt* parse_func(Parser* parser) {
     ParamList params = {0};
     if (!parse_param_list(parser, &params)) return NULL;
     consume(parser, TOKEN_RPAREN, "Expected ')' after parameters");
-    consume(parser, TOKEN_COLON, "Expected ':' before return type");
-    if (!is_type_token(parser->current_token.type)) {
-        report_error(parser, "Expected return type");
-        return NULL;
-    }
-    DeclType ret = parse_type_name(parser->current_token.literal);
-    advance(parser);
     Stmt* body = parse_block(parser);
     Stmt* stmt = stmt_func(name, ret, body, tok.line, tok.column);
     stmt->as.func_stmt.params = params;

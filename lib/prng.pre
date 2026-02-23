@@ -13,22 +13,22 @@ INT: LCG_A = 000110010110011000001101          ! 1664525
 INT: LCG_C = 00111100011011101111001101011111  ! 1013904223
 INT: lcg_state = 1
 
-FUNC SEED(INT: seed):INT{
+FUNC INT: SEED(INT: seed){
     lcg_state = BAND(seed, MASK32)
     RETURN(lcg_state)
 }
 
-FUNC NEXT():INT{
+FUNC INT: NEXT(){
     lcg_state = BAND( ADD( MUL(LCG_A, lcg_state), LCG_C ), MASK32 )
     RETURN(lcg_state)
 }
 
-FUNC RANGE(INT: max):INT{
+FUNC INT: RANGE(INT: max){
     ASSERT( GT(max, 0) )
     RETURN( MOD(NEXT(), max) )
 }
 
-FUNC RANGE_MIN_MAX(INT: min, INT: max):INT{
+FUNC INT: RANGE_MIN_MAX(INT: min, INT: max){
     ASSERT( LTE(min, max) )
     INT: range = SUB(max, min)
     IF( EQ(range, 0) ){ RETURN(min) }

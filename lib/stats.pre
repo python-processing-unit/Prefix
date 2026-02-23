@@ -15,7 +15,7 @@
 ! HISTOGRAM(TNS: values, INT: bins):TNS
 ! DESCRIBE(TNS: values):TNS
 
-FUNC MEAN(TNS: values):FLT{
+FUNC FLT: MEAN(TNS: values){
     INT: n = TLEN(values, 1)
     IF(EQ(n, 0)) { THROW("empty input") }
     FLT: sum = 0.0
@@ -25,7 +25,7 @@ FUNC MEAN(TNS: values):FLT{
     RETURN(FDIV(sum, n))
 }
 
-FUNC MEDIAN(TNS: values):FLT{
+FUNC FLT: MEDIAN(TNS: values){
     INT: n = TLEN(values, 1)
     IF(EQ(n, 0)) { THROW("empty input") }
     ! k1 is the lower median rank (1-based)
@@ -68,7 +68,7 @@ FUNC MEDIAN(TNS: values):FLT{
     RETURN(DIV(ADD(val1, val2), 10.0))
 }
 
-FUNC MODE(TNS: values):TNS{
+FUNC TNS: MODE(TNS: values){
     INT: n = TLEN(values, 1)
     IF(EQ(n, 0)) { RETURN([ ]) }
 
@@ -109,7 +109,7 @@ FUNC MODE(TNS: values):TNS{
     RETURN(out)
 }
 
-FUNC HMEAN(TNS: values):FLT{
+FUNC FLT: HMEAN(TNS: values){
     INT: n = TLEN(values, 1)
     IF(EQ(n, 0)) { THROW("empty input") }
     FLT: denom = 0.0
@@ -119,7 +119,7 @@ FUNC HMEAN(TNS: values):FLT{
     RETURN(FDIV(n, denom))
 }
 
-FUNC QUANTILE(TNS: values, INT: q_num, INT: q_den):FLT{
+FUNC FLT: QUANTILE(TNS: values, INT: q_num, INT: q_den){
     INT: n = TLEN(values, 1)
     IF(EQ(n, 0)) { THROW("empty input") }
     ! target index = floor(q * (n-1)) + 1, with q = q_num/q_den
@@ -143,7 +143,7 @@ FUNC QUANTILE(TNS: values, INT: q_num, INT: q_den):FLT{
     RETURN(out)
 }
 
-FUNC VARIANCE(TNS: values, INT: sample = 0):FLT{
+FUNC FLT: VARIANCE(TNS: values, INT: sample = 0){
     INT: n = TLEN(values, 1)
     IF(EQ(n, 0)) { THROW("empty input") }
     FLT: mean = MEAN(values)
@@ -159,13 +159,13 @@ FUNC VARIANCE(TNS: values, INT: sample = 0):FLT{
     RETURN(truncated)
 }
 
-FUNC STDEV(TNS: values, INT: sample = 0):FLT{
+FUNC FLT: STDEV(TNS: values, INT: sample = 0){
     FLT: var = VARIANCE(values, sample)
     ! Square root: exponent 1/2 -> binary literal 0.1 (equals 0.5)
     RETURN(POW(var, 0.1))
 }
 
-FUNC HISTOGRAM(TNS: values, INT: bins):TNS{
+FUNC TNS: HISTOGRAM(TNS: values, INT: bins){
     INT: n = TLEN(values, 1)
     IF(OR(EQ(n, 0), LT(bins, 1))) { RETURN(TNS([bins], 0)) }
 
@@ -198,7 +198,7 @@ FUNC HISTOGRAM(TNS: values, INT: bins):TNS{
     RETURN(hist)
 }
 
-FUNC DESCRIBE(TNS: values):TNS{
+FUNC TNS: DESCRIBE(TNS: values){
     INT: n = TLEN(values, 1)
     ! desc layout: [count, mean, stdev, min, max] -> length 5 (binary 101)
     TNS: desc = TNS([101], 0)

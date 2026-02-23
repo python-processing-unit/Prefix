@@ -527,9 +527,9 @@ PRINT("PARFOR: PASS\n")
 PRINT("Testing PARALLEL...")
 
 ! Simple no-op functions to exercise PARALLEL
-FUNC NOOP_A():INT{ RETURN(0) }
-FUNC NOOP_B():INT{ RETURN(0) }
-FUNC NOOP_C():INT{ RETURN(0) }
+FUNC INT: NOOP_A(){ RETURN(0) }
+FUNC INT: NOOP_B(){ RETURN(0) }
+FUNC INT: NOOP_C(){ RETURN(0) }
 
 ! Variadic form: pass functions as separate args
 INT: par_res = PARALLEL(NOOP_A, NOOP_B, NOOP_C)
@@ -541,7 +541,7 @@ INT: par_res2 = PARALLEL(func_tns)
 ASSERT(EQ(par_res2, 0))
 
 ! Error propagation: a worker that throws should cause PARALLEL to raise
-FUNC BAD():INT{ THROW("boom") }
+FUNC INT: BAD(){ THROW("boom") }
 INT: caught_par = 0
 TRY{
     PARALLEL(BAD, NOOP_A)
@@ -585,12 +585,12 @@ PRINT("CONTINUE: PASS\n")
 
 ! --- Functions ---
 PRINT("Testing functions...")
-FUNC ADD_TWO(INT: a, INT: b):INT{
+FUNC INT: ADD_TWO(INT: a, INT: b){
     RETURN(ADD(a, b))
 }
 ASSERT(EQ(ADD_TWO(10, 11), 101))  ! 2+3=5
 
-FUNC FACTORIAL(INT: n):INT{
+FUNC INT: FACTORIAL(INT: n){
     IF(LTE(n, 1)){
         RETURN(1)
     }
@@ -599,25 +599,25 @@ FUNC FACTORIAL(INT: n):INT{
 ASSERT(EQ(FACTORIAL(101), 1111000))  ! 5! = 120
 
 ! Function with default argument
-FUNC GREET(STR: name, STR: prefix = "Hello"):STR{
+FUNC STR: GREET(STR: name, STR: prefix = "Hello"){
     RETURN(JOIN(" ", prefix, name))
 }
 ASSERT(EQ(GREET("World"), "Hello World"))
 ASSERT(EQ(GREET("World", prefix = "Hi"), "Hi World"))
 
 INT: base = 1
-FUNC: add_base = LAMBDA(INT: x):INT{ RETURN(ADD(x, base)) }
+FUNC: add_base = LAMBDA INT: (INT: x){ RETURN(ADD(x, base)) }
 ASSERT(EQ(add_base(1), 10))
 base = 10
 ASSERT(EQ(add_base(1), 11))
 
-FUNC: greet_lambda = LAMBDA(STR: name, STR: prefix = "Hi"):STR{ RETURN(JOIN(" ", prefix, name)) }
+FUNC: greet_lambda = LAMBDA STR: (STR: name, STR: prefix = "Hi"){ RETURN(JOIN(" ", prefix, name)) }
 ASSERT(EQ(greet_lambda("World"), "Hi World"))
 ASSERT(EQ(greet_lambda("World", prefix = "Hello"), "Hello World"))
 
-FUNC MAKE_ADDER(INT: seed):FUNC{
+FUNC FUNC: MAKE_ADDER(INT: seed){
     INT: local = seed
-    RETURN(LAMBDA(INT: delta):INT{ RETURN(ADD(local, delta)) })
+    RETURN(LAMBDA INT: (INT: delta){ RETURN(ADD(local, delta)) })
 }
 FUNC: escaped_lambda = MAKE_ADDER(10)
 ASSERT(EQ(escaped_lambda(1), 11))
@@ -633,7 +633,7 @@ DEL(base)
 PRINT("Functions: PASS\n")
 
 PRINT("Testing SIGNATURE...")
-FUNC SIGTEST(INT: a, STR: b = "def"):INT{
+FUNC INT: SIGTEST(INT: a, STR: b = "def"){
     RETURN(0)
 }
 INT: v = 101
@@ -650,7 +650,7 @@ PRINT("SIGNATURE: PASS\n")
 ! --- POP ---
 PRINT("Testing POP...")
 INT: tmp = 101
-FUNC TEST_POP():INT{
+FUNC INT: TEST_POP(){
     POP(tmp)
 }
 ASSERT(EQ(TEST_POP(), 101))
@@ -967,7 +967,7 @@ STR: sa = "hello"
 TNS: ta = [1, 10]
 MAP: ma = <"x" = 101, "y" = [1,10]>
 
-FUNC SIMPLE():INT{ RETURN(101) }
+FUNC INT: SIMPLE(){ RETURN(101) }
 
 STR: s_ia = SER(ia)
 INT: u_ia = UNSER(s_ia)

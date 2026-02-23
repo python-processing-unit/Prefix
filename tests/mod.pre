@@ -1,5 +1,5 @@
 INT: sym = 101
 
-FUNC FUN():INT{
+FUNC INT: FUN(){
     RETURN(0)
 }

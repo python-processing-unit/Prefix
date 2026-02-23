@@ -12,15 +12,15 @@
 ! STR: script
 ! STR: script_dir
 
-FUNC NORMALIZE_PATH(STR: path):STR{
+FUNC STR: NORMALIZE_PATH(STR: path){
     RETURN(REPLACE(path,"\\","/"))
 }
 
-FUNC WINPATH(STR: path):STR{
+FUNC STR: WINPATH(STR: path){
     RETURN(REPLACE(path,"/","\\"))
 }
 
-FUNC BASEPATH(STR: path):STR{ ! returns directory portion of path
+FUNC STR: BASEPATH(STR: path){ ! returns directory portion of path
     STR: npath = NORMALIZE_PATH(path)
     STR: base = BASENAME(npath)
     IF(EQ(base, "")){
@@ -30,14 +30,14 @@ FUNC BASEPATH(STR: path):STR{ ! returns directory portion of path
     POP(dir)
 }
 
-FUNC BASENAME(STR: path):STR{ ! returns filename portion of path
+FUNC STR: BASENAME(STR: path){ ! returns filename portion of path
     TNS: tpath = SPLIT(NORMALIZE_PATH(path), "/")
     STR: basename = tpath[MAX(TLEN(tpath,1),1)]
     DEL(tpath)
     POP(basename)
 }
 
-FUNC SPLITEXT(STR: path):TNS{ ! returns [name without ext, ext]
+FUNC TNS: SPLITEXT(STR: path){ ! returns [name without ext, ext]
     STR: npath = NORMALIZE_PATH(path)
     STR: base = BASENAME(npath)
     STR: dir = BASEPATH(npath)
@@ -69,15 +69,15 @@ FUNC SPLITEXT(STR: path):TNS{ ! returns [name without ext, ext]
     POP(result)
 }
 
-FUNC EXTNAME(STR: path):STR{ ! returns extension portion of path
+FUNC STR: EXTNAME(STR: path){ ! returns extension portion of path
     RETURN(SPLITEXT(path)[10])
 }
 
-FUNC DELEXT(STR: path):STR{ ! returns path without extension
+FUNC STR: DELEXT(STR: path){ ! returns path without extension
     RETURN(SPLITEXT(path)[1])
 }
 
-FUNC TEMPFILE(STR: local_path):STR{
+FUNC STR: TEMPFILE(STR: local_path){
     IF(EQ(OS(),"win")){
         STR: temp = "C:/Windows/Temp/"
     } ELSEIF(EQ(OS(),"mac")){

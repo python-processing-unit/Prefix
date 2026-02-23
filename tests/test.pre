@@ -9,7 +9,7 @@ IMPORT(waveforms)
 IMPORT(stats)
 IMPORT(diff)
 
-FUNC BUILTIN_TESTS():INT{
+FUNC INT: BUILTIN_TESTS(){
     PRINT("Running built-in tests...")
     ! --- Literal formats ---
     ! Binary integer literals (unsigned and signed)
@@ -218,10 +218,10 @@ FUNC BUILTIN_TESTS():INT{
     DEL(acc)
 
     ! --- Functions (DECL + CALL), RETURN, and LAMBDA ---
-    FUNC ID(INT: x):INT{ RETURN(x) }
+    FUNC INT: ID(INT: x){ RETURN(x) }
     ASSERT( EQ( ID(101), 101 ) )
 
-    FUNC FACT3():INT{
+    FUNC INT: FACT3(){
         INT: n = 11   ! 3
         INT: r = 1
         WHILE( GT(n, 0) ){
@@ -246,7 +246,7 @@ FUNC BUILTIN_TESTS():INT{
     ! (We avoid triggering parser errors here; runtime error above suffices.)
 
     ! --- Misc: POP, DEL, PRINT side-effects ---
-    FUNC TEST_POP():INT{
+    FUNC INT: TEST_POP(){
         INT: tmp = 101
         POP(tmp)
     }
@@ -411,8 +411,8 @@ FUNC BUILTIN_TESTS():INT{
     DEL(exv)
     ASSERT( EQ( EXIST(exv), 0 ) )
 
-    FUNC SIGF(INT: x):INT{ RETURN(x) }
-    ASSERT( EQ( SIGNATURE(SIGF), "FUNC SIGF(INT: x):INT" ) )
+    FUNC INT: SIGF(INT: x){ RETURN(x) }
+    ASSERT( EQ( SIGNATURE(SIGF), "FUNC INT: SIGF(INT: x)" ) )
 
     ! FREEZE/THAW/PERMAFREEZE/FROZEN/PERMAFROZEN
     INT: fz = 1
@@ -463,7 +463,7 @@ FUNC BUILTIN_TESTS():INT{
     DEL(ser_m2)
 
     ! SER/UNSER round-trip (FUNC/THR)
-    FUNC: ser_fn = LAMBDA(INT: x):INT{ RETURN( ADD(x, 1) ) }
+    FUNC: ser_fn = LAMBDA INT: (INT: x){ RETURN( ADD(x, 1) ) }
     STR: ser_fn_s = SER(ser_fn)
     FUNC: ser_fn2 = UNSER(ser_fn_s)
     ASSERT( EQ( ser_fn2(1), 10 ) )
@@ -648,8 +648,8 @@ FUNC BUILTIN_TESTS():INT{
     DEL(conv)
 
     ! PARALLEL (FUNC values)
-    FUNC P1():INT{ RETURN(1) }
-    FUNC P2():INT{ RETURN(10) }
+    FUNC INT: P1(){ RETURN(1) }
+    FUNC INT: P2(){ RETURN(10) }
     ASSERT( EQ( PARALLEL([P1, P2]), 0 ) )
     ASSERT( EQ( PARALLEL(P1, P2), 0 ) )
 
@@ -675,7 +675,7 @@ FUNC BUILTIN_TESTS():INT{
     PRINT("Built-in tests passed.\n")
 }
 
-FUNC STDLIB_TESTS():INT{
+FUNC INT: STDLIB_TESTS(){
     PRINT("Running library tests...")
 
     ! PRNG reproducibility (LCG)
@@ -1193,7 +1193,7 @@ FUNC STDLIB_TESTS():INT{
     RETURN(0)
 }
 
-FUNC STDEXT_TESTS():INT{
+FUNC INT: STDEXT_TESTS(){
 
     PRINT("Running extension tests...")
 
@@ -1215,7 +1215,7 @@ FUNC STDEXT_TESTS():INT{
     RETURN(0)
 }
 
-FUNC RUN_TESTS():INT{
+FUNC INT: RUN_TESTS(){
     BUILTIN_TESTS()
     STDLIB_TESTS()
     STDEXT_TESTS()

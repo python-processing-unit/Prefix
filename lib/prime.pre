@@ -7,7 +7,7 @@
 ! IS_MERSENNE_PRIME(INT: p) -> INT
 ! FACTOR(INT: n) -> TNS
 
-FUNC IS_PRIME(INT: n):INT{
+FUNC INT: IS_PRIME(INT: n){
     IF(LTE(n, 1)){
         RETURN(0)
     }
@@ -28,7 +28,7 @@ FUNC IS_PRIME(INT: n):INT{
     RETURN(1)
 }
 
-FUNC NEXT_PRIME(INT: start):INT{
+FUNC INT: NEXT_PRIME(INT: start){
     INT: n = ADD(start, 1)
     WHILE(1){
         IF(IS_PRIME(n)){
@@ -38,7 +38,7 @@ FUNC NEXT_PRIME(INT: start):INT{
     }
 }
 
-FUNC PREV_PRIME(INT: start):INT{
+FUNC INT: PREV_PRIME(INT: start){
     INT: n = SUB(start, 1)
     WHILE(GT(n, 1)){
         IF(IS_PRIME(n)){
@@ -49,7 +49,7 @@ FUNC PREV_PRIME(INT: start):INT{
     RETURN(0)
 }
 
-FUNC IS_MERSENNE_PRIME(INT: p):INT{
+FUNC INT: IS_MERSENNE_PRIME(INT: p){
     IF(IS_PRIME(p)){
         INT: exp = POW(10, p)
         INT: mersenne = SUB(exp, 1)
@@ -62,7 +62,7 @@ FUNC IS_MERSENNE_PRIME(INT: p):INT{
     }
 }
 
-FUNC FACTOR(INT: n):TNS{
+FUNC TNS: FACTOR(INT: n){
     IF(LTE(n, 1)){
         TNS: empty = [0]
         RETURN(empty)

@@ -73,7 +73,7 @@ MAP: digits = < ^
 
 MAP: rev = INV(digits) ! reverse mapping of digits
 
-FUNC VALUE(STR: num, INT: base):INT{
+FUNC INT: VALUE(STR: num, INT: base){
     IF(GT(base, 1000000)){
         THROW("Base ", STR(base), " not supported. Max base is 0b1000000")
     }
@@ -112,7 +112,7 @@ FUNC VALUE(STR: num, INT: base):INT{
     POP(value)
 }
 
-FUNC CONVERT(STR: num, INT: from, INT: to):STR{
+FUNC STR: CONVERT(STR: num, INT: from, INT: to){
     ! Support optional fractional part (radix point) without breaking
     ! existing integer-only behavior. If `num` contains a '.', split
     ! into integer and fractional parts and convert each appropriately.
