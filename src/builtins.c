@@ -4943,11 +4943,24 @@ static Value builtin_signature(Interpreter* interp, Value* args, int argc, Expr*
     if (entry && entry->initialized) {
         if (entry->value.type == VAL_FUNC && entry->value.as.func != NULL) {
             struct Func* f = entry->value.as.func;
-            // Build signature
-            size_t cap = 256;
+            // Build signature in the canonical form: "FUNC R: name(T1: arg1, ... )"
+            size_t cap = 512;
             char* buf = malloc(cap);
             if (!buf) RUNTIME_ERROR(interp, "Out of memory", line, col);
             buf[0] = '\0';
+            const char* rname = "ANY";
+            switch (f->return_type) {
+                case TYPE_INT: rname = "INT"; break;
+                case TYPE_FLT: rname = "FLT"; break;
+                case TYPE_STR: rname = "STR"; break;
+                case TYPE_TNS: rname = "TNS"; break;
+                case TYPE_MAP: rname = "MAP"; break;
+                case TYPE_FUNC: rname = "FUNC"; break;
+                case TYPE_THR: rname = "THR"; break;
+                default: rname = "ANY"; break;
+            }
+            strcat(buf, rname);
+            strcat(buf, ": ");
             strcat(buf, f->name ? f->name : name);
             strcat(buf, "(");
             for (size_t i = 0; i < f->params.count; i++) {
@@ -4997,19 +5010,7 @@ static Value builtin_signature(Interpreter* interp, Value* args, int argc, Expr*
                     value_free(dv);
                 }
             }
-            strcat(buf, "):");
-            const char* rname = "ANY";
-            switch (f->return_type) {
-                case TYPE_INT: rname = "INT"; break;
-                case TYPE_FLT: rname = "FLT"; break;
-                case TYPE_STR: rname = "STR"; break;
-                case TYPE_TNS: rname = "TNS"; break;
-                case TYPE_MAP: rname = "MAP"; break;
-                case TYPE_FUNC: rname = "FUNC"; break;
-                case TYPE_THR: rname = "THR"; break;
-                default: rname = "ANY"; break;
-            }
-            strcat(buf, rname);
+            strcat(buf, ")");
             Value out = value_str(buf);
             free(buf);
             return out;

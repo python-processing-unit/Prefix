@@ -664,7 +664,7 @@ FUNC INT: SIGTEST(INT: a, STR: b = "def"){
 INT: v = 101
 STR: s1 = SIGNATURE(SIGTEST)
 ASSERT(ISSTR(s1))
-ASSERT(EQ(s1, "SIGTEST(INT: a, STR: b = \"def\"):INT"))
+ASSERT(EQ(s1, "INT: SIGTEST(INT: a, STR: b = \"def\")"))
 STR: s2 = SIGNATURE(v)
 ASSERT(EQ(s2, "INT: v"))
 DEL(s1)
