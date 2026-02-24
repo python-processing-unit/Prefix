@@ -382,9 +382,66 @@ Value* value_tns_get_ptr(Value v, const size_t* idxs, size_t nidxs) {
 
 // Shallow copy semantics: increment refcount for MAP/TNS and return aliasing Value.
 Value value_copy(Value v) {
+    // New semantics: value_copy produces an atomic (de-referenced) copy for
+    // container types (TNS and MAP): the container object is duplicated so
+    // mutations to the returned value won't affect the original. Element
+    // values inside the container remain as aliases (not deep-copied).
     Value out = v;
     if (v.type == VAL_STR && v.as.s) {
-        // Duplicate strings to preserve independent ownership semantics for STR
+        out.as.s = strdup(v.as.s);
+    } else if (v.type == VAL_TNS && v.as.tns) {
+        Tensor* t = v.as.tns;
+        // allocate new tensor structure and copy shape/strides
+        Tensor* t2 = malloc(sizeof(Tensor));
+        if (!t2) { fprintf(stderr, "Out of memory\n"); exit(1); }
+        t2->elem_type = t->elem_type;
+        t2->ndim = t->ndim;
+        t2->shape = malloc(sizeof(size_t) * t2->ndim);
+        t2->strides = malloc(sizeof(size_t) * t2->ndim);
+        for (size_t i = 0; i < t2->ndim; i++) { t2->shape[i] = t->shape[i]; t2->strides[i] = t->strides[i]; }
+        t2->length = t->length;
+        t2->data = malloc(sizeof(Value) * t2->length);
+        for (size_t i = 0; i < t2->length; i++) {
+            // keep element references (shallow): use value_alias to preserve
+            // previous element-sharing semantics for nested containers
+            extern Value value_alias(Value v);
+            t2->data[i] = value_alias(t->data[i]);
+        }
+        t2->refcount = 1;
+        mtx_init(&t2->lock, 0);
+        out.as.tns = t2;
+    } else if (v.type == VAL_MAP && v.as.map) {
+        Map* m = v.as.map;
+        Map* m2 = malloc(sizeof(Map));
+        if (!m2) { fprintf(stderr, "Out of memory\n"); exit(1); }
+        m2->count = m->count;
+        m2->capacity = m->count;
+        m2->items = malloc(sizeof(MapEntry) * (m2->capacity ? m2->capacity : 1));
+        for (size_t i = 0; i < m->count; i++) {
+            extern Value value_alias(Value v);
+            m2->items[i].key = value_alias(m->items[i].key);
+            m2->items[i].value = value_alias(m->items[i].value);
+        }
+        m2->refcount = 1;
+        mtx_init(&m2->lock, 0);
+        out.as.map = m2;
+    } else if (v.type == VAL_THR && v.as.thr) {
+        // threads remain shared handles
+        Thr* th = v.as.thr;
+        mtx_lock(&th->state_lock);
+        th->refcount++;
+        mtx_unlock(&th->state_lock);
+        out.as.thr = th;
+    }
+    return out;
+}
+
+// Alias/shallow-copy helper: preserve previous semantics where MAP/TNS
+// were reference types. This function performs the former behavior of
+// `value_copy` (increment refcounts and return aliasing container).
+Value value_alias(Value v) {
+    Value out = v;
+    if (v.type == VAL_STR && v.as.s) {
         out.as.s = strdup(v.as.s);
     } else if (v.type == VAL_TNS && v.as.tns) {
         Tensor* t = v.as.tns;
@@ -406,6 +463,7 @@ Value value_copy(Value v) {
         out.as.thr = th;
     }
     return out;
+
 }
 
 // Deep-copy helper: recursively duplicate container contents.

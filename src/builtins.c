@@ -5771,7 +5771,8 @@ static Value builtin_match(Interpreter* interp, Value* args, int argc, Expr** ar
 // COPY (shallow copy for scalars)
 static Value builtin_copy(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
     (void)arg_nodes; (void)env; (void)interp; (void)line; (void)col;
-    return value_copy(args[0]);
+    /* Preserve existing COPY operator behavior (shallow/aliasing). */
+    return value_alias(args[0]);
 }
 
 // DEEPCOPY: return a recursive deep copy of the argument

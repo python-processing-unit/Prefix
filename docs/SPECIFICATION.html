@@ -211,9 +211,11 @@ Slice indexing: any index position inside `[...]` MAY be a range of the form `lo
 
 Additionally, the symbol `*` MAY be used in an index position to denote a full-dimension slice selecting every element along that axis (for example, `tensor[*,1]` selects all elements of the first dimension at index `1` of the second dimension).
 
-All other tensor operations are non-mutating: tensor literals and tensor-valued built-ins produce new tensor values rather than mutating existing ones. Because indexed assignment mutates a tensor object, if the same tensor value is aliased (bound to multiple identifiers, passed as an argument, or stored inside another tensor), all aliases observe the mutation.
+All other tensor operations are non-mutating: tensor literals and tensor-valued built-ins produce new tensor values rather than mutating existing ones. Because indexed assignment mutates a tensor object, if the same tensor value is explicitly aliased, all aliases observe the mutation.
 
-MAP and `TNS` values are reference (aliasing) types: assigning a `MAP` or `TNS` to another identifier copies a reference to the same underlying container rather than performing an implicit deep copy. Mutating a map (via `map<...> = ...`, `DEL`, or other mutating operators) or mutating a tensor element through indexed assignment will be observed through any other identifier that references the same container. Use the built-in `COPY` (shallow copy) or `DEEPCOPY` (recursive deep copy) operators when a non-aliased duplicate is REQUIRED.
+MAP and `TNS` values are atomic (de-referenced) types: assigning a `MAP` or `TNS` to another identifier copies (duplicates) the container object so that subsequent mutations to one binding do not affect the other by default. The runtime provides explicit copy semantics to control sharing:
+
+When shared, aliased containers are required, developers should use pointer references (with `@`).
 
 Every runtime value has a static type: `INT`, `FLT`, `STR`, `TNS`, `MAP`, `THR`, or `FUNC`. Integers are conceptually unbounded mathematical integers. Floats are IEEE754 binary floating-point numbers. Strings are sequences of characters (source text is ASCII, but escape codes MAY denote non-ASCII code points). Tensors are non-scalar aggregates whose elements MAY be `INT`, `FLT`, `STR`, `MAP`, `THR`, `FUNC`, or `TNS`. Maps are associative containers mapping scalar keys (`INT`, `FLT`, or `STR`) to values of a single static type. Threads are handles to parallel code blocks. Functions are user-defined code blocks with lexical closures.
 

@@ -1959,6 +1959,13 @@ ExecResult assign_index_chain(Interpreter* interp, Env* env, Expr* idx_expr, Val
 
 cleanup:
     free(nodes);
+    // If assignment succeeded, write back the possibly-modified base value
+    // into the environment so that atomic container semantics persist.
+    if (out.status == EXEC_OK) {
+        if (!env_assign(env, base_name, base_val, TYPE_UNKNOWN, false)) {
+            out = make_error("Cannot write back to identifier (frozen?)", stmt_line, stmt_col);
+        }
+    }
     value_free(base_val);
     return out;
 }

@@ -110,6 +110,7 @@ int value_thr_get_started(Value v);
 // Note: pointer semantics are implemented at the EnvEntry (alias) level; no PTR Value type.
 
 Value value_copy(Value v);
+Value value_alias(Value v);
 Value value_deep_copy(Value v);
 void value_free(Value v);
 
