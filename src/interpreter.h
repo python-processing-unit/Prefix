@@ -94,6 +94,7 @@ typedef struct Interpreter {
     bool isolate_env_writes;
     // Traceback/logging state
     int verbose;
+    int private_mode;
     char* source_path;
     TraceFrame* trace_stack;
     size_t trace_stack_count;
@@ -105,7 +106,7 @@ typedef struct Interpreter {
 
 // Initialize/destroy a reusable interpreter session.
 // `source_path` sets the primary module source label (e.g. script path or "<repl>").
-void interpreter_init(Interpreter* interp, const char* source_path, bool verbose);
+void interpreter_init(Interpreter* interp, const char* source_path, bool verbose, bool private_mode);
 void interpreter_destroy(Interpreter* interp);
 
 // Main entry point

@@ -89,6 +89,7 @@ static void trace_pop_frame(Interpreter* interp) {
 
 static void trace_log_step(Interpreter* interp, Stmt* stmt, Env* env) {
     if (!interp || !stmt) return;
+    if (interp->private_mode) return;
     if (interp->trace_stack_count == 0) {
         if (trace_push_frame(interp, "<top-level>", env ? env : interp->global_env, 0, 0, 0) != 0) return;
     }
@@ -176,7 +177,7 @@ char* interpreter_format_traceback(Interpreter* interp, const char* error_msg, i
             trace_append(&out, &len, &cap, row);
             snprintf(row, sizeof(row), "    State log index: %d  State id: %s\n", frame->last_step_index, frame->state_id);
             trace_append(&out, &len, &cap, row);
-            if (interp->verbose) {
+            if (interp->verbose && !interp->private_mode) {
                 char* snap = trace_env_snapshot(frame->env);
                 if (snap && snap[0] != '\0') {
                     trace_append(&out, &len, &cap, "    Env snapshot: ");
@@ -204,7 +205,7 @@ void interpreter_reset_traceback(Interpreter* interp, Env* top_env) {
     interp->trace_next_step_index = 0;
     snprintf(interp->trace_last_state_id, sizeof(interp->trace_last_state_id), "seed");
     interp->trace_last_rule[0] = '\0';
-    if (top_env) {
+    if (top_env && !interp->private_mode) {
         (void)trace_push_frame(interp, "<top-level>", top_env, 0, 0, 0);
     }
 }
@@ -2736,7 +2737,7 @@ static ExecResult exec_stmt_list(Interpreter* interp, StmtList* list, Env* env, 
 
 // ============ Main entry point ============
 
-void interpreter_init(Interpreter* interp, const char* source_path, bool verbose) {
+void interpreter_init(Interpreter* interp, const char* source_path, bool verbose, bool private_mode) {
     if (!interp) return;
     memset(interp, 0, sizeof(*interp));
     interp->global_env = env_create(NULL);
@@ -2746,6 +2747,7 @@ void interpreter_init(Interpreter* interp, const char* source_path, bool verbose
     interp->modules = NULL;
     interp->current_thr = NULL;
     interp->verbose = verbose ? 1 : 0;
+    interp->private_mode = private_mode ? 1 : 0;
     interp->source_path = source_path ? strdup(source_path) : NULL;
     interp->trace_stack = NULL;
     interp->trace_stack_count = 0;
@@ -2754,9 +2756,11 @@ void interpreter_init(Interpreter* interp, const char* source_path, bool verbose
     snprintf(interp->trace_last_state_id, sizeof(interp->trace_last_state_id), "seed");
     interp->trace_last_rule[0] = '\0';
 
-    if (trace_push_frame(interp, "<top-level>", interp->global_env, 0, 0, 0) != 0) {
-        fprintf(stderr, "Out of memory\n");
-        exit(1);
+    if (!interp->private_mode) {
+        if (trace_push_frame(interp, "<top-level>", interp->global_env, 0, 0, 0) != 0) {
+            fprintf(stderr, "Out of memory\n");
+            exit(1);
+        }
     }
 
     builtins_init();
@@ -2820,7 +2824,7 @@ void interpreter_destroy(Interpreter* interp) {
 
 ExecResult exec_program(Stmt* program, const char* source_path) {
     Interpreter interp;
-    interpreter_init(&interp, source_path, false);
+    interpreter_init(&interp, source_path, false, false);
     
     LabelMap labels = {0};
     ExecResult res = exec_stmt_list(&interp, &program->as.block, interp.global_env, &labels);

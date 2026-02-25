@@ -467,6 +467,8 @@ This section documents how the reference interpreter accepts program input and h
 
 - Verbose tracebacks: if the `-verbose` flag is supplied on the command line, tracebacks include the environment snapshots described in Section 10.8. In concise traceback mode the `-verbose` flag causes the interpreter to attach an `env_snapshot` entry to each frame shown; in verbose traceback mode the same flag expands the printed `State snapshot: blocks to include the selected local environment and any small set of globals included by policy. The snapshot contents follow the requirements in Section 10.2 and are suitable for deterministic replay.
 
+- Private mode: if the `-private` flag is supplied on the command line, the interpreter MUST disable the state logger and suppress environment snapshots in tracebacks. Tracebacks MUST still be emitted (concise or verbose as requested) but MUST omit any `env_snapshot` content and must not emit state-log entries; the traceback should clearly indicate when snapshot information has been suppressed.
+
 Notes:
 
 - The interpreter MAY support additional flags and a different ordering of arguments; the rules above define the semantics for `argv[1]`, `-source`, and `-verbose` specifically and are intended to be stable for tooling and replay purposes.

@@ -204,9 +204,9 @@ static void repl_update_line_state(const char* line, int* brace_depth, int* line
     *line_continuation = (end > 0 && line[end - 1] == '^') ? 1 : 0;
 }
 
-static int run_repl(int verbose) {
+static int run_repl(int verbose, int private_flag) {
     Interpreter interp;
-    interpreter_init(&interp, "<repl>", verbose != 0);
+    interpreter_init(&interp, "<repl>", verbose != 0, private_flag != 0);
 
     char* entry = NULL;
     size_t entry_len = 0;
@@ -282,6 +282,7 @@ int main(int argc, char** argv) {
     int source_mode = 0;
     char* source_text = NULL;
     int verbose_flag = 0;
+    int private_flag = 0;
     int explicit_ext_count = 0;
 
     builtins_reset_dynamic();
@@ -303,6 +304,11 @@ int main(int argc, char** argv) {
 
         if (strcmp(arg, "-verbose") == 0) {
             verbose_flag = 1;
+            continue;
+        }
+
+        if (strcmp(arg, "-private") == 0) {
+            private_flag = 1;
             continue;
         }
 
@@ -435,7 +441,7 @@ int main(int argc, char** argv) {
     }
 
     if (!path && !source_mode) {
-        int repl_rc = run_repl(verbose_flag);
+        int repl_rc = run_repl(verbose_flag, private_flag);
         extensions_shutdown();
         builtins_reset_dynamic();
         return repl_rc;
@@ -530,7 +536,7 @@ int main(int argc, char** argv) {
     }
 
     Interpreter interp;
-    interpreter_init(&interp, source_label, verbose_flag != 0);
+    interpreter_init(&interp, source_label, verbose_flag != 0, private_flag != 0);
     ExecResult res = exec_program_in_env(&interp, program, interp.global_env);
     interpreter_destroy(&interp);
     if (res.status == EXEC_ERROR) {
