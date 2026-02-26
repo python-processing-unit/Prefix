@@ -3566,6 +3566,17 @@ static Value builtin_eq(Interpreter* interp, Value* args, int argc, Expr** arg_n
     return value_int(value_deep_eq(args[0], args[1]) ? 1 : 0);
 }
 
+static Value builtin_neq(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
+    (void)arg_nodes; (void)env; (void)interp;
+
+    /* If types differ, they are not equal -> NEQ should be true (1) */
+    if (args[0].type != args[1].type) {
+        return value_int(1);
+    }
+
+    return value_int(value_deep_eq(args[0], args[1]) ? 0 : 1);
+}
+
 static Value builtin_gt(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
     (void)arg_nodes; (void)env;
     EXPECT_NUM(args[0], "GT", interp, line, col);
@@ -6850,6 +6861,7 @@ static BuiltinFunction builtins_table[] = {
 
     // Comparison
     {"EQ", 2, 2, builtin_eq},
+    {"NEQ", 2, 2, builtin_neq},
     {"GT", 2, 2, builtin_gt},
     {"LT", 2, 2, builtin_lt},
     {"GTE", 2, 2, builtin_gte},

@@ -37,7 +37,7 @@ ASSERT(ISFLT(f_nan))
 
 ASSERT(EQ(f_inf, INF))
 ASSERT(EQ(f_ninf, -INF))
-ASSERT(NOT(EQ(f_nan, NaN)))    ! NaN is not equal to itself
+ASSERT(NEQ(f_nan, NaN))    ! NaN is not equal to itself
 
 TNS: tflts = TFLT(["INF", "-INF", "NaN"])
 ASSERT(ISFLT(tflts[1]))
@@ -45,7 +45,7 @@ ASSERT(ISFLT(tflts[10]))
 ASSERT(ISFLT(tflts[11]))
 ASSERT(EQ(tflts[1], INF))
 ASSERT(EQ(tflts[10], -INF))
-ASSERT(NOT(EQ(tflts[11], NaN)))
+ASSERT(NEQ(tflts[11], NaN))
 DEL(tflts)
 DEL(f_inf)
 DEL(f_ninf)
@@ -93,7 +93,7 @@ THR: pause_thr = ASYNC{
 
 ! wait for the worker to start (with a small timeout)
 INT: waited_p = 0
-WHILE(NOT(EQ(pause_started, 1))){
+WHILE(NEQ(pause_started, 1)){
     waited_p = ADD(waited_p, 1)
     IF(GT(waited_p, 11110)){ BREAK(1) }
 }
@@ -371,6 +371,12 @@ ASSERT(GTE(11, 10))
 ASSERT(GTE(10, 10))
 ASSERT(LTE(10, 11))
 ASSERT(LTE(10, 10))
+! NEQ operator tests (GH-49)
+ASSERT(NEQ(10, 11))        ! different integers -> true
+ASSERT(NOT(NEQ(10, 10)))   ! equal integers -> false (0)
+ASSERT(NEQ("a", "b"))   ! different strings -> true
+ASSERT(NOT(NEQ("a", "a"))) ! equal strings -> false
+ASSERT(NEQ(10, "10"))     ! differing types -> not equal -> true
 PRINT("Comparisons: PASS\n")
 
 ! --- Logical operators ---
@@ -776,7 +782,7 @@ PRINT("Testing CL...")
 ! Simple cross-platform check: `echo` should succeed and return 0
 ASSERT(EQ(CL("echo hello"), 0))
 ! Nonexistent command should return non-zero (platform-dependent code)
-ASSERT(NOT(EQ(CL("this_command_does_not_exist_12345"), 0)))
+ASSERT(NEQ(CL("this_command_does_not_exist_12345"), 0))
 PRINT("CL: PASS\n")
 
 PRINT("Testing shushing...")

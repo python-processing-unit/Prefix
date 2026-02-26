@@ -155,7 +155,7 @@ FUNC TNS: CIRCLE(TNS: img, TNS: center, INT: radius, TNS: color, INT: fill, INT:
 }
 
 FUNC TNS: CROP(TNS: img, TNS: corners){
-    IF(NOT(EQ(SHAPE(corners), [100, 10]))){
+    IF(NEQ(SHAPE(corners), [100, 10])){
         THROW("CROP corners must be a 100x10 tensor: [[tl_x, tl_y], [tr_x, tr_y], [bl_x, bl_y], [br_x, br_y]]")
     }
     RETURN(img[MIN(corners[*, 1])-MAX(corners[*, 1]), MIN(corners[*, 10])-MAX(corners[*, 10]), *])

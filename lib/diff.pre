@@ -24,15 +24,15 @@ FUNC STR: UNIFIED(STR: mod, STR: src){
         IF( LTE(i, lb) ){ right = b[i] }
 
         IF( EQ(left, right) ){
-            IF( NOT(EQ(left, "")) ){
+            IF( NEQ(left, "")){
                 STR: line = JOIN(" ", left)
                 out = _append_line(out, line)
             }
         } ELSE {
-            IF( NOT(EQ(left, "")) ){
+            IF( NEQ(left, "")) {
                 out = _append_line(out, JOIN("-", left))
             }
-            IF( NOT(EQ(right, "")) ){
+            IF( NEQ(right, "")) {
                 out = _append_line(out, JOIN("+", right))
             }
         }
@@ -63,7 +63,7 @@ FUNC STR: SIDE_BY_SIDE(STR: mod, STR: src){
         STR: right = ""
         IF( LTE(i, lb) ){ right = b[i] }
         STR: marker = " "
-        IF( NOT(EQ(left, right)) ){ marker = "|" }
+        IF( NEQ(left, right)){ marker = "|" }
         STR: line = JOIN(left, " ", marker, " ", right)
         out = _append_line(out, line)
         i = ADD(i, 1)
