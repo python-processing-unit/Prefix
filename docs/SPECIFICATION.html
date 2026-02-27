@@ -911,7 +911,7 @@ Tensor indexing uses the expression form `tensor[i1, i2, ..., iN]`. The number o
 
 - `WHILE(condition){ block }`
 
-- `FOR(counter, INT: target){ block }` ; `counter` initialized to 0, loop until counter >= target
+- `FOR(counter, INT: target){ block }` ; `counter` initialized to 1, loop until counter >= target
 
 - `PARFOR(counter, INT: target){ block }` ; concurrently execute `target` iterations with `counter` bound to `1..T`. Iteration bodies run in parallel (threaded) and MAY race on shared mutable identifiers. `CONTINUE()` ends the current iteration only; `BREAK(n)` terminates the entire `PARFOR` (prevents starting further iterations, waits for in-flight iterations to finish, then propagates the `BreakSignal`). Runtime errors raised inside iterations are collected and the first such error is re-raised after all iterations join.
 
