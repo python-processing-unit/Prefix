@@ -29,6 +29,7 @@ typedef enum {
     TOKEN_COLON,    // :
     TOKEN_AT,       // @
     TOKEN_STAR,     // *
+    TOKEN_DOT,      // .
     TOKEN_DASH,     // - (when used as slice range separator)
 
     // Keywords

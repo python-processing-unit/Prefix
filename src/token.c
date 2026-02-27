@@ -22,6 +22,7 @@ const char* token_type_to_string(PTokenType type) {
         case TOKEN_COLON: return "COLON";
         case TOKEN_AT: return "AT";
         case TOKEN_STAR: return "STAR";
+        case TOKEN_DOT: return "DOT";
         case TOKEN_DASH: return "DASH";
         case TOKEN_TRY: return "TRY";
         case TOKEN_CATCH: return "CATCH";

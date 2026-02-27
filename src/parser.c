@@ -203,8 +203,30 @@ static Expr* parse_primary(Parser* parser) {
         Stmt* body = parse_block(parser);
         return expr_lambda(params, ret, body, lambda_tok.line, lambda_tok.column);
     }
-    if (match(parser, TOKEN_IDENT)) {
-        return expr_ident(token.literal, token.line, token.column);
+    if (parser->current_token.type == TOKEN_IDENT) {
+        Token idtok = parser->current_token;
+        // Build possibly-dotted identifier by concatenating IDENT (DOT IDENT)*
+        size_t len0 = idtok.literal ? strlen(idtok.literal) : 0;
+        char* name = malloc(len0 + 1);
+        if (!name) { fprintf(stderr, "Out of memory\n"); exit(1); }
+        if (len0) memcpy(name, idtok.literal, len0 + 1); else name[0] = '\0';
+        advance(parser); // consume first IDENT
+        while (parser->current_token.type == TOKEN_DOT && parser->next_token.type == TOKEN_IDENT) {
+            advance(parser); // consume DOT
+            // append '.' + next ident
+            const char* part = parser->current_token.literal ? parser->current_token.literal : "";
+            size_t part_len = strlen(part);
+            size_t cur_len = strlen(name);
+            size_t newlen = cur_len + 1 + part_len + 1;
+            char* tmp = realloc(name, newlen);
+            if (!tmp) { free(name); fprintf(stderr, "Out of memory\n"); exit(1); }
+            name = tmp;
+            name[cur_len] = '.';
+            if (part_len) memcpy(name + cur_len + 1, part, part_len);
+            name[cur_len + 1 + part_len] = '\0';
+            advance(parser); // consume IDENT
+        }
+        return expr_ident(name, idtok.line, idtok.column);
     }
     if (match(parser, TOKEN_LPAREN)) {
         Expr* expr = parse_expression(parser);

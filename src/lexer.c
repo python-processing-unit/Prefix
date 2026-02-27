@@ -242,6 +242,7 @@ Token lexer_next_token(Lexer* lexer) {
         if (c == ':') { advance(lexer); return make_token(lexer, TOKEN_COLON, ":", 1); }
         if (c == '@') { advance(lexer); return make_token(lexer, TOKEN_AT, "@", 1); }
         if (c == '*') { advance(lexer); return make_token(lexer, TOKEN_STAR, "*", 1); }
+        if (c == '.') { advance(lexer); return make_token(lexer, TOKEN_DOT, ".", 1); }
 
         if (c == '"' || c == '\'') {
             return string_token(lexer, c);
@@ -457,7 +458,7 @@ static Token identifier_token(Lexer* lexer) {
     
     while (!is_at_end(lexer)) {
         char c = peek(lexer);
-        if (strchr("abcdefghijklmnopqrstuvwxyz1234567890./ABCDEFGHIJKLMNOPQRSTUVWXYZ$%&~_+|?", c)) {
+        if (strchr("abcdefghijklmnopqrstuvwxyz1234567890/ABCDEFGHIJKLMNOPQRSTUVWXYZ$%&~_+|?", c)) {
             advance(lexer);
             if (len_val + 1 >= capacity) { capacity *= 2; value = safe_realloc(value, capacity); }
             value[len_val++] = c;
