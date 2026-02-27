@@ -14,6 +14,12 @@ DEL(i0)
 DEL(i1)
 DEL(i5)
 DEL(i_neg)
+INT: err = 0
+TRY{
+    nonex.foo = 1 ! should raise an error
+    err = 1
+} CATCH {}
+ASSERT(NOT(err))
 PRINT("Literals: PASS\n")
 
 ! Floating-point binary fixed-point forms

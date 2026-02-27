@@ -4,10 +4,21 @@
 #include <string.h>
 #include <stdlib.h>
 
+#ifdef _MSC_VER
+#define strdup _strdup
+#endif
+
 static void report_error(Parser* parser, const char* message) {
     if (parser->panic_mode) return;
     parser->panic_mode = true;
     parser->had_error = true;
+    /* Record last error for possible conversion into a runtime THROW
+       so TRY/CATCH can handle parse-time errors that occur inside
+       parsed blocks. Also emit the usual diagnostic to stderr. */
+    if (parser->error_msg) { free(parser->error_msg); parser->error_msg = NULL; }
+    parser->error_msg = strdup(message);
+    parser->error_line = parser->current_token.line;
+    parser->error_col = parser->current_token.column;
     fprintf(stderr, "ParseError at %d:%d: %s\n",
             parser->current_token.line, parser->current_token.column, message);
 }
@@ -16,6 +27,9 @@ void parser_init(Parser* parser, Lexer* lexer) {
     parser->lexer = lexer;
     parser->panic_mode = false;
     parser->had_error = false;
+    parser->error_msg = NULL;
+    parser->error_line = 0;
+    parser->error_col = 0;
     parser->current_token = lexer_next_token(parser->lexer);
     parser->next_token = lexer_next_token(parser->lexer);
 }
@@ -784,9 +798,28 @@ Stmt* parser_parse(Parser* parser) {
             continue;
         }
 
+        /* If a parse error was recorded, synthesize a runtime THROW call
+           statement so that runtime TRY/CATCH can observe the parse error
+           as a catchable runtime exception. Then clear the parser error
+           state so callers (e.g. RUN/IMPORT) don't treat it as a fatal
+           top-level parse failure. */
+        if (parser->error_msg) {
+            char* msg_dup = strdup(parser->error_msg);
+            Expr* callee = expr_ident(strdup("THROW"), parser->error_line, parser->error_col);
+            Expr* call = expr_call(callee, parser->error_line, parser->error_col);
+            Expr* arg = expr_str(msg_dup, parser->error_line, parser->error_col);
+            expr_list_add(&call->as.call.args, arg);
+            Stmt* err_stmt = stmt_expr(call, parser->error_line, parser->error_col);
+            stmt_list_add(&program->as.block, err_stmt);
+            free(parser->error_msg);
+            parser->error_msg = NULL;
+            parser->had_error = false;
+            parser->panic_mode = false;
+        }
+
         /* Synchronize after an error: advance to next newline or EOF so the
            parser makes progress instead of repeatedly returning NULL and
-           hanging. Clear panic mode to allow further error reports. */
+           hanging. */
         while (parser->current_token.type != TOKEN_EOF && parser->current_token.type != TOKEN_NEWLINE) {
             advance(parser);
         }

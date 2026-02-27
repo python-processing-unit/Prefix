@@ -12,6 +12,9 @@ typedef struct {
     Token next_token;
     bool panic_mode;
     bool had_error;
+    char* error_msg;
+    int error_line;
+    int error_col;
 } Parser;
 
 void parser_init(Parser* parser, Lexer* lexer);
