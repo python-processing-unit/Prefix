@@ -100,8 +100,7 @@ Identifier character set (clarification): The (non-empty) sequence of characters
 
   - Decimal digits `2`-`9`
 
-  - The punctuation and symbol characters
-    `/ $ % & ~ _ + | ?`
+  - The punctuation and symbol characters `/ $ % & ~ _ + | ?`
 
 - Subsequent characters in an identifier MAY be any of the following:
 
@@ -688,7 +687,7 @@ Tensor indexing uses the expression form `tensor[i1, i2, ..., iN]`. The number o
 
 - `INT: ANY(ANY: a1, ..., ANY: aN)` ; Boolean OR (empty string -> false, non-empty -> true)
 
-- `INT|STR: JOIN(INT|STR: a1, INT|STR: a2, ..., INT|STR: aN)` ; `INT` -> concatenate binary spellings with consistent sign; `STR` -> concatenate strings; mixing `INT` and `STR` or supplying tensors raises an error
+- `INT|STR: JOIN(INT|STR: a1, INT|STR: a2, ..., INT|STR: aN)` ; `INT` -> concatenate binary spellings with consistent sign; `STR` -> concatenate strings; mixing `INT` and `STR` or supplying tensors raises an error.
 
 - `INT|FLT: PROD(INT|FLT: a1, ..., INT|FLT: aN)` ; product of the arguments (no mixing `INT`/`FLT`)
 
