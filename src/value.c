@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
+#include <stdint.h>
 
 #ifdef _MSC_VER
 #define strdup _strdup
@@ -277,7 +278,144 @@ Value value_tns_slice(Value v, const int64_t* starts, const int64_t* ends, size_
     return out;
 }
 
-// Map implementation
+// Map implementation (ordered hash table)
+static uint64_t map_hash_mix(uint64_t x) {
+    x ^= x >> 33;
+    x *= 0xff51afd7ed558ccdULL;
+    x ^= x >> 33;
+    x *= 0xc4ceb9fe1a85ec53ULL;
+    x ^= x >> 33;
+    return x;
+}
+
+static uint64_t map_hash_string(const char* s) {
+    uint64_t h = 1469598103934665603ULL;
+    const unsigned char* p = (const unsigned char*)(s ? s : "");
+    while (*p) {
+        h ^= (uint64_t)(*p++);
+        h *= 1099511628211ULL;
+    }
+    return map_hash_mix(h);
+}
+
+static uint64_t map_hash_key(Value key) {
+    if (key.type == VAL_INT) {
+        return map_hash_mix((uint64_t)key.as.i ^ 0x9e3779b97f4a7c15ULL);
+    }
+    if (key.type == VAL_FLT) {
+        double d = key.as.f;
+        if (d == 0.0) d = 0.0;
+        uint64_t bits = 0;
+        memcpy(&bits, &d, sizeof(uint64_t));
+        return map_hash_mix(bits ^ 0x243f6a8885a308d3ULL);
+    }
+    if (key.type == VAL_STR) {
+        return map_hash_string(key.as.s);
+    }
+    return 0;
+}
+
+static int map_key_equals(Value a, Value b) {
+    if (a.type != b.type) return 0;
+    if (a.type == VAL_INT) return a.as.i == b.as.i;
+    if (a.type == VAL_FLT) return a.as.f == b.as.f;
+    if (a.type == VAL_STR) {
+        if (!a.as.s || !b.as.s) return a.as.s == b.as.s;
+        return strcmp(a.as.s, b.as.s) == 0;
+    }
+    return 0;
+}
+
+static size_t map_recommended_bucket_count(size_t entries) {
+    size_t needed = entries < 8 ? 16 : entries * 2;
+    size_t bc = 16;
+    while (bc < needed && bc <= (SIZE_MAX / 2)) bc <<= 1;
+    return bc;
+}
+
+static void map_rehash(Map* m, size_t bucket_count) {
+    if (!m) return;
+    if (bucket_count == 0) bucket_count = map_recommended_bucket_count(m->count);
+
+    int64_t* new_buckets = malloc(sizeof(int64_t) * bucket_count);
+    if (!new_buckets) { fprintf(stderr, "Out of memory\n"); exit(1); }
+    for (size_t i = 0; i < bucket_count; i++) new_buckets[i] = -1;
+
+    for (size_t i = 0; i < m->count; i++) m->items[i].next_hash = -1;
+    for (size_t i = 0; i < m->count; i++) {
+        size_t b = (size_t)(map_hash_key(m->items[i].key) % bucket_count);
+        m->items[i].next_hash = new_buckets[b];
+        new_buckets[b] = (int64_t)i;
+    }
+
+    free(m->buckets);
+    m->buckets = new_buckets;
+    m->bucket_count = bucket_count;
+}
+
+static void map_ensure_entry_capacity(Map* m, size_t need) {
+    if (need <= m->capacity) return;
+    size_t newc = m->capacity == 0 ? 8 : m->capacity * 2;
+    while (newc < need && newc <= (SIZE_MAX / 2)) newc *= 2;
+    m->items = realloc(m->items, sizeof(MapEntry) * newc);
+    if (!m->items) { fprintf(stderr, "Out of memory\n"); exit(1); }
+    m->capacity = newc;
+}
+
+static int map_maybe_rehash_for_insert(Map* m, size_t post_insert_count) {
+    if (m->bucket_count == 0 || !m->buckets) {
+        map_rehash(m, map_recommended_bucket_count(post_insert_count));
+        return 1;
+    }
+    if ((post_insert_count * 4) > (m->bucket_count * 3)) {
+        size_t new_bc = m->bucket_count <= (SIZE_MAX / 2) ? m->bucket_count * 2 : m->bucket_count;
+        if (new_bc == m->bucket_count) {
+            map_rehash(m, m->bucket_count);
+        } else {
+            map_rehash(m, new_bc);
+        }
+        return 1;
+    }
+    return 0;
+}
+
+static int map_find_index(Map* m, Value key) {
+    if (!m || m->count == 0) return -1;
+    if (!m->buckets || m->bucket_count == 0) {
+        for (size_t i = 0; i < m->count; i++) {
+            if (map_key_equals(m->items[i].key, key)) return (int)i;
+        }
+        return -1;
+    }
+
+    size_t b = (size_t)(map_hash_key(key) % m->bucket_count);
+    int64_t idx = m->buckets[b];
+    while (idx >= 0) {
+        MapEntry* e = &m->items[(size_t)idx];
+        if (map_key_equals(e->key, key)) return (int)idx;
+        idx = e->next_hash;
+    }
+    return -1;
+}
+
+static int64_t map_append_entry(Map* m, Value key_copy, Value val_copy) {
+    size_t idx = m->count;
+    map_ensure_entry_capacity(m, idx + 1);
+
+    m->items[idx].key = key_copy;
+    m->items[idx].value = val_copy;
+    m->items[idx].next_hash = -1;
+    m->count = idx + 1;
+
+    int rehashed = map_maybe_rehash_for_insert(m, m->count);
+    if (!rehashed && m->buckets && m->bucket_count > 0) {
+        size_t b = (size_t)(map_hash_key(m->items[idx].key) % m->bucket_count);
+        m->items[idx].next_hash = m->buckets[b];
+        m->buckets[b] = (int64_t)idx;
+    }
+    return (int64_t)idx;
+}
+
 Value value_map_new(void) {
     Value v; v.type = VAL_MAP;
     Map* m = malloc(sizeof(Map));
@@ -285,22 +423,12 @@ Value value_map_new(void) {
     m->items = NULL;
     m->count = 0;
     m->capacity = 0;
+    m->buckets = NULL;
+    m->bucket_count = 0;
     m->refcount = 1;
     mtx_init(&m->lock, 0);
     v.as.map = m;
     return v;
-}
-
-static int map_find_index(Map* m, Value key) {
-    for (size_t i = 0; i < m->count; i++) {
-        MapEntry* e = &m->items[i];
-        if (e->key.type == key.type) {
-            if (key.type == VAL_INT && e->key.as.i == key.as.i) return (int)i;
-            if (key.type == VAL_STR && e->key.as.s && key.as.s && strcmp(e->key.as.s, key.as.s) == 0) return (int)i;
-            if (key.type == VAL_FLT && e->key.as.f == key.as.f) return (int)i;
-        }
-    }
-    return -1;
 }
 
 void value_map_set(Value* mapval, Value key, Value val) {
@@ -308,20 +436,11 @@ void value_map_set(Value* mapval, Value key, Value val) {
     Map* m = mapval->as.map;
     int idx = map_find_index(m, key);
     if (idx >= 0) {
-        // replace
         value_free(m->items[idx].value);
         m->items[idx].value = value_copy(val);
         return;
     }
-    if (m->count + 1 > m->capacity) {
-        size_t newc = m->capacity == 0 ? 8 : m->capacity * 2;
-        m->items = realloc(m->items, sizeof(MapEntry) * newc);
-        if (!m->items) { fprintf(stderr, "Out of memory\n"); exit(1); }
-        m->capacity = newc;
-    }
-    m->items[m->count].key = value_copy(key);
-    m->items[m->count].value = value_copy(val);
-    m->count++;
+    map_append_entry(m, value_copy(key), value_copy(val));
 }
 
 Value value_map_get(Value mapval, Value key, int* found) {
@@ -339,11 +458,16 @@ void value_map_delete(Value* mapval, Value key) {
     Map* m = mapval->as.map;
     int idx = map_find_index(m, key);
     if (idx < 0) return;
+
     value_free(m->items[idx].key);
     value_free(m->items[idx].value);
-    // compact
-    for (size_t i = (size_t)idx; i + 1 < m->count; i++) m->items[i] = m->items[i+1];
-    m->count--;
+
+    for (size_t i = (size_t)idx; i + 1 < m->count; i++) m->items[i] = m->items[i + 1];
+    if (m->count > 0) m->count--;
+
+    if (m->buckets && m->bucket_count > 0) {
+        map_rehash(m, map_recommended_bucket_count(m->count));
+    }
 }
 
 void value_map_set_self(Value* mapval, Value key) {
@@ -352,39 +476,21 @@ void value_map_set_self(Value* mapval, Value key) {
     int idx = map_find_index(m, key);
     if (idx >= 0) {
         value_free(m->items[idx].value);
-        m->items[idx].value = value_alias(*mapval); // alias points to the same Map
+        m->items[idx].value = value_alias(*mapval);
         return;
     }
-    if (m->count + 1 > m->capacity) {
-        size_t newc = m->capacity == 0 ? 8 : m->capacity * 2;
-        m->items = realloc(m->items, sizeof(MapEntry) * newc);
-        if (!m->items) { fprintf(stderr, "Out of memory\n"); exit(1); }
-        m->capacity = newc;
-    }
-    m->items[m->count].key = value_copy(key);
-    m->items[m->count].value = value_alias(*mapval);
-    m->count++;
+    map_append_entry(m, value_copy(key), value_alias(*mapval));
 }
 
 Value* value_map_get_ptr(Value* mapval, Value key, bool create_if_missing) {
     if (!mapval || mapval->type != VAL_MAP) return NULL;
     Map* m = mapval->as.map;
     int idx = map_find_index(m, key);
-    if (idx >= 0) {
-        return &m->items[idx].value;
-    }
+    if (idx >= 0) return &m->items[idx].value;
     if (!create_if_missing) return NULL;
 
-    if (m->count + 1 > m->capacity) {
-        size_t newc = m->capacity == 0 ? 8 : m->capacity * 2;
-        m->items = realloc(m->items, sizeof(MapEntry) * newc);
-        if (!m->items) { fprintf(stderr, "Out of memory\n"); exit(1); }
-        m->capacity = newc;
-    }
-    m->items[m->count].key = value_copy(key);
-    m->items[m->count].value = value_null();
-    m->count++;
-    return &m->items[m->count - 1].value;
+    int64_t new_idx = map_append_entry(m, value_copy(key), value_null());
+    return &m->items[(size_t)new_idx].value;
 }
 
 Value* value_tns_get_ptr(Value v, const size_t* idxs, size_t nidxs) {
@@ -441,7 +547,11 @@ Value value_copy(Value v) {
             extern Value value_alias(Value v);
             m2->items[i].key = value_alias(m->items[i].key);
             m2->items[i].value = value_alias(m->items[i].value);
+            m2->items[i].next_hash = -1;
         }
+        m2->buckets = NULL;
+        m2->bucket_count = 0;
+        if (m2->count > 0) map_rehash(m2, map_recommended_bucket_count(m2->count));
         m2->refcount = 1;
         mtx_init(&m2->lock, 0);
         out.as.map = m2;
@@ -516,7 +626,11 @@ Value value_deep_copy(Value v) {
         for (size_t i = 0; i < m->count; i++) {
             m2->items[i].key = value_deep_copy(m->items[i].key);
             m2->items[i].value = value_deep_copy(m->items[i].value);
+            m2->items[i].next_hash = -1;
         }
+        m2->buckets = NULL;
+        m2->bucket_count = 0;
+        if (m2->count > 0) map_rehash(m2, map_recommended_bucket_count(m2->count));
         m2->refcount = 1;
         mtx_init(&m2->lock, 0);
         out.as.map = m2;
@@ -564,6 +678,7 @@ void value_free(Value v) {
                 }
                 free(m->items);
             }
+            if (m->buckets) free(m->buckets);
             mtx_destroy(&m->lock);
             free(m);
         }
