@@ -62,12 +62,15 @@ typedef struct Value {
 typedef struct MapEntry {
     Value key;
     Value value;
+    int64_t next_hash;
 } MapEntry;
 
 typedef struct Map {
     MapEntry* items;
     size_t count;
     size_t capacity;
+    int64_t* buckets;
+    size_t bucket_count;
     int refcount;
     mtx_t lock;
 } Map;
