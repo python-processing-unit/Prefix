@@ -6043,56 +6043,79 @@ static Value builtin_import(Interpreter* interp, Value* args, int argc, Expr** a
     char* found_path = NULL;
     char* srcbuf = NULL;
 
-    // Search locations: referring dir, then primary-source lib/, then executable lib/.
-    const char* search_dirs[3];
+    /* Search locations: referring dir, then primary-source stdlib/, primary-source lib/,
+       then executable stdlib/, executable lib/. This ensures `stdlib/` is tried
+       immediately before `lib/` as required by gh-55. */
+    const char* search_dirs[5];
     search_dirs[0] = referer_dir;
 
     EnvEntry* primary_src_entry = interp && interp->global_env ? env_get_entry(interp->global_env, "__MODULE_SOURCE__") : NULL;
-    char primary_lib_dir[1024];
-    primary_lib_dir[0] = '\0';
+    char primary_base_dir[1024];
+    primary_base_dir[0] = '\0';
     if (primary_src_entry && primary_src_entry->initialized && primary_src_entry->value.type == VAL_STR && primary_src_entry->value.as.s && primary_src_entry->value.as.s[0] != '\0') {
-        strncpy(primary_lib_dir, primary_src_entry->value.as.s, sizeof(primary_lib_dir)-1);
-        primary_lib_dir[sizeof(primary_lib_dir)-1] = '\0';
+        strncpy(primary_base_dir, primary_src_entry->value.as.s, sizeof(primary_base_dir)-1);
+        primary_base_dir[sizeof(primary_base_dir)-1] = '\0';
         char* last_sep = NULL;
-        for (char* q = primary_lib_dir; *q; q++) if (*q == '/' || *q == '\\') last_sep = q;
+        for (char* q = primary_base_dir; *q; q++) if (*q == '/' || *q == '\\') last_sep = q;
         if (last_sep) *last_sep = '\0';
-        size_t used = strnlen(primary_lib_dir, sizeof(primary_lib_dir));
-        if (used + 4 < sizeof(primary_lib_dir)) {
-            primary_lib_dir[used] = '/';
-            primary_lib_dir[used+1] = 'l';
-            primary_lib_dir[used+2] = 'i';
-            primary_lib_dir[used+3] = 'b';
-            primary_lib_dir[used+4] = '\0';
+        size_t used = strnlen(primary_base_dir, sizeof(primary_base_dir));
+        /* primary stdlib */
+        if (used + 7 < sizeof(primary_base_dir)) {
+            primary_base_dir[used] = '/';
+            memcpy(primary_base_dir + used + 1, "stdlib", 6);
+            primary_base_dir[used+7] = '\0';
+            search_dirs[1] = primary_base_dir;
+        } else {
+            search_dirs[1] = "stdlib";
         }
-        search_dirs[1] = primary_lib_dir;
+        /* construct a separate primary lib string for lib/ */
+        static char primary_lib_dir[1024];
+        primary_lib_dir[0] = '\0';
+        strncpy(primary_lib_dir, primary_base_dir, sizeof(primary_lib_dir)-1);
+        primary_lib_dir[sizeof(primary_lib_dir)-1] = '\0';
+        /* replace trailing "stdlib" with "lib" */
+        char* tail = strrchr(primary_lib_dir, '/');
+        if (tail) {
+            strcpy(tail+1, "lib");
+        }
+        search_dirs[2] = primary_lib_dir;
     } else {
-        search_dirs[1] = "lib";
+        search_dirs[1] = "stdlib";
+        search_dirs[2] = "lib";
     }
 
-    char exe_lib_dir[1024];
+    char exe_base_dir[1024];
+    exe_base_dir[0] = '\0';
+    static char exe_lib_dir[1024];
     exe_lib_dir[0] = '\0';
     if (g_argv && g_argv[0] && g_argv[0][0] != '\0') {
-        strncpy(exe_lib_dir, g_argv[0], sizeof(exe_lib_dir)-1);
-        exe_lib_dir[sizeof(exe_lib_dir)-1] = '\0';
+        strncpy(exe_base_dir, g_argv[0], sizeof(exe_base_dir)-1);
+        exe_base_dir[sizeof(exe_base_dir)-1] = '\0';
         char* last_sep = NULL;
-        for (char* q = exe_lib_dir; *q; q++) if (*q == '/' || *q == '\\') last_sep = q;
+        for (char* q = exe_base_dir; *q; q++) if (*q == '/' || *q == '\\') last_sep = q;
         if (last_sep) *last_sep = '\0';
-        size_t used = strnlen(exe_lib_dir, sizeof(exe_lib_dir));
-        if (used + 4 < sizeof(exe_lib_dir)) {
-            exe_lib_dir[used] = '/';
-            exe_lib_dir[used+1] = 'l';
-            exe_lib_dir[used+2] = 'i';
-            exe_lib_dir[used+3] = 'b';
-            exe_lib_dir[used+4] = '\0';
-            search_dirs[2] = exe_lib_dir;
+        size_t used = strnlen(exe_base_dir, sizeof(exe_base_dir));
+        if (used + 7 < sizeof(exe_base_dir)) {
+            exe_base_dir[used] = '/';
+            memcpy(exe_base_dir + used + 1, "stdlib", 6);
+            exe_base_dir[used+7] = '\0';
+            search_dirs[3] = exe_base_dir;
+            /* construct exe lib by replacing trailing part */
+            strncpy(exe_lib_dir, exe_base_dir, sizeof(exe_lib_dir)-1);
+            exe_lib_dir[sizeof(exe_lib_dir)-1] = '\0';
+            char* tail = strrchr(exe_lib_dir, '/');
+            if (tail) strcpy(tail+1, "lib");
+            search_dirs[4] = exe_lib_dir;
         } else {
-            search_dirs[2] = NULL;
+            search_dirs[3] = "stdlib";
+            search_dirs[4] = "lib";
         }
     } else {
-        search_dirs[2] = NULL;
+        search_dirs[3] = "stdlib";
+        search_dirs[4] = "lib";
     }
 
-    for (int sd = 0; sd < 3 && !found_path; sd++) {
+    for (int sd = 0; sd < 5 && !found_path; sd++) {
         const char* sdir = search_dirs[sd];
         if (!sdir) continue;
 
