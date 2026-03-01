@@ -330,7 +330,9 @@ Every state produced during execution is serializable and human-readable. The in
 
 ## 8. Standard Library
 
-The standard library is a group of modules for common use cases distributed with the interpreter. at the Prefix directory \lib (or /lib on non-Windows systems).
+The standard library is a group of modules for common use cases distributed with the interpreter. These bundled modules live under `stdlib/`. Module/package search paths for `IMPORT` and `IMPORT_PATH` MUST include `stdlib/` immediately before `lib/` so that standard, bundled modules take precedence over legacy or user-installed modules in `lib/`.
+
+Extension libraries shipped with the interpreter live under `stdext/`. Extension search paths MUST include `stdext/` immediately before `ext/` so that bundled extensions are preferred over user-installed `ext/` copies.
 
 ## 9. Tracebacks and Error Reporting
 

@@ -167,6 +167,19 @@ static char* resolve_extension_path(const char* input, const char* base_dir) {
     }
 
     if (g_interpreter_dir && g_interpreter_dir[0] != '\0') {
+        /* Prefer stdext/ before ext/ as per gh-55 */
+        char* stdext_dir = path_join2(g_interpreter_dir, "stdext");
+        if (stdext_dir) {
+            char* p_std = path_join2(stdext_dir, input);
+            free(stdext_dir);
+            if (p_std && file_exists_regular(p_std)) {
+                char* c = canonicalize_existing_path(p_std);
+                free(p_std);
+                return c;
+            }
+            free(p_std);
+        }
+
         char* ext_dir = path_join2(g_interpreter_dir, "ext");
         char* p = path_join2(ext_dir, input);
         free(ext_dir);
