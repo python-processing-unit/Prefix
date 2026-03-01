@@ -3502,8 +3502,44 @@ static Value builtin_lcm(Interpreter* interp, Value* args, int argc, Expr** arg_
 
 // ============ Comparison operators ============
 
-// Recursive deep equality helper for Values (returns 1 if equal, 0 otherwise)
-static int value_deep_eq(Value a, Value b) {
+typedef struct {
+    const void* a;
+    const void* b;
+    ValueType type;
+} EqSeenPair;
+
+typedef struct {
+    EqSeenPair* items;
+    size_t count;
+    size_t cap;
+} EqSeenSet;
+
+static int eq_seen_contains(EqSeenSet* seen, const void* a, const void* b, ValueType type) {
+    if (!seen) return 0;
+    for (size_t i = 0; i < seen->count; i++) {
+        EqSeenPair* p = &seen->items[i];
+        if (p->type != type) continue;
+        if ((p->a == a && p->b == b) || (p->a == b && p->b == a)) return 1;
+    }
+    return 0;
+}
+
+static void eq_seen_add(EqSeenSet* seen, const void* a, const void* b, ValueType type) {
+    if (!seen) return;
+    if (seen->count + 1 > seen->cap) {
+        size_t new_cap = seen->cap == 0 ? 16 : seen->cap * 2;
+        EqSeenPair* grown = realloc(seen->items, sizeof(EqSeenPair) * new_cap);
+        if (!grown) { fprintf(stderr, "Out of memory\n"); exit(1); }
+        seen->items = grown;
+        seen->cap = new_cap;
+    }
+    seen->items[seen->count].a = a;
+    seen->items[seen->count].b = b;
+    seen->items[seen->count].type = type;
+    seen->count++;
+}
+
+static int value_deep_eq_impl(Value a, Value b, EqSeenSet* seen) {
     if (a.type != b.type) return 0;
     switch (a.type) {
         case VAL_INT:
@@ -3519,6 +3555,9 @@ static int value_deep_eq(Value a, Value b) {
             Tensor* ta = a.as.tns;
             Tensor* tb = b.as.tns;
             if (ta == NULL || tb == NULL) return (ta == tb) ? 1 : 0;
+            if (ta == tb) return 1;
+            if (eq_seen_contains(seen, ta, tb, VAL_TNS)) return 1;
+            eq_seen_add(seen, ta, tb, VAL_TNS);
             if (ta->elem_type != tb->elem_type) return 0;
             if (ta->ndim != tb->ndim) return 0;
             for (size_t i = 0; i < ta->ndim; i++) {
@@ -3526,7 +3565,7 @@ static int value_deep_eq(Value a, Value b) {
             }
             if (ta->length != tb->length) return 0;
             for (size_t i = 0; i < ta->length; i++) {
-                if (!value_deep_eq(ta->data[i], tb->data[i])) return 0;
+                if (!value_deep_eq_impl(ta->data[i], tb->data[i], seen)) return 0;
             }
             return 1;
         }
@@ -3534,12 +3573,15 @@ static int value_deep_eq(Value a, Value b) {
             Map* ma = a.as.map;
             Map* mb = b.as.map;
             if (ma == NULL || mb == NULL) return (ma == mb) ? 1 : 0;
+            if (ma == mb) return 1;
+            if (eq_seen_contains(seen, ma, mb, VAL_MAP)) return 1;
+            eq_seen_add(seen, ma, mb, VAL_MAP);
             if (ma->count != mb->count) return 0;
             for (size_t i = 0; i < ma->count; i++) {
                 int found = 0;
                 for (size_t j = 0; j < mb->count; j++) {
-                    if (value_deep_eq(ma->items[i].key, mb->items[j].key)) {
-                        if (!value_deep_eq(ma->items[i].value, mb->items[j].value)) return 0;
+                    if (value_deep_eq_impl(ma->items[i].key, mb->items[j].key, seen)) {
+                        if (!value_deep_eq_impl(ma->items[i].value, mb->items[j].value, seen)) return 0;
                         found = 1;
                         break;
                     }
@@ -3553,6 +3595,14 @@ static int value_deep_eq(Value a, Value b) {
         default:
             return 0;
     }
+}
+
+// Recursive deep equality helper for Values (returns 1 if equal, 0 otherwise)
+static int value_deep_eq(Value a, Value b) {
+    EqSeenSet seen = {0};
+    int out = value_deep_eq_impl(a, b, &seen);
+    free(seen.items);
+    return out;
 }
 
 static Value builtin_eq(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {

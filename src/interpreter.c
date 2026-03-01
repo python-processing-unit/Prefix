@@ -1406,11 +1406,53 @@ tns_eval_fail:
                     interp->error_col = expr->column;
                     return value_null();
                 }
-                Value v = eval_expr(interp, vexpr, env);
-                if (interp->error) { value_free(k); value_free(mv); return value_null(); }
-                value_map_set(&mv, k, v);
-                value_free(k);
-                value_free(v);
+                // Special-cases for SELF usage inside map literal:
+                // - `SELF` as a bare identifier -> alias pointing to enclosing map
+                // - `SELF<...>` -> lookup into the enclosing map using the provided key(s)
+                if (vexpr->type == EXPR_IDENT && vexpr->as.ident && strcmp(vexpr->as.ident, "SELF") == 0) {
+                    value_map_set_self(&mv, k);
+                    value_free(k);
+                } else if (vexpr->type == EXPR_INDEX && vexpr->as.index.target && vexpr->as.index.target->type == EXPR_IDENT
+                           && vexpr->as.index.target->as.ident && strcmp(vexpr->as.index.target->as.ident, "SELF") == 0) {
+                    // Evaluate index key(s) and perform lookup on the partially-constructed map `mv`.
+                    ExprList* idxs = &vexpr->as.index.indices;
+                    // Only single-key lookup is supported here (map keys are scalars). If multiple indices provided,
+                    // resolve nested map access by descending.
+                    Value cur = value_copy(mv);
+                    bool err = false;
+                    Value final_val = value_null();
+                    for (size_t ii = 0; ii < idxs->count; ii++) {
+                        Expr* ik = idxs->items[ii];
+                        Value ikv = eval_expr(interp, ik, env);
+                        if (interp->error) { value_free(ikv); value_free(cur); err = true; break; }
+                        if (!(ikv.type == VAL_INT || ikv.type == VAL_STR || ikv.type == VAL_FLT)) {
+                            value_free(ikv); value_free(cur);
+                            interp->error = strdup("Map index must be INT, FLT or STR");
+                            interp->error_line = ik->line;
+                            interp->error_col = ik->column;
+                            err = true; break;
+                        }
+                        int found = 0;
+                        Value got = value_map_get(cur, ikv, &found);
+                        value_free(ikv);
+                        if (!found) { value_free(cur); final_val = value_null(); break; }
+                        value_free(cur);
+                        cur = got; // continue descending (got is a copy)
+                        if (ii + 1 == idxs->count) final_val = value_copy(cur);
+                    }
+                    if (err) { value_free(k); value_free(mv); return value_null(); }
+                    // final_val holds the value to insert (may be null)
+                    value_map_set(&mv, k, final_val);
+                    value_free(k);
+                    value_free(final_val);
+                    value_free(cur);
+                } else {
+                    Value v = eval_expr(interp, vexpr, env);
+                    if (interp->error) { value_free(k); value_free(mv); return value_null(); }
+                    value_map_set(&mv, k, v);
+                    value_free(k);
+                    value_free(v);
+                }
             }
             return mv;
         }

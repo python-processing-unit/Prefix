@@ -192,6 +192,8 @@ Map literal and `MAP` type: In addition to tensors, Prefix provides an N-dimensi
 - `<"foo" = 1, "bar" = 10>` is a 1-level map with string keys.
 - `<"outer" = <"inner" = 1>, "other" = 0>` nests a map value under key `"outer"`.
 
+A special literal `SELF` is recognized inside map literals. When used as a value within a map literal, `SELF` denotes a pointer (alias) to the enclosing `MAP` being constructed; storing `SELF` creates an entry that references the map itself so mutations via that reference affect the same map instance.
+
 Map indexing uses angle brackets and a comma-separated key list: `m<k1>` or `m<k1,k2>` to lookup nested values. Keys MUST be scalar values of type `INT`, `FLT`, or `STR` (tensor values are not permitted as keys). The number of keys supplied MAY vary between lookups and different keys need not share the same depth: maps are sparse and do not require rectangular shapes.
 
 Maps preserve insertion order: keys are stored in the order they are inserted (left-to-right for keys written in a literal and in the order of creation for keys added later). Iteration and serialized representations of a map reflect this insertion order.

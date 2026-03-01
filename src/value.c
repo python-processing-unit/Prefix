@@ -346,6 +346,26 @@ void value_map_delete(Value* mapval, Value key) {
     m->count--;
 }
 
+void value_map_set_self(Value* mapval, Value key) {
+    if (!mapval || mapval->type != VAL_MAP) return;
+    Map* m = mapval->as.map;
+    int idx = map_find_index(m, key);
+    if (idx >= 0) {
+        value_free(m->items[idx].value);
+        m->items[idx].value = value_alias(*mapval); // alias points to the same Map
+        return;
+    }
+    if (m->count + 1 > m->capacity) {
+        size_t newc = m->capacity == 0 ? 8 : m->capacity * 2;
+        m->items = realloc(m->items, sizeof(MapEntry) * newc);
+        if (!m->items) { fprintf(stderr, "Out of memory\n"); exit(1); }
+        m->capacity = newc;
+    }
+    m->items[m->count].key = value_copy(key);
+    m->items[m->count].value = value_alias(*mapval);
+    m->count++;
+}
+
 Value* value_map_get_ptr(Value* mapval, Value key, bool create_if_missing) {
     if (!mapval || mapval->type != VAL_MAP) return NULL;
     Map* m = mapval->as.map;

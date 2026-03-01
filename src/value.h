@@ -84,6 +84,9 @@ void value_map_set(Value* mapval, Value key, Value val);
 Value value_map_get(Value mapval, Value key, int* found);
 void value_map_delete(Value* mapval, Value key);
 
+// Set map entry value to an alias pointing to the map itself (SELF semantics)
+void value_map_set_self(Value* mapval, Value key);
+
 // Pointer helpers (for lvalue/indexed assignment)
 // Returns a pointer to the stored value for key, optionally creating a missing entry with NULL value.
 // Returned pointer is owned by the map; do NOT free it.

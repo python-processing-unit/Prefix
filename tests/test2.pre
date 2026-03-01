@@ -159,6 +159,11 @@ MAP: m2 = <"a" = 101, "b" = 1010>
 ASSERT(EQ(KEYS(m2), ["a", "b"]))
 ASSERT(EQ(VALUES(m2), [101, 1010]))
 
+MAP: m3 = <"a" = 1, "b" = SELF<"a">, "c" = SELF>
+ASSERT(EQ(m3<"b">, 1))
+ASSERT(EQ(m3, m3<"c">))
+DEL(m3)
+
 ! Pointer tests
 PRINT("Testing pointers...")
 INT: x = 1
