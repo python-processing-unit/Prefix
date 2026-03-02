@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Prefix Changelog</title>
+  <link rel="icon" href="./icon.png" />
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Source+Code+Pro:wght@400;700&display=swap');
+    body{background:#222;color:#99ddff;font-family:Open Sans, sans-serif;margin:0;padding:1rem}
+    .container{max-width:1000px;margin:0 auto;text-align:justify;text-justify:inter-word}
+    .container h1{ text-align:center; margin-top:0; }
+    .container h2{ text-align:center }
+    pre, code{background:#3c3c3c;color:inherit;font-family:Source Code Pro, monospace;padding:.25rem .5rem}
+    img{max-width:100%}
+  </style>
+</head>
+<body>
+  <div class="container" id="content">Rendering changelog…</div>
+
+  <!-- Markdown source is embedded below. marked.js will render it into #content. -->
+  <script id="md" type="text/markdown">
+
+# Change log
+
+The change log is a document recording what changed with every release of Prefix.
+
+---
+
+## 0.5.0
+
+### Backwards-incompatible features
+
+N/A
+
+### Backwards-compatible features
+
+Expand search paths to include `stdlib/` and `stdext/`.
+
+Add `SELF`.
+
+### Bugfixes
+
+Convert `MAP` to use a hash table for performance.
+
+---
+
+## 0.4.1
+
+### Backwards-incompatible features
+
+N/A
+
+### Backwards-compatible features
+
+N/A
+
+### Bugfixes
+
+Fix contradiction in specification regarding `FOR`.
+
+Ban `.` from identifiers.
+
+Make `TRY` catch `ParseError`.
+
+---
+
+## 0.4.0
+
+### Backwards-incompatible features
+
+N/A
+
+### Backwards-compatible features
+
+Add `NEQ` operator.
+
+Add `-private` mode.
+
+### Bugfixes
+
+N/A
+
+---
+
+## 0.3.0
+
+### Backwards-incompatible features
+
+Make `TNS` and `MAP` atomic.
+
+### Backwards-compatible features
+
+N/A
+
+### Bugfixes
+
+Fix `FUNC` handling in `SIGNATURE`.
+
+---
+
+## 0.2.0
+
+### Backwards-incompatible features
+
+N/A
+
+### Backwards-compatible features
+
+Add `FLT` infinities.
+
+Add `FLT` NaN.
+
+### Bugfixes
+
+N/A
+
+---
+
+## 0.1.0
+
+The initial release of Prefix, meaning there are no changes to record.
+
+  </script>
+
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function(){
+      const md = document.getElementById('md').textContent;
+      const rendered = marked.parse(md);
+      const container = document.getElementById('content');
+      container.innerHTML = rendered;
+
+      // Ensure predictable heading IDs so TOC fragment links work.
+      // Slug function: lowercase, remove punctuation except digits/letters/spaces/-,
+      // collapse spaces to hyphens.
+      function slugify(text) {
+        return text.trim().toLowerCase()
+          .replace(/<[^>]+>/g, '')
+          .replace(/[^a-z0-9\s-]/g, '')
+          .replace(/\s+/g, '-');
+      }
+
+      const headings = container.querySelectorAll('h1,h2,h3,h4,h5,h6');
+      headings.forEach(h => {
+        if (!h.id || h.id.trim() === '') {
+          h.id = slugify(h.textContent || h.innerText || '');
+        }
+      });
+    });
+  </script>
+</body>
+</html>
