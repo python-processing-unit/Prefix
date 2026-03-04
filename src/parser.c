@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <ctype.h>
 
 #ifdef _MSC_VER
 #define strdup _strdup
@@ -86,6 +87,102 @@ static DeclType parse_type_name(const char* name) {
     return TYPE_UNKNOWN;
 }
 
+static int base_from_literal_prefix(const char* s, size_t* prefix_len) {
+    if (!s || s[0] != '0') return -1;
+    char p = s[1];
+    switch (p) {
+        case 'b': if (prefix_len) *prefix_len = 2; return 2;
+        case 'o': if (prefix_len) *prefix_len = 2; return 8;
+        case 'd': if (prefix_len) *prefix_len = 2; return 10;
+        case 'x': if (prefix_len) *prefix_len = 2; return 16;
+        case 't': if (prefix_len) *prefix_len = 2; return 32;
+        case 'c': if (prefix_len) *prefix_len = 2; return 58;
+        case 's': if (prefix_len) *prefix_len = 2; return 64;
+        case 'r': {
+            if (!isdigit((unsigned char)s[2]) || !isdigit((unsigned char)s[3])) return -1;
+            int b = (s[2] - '0') * 10 + (s[3] - '0');
+            if (prefix_len) *prefix_len = 4;
+            return b;
+        }
+        default:
+            return -1;
+    }
+}
+
+static int digit_value_for_base(int base, char c) {
+    const char* digits64 = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz+_";
+    const char* digits58 = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+    const char* alphabet = (base == 58) ? digits58 : digits64;
+    int limit = (base == 58) ? 58 : base;
+    if (limit < 0) return -1;
+    for (int i = 0; i < limit; i++) {
+        if (alphabet[i] == c) return i;
+    }
+    return -1;
+}
+
+static int parse_prefixed_int_literal(const char* lit, int64_t* out_value, int* out_base) {
+    if (!lit || !out_value || !out_base) return 0;
+    int neg = 0;
+    const char* s = lit;
+    if (*s == '-') { neg = 1; s++; }
+
+    size_t prefix_len = 0;
+    int base = base_from_literal_prefix(s, &prefix_len);
+    if (base < 2 || base > 64) return 0;
+    const char* digits = s + prefix_len;
+    if (*digits == '\0') return 0;
+    if (strchr(digits, '.') != NULL) return 0;
+
+    int64_t acc = 0;
+    for (const char* p = digits; *p; p++) {
+        int dv = digit_value_for_base(base, *p);
+        if (dv < 0 || dv >= base) return 0;
+        if (acc > (INT64_MAX - dv) / base) return 0;
+        acc = acc * base + dv;
+    }
+
+    *out_value = neg ? -acc : acc;
+    *out_base = base;
+    return 1;
+}
+
+static int parse_prefixed_float_literal(const char* lit, double* out_value, int* out_base) {
+    if (!lit || !out_value || !out_base) return 0;
+    int neg = 0;
+    const char* s = lit;
+    if (*s == '-') { neg = 1; s++; }
+
+    size_t prefix_len = 0;
+    int base = base_from_literal_prefix(s, &prefix_len);
+    if (base < 2 || base > 64) return 0;
+    const char* digits = s + prefix_len;
+    const char* dot = strchr(digits, '.');
+    if (!dot) return 0;
+    if (dot == digits || *(dot + 1) == '\0') return 0;
+
+    double int_part = 0.0;
+    for (const char* p = digits; p < dot; p++) {
+        int dv = digit_value_for_base(base, *p);
+        if (dv < 0 || dv >= base) return 0;
+        int_part = int_part * (double)base + (double)dv;
+    }
+
+    double frac_part = 0.0;
+    double weight = 1.0 / (double)base;
+    for (const char* p = dot + 1; *p; p++) {
+        int dv = digit_value_for_base(base, *p);
+        if (dv < 0 || dv >= base) return 0;
+        frac_part += (double)dv * weight;
+        weight /= (double)base;
+    }
+
+    double v = int_part + frac_part;
+    *out_value = neg ? -v : v;
+    *out_base = base;
+    return 1;
+}
+
 static Expr* parse_expression(Parser* parser);
 static Stmt* parse_statement(Parser* parser);
 static Stmt* parse_block(Parser* parser);
@@ -129,12 +226,12 @@ static Expr* parse_primary(Parser* parser) {
         if (strcmp(parser->current_token.literal, "INF") == 0) {
             Token t = parser->current_token;
             advance(parser);
-            return expr_flt(INFINITY, t.line, t.column);
+            return expr_flt(INFINITY, 0, 1, t.line, t.column);
         }
         if (strcmp(parser->current_token.literal, "NaN") == 0) {
             Token t = parser->current_token;
             advance(parser);
-            return expr_flt(NAN, t.line, t.column);
+            return expr_flt(NAN, 0, 1, t.line, t.column);
         }
     }
     // Support negative INF written as `-INF` (but disallow `-NaN`)
@@ -143,7 +240,7 @@ static Expr* parse_primary(Parser* parser) {
             Token dash = parser->current_token;
             advance(parser); // consume '-'
             advance(parser); // consume 'INF'
-            return expr_flt(-INFINITY, dash.line, dash.column);
+            return expr_flt(-INFINITY, 0, 1, dash.line, dash.column);
         }
         if (strcmp(parser->next_token.literal, "NaN") == 0) {
             report_error(parser, "NaN must not be negative");
@@ -157,34 +254,22 @@ static Expr* parse_primary(Parser* parser) {
         return expr_async(block, kw.line, kw.column);
     }
     if (match(parser, TOKEN_NUMBER)) {
-        return expr_int(strtoll(token.literal, NULL, 2), token.line, token.column);
+        int64_t iv = 0;
+        int base = 2;
+        if (!parse_prefixed_int_literal(token.literal, &iv, &base)) {
+            report_error(parser, "Invalid INT literal");
+            return NULL;
+        }
+        return expr_int(iv, base, token.line, token.column);
     }
     if (match(parser, TOKEN_FLOAT)) {
-        // binary fixed-point: a.b
-        char* dot = strchr(token.literal, '.');
-        if (!dot) {
-            return expr_flt((double)strtoll(token.literal, NULL, 2), token.line, token.column);
+        double fv = 0.0;
+        int base = 2;
+        if (!parse_prefixed_float_literal(token.literal, &fv, &base)) {
+            report_error(parser, "Invalid FLT literal");
+            return NULL;
         }
-        bool neg = token.literal[0] == '-';
-        const char* core = neg ? token.literal + 1 : token.literal;
-        const char* dot_pos = strchr(core, '.');
-        long long left = 0;
-        long long right = 0;
-        int frac_len = 0;
-        if (dot_pos) {
-            size_t left_len = (size_t)(dot_pos - core);
-            char* left_str = (char*)malloc(left_len + 1);
-            memcpy(left_str, core, left_len);
-            left_str[left_len] = '\0';
-            left = left_len ? strtoll(left_str, NULL, 2) : 0;
-            free(left_str);
-            const char* right_str = dot_pos + 1;
-            frac_len = (int)strlen(right_str);
-            right = frac_len ? strtoll(right_str, NULL, 2) : 0;
-        }
-        double value = (double)left + (frac_len > 0 ? (double)right / (double)(1LL << frac_len) : 0.0);
-        if (neg) value = -value;
-        return expr_flt(value, token.line, token.column);
+        return expr_flt(fv, base, 0, token.line, token.column);
     }
     if (match(parser, TOKEN_STRING)) {
         return expr_str(token.literal, token.line, token.column);

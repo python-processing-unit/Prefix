@@ -17,21 +17,24 @@ static void* ast_alloc(size_t size) {
     return ptr;
 }
 
-Expr* expr_int(int64_t value, int line, int column) {
+Expr* expr_int(int64_t value, int base, int line, int column) {
     Expr* expr = ast_alloc(sizeof(Expr));
     expr->type = EXPR_INT;
     expr->line = line;
     expr->column = column;
-    expr->as.int_value = value;
+    expr->as.int_value.value = value;
+    expr->as.int_value.base = base;
     return expr;
 }
 
-Expr* expr_flt(double value, int line, int column) {
+Expr* expr_flt(double value, int base, int base_is_nan, int line, int column) {
     Expr* expr = ast_alloc(sizeof(Expr));
     expr->type = EXPR_FLT;
     expr->line = line;
     expr->column = column;
-    expr->as.flt_value = value;
+    expr->as.flt_value.value = value;
+    expr->as.flt_value.base = base;
+    expr->as.flt_value.base_is_nan = base_is_nan;
     return expr;
 }
 

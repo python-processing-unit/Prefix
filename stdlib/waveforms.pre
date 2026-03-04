@@ -1,22 +1,10 @@
 ! Waveform utilities
-!
-! API:
-! AUDIO_CLAMP(INT:v) -> INT
-! SQUARE(INT:freq, INT:ms, INT:amp, INT:sr) -> TNS
-! SAWTOOTH(INT:freq, INT:ms, INT:amp, INT:sr) -> TNS
-! TRIANGLE(INT:freq, INT:ms, INT:amp, INT:sr)
-! SINE(INT:freq, INT:ms, INT:amp, INT:sr) -> TNS
-! PULSE(INT:freq, INT:ms, INT:amp, INT:sr, INT:duty) -> TNS
-! ENVELOPE_ADSR(TNS:shape, INT:attack, INT:decay, INT:sustain, INT:release) -> TNS
-! LOWPASS(TNS:inp, INT:cutoff, INT:sr) -> TNS
-! HIGHPASS(TNS:inp, INT:cutoff, INT:sr) -> TNS
 
-! Constants / helpers local to this module.
 ! MS_DEN is the number of milliseconds per second (1000).
-INT: MS_DEN = 1111101000  ! 1000
+INT: MS_DEN = 0d1000
 
 ! Clamp audio-like values into a safe, conventional percent range [-100, 100].
-INT: AUDIO_MAX = 1100100  ! 100
+INT: AUDIO_MAX = 0d100
 
 FUNC INT: AUDIO_CLAMP(INT: v){
     IF(GT(v, AUDIO_MAX)){ RETURN(AUDIO_MAX) }
@@ -25,18 +13,18 @@ FUNC INT: AUDIO_CLAMP(INT: v){
 }
 
 FUNC TNS: SQUARE(INT: freq, INT: ms, INT: amp, INT: sr){
-    ASSERT(GT(freq, 0))
-    ASSERT(GT(ms, 0))
-    ASSERT(GT(sr, 0))
+    ASSERT(GT(freq, 0d0))
+    ASSERT(GT(ms, 0d0))
+    ASSERT(GT(sr, 0d0))
     INT: frames = DIV(MUL(sr, ms), MS_DEN)
     TNS: shape = [frames]
-    TNS: out = TNS(shape, 0)
+    TNS: out = TNS(shape, 0d0)
     DEL(shape)
     INT: period = CDIV(sr, freq)
-    IF(LTE(period, 0)){ RETURN(out) }
-    INT: half = DIV(period, 10)
+    IF(LTE(period, 0d0)){ RETURN(out) }
+    INT: half = DIV(period, 0d2)
     PARFOR(idx, frames){
-        INT: pos = MOD(SUB(idx, 1), period)
+        INT: pos = MOD(SUB(idx, 0d1), period)
         INT: v = amp
         IF(GTE(pos, half)){ v = NEG(amp) }
         out[idx] = AUDIO_CLAMP(v)
@@ -50,18 +38,18 @@ FUNC TNS: SQUARE(INT: freq, INT: ms, INT: amp, INT: sr){
 }
 
 FUNC TNS: SAWTOOTH(INT: freq, INT: ms, INT: amp, INT: sr){
-    ASSERT(GT(freq, 0))
-    ASSERT(GT(ms, 0))
-    ASSERT(GT(sr, 0))
+    ASSERT(GT(freq, 0d0))
+    ASSERT(GT(ms, 0d0))
+    ASSERT(GT(sr, 0d0))
     INT: frames = DIV(MUL(sr, ms), MS_DEN)
     TNS: shape = [frames]
-    TNS: out = TNS(shape, 0)
+    TNS: out = TNS(shape, 0d0)
     DEL(shape)
     INT: period = CDIV(sr, freq)
-    IF(LTE(period, 0)){ RETURN(out) }
+    IF(LTE(period, 0d0)){ RETURN(out) }
     PARFOR(idx, frames){
-        INT: pos = MOD(SUB(idx, 1), period)
-        INT: num = MUL(MUL(MUL(pos, 100), amp), 1)
+        INT: pos = MOD(SUB(idx, 0d1), period)
+        INT: num = MUL(MUL(MUL(pos, 0d4), amp), 0d1)
         INT: tmp = DIV(num, period)
         INT: v = SUB(tmp, amp)
         out[idx] = AUDIO_CLAMP(v)
@@ -76,26 +64,26 @@ FUNC TNS: SAWTOOTH(INT: freq, INT: ms, INT: amp, INT: sr){
 }
 
 FUNC TNS: TRIANGLE(INT: freq, INT: ms, INT: amp, INT: sr){
-    ASSERT(GT(freq, 0))
-    ASSERT(GT(ms, 0))
-    ASSERT(GT(sr, 0))
+    ASSERT(GT(freq, 0d0))
+    ASSERT(GT(ms, 0d0))
+    ASSERT(GT(sr, 0d0))
     INT: frames = DIV(MUL(sr, ms), MS_DEN)
     TNS: shape = [frames]
-    TNS: out = TNS(shape, 0)
+    TNS: out = TNS(shape, 0d0)
     DEL(shape)
     INT: period = CDIV(sr, freq)
-    IF(LTE(period, 0)){ RETURN(out) }
-    INT: half = DIV(period, 10)
+    IF(LTE(period, 0d0)){ RETURN(out) }
+    INT: half = DIV(period, 0d2)
     PARFOR(idx, frames){
-        INT: pos = MOD(SUB(idx, 1), period)
-        INT: v = 0
+        INT: pos = MOD(SUB(idx, 0d1), period)
+        INT: v = 0d0
         IF(LT(pos, half)){
-            INT: num = MUL(MUL(MUL(pos, 100), amp), 1)
+            INT: num = MUL(MUL(MUL(pos, 0d4), amp), 0d1)
             INT: tmp = DIV(num, period)
             v = ADD(NEG(amp), tmp)
         }ELSE{
             INT: t = SUB(pos, half)
-            INT: num = MUL(MUL(MUL(t, 100), amp), 1)
+            INT: num = MUL(MUL(MUL(t, 0d4), amp), 0d1)
             INT: tmp = DIV(num, period)
             v = SUB(amp, tmp)
         }
@@ -113,24 +101,24 @@ FUNC TNS: TRIANGLE(INT: freq, INT: ms, INT: amp, INT: sr){
 }
 
 FUNC TNS: SINE(INT: freq, INT: ms, INT: amp, INT: sr){
-    ASSERT(GT(freq, 0))
-    ASSERT(GT(ms, 0))
-    ASSERT(GT(sr, 0))
+    ASSERT(GT(freq, 0d0))
+    ASSERT(GT(ms, 0d0))
+    ASSERT(GT(sr, 0d0))
     INT: frames = DIV(MUL(sr, ms), MS_DEN)
     TNS: shape = [frames]
     TNS: base = SAWTOOTH(freq, ms, amp, sr)
-    TNS: out = TNS(shape, 0)
+    TNS: out = TNS(shape, 0d0)
     DEL(shape)
     PARFOR(idx, frames){
         INT: previ = idx
-        IF(GT(idx, 1)){ previ = SUB(idx, 1) }
+        IF(GT(idx, 0d1)){ previ = SUB(idx, 0d1) }
         INT: nexti = idx
-        IF(LT(idx, frames)){ nexti = ADD(idx, 1) }
+        IF(LT(idx, frames)){ nexti = ADD(idx, 0d1) }
         INT: a = base[previ]
         INT: b = base[idx]
         INT: c = base[nexti]
         INT: sum = ADD(ADD(a, b), c)
-        INT: v = DIV(sum, 11)
+        INT: v = DIV(sum, 0d3)
         out[idx] = AUDIO_CLAMP(v)
     }
     DEL(frames)
@@ -144,20 +132,20 @@ FUNC TNS: SINE(INT: freq, INT: ms, INT: amp, INT: sr){
 }
 
 FUNC TNS: PULSE(INT: freq, INT: ms, INT: amp, INT: sr, INT: duty){
-    ASSERT(GT(freq, 0))
-    ASSERT(GT(ms, 0))
-    ASSERT(GT(sr, 0))
-    ASSERT(GTE(duty, 0))
-    ASSERT(LTE(duty, 1100100))
+    ASSERT(GT(freq, 0d0))
+    ASSERT(GT(ms, 0d0))
+    ASSERT(GT(sr, 0d0))
+    ASSERT(GTE(duty, 0d0))
+    ASSERT(LTE(duty, 0d100))
     INT: frames = DIV(MUL(sr, ms), MS_DEN)
     TNS: shape = [frames]
-    TNS: out = TNS(shape, 0)
+    TNS: out = TNS(shape, 0d0)
     DEL(shape)
     INT: period = CDIV(sr, freq)
-    IF(LTE(period, 0)){ RETURN(out) }
-    INT: thresh = DIV(MUL(period, duty), 1100100)
+    IF(LTE(period, 0d0)){ RETURN(out) }
+    INT: thresh = DIV(MUL(period, duty), 0d100)
     PARFOR(idx, frames){
-        INT: pos = MOD(SUB(idx, 1), period)
+        INT: pos = MOD(SUB(idx, 0d1), period)
         INT: v = amp
         IF(GTE(pos, thresh)){ v = NEG(amp) }
         out[idx] = AUDIO_CLAMP(v)
@@ -179,19 +167,19 @@ FUNC TNS: ENVELOPE_ADSR( ^
     INT: sustain, ^
     INT: release ^
     ){
-    ASSERT(GTE(attack, 0))
-    ASSERT(GTE(decay, 0))
-    ASSERT(GTE(sustain, 0))
-    ASSERT(GTE(release, 0))
+    ASSERT(GTE(attack, 0d0))
+    ASSERT(GTE(decay, 0d0))
+    ASSERT(GTE(sustain, 0d0))
+    ASSERT(GTE(release, 0d0))
     ! determine frames from shape tensor ([1, frames] expected)
-    INT: slen = TLEN(shape, 1)
+    INT: slen = TLEN(shape, 0d1)
     INT: frames = 0
-    IF(EQ(slen, 1)){
-        frames = shape[1]
+    IF(EQ(slen, 0d1)){
+        frames = shape[0d1]
     } ELSE {
-        frames = shape[10]
-    } ! shape[10] -> ^shape[2] (binary '10')
-    TNS: out = TNS(shape, 0)
+        frames = shape[0d2]
+    }
+    TNS: out = TNS(shape, 0d0)
     ! clamp segment lengths so they don't exceed frames
     INT: a = attack
     IF(GT(a, frames)){ a = frames }
@@ -201,20 +189,20 @@ FUNC TNS: ENVELOPE_ADSR( ^
     IF(GT(ADD(ADD(a,d), r), frames)){ r = SUB(frames, ADD(a,d)) }
     INT: s_len = SUB(frames, ADD(ADD(a,d), r))
     PARFOR(idx, frames){
-        INT: z = SUB(idx, 1)
-        INT: v = 0
+        INT: z = SUB(idx, 0d1)
+        INT: v = 0d0
         IF(LT(z, a)){
             ! attack: ramp 0 -> 100
-            IF(EQ(a, 0)){ v = 100 }ELSE{
-                INT: num = MUL(idx, 100)
+            IF(EQ(a, 0d0)){ v = 0d4 }ELSE{
+                INT: num = MUL(idx, 0d4)
                 v = DIV(num, a)
             }
         } ELSE {
             INT: pos = SUB(z, a)
             IF(LT(pos, d)){
                 ! decay: ramp 100 -> sustain
-                IF(EQ(d, 0)){ v = sustain }ELSE{
-                    INT: num = MUL(SUB(100, sustain), SUB(d, pos))
+                IF(EQ(d, 0d0)){ v = sustain }ELSE{
+                    INT: num = MUL(SUB(0d4, sustain), SUB(d, pos))
                     INT: tmp = DIV(num, d)
                     v = ADD(sustain, tmp)
                 }
@@ -227,7 +215,7 @@ FUNC TNS: ENVELOPE_ADSR( ^
                     ! release region: ramp sustain -> 0
                     INT: relpos = SUB(pos2, s_len)
                     INT: relrem = SUB(r, relpos)
-                    IF(OR(EQ(r, 0), LTE(relrem, 0))){ v = 0 }ELSE{
+                    IF(OR(EQ(r, 0d0), LTE(relrem, 0d0))){ v = 0d0 }ELSE{
                         INT: num = MUL(sustain, relrem)
                         v = DIV(num, r)
                     }
@@ -246,30 +234,30 @@ FUNC TNS: ENVELOPE_ADSR( ^
 }
 
 FUNC TNS: LOWPASS(TNS: inp, INT: cutoff, INT: sr){
-    ASSERT(GT(cutoff, 0))
-    ASSERT(GT(sr, 0))
+    ASSERT(GT(cutoff, 0d0))
+    ASSERT(GT(sr, 0d0))
     TNS: shape = SHAPE(inp)
-    INT: slen = TLEN(shape, 1)
+    INT: slen = TLEN(shape, 0d1)
     INT: frames = 0
-    IF(EQ(slen, 1)){frames = shape[1] }ELSE{ frames = shape[10]}
-    TNS: out = TNS(shape, 0)
+    IF(EQ(slen, 0d1)){frames = shape[0d1] }ELSE{ frames = shape[0d2]}
+    TNS: out = TNS(shape, 0d0)
     INT: period = CDIV(sr, cutoff)
-    IF(LTE(period, 0)){ RETURN(out) }
+    IF(LTE(period, 0d0)){ RETURN(out) }
     PARFOR(idx, frames){
-        INT: z = SUB(idx, 1)
+        INT: z = SUB(idx, 0d1)
         ! compute window start
-        INT: start = SUB(z, SUB(period, 1))
-        IF(LT(start, 0)){ start = 0 }
+        INT: start = SUB(z, SUB(period, 0d1))
+        IF(LT(start, 0d0)){ start = 0d0 }
         INT: j = start
-        INT: sum = 0
+        INT: sum = 0d0
         WHILE(LTE(j, z)){
-            INT: sample = inp[ADD(j, 1)]
+            INT: sample = inp[ADD(j, 0d1)]
             sum = ADD(sum, sample)
-            j = ADD(j, 1)
+            j = ADD(j, 0d1)
         }
-        INT: count = SUB( ADD(z, 1), start )
-        INT: avg = 0
-        IF(GTE(count, 1)){ avg = DIV(sum, count) }
+        INT: count = SUB( ADD(z, 0d1), start )
+        INT: avg = 0d0
+        IF(GTE(count, 0d1)){ avg = DIV(sum, count) }
         out[idx] = AUDIO_CLAMP(avg)
     }
     DEL(slen)
@@ -287,10 +275,10 @@ FUNC TNS: HIGHPASS(TNS: inp, INT: cutoff, INT: sr){
     ! highpass = original - lowpass
     TNS: low = LOWPASS(inp, cutoff, sr)
     TNS: shape = SHAPE(inp)
-    TNS: out = TNS(shape, 0)
-    INT: slen = TLEN(shape, 1)
-    INT: frames = 0
-    IF(EQ(slen, 1)){frames = shape[1]} ELSE {frames = shape[10]}
+    TNS: out = TNS(shape, 0d0)
+    INT: slen = TLEN(shape, 0d1)
+    INT: frames = 0d0
+    IF(EQ(slen, 0d1)){frames = shape[0d1]} ELSE {frames = shape[0d2]}
     PARFOR(idx, frames){
         INT: i1 = idx
         INT: a = inp[i1]

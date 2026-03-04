@@ -117,6 +117,221 @@ static char* canonicalize_existing_path(const char* path) {
     static int g_argc = 0;
     static char** g_argv = NULL;
 
+    static const char* k_digits64 = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz+_";
+    static const char* k_digits58 = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+
+    static int is_valid_numeric_base(int base) {
+        return base >= 2 && base <= 64;
+    }
+
+    static int digit_value_for_base(int base, char c) {
+        const char* alphabet = (base == 58) ? k_digits58 : k_digits64;
+        int limit = (base == 58) ? 58 : base;
+        for (int i = 0; i < limit; i++) if (alphabet[i] == c) return i;
+        return -1;
+    }
+
+    static const char* base_prefix_str(int base, char* buf, size_t buflen) {
+        switch (base) {
+            case 2: return "0b";
+            case 8: return "0o";
+            case 10: return "0d";
+            case 16: return "0x";
+            case 32: return "0t";
+            case 58: return "0c";
+            case 64: return "0s";
+            default:
+                snprintf(buf, buflen, "0r%02d", base);
+                return buf;
+        }
+    }
+
+    static int numeric_base_of(Value v) {
+        if (v.type != VAL_INT && v.type != VAL_FLT) return 2;
+        if (v.type == VAL_FLT && v.num_base_nan) return 0;
+        return is_valid_numeric_base(v.num_base) ? v.num_base : 2;
+    }
+
+    static int result_base_from_values(Value a, Value b) {
+        int ba = numeric_base_of(a);
+        int bb = numeric_base_of(b);
+        if (ba <= 0) return bb > 0 ? bb : 2;
+        if (bb <= 0) return ba > 0 ? ba : 2;
+        return ba > bb ? ba : bb;
+    }
+
+    static char* int_to_base_prefixed_str(int64_t val, int base) {
+        if (!is_valid_numeric_base(base)) base = 2;
+        const char* alphabet = (base == 58) ? k_digits58 : k_digits64;
+        int is_negative = val < 0;
+        uint64_t uval = is_negative ? (uint64_t)(-val) : (uint64_t)val;
+
+        char digits_buf[160];
+        int dpos = (int)sizeof(digits_buf) - 1;
+        digits_buf[dpos--] = '\0';
+        if (uval == 0) {
+            digits_buf[dpos--] = '0';
+        } else {
+            while (uval > 0 && dpos >= 0) {
+                int d = (int)(uval % (uint64_t)base);
+                digits_buf[dpos--] = alphabet[d];
+                uval /= (uint64_t)base;
+            }
+        }
+
+        char pbuf[8];
+        const char* pref = base_prefix_str(base, pbuf, sizeof(pbuf));
+        size_t pref_len = strlen(pref);
+        const char* digs = &digits_buf[dpos + 1];
+        size_t digs_len = strlen(digs);
+        size_t out_len = (is_negative ? 1 : 0) + pref_len + digs_len;
+        char* out = malloc(out_len + 1);
+        if (!out) { fprintf(stderr, "Out of memory\n"); exit(1); }
+        size_t w = 0;
+        if (is_negative) out[w++] = '-';
+        memcpy(out + w, pref, pref_len); w += pref_len;
+        memcpy(out + w, digs, digs_len); w += digs_len;
+        out[w] = '\0';
+        return out;
+    }
+
+    static char* flt_to_base_prefixed_str(double val, int base, int base_is_nan) {
+        if (base_is_nan || isnan(val)) return strdup("NaN");
+        if (isinf(val)) return strdup(signbit(val) ? "-INF" : "INF");
+        if (!is_valid_numeric_base(base)) base = 2;
+        const char* alphabet = (base == 58) ? k_digits58 : k_digits64;
+
+        int is_negative = signbit(val) ? 1 : 0;
+        double aval = is_negative ? -val : val;
+        uint64_t int_part = (uint64_t)floor(aval);
+        double frac_part = aval - (double)int_part;
+
+        char int_digits[160];
+        int ipos = (int)sizeof(int_digits) - 1;
+        int_digits[ipos--] = '\0';
+        if (int_part == 0) {
+            int_digits[ipos--] = '0';
+        } else {
+            uint64_t x = int_part;
+            while (x > 0 && ipos >= 0) {
+                int d = (int)(x % (uint64_t)base);
+                int_digits[ipos--] = alphabet[d];
+                x /= (uint64_t)base;
+            }
+        }
+
+        char frac_digits[96];
+        int fpos = 0;
+        for (int i = 0; i < 32 && frac_part > 0.0; i++) {
+            frac_part *= (double)base;
+            int d = (int)floor(frac_part + 1e-15);
+            if (d < 0) d = 0;
+            if (d >= base) d = base - 1;
+            frac_digits[fpos++] = alphabet[d];
+            frac_part -= (double)d;
+            if (frac_part < 0.0) frac_part = 0.0;
+        }
+        while (fpos > 0 && frac_digits[fpos - 1] == '0') fpos--;
+        frac_digits[fpos] = '\0';
+
+        char pbuf[8];
+        const char* pref = base_prefix_str(base, pbuf, sizeof(pbuf));
+        const char* ints = &int_digits[ipos + 1];
+        size_t out_len = (is_negative ? 1 : 0) + strlen(pref) + strlen(ints) + 2 + (fpos > 0 ? (size_t)fpos : 1);
+        char* out = malloc(out_len + 1);
+        if (!out) { fprintf(stderr, "Out of memory\n"); exit(1); }
+
+        if (fpos == 0) {
+            snprintf(out, out_len + 1, "%s%s%s.0", is_negative ? "-" : "", pref, ints);
+        } else {
+            snprintf(out, out_len + 1, "%s%s%s.%s", is_negative ? "-" : "", pref, ints, frac_digits);
+        }
+        return out;
+    }
+
+    static int parse_numeric_prefix(const char* s, int* out_base, const char** out_digits) {
+        if (!s || s[0] != '0') return 0;
+        int base = -1;
+        int plen = 2;
+        switch (s[1]) {
+            case 'b': base = 2; break;
+            case 'o': base = 8; break;
+            case 'd': base = 10; break;
+            case 'x': base = 16; break;
+            case 't': base = 32; break;
+            case 'c': base = 58; break;
+            case 's': base = 64; break;
+            case 'r':
+                if (!isdigit((unsigned char)s[2]) || !isdigit((unsigned char)s[3])) return 0;
+                base = (s[2] - '0') * 10 + (s[3] - '0');
+                plen = 4;
+                break;
+            default:
+                return 0;
+        }
+        if (!is_valid_numeric_base(base)) return 0;
+        if (out_base) *out_base = base;
+        if (out_digits) *out_digits = s + plen;
+        return 1;
+    }
+
+    static int parse_prefixed_int_string(const char* text, int64_t* out_val, int* out_base) {
+        if (!text || !out_val || !out_base) return 0;
+        int neg = 0;
+        const char* s = text;
+        if (*s == '-') { neg = 1; s++; }
+        int base = 2;
+        const char* digits = NULL;
+        if (!parse_numeric_prefix(s, &base, &digits) || !digits || !*digits) return 0;
+        if (strchr(digits, '.')) return 0;
+
+        int64_t acc = 0;
+        for (const char* p = digits; *p; p++) {
+            int dv = digit_value_for_base(base, *p);
+            if (dv < 0 || dv >= base) return 0;
+            if (acc > (INT64_MAX - dv) / base) return 0;
+            acc = acc * base + dv;
+        }
+        *out_val = neg ? -acc : acc;
+        *out_base = base;
+        return 1;
+    }
+
+    static int parse_prefixed_flt_string(const char* text, double* out_val, int* out_base, int* out_base_is_nan) {
+        if (!text || !out_val || !out_base || !out_base_is_nan) return 0;
+        if (strcmp(text, "INF") == 0) { *out_val = INFINITY; *out_base = 0; *out_base_is_nan = 1; return 1; }
+        if (strcmp(text, "-INF") == 0) { *out_val = -INFINITY; *out_base = 0; *out_base_is_nan = 1; return 1; }
+        if (strcmp(text, "NaN") == 0) { *out_val = NAN; *out_base = 0; *out_base_is_nan = 1; return 1; }
+
+        int neg = 0;
+        const char* s = text;
+        if (*s == '-') { neg = 1; s++; }
+        int base = 2;
+        const char* digits = NULL;
+        if (!parse_numeric_prefix(s, &base, &digits) || !digits || !*digits) return 0;
+        const char* dot = strchr(digits, '.');
+        if (!dot || dot == digits || *(dot + 1) == '\0') return 0;
+
+        double int_part = 0.0;
+        for (const char* p = digits; p < dot; p++) {
+            int dv = digit_value_for_base(base, *p);
+            if (dv < 0 || dv >= base) return 0;
+            int_part = int_part * (double)base + (double)dv;
+        }
+        double frac_part = 0.0;
+        double weight = 1.0 / (double)base;
+        for (const char* p = dot + 1; *p; p++) {
+            int dv = digit_value_for_base(base, *p);
+            if (dv < 0 || dv >= base) return 0;
+            frac_part += (double)dv * weight;
+            weight /= (double)base;
+        }
+        *out_val = neg ? -(int_part + frac_part) : (int_part + frac_part);
+        *out_base = base;
+        *out_base_is_nan = 0;
+        return 1;
+    }
+
 // Helper: convert integer to binary string
 static char* int_to_binary_str(int64_t val) {
     if (val == 0) return strdup("0");
@@ -869,7 +1084,9 @@ static void ser_expr(JsonBuf* jb, SerCtx* ctx, Interpreter* interp, Expr* expr) 
             json_obj_field(jb, &first, "loc");
             ser_loc(jb, expr->line, expr->column);
             json_obj_field(jb, &first, "value");
-            jb_append_fmt(jb, "%lld", (long long)expr->as.int_value);
+            jb_append_fmt(jb, "%lld", (long long)expr->as.int_value.value);
+            json_obj_field(jb, &first, "base");
+            jb_append_fmt(jb, "%d", expr->as.int_value.base);
             json_obj_field(jb, &first, "literal_type");
             jb_append_json_string(jb, "INT");
             jb_append_char(jb, '}');
@@ -883,14 +1100,17 @@ static void ser_expr(JsonBuf* jb, SerCtx* ctx, Interpreter* interp, Expr* expr) 
             json_obj_field(jb, &first, "loc");
             ser_loc(jb, expr->line, expr->column);
             json_obj_field(jb, &first, "value");
-            if (isnan(expr->as.flt_value)) {
+            if (isnan(expr->as.flt_value.value)) {
                 jb_append_json_string(jb, "NaN");
-            } else if (isinf(expr->as.flt_value)) {
-                if (signbit(expr->as.flt_value)) jb_append_json_string(jb, "-INF");
+            } else if (isinf(expr->as.flt_value.value)) {
+                if (signbit(expr->as.flt_value.value)) jb_append_json_string(jb, "-INF");
                 else jb_append_json_string(jb, "INF");
             } else {
-                jb_append_fmt(jb, "%.17g", expr->as.flt_value);
+                jb_append_fmt(jb, "%.17g", expr->as.flt_value.value);
             }
+            json_obj_field(jb, &first, "base");
+            if (expr->as.flt_value.base_is_nan) jb_append_str(jb, "null");
+            else jb_append_fmt(jb, "%d", expr->as.flt_value.base);
             json_obj_field(jb, &first, "literal_type");
             jb_append_json_string(jb, "FLT");
             jb_append_char(jb, '}');
@@ -1411,7 +1631,7 @@ static void ser_stmt(JsonBuf* jb, SerCtx* ctx, Interpreter* interp, Stmt* stmt) 
 static void ser_value(JsonBuf* jb, SerCtx* ctx, Interpreter* interp, Value v) {
     switch (v.type) {
         case VAL_INT: {
-            char* s = int_to_binary_str(v.as.i);
+            char* s = int_to_base_prefixed_str(v.as.i, numeric_base_of(v));
             jb_append_char(jb, '{');
             bool first = true;
             json_obj_field(jb, &first, "t");
@@ -1423,22 +1643,15 @@ static void ser_value(JsonBuf* jb, SerCtx* ctx, Interpreter* interp, Value v) {
             return;
         }
         case VAL_FLT: {
+            char* fs = flt_to_base_prefixed_str(v.as.f, numeric_base_of(v), v.num_base_nan);
             jb_append_char(jb, '{');
             bool first = true;
             json_obj_field(jb, &first, "t");
             jb_append_json_string(jb, "FLT");
             json_obj_field(jb, &first, "v");
-            if (isnan(v.as.f)) {
-                jb_append_json_string(jb, "NaN");
-            } else if (isinf(v.as.f)) {
-                if (signbit(v.as.f)) jb_append_json_string(jb, "-INF");
-                else jb_append_json_string(jb, "INF");
-            } else {
-                char buf[64];
-                snprintf(buf, sizeof(buf), "%.17g", v.as.f);
-                jb_append_json_string(jb, buf);
-            }
+            jb_append_json_string(jb, fs);
             jb_append_char(jb, '}');
+            free(fs);
             return;
         }
         case VAL_STR: {
@@ -1743,8 +1956,8 @@ static Expr* deser_default_expr(JsonValue* raw, UnserCtx* ctx, Interpreter* inte
     }
     Value v = deser_val(raw, ctx, interp, err);
     if (*err) return NULL;
-    if (v.type == VAL_INT) return expr_int(v.as.i, 1, 1);
-    if (v.type == VAL_FLT) return expr_flt(v.as.f, 1, 1);
+    if (v.type == VAL_INT) return expr_int(v.as.i, v.num_base, 1, 1);
+    if (v.type == VAL_FLT) return expr_flt(v.as.f, v.num_base, v.num_base_nan, 1, 1);
     if (v.type == VAL_STR) return expr_str(strdup(v.as.s ? v.as.s : ""), 1, 1);
     return NULL;
 }
@@ -1764,19 +1977,26 @@ static Expr* deser_expr(JsonValue* obj, UnserCtx* ctx, Interpreter* interp, cons
         if (strcmp(lt, "INT") == 0) {
             int64_t i = 0;
             if (val && val->type == JSON_NUM) i = (int64_t)val->as.num;
-            return expr_int(i, line, col);
+            JsonValue* basev = json_obj_get(obj, "base");
+            int base = (basev && basev->type == JSON_NUM) ? (int)basev->as.num : 2;
+            return expr_int(i, base, line, col);
         }
         if (strcmp(lt, "FLT") == 0) {
             double f = 0.0;
             if (val && val->type == JSON_NUM) f = val->as.num;
             else if (val && val->type == JSON_STR) f = strtod(val->as.str, NULL);
-            return expr_flt(f, line, col);
+            JsonValue* basev = json_obj_get(obj, "base");
+            if (!basev || basev->type == JSON_NULL) {
+                return expr_flt(f, 0, 1, line, col);
+            }
+            int base = (basev->type == JSON_NUM) ? (int)basev->as.num : 2;
+            return expr_flt(f, base, 0, line, col);
         }
         if (strcmp(lt, "STR") == 0) {
             const char* s = (val && val->type == JSON_STR) ? val->as.str : "";
             return expr_str(strdup(s), line, col);
         }
-        return expr_int(0, line, col);
+        return expr_int(0, 2, line, col);
     }
     if (strcmp(name, "TensorLiteral") == 0) {
         Expr* t = expr_tns(line, col);
@@ -2126,22 +2346,26 @@ static Value deser_val(JsonValue* obj, UnserCtx* ctx, Interpreter* interp, const
     if (strcmp(tp, "INT") == 0) {
         JsonValue* v = json_obj_get(obj, "v");
         const char* s = (v && v->type == JSON_STR) ? v->as.str : "0";
-        bool neg = s[0] == '-';
-        const char* core = neg ? s + 1 : s;
         int64_t val = 0;
-        for (const char* p = core; *p; p++) {
-            if (*p == '0' || *p == '1') {
-                val = (val << 1) | (*p - '0');
-            }
+        int base = 2;
+        if (!parse_prefixed_int_string(s, &val, &base)) {
+            *err = "UNSER: invalid INT value";
+            return value_null();
         }
-        if (neg) val = -val;
-        return value_int(val);
+        return value_int_base(val, base);
     }
     if (strcmp(tp, "FLT") == 0) {
         JsonValue* v = json_obj_get(obj, "v");
         const char* s = (v && v->type == JSON_STR) ? v->as.str : "0.0";
-        double f = strtod(s, NULL);
-        return value_flt(f);
+        double f = 0.0;
+        int base = 2;
+        int base_is_nan = 0;
+        if (!parse_prefixed_flt_string(s, &f, &base, &base_is_nan)) {
+            *err = "UNSER: invalid FLT value";
+            return value_null();
+        }
+        if (base_is_nan) return value_flt_nan_base(f);
+        return value_flt_base(f, base);
     }
     if (strcmp(tp, "STR") == 0) {
         JsonValue* v = json_obj_get(obj, "v");
@@ -2369,10 +2593,11 @@ static Value builtin_add(Interpreter* interp, Value* args, int argc, Expr** arg_
     }
     
     Value result = value_null();
+    int out_base = result_base_from_values(args[0], args[1]);
     if (args[0].type == VAL_INT) {
-        result = value_int(args[0].as.i + args[1].as.i);
+        result = value_int_base(args[0].as.i + args[1].as.i, out_base);
     } else {
-        result = value_flt(args[0].as.f + args[1].as.f);
+        result = value_flt_base(args[0].as.f + args[1].as.f, out_base);
     }
     if (!writeback_first_ptr(interp, arg_nodes, env, result, "ADD", line, col)) {
         value_free(result);
@@ -2391,10 +2616,11 @@ static Value builtin_sub(Interpreter* interp, Value* args, int argc, Expr** arg_
     }
     
     Value result = value_null();
+    int out_base = result_base_from_values(args[0], args[1]);
     if (args[0].type == VAL_INT) {
-        result = value_int(args[0].as.i - args[1].as.i);
+        result = value_int_base(args[0].as.i - args[1].as.i, out_base);
     } else {
-        result = value_flt(args[0].as.f - args[1].as.f);
+        result = value_flt_base(args[0].as.f - args[1].as.f, out_base);
     }
     if (!writeback_first_ptr(interp, arg_nodes, env, result, "SUB", line, col)) {
         value_free(result);
@@ -2412,10 +2638,11 @@ static Value builtin_mul(Interpreter* interp, Value* args, int argc, Expr** arg_
         RUNTIME_ERROR(interp, "MUL cannot mix INT and FLT", line, col);
     }
     
+    int out_base = result_base_from_values(args[0], args[1]);
     if (args[0].type == VAL_INT) {
-        return value_int(args[0].as.i * args[1].as.i);
+        return value_int_base(args[0].as.i * args[1].as.i, out_base);
     }
-    return value_flt(args[0].as.f * args[1].as.f);
+    return value_flt_base(args[0].as.f * args[1].as.f, out_base);
 }
 
 static Value builtin_div(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
@@ -2427,16 +2654,17 @@ static Value builtin_div(Interpreter* interp, Value* args, int argc, Expr** arg_
         RUNTIME_ERROR(interp, "DIV cannot mix INT and FLT", line, col);
     }
     
+    int out_base = result_base_from_values(args[0], args[1]);
     if (args[0].type == VAL_INT) {
         if (args[1].as.i == 0) {
             RUNTIME_ERROR(interp, "Division by zero", line, col);
         }
-        return value_int(args[0].as.i / args[1].as.i);
+        return value_int_base(args[0].as.i / args[1].as.i, out_base);
     }
     if (args[1].as.f == 0.0) {
         RUNTIME_ERROR(interp, "Division by zero", line, col);
     }
-    return value_flt(args[0].as.f / args[1].as.f);
+    return value_flt_base(args[0].as.f / args[1].as.f, out_base);
 }
 
 // CDIV: ceiling integer division (int-only semantics similar to Python's safe_cdiv)
@@ -2463,18 +2691,19 @@ static Value builtin_mod(Interpreter* interp, Value* args, int argc, Expr** arg_
         RUNTIME_ERROR(interp, "MOD cannot mix INT and FLT", line, col);
     }
     
+    int out_base = result_base_from_values(args[0], args[1]);
     if (args[0].type == VAL_INT) {
         if (args[1].as.i == 0) {
             RUNTIME_ERROR(interp, "Division by zero", line, col);
         }
         int64_t b = args[1].as.i < 0 ? -args[1].as.i : args[1].as.i;
-        return value_int(args[0].as.i % b);
+        return value_int_base(args[0].as.i % b, out_base);
     }
     if (args[1].as.f == 0.0) {
         RUNTIME_ERROR(interp, "Division by zero", line, col);
     }
     double b = args[1].as.f < 0 ? -args[1].as.f : args[1].as.f;
-    return value_flt(fmod(args[0].as.f, b));
+    return value_flt_base(fmod(args[0].as.f, b), out_base);
 }
 
 static Value builtin_pow(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
@@ -2486,6 +2715,7 @@ static Value builtin_pow(Interpreter* interp, Value* args, int argc, Expr** arg_
         RUNTIME_ERROR(interp, "POW cannot mix INT and FLT", line, col);
     }
     
+    int out_base = result_base_from_values(args[0], args[1]);
     if (args[0].type == VAL_INT) {
         if (args[1].as.i < 0) {
             RUNTIME_ERROR(interp, "Negative exponent not supported", line, col);
@@ -2498,9 +2728,9 @@ static Value builtin_pow(Interpreter* interp, Value* args, int argc, Expr** arg_
             base *= base;
             exp >>= 1;
         }
-        return value_int(result);
+        return value_int_base(result, out_base);
     }
-    return value_flt(pow(args[0].as.f, args[1].as.f));
+    return value_flt_base(pow(args[0].as.f, args[1].as.f), out_base);
 }
 
 static Value builtin_neg(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
@@ -2508,9 +2738,9 @@ static Value builtin_neg(Interpreter* interp, Value* args, int argc, Expr** arg_
     EXPECT_NUM(args[0], "NEG", interp, line, col);
     
     if (args[0].type == VAL_INT) {
-        return value_int(-args[0].as.i);
+        return value_int_base(-args[0].as.i, numeric_base_of(args[0]));
     }
-    return value_flt(-args[0].as.f);
+    return value_flt_base(-args[0].as.f, numeric_base_of(args[0]));
 }
 
 static Value builtin_abs(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
@@ -2518,9 +2748,9 @@ static Value builtin_abs(Interpreter* interp, Value* args, int argc, Expr** arg_
     EXPECT_NUM(args[0], "ABS", interp, line, col);
     
     if (args[0].type == VAL_INT) {
-        return value_int(args[0].as.i < 0 ? -args[0].as.i : args[0].as.i);
+        return value_int_base(args[0].as.i < 0 ? -args[0].as.i : args[0].as.i, numeric_base_of(args[0]));
     }
-    return value_flt(args[0].as.f < 0 ? -args[0].as.f : args[0].as.f);
+    return value_flt_base(args[0].as.f < 0 ? -args[0].as.f : args[0].as.f, numeric_base_of(args[0]));
 }
 
 // Coercing variants
@@ -2531,7 +2761,7 @@ static Value builtin_iadd(Interpreter* interp, Value* args, int argc, Expr** arg
     
     int64_t a = args[0].type == VAL_INT ? args[0].as.i : (int64_t)args[0].as.f;
     int64_t b = args[1].type == VAL_INT ? args[1].as.i : (int64_t)args[1].as.f;
-    return value_int(a + b);
+    return value_int_base(a + b, result_base_from_values(args[0], args[1]));
 }
 
 static Value builtin_isub(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
@@ -2541,7 +2771,7 @@ static Value builtin_isub(Interpreter* interp, Value* args, int argc, Expr** arg
     
     int64_t a = args[0].type == VAL_INT ? args[0].as.i : (int64_t)args[0].as.f;
     int64_t b = args[1].type == VAL_INT ? args[1].as.i : (int64_t)args[1].as.f;
-    return value_int(a - b);
+    return value_int_base(a - b, result_base_from_values(args[0], args[1]));
 }
 
 static Value builtin_imul(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
@@ -2551,7 +2781,7 @@ static Value builtin_imul(Interpreter* interp, Value* args, int argc, Expr** arg
     
     int64_t a = args[0].type == VAL_INT ? args[0].as.i : (int64_t)args[0].as.f;
     int64_t b = args[1].type == VAL_INT ? args[1].as.i : (int64_t)args[1].as.f;
-    return value_int(a * b);
+    return value_int_base(a * b, result_base_from_values(args[0], args[1]));
 }
 
 static Value builtin_idiv(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
@@ -2564,7 +2794,7 @@ static Value builtin_idiv(Interpreter* interp, Value* args, int argc, Expr** arg
     if (b == 0) {
         RUNTIME_ERROR(interp, "Division by zero", line, col);
     }
-    return value_int(a / b);
+    return value_int_base(a / b, result_base_from_values(args[0], args[1]));
 }
 
 static Value builtin_fadd(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
@@ -2574,7 +2804,7 @@ static Value builtin_fadd(Interpreter* interp, Value* args, int argc, Expr** arg
     
     double a = args[0].type == VAL_FLT ? args[0].as.f : (double)args[0].as.i;
     double b = args[1].type == VAL_FLT ? args[1].as.f : (double)args[1].as.i;
-    Value result = value_flt(a + b);
+    Value result = value_flt_base(a + b, result_base_from_values(args[0], args[1]));
     if (!writeback_first_ptr(interp, arg_nodes, env, result, "FADD", line, col)) {
         value_free(result);
         return value_null();
@@ -2589,7 +2819,7 @@ static Value builtin_fsub(Interpreter* interp, Value* args, int argc, Expr** arg
     
     double a = args[0].type == VAL_FLT ? args[0].as.f : (double)args[0].as.i;
     double b = args[1].type == VAL_FLT ? args[1].as.f : (double)args[1].as.i;
-    return value_flt(a - b);
+    return value_flt_base(a - b, result_base_from_values(args[0], args[1]));
 }
 
 static Value builtin_fmul(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
@@ -2599,7 +2829,7 @@ static Value builtin_fmul(Interpreter* interp, Value* args, int argc, Expr** arg
     
     double a = args[0].type == VAL_FLT ? args[0].as.f : (double)args[0].as.i;
     double b = args[1].type == VAL_FLT ? args[1].as.f : (double)args[1].as.i;
-    return value_flt(a * b);
+    return value_flt_base(a * b, result_base_from_values(args[0], args[1]));
 }
 
 static Value builtin_fdiv(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
@@ -2612,7 +2842,7 @@ static Value builtin_fdiv(Interpreter* interp, Value* args, int argc, Expr** arg
     if (b == 0.0) {
         RUNTIME_ERROR(interp, "Division by zero", line, col);
     }
-    return value_flt(a / b);
+    return value_flt_base(a / b, result_base_from_values(args[0], args[1]));
 }
 
 static Value builtin_ipow(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
@@ -2631,7 +2861,7 @@ static Value builtin_ipow(Interpreter* interp, Value* args, int argc, Expr** arg
         base *= base;
         exp >>= 1;
     }
-    return value_int(result);
+    return value_int_base(result, result_base_from_values(args[0], args[1]));
 }
 
 static Value builtin_fpow(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
@@ -2641,7 +2871,7 @@ static Value builtin_fpow(Interpreter* interp, Value* args, int argc, Expr** arg
     
     double a = args[0].type == VAL_FLT ? args[0].as.f : (double)args[0].as.i;
     double b = args[1].type == VAL_FLT ? args[1].as.f : (double)args[1].as.i;
-    return value_flt(pow(a, b));
+    return value_flt_base(pow(a, b), result_base_from_values(args[0], args[1]));
 }
 
 // ============ Tensor elementwise operators ============
@@ -3722,21 +3952,30 @@ static Value builtin_band(Interpreter* interp, Value* args, int argc, Expr** arg
     (void)arg_nodes; (void)env;
     EXPECT_INT(args[0], "BAND", interp, line, col);
     EXPECT_INT(args[1], "BAND", interp, line, col);
-    return value_int(args[0].as.i & args[1].as.i);
+    if (numeric_base_of(args[0]) != 2 || numeric_base_of(args[1]) != 2) {
+        RUNTIME_ERROR(interp, "BAND requires binary INT operands", line, col);
+    }
+    return value_int_base(args[0].as.i & args[1].as.i, 2);
 }
 
 static Value builtin_bor(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
     (void)arg_nodes; (void)env;
     EXPECT_INT(args[0], "BOR", interp, line, col);
     EXPECT_INT(args[1], "BOR", interp, line, col);
-    return value_int(args[0].as.i | args[1].as.i);
+    if (numeric_base_of(args[0]) != 2 || numeric_base_of(args[1]) != 2) {
+        RUNTIME_ERROR(interp, "BOR requires binary INT operands", line, col);
+    }
+    return value_int_base(args[0].as.i | args[1].as.i, 2);
 }
 
 static Value builtin_bxor(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
     (void)arg_nodes; (void)env;
     EXPECT_INT(args[0], "BXOR", interp, line, col);
     EXPECT_INT(args[1], "BXOR", interp, line, col);
-    return value_int(args[0].as.i ^ args[1].as.i);
+    if (numeric_base_of(args[0]) != 2 || numeric_base_of(args[1]) != 2) {
+        RUNTIME_ERROR(interp, "BXOR requires binary INT operands", line, col);
+    }
+    return value_int_base(args[0].as.i ^ args[1].as.i, 2);
 }
 
 static Value builtin_bnot(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
@@ -3749,20 +3988,26 @@ static Value builtin_shl(Interpreter* interp, Value* args, int argc, Expr** arg_
     (void)arg_nodes; (void)env;
     EXPECT_INT(args[0], "SHL", interp, line, col);
     EXPECT_INT(args[1], "SHL", interp, line, col);
+    if (numeric_base_of(args[0]) != 2 || numeric_base_of(args[1]) != 2) {
+        RUNTIME_ERROR(interp, "SHL requires binary INT operands", line, col);
+    }
     if (args[1].as.i < 0) {
         RUNTIME_ERROR(interp, "SHL amount must be non-negative", line, col);
     }
-    return value_int(args[0].as.i << args[1].as.i);
+    return value_int_base(args[0].as.i << args[1].as.i, 2);
 }
 
 static Value builtin_shr(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
     (void)arg_nodes; (void)env;
     EXPECT_INT(args[0], "SHR", interp, line, col);
     EXPECT_INT(args[1], "SHR", interp, line, col);
+    if (numeric_base_of(args[0]) != 2 || numeric_base_of(args[1]) != 2) {
+        RUNTIME_ERROR(interp, "SHR requires binary INT operands", line, col);
+    }
     if (args[1].as.i < 0) {
         RUNTIME_ERROR(interp, "SHR amount must be non-negative", line, col);
     }
-    return value_int(args[0].as.i >> args[1].as.i);
+    return value_int_base(args[0].as.i >> args[1].as.i, 2);
 }
 
 // ============ Type conversion ============
@@ -3771,36 +4016,21 @@ static Value builtin_int(Interpreter* interp, Value* args, int argc, Expr** arg_
     (void)arg_nodes; (void)env;
     
     if (args[0].type == VAL_INT) {
-        return value_int(args[0].as.i);
+        return value_int_base(args[0].as.i, numeric_base_of(args[0]));
     }
     if (args[0].type == VAL_FLT) {
-        return value_int((int64_t)args[0].as.f);
+        int b = numeric_base_of(args[0]);
+        if (b <= 0) b = 2;
+        return value_int_base((int64_t)args[0].as.f, b);
     }
     if (args[0].type == VAL_STR) {
-        const char* s = args[0].as.s;
-        if (s == NULL || *s == '\0') {
-            return value_int(0);
+        int64_t val = 0;
+        int base = 2;
+        if (!args[0].as.s || !*args[0].as.s) return value_int_base(0, 2);
+        if (!parse_prefixed_int_string(args[0].as.s, &val, &base)) {
+            return value_int_base(1, 2);
         }
-        // Parse as binary integer
-        bool neg = false;
-        if (*s == '-') {
-            neg = true;
-            s++;
-        }
-        // Check if it's a valid binary string
-        bool valid = true;
-        for (const char* p = s; *p; p++) {
-            if (*p != '0' && *p != '1') {
-                valid = false;
-                break;
-            }
-        }
-        if (!valid || *s == '\0') {
-            // Non-binary non-empty string -> 1
-            return value_int(1);
-        }
-        int64_t val = strtoll(s, NULL, 2);
-        return value_int(neg ? -val : val);
+        return value_int_base(val, base);
     }
     RUNTIME_ERROR(interp, "INT expects INT, FLT, or STR argument", line, col);
 }
@@ -3809,58 +4039,59 @@ static Value builtin_flt(Interpreter* interp, Value* args, int argc, Expr** arg_
     (void)arg_nodes; (void)env;
     
     if (args[0].type == VAL_FLT) {
-        return value_flt(args[0].as.f);
+        if (args[0].num_base_nan) return value_flt_nan_base(args[0].as.f);
+        return value_flt_base(args[0].as.f, numeric_base_of(args[0]));
     }
     if (args[0].type == VAL_INT) {
-        return value_flt((double)args[0].as.i);
+        return value_flt_base((double)args[0].as.i, numeric_base_of(args[0]));
     }
     if (args[0].type == VAL_STR) {
-        // Parse binary float string
-        const char* s = args[0].as.s;
-        if (s == NULL || *s == '\0') {
-            return value_flt(0.0);
+        double fv = 0.0;
+        int base = 2;
+        int base_is_nan = 0;
+        if (!args[0].as.s || !*args[0].as.s) return value_flt_base(0.0, 2);
+        if (!parse_prefixed_flt_string(args[0].as.s, &fv, &base, &base_is_nan)) {
+            RUNTIME_ERROR(interp, "FLT string must be a base-prefixed number", line, col);
         }
-        // Accept special textual FLT values
-        if (strcmp(s, "INF") == 0) return value_flt(INFINITY);
-        if (strcmp(s, "-INF") == 0) return value_flt(-INFINITY);
-        if (strcmp(s, "NaN") == 0) return value_flt(NAN);
-        bool neg = false;
-        if (*s == '-') {
-            neg = true;
-            s++;
-        }
-        // Find dot
-        const char* dot = strchr(s, '.');
-        double int_part = 0.0;
-        double frac_part = 0.0;
-        
-        if (dot) {
-            // Parse integer part
-            for (const char* p = s; p < dot; p++) {
-                if (*p == '0' || *p == '1') {
-                    int_part = int_part * 2 + (*p - '0');
-                }
-            }
-            // Parse fractional part
-            double weight = 0.5;
-            for (const char* p = dot + 1; *p; p++) {
-                if (*p == '0' || *p == '1') {
-                    frac_part += (*p - '0') * weight;
-                    weight /= 2;
-                }
-            }
-        } else {
-            // Just integer
-            for (const char* p = s; *p; p++) {
-                if (*p == '0' || *p == '1') {
-                    int_part = int_part * 2 + (*p - '0');
-                }
-            }
-        }
-        double val = int_part + frac_part;
-        return value_flt(neg ? -val : val);
+        if (base_is_nan) return value_flt_nan_base(fv);
+        return value_flt_base(fv, base);
     }
     RUNTIME_ERROR(interp, "FLT expects INT, FLT, or STR argument", line, col);
+}
+
+// CONVERT(num, base): change numeric base of a value (INT or FLT)
+static Value builtin_convert(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
+    (void)argc; (void)arg_nodes; (void)env;
+    EXPECT_NUM(args[0], "CONVERT", interp, line, col);
+    EXPECT_INT(args[1], "CONVERT", interp, line, col);
+    int64_t base = args[1].as.i;
+    if (base < 2 || base > 64) {
+        RUNTIME_ERROR(interp, "CONVERT base must be between 2 and 64", line, col);
+    }
+    if (args[0].type == VAL_INT) return value_int_base(args[0].as.i, (int)base);
+    if (args[0].num_base_nan) return value_flt_nan_base(args[0].as.f);
+    return value_flt_base(args[0].as.f, (int)base);
+}
+
+// BASE(num): return the numeric base of a value (INT or FLT). Error on NaN-base FLT.
+static Value builtin_base(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
+    (void)argc; (void)arg_nodes; (void)env;
+    EXPECT_NUM(args[0], "BASE", interp, line, col);
+    if (args[0].type == VAL_FLT && args[0].num_base_nan) {
+        char* sval = NULL;
+        if (isnan(args[0].as.f)) {
+            sval = strdup("NaN");
+        } else if (isinf(args[0].as.f)) {
+            sval = strdup(signbit(args[0].as.f) ? "-INF" : "INF");
+        } else {
+            sval = flt_to_base_prefixed_str(args[0].as.f, args[0].num_base, 0);
+        }
+        char buf[256];
+        snprintf(buf, sizeof(buf), "BASE is undefined for %s", sval);
+        free(sval);
+        RUNTIME_ERROR(interp, buf, line, col);
+    }
+    return value_int_base((int64_t)numeric_base_of(args[0]), 10);
 }
 
 static Value builtin_str(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
@@ -3870,17 +4101,18 @@ static Value builtin_str(Interpreter* interp, Value* args, int argc, Expr** arg_
         return value_str(args[0].as.s);
     }
     if (args[0].type == VAL_INT) {
-        char* s = int_to_binary_str(args[0].as.i);
+        char* s = int_to_base_prefixed_str(args[0].as.i, numeric_base_of(args[0]));
         Value v = value_str(s);
         free(s);
         return v;
     }
     if (args[0].type == VAL_FLT) {
-        char* s = flt_to_binary_str(args[0].as.f);
+        char* s = flt_to_base_prefixed_str(args[0].as.f, numeric_base_of(args[0]), args[0].num_base_nan);
         Value v = value_str(s);
         free(s);
         return v;
     }
+    
     if (args[0].type == VAL_FUNC) {
         char buf[64];
         snprintf(buf, sizeof(buf), "<func %p>", (void*)args[0].as.func);
@@ -4636,13 +4868,13 @@ static Value builtin_print(Interpreter* interp, Value* args, int argc, Expr** ar
         if (i > 0 && forward) printf(" ");
         switch (args[i].type) {
             case VAL_INT: {
-                char* s = int_to_binary_str(args[i].as.i);
+                char* s = int_to_base_prefixed_str(args[i].as.i, numeric_base_of(args[i]));
                 if (forward) printf("%s", s);
                 free(s);
                 break;
             }
             case VAL_FLT: {
-                char* s = flt_to_binary_str(args[i].as.f);
+                char* s = flt_to_base_prefixed_str(args[i].as.f, numeric_base_of(args[i]), args[i].num_base_nan);
                 if (forward) printf("%s", s);
                 free(s);
                 break;
@@ -5051,13 +5283,13 @@ static Value builtin_signature(Interpreter* interp, Value* args, int argc, Expr*
                         strcat(buf, dv.as.s);
                         strcat(buf, "\"");
                     } else if (dv.type == VAL_INT) {
-                        char* s = int_to_binary_str(dv.as.i);
+                        char* s = int_to_base_prefixed_str(dv.as.i, numeric_base_of(dv));
                         size_t need = strlen(buf) + strlen(s) + 2;
                         if (need > cap) { cap = need * 2; buf = realloc(buf, cap); }
                         strcat(buf, s);
                         free(s);
                     } else if (dv.type == VAL_FLT) {
-                        char* s = flt_to_binary_str(dv.as.f);
+                        char* s = flt_to_base_prefixed_str(dv.as.f, numeric_base_of(dv), dv.num_base_nan);
                         size_t need = strlen(buf) + strlen(s) + 2;
                         if (need > cap) { cap = need * 2; buf = realloc(buf, cap); }
                         strcat(buf, s);
@@ -5266,19 +5498,25 @@ static Value builtin_sum(Interpreter* interp, Value* args, int argc, Expr** arg_
     
     if (args[0].type == VAL_INT) {
         int64_t sum = 0;
+        int out_base = numeric_base_of(args[0]);
         for (int i = 0; i < argc; i++) {
             EXPECT_INT(args[i], "SUM", interp, line, col);
             sum += args[i].as.i;
+            int bi = numeric_base_of(args[i]);
+            if (bi > out_base) out_base = bi;
         }
-        return value_int(sum);
+        return value_int_base(sum, out_base);
     }
     if (args[0].type == VAL_FLT) {
         double sum = 0.0;
+        int out_base = numeric_base_of(args[0]);
         for (int i = 0; i < argc; i++) {
             EXPECT_FLT(args[i], "SUM", interp, line, col);
             sum += args[i].as.f;
+            int bi = numeric_base_of(args[i]);
+            if (bi > out_base) out_base = bi;
         }
-        return value_flt(sum);
+        return value_flt_base(sum, out_base);
     }
     RUNTIME_ERROR(interp, "SUM expects INT or FLT arguments", line, col);
 }
@@ -5292,19 +5530,25 @@ static Value builtin_prod(Interpreter* interp, Value* args, int argc, Expr** arg
     
     if (args[0].type == VAL_INT) {
         int64_t prod = 1;
+        int out_base = numeric_base_of(args[0]);
         for (int i = 0; i < argc; i++) {
             EXPECT_INT(args[i], "PROD", interp, line, col);
             prod *= args[i].as.i;
+            int bi = numeric_base_of(args[i]);
+            if (bi > out_base) out_base = bi;
         }
-        return value_int(prod);
+        return value_int_base(prod, out_base);
     }
     if (args[0].type == VAL_FLT) {
         double prod = 1.0;
+        int out_base = numeric_base_of(args[0]);
         for (int i = 0; i < argc; i++) {
             EXPECT_FLT(args[i], "PROD", interp, line, col);
             prod *= args[i].as.f;
+            int bi = numeric_base_of(args[i]);
+            if (bi > out_base) out_base = bi;
         }
-        return value_flt(prod);
+        return value_flt_base(prod, out_base);
     }
     RUNTIME_ERROR(interp, "PROD expects INT or FLT arguments", line, col);
 }
@@ -5318,19 +5562,25 @@ static Value builtin_max(Interpreter* interp, Value* args, int argc, Expr** arg_
     
     if (args[0].type == VAL_INT) {
         int64_t max = args[0].as.i;
+        int out_base = numeric_base_of(args[0]);
         for (int i = 1; i < argc; i++) {
             EXPECT_INT(args[i], "MAX", interp, line, col);
             if (args[i].as.i > max) max = args[i].as.i;
+            int bi = numeric_base_of(args[i]);
+            if (bi > out_base) out_base = bi;
         }
-        return value_int(max);
+        return value_int_base(max, out_base);
     }
     if (args[0].type == VAL_FLT) {
         double max = args[0].as.f;
+        int out_base = numeric_base_of(args[0]);
         for (int i = 1; i < argc; i++) {
             EXPECT_FLT(args[i], "MAX", interp, line, col);
             if (args[i].as.f > max) max = args[i].as.f;
+            int bi = numeric_base_of(args[i]);
+            if (bi > out_base) out_base = bi;
         }
-        return value_flt(max);
+        return value_flt_base(max, out_base);
     }
     if (args[0].type == VAL_STR) {
         const char* max = args[0].as.s;
@@ -5369,8 +5619,8 @@ static Value builtin_max(Interpreter* interp, Value* args, int argc, Expr** arg_
             Tensor* tj = args[j].as.tns;
             for (size_t i = 0; i < tj->length; i++) {
                 Value v = tj->data[i];
-                if (etype == TYPE_INT && v.type == VAL_INT) { best = value_int(v.as.i); seeded = true; break; }
-                if (etype == TYPE_FLT && v.type == VAL_FLT) { best = value_flt(v.as.f); seeded = true; break; }
+                if (etype == TYPE_INT && v.type == VAL_INT) { best = value_int_base(v.as.i, numeric_base_of(v)); seeded = true; break; }
+                if (etype == TYPE_FLT && v.type == VAL_FLT) { best = value_flt_base(v.as.f, numeric_base_of(v)); seeded = true; break; }
                 if (etype == TYPE_STR && v.type == VAL_STR) { best = value_str(v.as.s); seeded = true; break; }
                 // skip non-matching elements (elem_type check above should prevent mismatches)
                 continue;
@@ -5386,10 +5636,10 @@ static Value builtin_max(Interpreter* interp, Value* args, int argc, Expr** arg_
                 Value v = tj->data[i];
                 if (etype == TYPE_INT) {
                     EXPECT_INT(v, "MAX", interp, line, col);
-                    if (v.as.i > best.as.i) { value_free(best); best = value_int(v.as.i); }
+                    if (v.as.i > best.as.i) { value_free(best); best = value_int_base(v.as.i, numeric_base_of(v)); }
                 } else if (etype == TYPE_FLT) {
                     EXPECT_FLT(v, "MAX", interp, line, col);
-                    if (v.as.f > best.as.f) { value_free(best); best = value_flt(v.as.f); }
+                    if (v.as.f > best.as.f) { value_free(best); best = value_flt_base(v.as.f, numeric_base_of(v)); }
                 } else { // STR
                     EXPECT_STR(v, "MAX", interp, line, col);
                     if (strlen(v.as.s) > strlen(best.as.s)) { value_free(best); best = value_str(v.as.s); }
@@ -5410,19 +5660,25 @@ static Value builtin_min(Interpreter* interp, Value* args, int argc, Expr** arg_
     
     if (args[0].type == VAL_INT) {
         int64_t min = args[0].as.i;
+        int out_base = numeric_base_of(args[0]);
         for (int i = 1; i < argc; i++) {
             EXPECT_INT(args[i], "MIN", interp, line, col);
             if (args[i].as.i < min) min = args[i].as.i;
+            int bi = numeric_base_of(args[i]);
+            if (bi > out_base) out_base = bi;
         }
-        return value_int(min);
+        return value_int_base(min, out_base);
     }
     if (args[0].type == VAL_FLT) {
         double min = args[0].as.f;
+        int out_base = numeric_base_of(args[0]);
         for (int i = 1; i < argc; i++) {
             EXPECT_FLT(args[i], "MIN", interp, line, col);
             if (args[i].as.f < min) min = args[i].as.f;
+            int bi = numeric_base_of(args[i]);
+            if (bi > out_base) out_base = bi;
         }
-        return value_flt(min);
+        return value_flt_base(min, out_base);
     }
     if (args[0].type == VAL_STR) {
         const char* min = args[0].as.s;
@@ -5458,8 +5714,8 @@ static Value builtin_min(Interpreter* interp, Value* args, int argc, Expr** arg_
             Tensor* tj = args[j].as.tns;
             for (size_t i = 0; i < tj->length; i++) {
                 Value v = tj->data[i];
-                if (etype == TYPE_INT && v.type == VAL_INT) { best = value_int(v.as.i); seeded = true; break; }
-                if (etype == TYPE_FLT && v.type == VAL_FLT) { best = value_flt(v.as.f); seeded = true; break; }
+                if (etype == TYPE_INT && v.type == VAL_INT) { best = value_int_base(v.as.i, numeric_base_of(v)); seeded = true; break; }
+                if (etype == TYPE_FLT && v.type == VAL_FLT) { best = value_flt_base(v.as.f, numeric_base_of(v)); seeded = true; break; }
                 if (etype == TYPE_STR && v.type == VAL_STR) { best = value_str(v.as.s); seeded = true; break; }
                 // skip non-matching elements (elem_type check above should prevent mismatches)
                 continue;
@@ -5474,10 +5730,10 @@ static Value builtin_min(Interpreter* interp, Value* args, int argc, Expr** arg_
                 Value v = tj->data[i];
                 if (etype == TYPE_INT) {
                     EXPECT_INT(v, "MIN", interp, line, col);
-                    if (v.as.i < best.as.i) { value_free(best); best = value_int(v.as.i); }
+                    if (v.as.i < best.as.i) { value_free(best); best = value_int_base(v.as.i, numeric_base_of(v)); }
                 } else if (etype == TYPE_FLT) {
                     EXPECT_FLT(v, "MIN", interp, line, col);
-                    if (v.as.f < best.as.f) { value_free(best); best = value_flt(v.as.f); }
+                    if (v.as.f < best.as.f) { value_free(best); best = value_flt_base(v.as.f, numeric_base_of(v)); }
                 } else {
                     EXPECT_STR(v, "MIN", interp, line, col);
                     if (strlen(v.as.s) < strlen(best.as.s)) { value_free(best); best = value_str(v.as.s); }
@@ -6959,6 +7215,8 @@ static BuiltinFunction builtins_table[] = {
     {"INT", 1, 1, builtin_int},
     {"FLT", 1, 1, builtin_flt},
     {"STR", 1, 1, builtin_str},
+    {"CONVERT", 2, 2, builtin_convert},
+    {"BASE", 1, 1, builtin_base},
     {"BYTES", 1, 2, builtin_bytes, builtin_params_bytes, 2},
     {"SER", 1, 1, builtin_ser},
     {"UNSER", 1, 1, builtin_unser},
