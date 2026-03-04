@@ -10,23 +10,35 @@
 #endif
 
 Value value_null(void) {
-    Value v; v.type = VAL_NULL; return v;
+    Value v; v.type = VAL_NULL; v.num_base = 2; v.num_base_nan = 0; return v;
 }
 
 Value value_int(int64_t v) {
-    Value val; val.type = VAL_INT; val.as.i = v; return val;
+    Value val; val.type = VAL_INT; val.as.i = v; val.num_base = 2; val.num_base_nan = 0; return val;
 }
 
 Value value_flt(double v) {
-    Value val; val.type = VAL_FLT; val.as.f = v; return val;
+    Value val; val.type = VAL_FLT; val.as.f = v; val.num_base = 2; val.num_base_nan = 0; return val;
+}
+
+Value value_int_base(int64_t v, int base) {
+    Value val; val.type = VAL_INT; val.as.i = v; val.num_base = base; val.num_base_nan = 0; return val;
+}
+
+Value value_flt_base(double v, int base) {
+    Value val; val.type = VAL_FLT; val.as.f = v; val.num_base = base; val.num_base_nan = 0; return val;
+}
+
+Value value_flt_nan_base(double v) {
+    Value val; val.type = VAL_FLT; val.as.f = v; val.num_base = 0; val.num_base_nan = 1; return val;
 }
 
 Value value_str(const char* s) {
-    Value val; val.type = VAL_STR; val.as.s = s ? strdup(s) : strdup(""); return val;
+    Value val; val.type = VAL_STR; val.num_base = 2; val.num_base_nan = 0; val.as.s = s ? strdup(s) : strdup(""); return val;
 }
 
 Value value_func(struct Func* func) {
-    Value val; val.type = VAL_FUNC; val.as.func = func; return val;
+    Value val; val.type = VAL_FUNC; val.num_base = 2; val.num_base_nan = 0; val.as.func = func; return val;
 }
 
 Value value_thr_new(void) {
@@ -40,7 +52,7 @@ Value value_thr_new(void) {
     t->env = NULL;
     mtx_init(&t->state_lock, 0);
     memset(&t->thread, 0, sizeof(thrd_t));
-    Value v; v.type = VAL_THR; v.as.thr = t; return v;
+    Value v; v.type = VAL_THR; v.num_base = 2; v.num_base_nan = 0; v.as.thr = t; return v;
 }
 
 int value_thr_is_running(Value v) {
@@ -116,6 +128,8 @@ static size_t compute_strides(const size_t* shape, size_t ndim, size_t* out_stri
 Value value_tns_new(DeclType elem_type, size_t ndim, const size_t* shape) {
     Value v;
     v.type = VAL_TNS;
+    v.num_base = 2;
+    v.num_base_nan = 0;
     Tensor* t = malloc(sizeof(Tensor));
     if (!t) { fprintf(stderr, "Out of memory\n"); exit(1); }
     t->elem_type = elem_type;
@@ -417,7 +431,7 @@ static int64_t map_append_entry(Map* m, Value key_copy, Value val_copy) {
 }
 
 Value value_map_new(void) {
-    Value v; v.type = VAL_MAP;
+    Value v; v.type = VAL_MAP; v.num_base = 2; v.num_base_nan = 0;
     Map* m = malloc(sizeof(Map));
     if (!m) { fprintf(stderr, "Out of memory\n"); exit(1); }
     m->items = NULL;

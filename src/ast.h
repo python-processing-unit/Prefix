@@ -56,8 +56,8 @@ struct Expr {
     int line;
     int column;
     union {
-        int64_t int_value;
-        double flt_value;
+        struct { int64_t value; int base; } int_value;
+        struct { double value; int base; int base_is_nan; } flt_value;
         char* str_value;
         char* ident;
         char* ptr_name;
@@ -150,8 +150,8 @@ struct Stmt {
     } as;
 };
 
-Expr* expr_int(int64_t value, int line, int column);
-Expr* expr_flt(double value, int line, int column);
+Expr* expr_int(int64_t value, int base, int line, int column);
+Expr* expr_flt(double value, int base, int base_is_nan, int line, int column);
 Expr* expr_str(char* value, int line, int column);
 Expr* expr_ptr(char* name, int line, int column);
 Expr* expr_ident(char* name, int line, int column);

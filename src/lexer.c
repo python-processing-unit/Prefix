@@ -49,6 +49,8 @@ static Token number_token(Lexer* lexer, bool is_negative_start);
 static Token identifier_token(Lexer* lexer);
 static void consume_line_continuation(Lexer* lexer);
 static int hex_digit(char c);
+static bool is_base_prefix_char(char c);
+static bool is_number_body_char(char c);
 
 static PTokenType check_keyword(const char* text, size_t length) {
 #define KEYWORD(str, type) \
@@ -189,6 +191,17 @@ static int hex_digit(char c) {
     return -1;
 }
 
+static bool is_base_prefix_char(char c) {
+    return c == 'b' || c == 'o' || c == 'd' || c == 'x' || c == 't' || c == 'c' || c == 's' || c == 'r';
+}
+
+static bool is_number_body_char(char c) {
+    if (c >= '0' && c <= '9') return true;
+    if (c >= 'A' && c <= 'Z') return true;
+    if (c >= 'a' && c <= 'z') return true;
+    return c == '+' || c == '_';
+}
+
 Token lexer_next_token(Lexer* lexer) {
     while (!is_at_end(lexer)) {
         char c = peek(lexer);
@@ -278,8 +291,8 @@ Token lexer_next_token(Lexer* lexer) {
                   (lexer->source[lookahead] == ' ' || lexer->source[lookahead] == '\t' || lexer->source[lookahead] == '\r')) {
                 lookahead++;
             }
-            if (lookahead < lexer->source_len &&
-               (lexer->source[lookahead] == '0' || lexer->source[lookahead] == '1')) {
+                if (lookahead + 1 < lexer->source_len &&
+                    (lexer->source[lookahead] == '0' && is_base_prefix_char(lexer->source[lookahead + 1]))) {
                    while(lexer->current < lookahead) advance(lexer);
                    return number_token(lexer, true);
             }
@@ -288,7 +301,7 @@ Token lexer_next_token(Lexer* lexer) {
             return t;
         }
 
-        if (c == '0' || c == '1') {
+        if (c == '0' && is_base_prefix_char(peek_next(lexer))) {
             return number_token(lexer, false);
         }
 
@@ -487,65 +500,69 @@ static Token number_token(Lexer* lexer, bool is_negative_start) {
     char* value = safe_malloc(capacity);
     size_t len_val = 0;
     
-    if (is_negative_start) {
-        value[len_val++] = '-';
+    if (is_negative_start) value[len_val++] = '-';
+
+    if (peek(lexer) != '0') {
+        free(value);
+        return error_token(lexer, "Invalid numeric literal; expected base prefix");
     }
-    
+    if (len_val + 1 >= capacity) { capacity *= 2; value = safe_realloc(value, capacity); }
+    value[len_val++] = advance(lexer); // 0
+
+    if (!is_base_prefix_char(peek(lexer))) {
+        free(value);
+        return error_token(lexer, "Invalid numeric literal base prefix");
+    }
+    if (len_val + 1 >= capacity) { capacity *= 2; value = safe_realloc(value, capacity); }
+    char pref = advance(lexer);
+    value[len_val++] = pref;
+
+    if (pref == 'r') {
+        if (!isdigit((unsigned char)peek(lexer)) || !isdigit((unsigned char)peek_next(lexer))) {
+            free(value);
+            return error_token(lexer, "0r literals require two decimal base digits");
+        }
+        if (len_val + 2 >= capacity) { capacity *= 2; value = safe_realloc(value, capacity); }
+        value[len_val++] = advance(lexer);
+        value[len_val++] = advance(lexer);
+    }
+
+    bool has_any = false;
+    bool has_dot = false;
+    bool has_frac = false;
     while (!is_at_end(lexer)) {
         char c = peek(lexer);
-        if (c == '0' || c == '1') {
-            advance(lexer);
-            if (len_val + 1 >= capacity) { capacity *= 2; value = safe_realloc(value, capacity); }
-            value[len_val++] = c;
-        } else if (c == '^') {
+        if (c == '^') {
             consume_line_continuation(lexer);
-        } else {
-            break;
+            continue;
         }
+        if (c == '.' && !has_dot) {
+            has_dot = true;
+            if (len_val + 1 >= capacity) { capacity *= 2; value = safe_realloc(value, capacity); }
+            value[len_val++] = advance(lexer);
+            continue;
+        }
+        if (is_number_body_char(c)) {
+            has_any = true;
+            if (has_dot) has_frac = true;
+            if (len_val + 1 >= capacity) { capacity *= 2; value = safe_realloc(value, capacity); }
+            value[len_val++] = advance(lexer);
+            continue;
+        }
+        break;
     }
-    
-    if (peek(lexer) == '.') {
-        size_t saved_current = lexer->current;
-        int saved_line = lexer->line;
-        int saved_col = lexer->column;
-        
-        advance(lexer); 
-        
-        bool has_frac = false;
-        size_t frac_start_len = len_val;
-        if (len_val + 1 >= capacity) { capacity *= 2; value = safe_realloc(value, capacity); }
-        value[len_val++] = '.';
-        
-        while (!is_at_end(lexer)) {
-            char c = peek(lexer);
-            if (c == '0' || c == '1') {
-                advance(lexer);
-                has_frac = true;
-                if (len_val + 1 >= capacity) { capacity *= 2; value = safe_realloc(value, capacity); }
-                value[len_val++] = c;
-            } else if (c == '^') {
-                consume_line_continuation(lexer);
-            } else {
-                break;
-            }
-        }
-        
-            if (!has_frac) {
-            lexer->current = saved_current;
-            lexer->line = saved_line;
-            lexer->column = saved_col;
-            len_val = frac_start_len;
-            value[len_val] = '\0';
-            Token t = {TOKEN_NUMBER, value, start_line, start_col};
-            return t;
-        }
-        
-        value[len_val] = '\0';
-        Token t = {TOKEN_FLOAT, value, start_line, start_col};
-        return t;
+
+    if (!has_any) {
+        free(value);
+        return error_token(lexer, "Numeric literal requires digits after base prefix");
     }
-    
+
+    if (has_dot && !has_frac) {
+        free(value);
+        return error_token(lexer, "Float literal requires fractional digits");
+    }
+
     value[len_val] = '\0';
-    Token t = {TOKEN_NUMBER, value, start_line, start_col};
+    Token t = {has_dot ? TOKEN_FLOAT : TOKEN_NUMBER, value, start_line, start_col};
     return t;
 }

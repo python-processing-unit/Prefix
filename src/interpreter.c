@@ -688,10 +688,13 @@ Value eval_expr(Interpreter* interp, Expr* expr, Env* env) {
     
     switch (expr->type) {
         case EXPR_INT:
-            return value_int(expr->as.int_value);
+            return value_int_base(expr->as.int_value.value, expr->as.int_value.base);
             
         case EXPR_FLT:
-            return value_flt(expr->as.flt_value);
+            if (expr->as.flt_value.base_is_nan) {
+                return value_flt_nan_base(expr->as.flt_value.value);
+            }
+            return value_flt_base(expr->as.flt_value.value, expr->as.flt_value.base);
             
         case EXPR_STR:
             return value_str(expr->as.str_value);

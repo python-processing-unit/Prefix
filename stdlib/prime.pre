@@ -1,85 +1,78 @@
 ! Primality and factorization functions
-!
-! API:
-! IS_PRIME(INT: n) -> INT
-! NEXT_PRIME(INT: start) -> INT
-! PREV_PRIME(INT: start) -> INT
-! IS_MERSENNE_PRIME(INT: p) -> INT
-! FACTOR(INT: n) -> TNS
 
 FUNC INT: IS_PRIME(INT: n){
-    IF(LTE(n, 1)){
-        RETURN(0)
+    IF(LTE(n, 0d1)){
+        RETURN(0d0)
     }
-    IF(EQ(n, 10)){
-        RETURN(1)
+    IF(EQ(n, 0d2)){
+        RETURN(0d1)
     }
     ! reject even numbers greater than 2
-    IF(EQ(MOD(n, 10), 0)){
-        RETURN(0)
+    IF(EQ(MOD(n, 0d2), 0d0)){
+        RETURN(0d0)
     }
-    INT: i = 11
+    INT: i = 0d3
     WHILE(LTE(MUL(i, i), n)){
-        IF(EQ(MOD(n, i), 0)){
-            RETURN(0)
+        IF(EQ(MOD(n, i), 0d0)){
+            RETURN(0d0)
         }
-        ADD(@i, 10)
+        ADD(@i, 0d2)
     }
-    RETURN(1)
+    RETURN(0d1)
 }
 
 FUNC INT: NEXT_PRIME(INT: start){
-    INT: n = ADD(start, 1)
-    WHILE(1){
+    INT: n = ADD(start, 0d1)
+    WHILE(0d1){
         IF(IS_PRIME(n)){
             RETURN(n)
         }
-        ADD(@n, 1)
+        ADD(@n, 0d1)
     }
 }
 
 FUNC INT: PREV_PRIME(INT: start){
-    INT: n = SUB(start, 1)
-    WHILE(GT(n, 1)){
+    INT: n = SUB(start, 0d1)
+    WHILE(GT(n, 0d1)){
         IF(IS_PRIME(n)){
             RETURN(n)
         }
-        SUB(@n, 1)
+        SUB(@n, 0d1)
     }
-    RETURN(0)
+    RETURN(0d0)
 }
 
 FUNC INT: IS_MERSENNE_PRIME(INT: p){
     IF(IS_PRIME(p)){
-        INT: exp = POW(10, p)
-        INT: mersenne = SUB(exp, 1)
+        INT: exp = POW(0d2, p)
+        INT: mersenne = SUB(exp, 0d1)
         IF(IS_PRIME(mersenne)){
-            RETURN(1)
+            RETURN(0d1)
         }
-        RETURN(0)
+        RETURN(0d0)
     }ELSE{
-        RETURN(0)
+        RETURN(0d0)
     }
 }
 
 FUNC TNS: FACTOR(INT: n){
-    IF(LTE(n, 1)){
-        TNS: empty = [0]
+    IF(LTE(n, 0d1)){
+        TNS: empty = [0d0]
         RETURN(empty)
     }
-    INT: p = 10
-    INT: coll_len = 0
-    TNS: coll = [0]  ! placeholder, real shape tracked by coll_len
+    INT: p = 0d2
+    INT: coll_len = 0d0
+    TNS: coll = [0d0]  ! placeholder, real shape tracked by coll_len
     WHILE(LTE(MUL(p, p), n)){
-        IF(EQ(MOD(n, p), 0)){
-            IF(EQ(coll_len, 0)){
+        IF(EQ(MOD(n, p), 0d0)){
+            IF(EQ(coll_len, 0d0)){
                 TNS: first = [p]
                 coll = first
-                coll_len = 1
+                coll_len = 0d1
             } ELSE {
-                INT: old_len = TLEN(coll, 1)
-                INT: new_len = ADD(old_len, 1)
-                TNS: new_coll = TNS([new_len], 0)
+                INT: old_len = TLEN(coll, 0d1)
+                INT: new_len = ADD(old_len, 0d1)
+                TNS: new_coll = TNS([new_len], 0d0)
                 FOR(i, old_len){
                     new_coll[i] = coll[i]
                 }
@@ -89,18 +82,18 @@ FUNC TNS: FACTOR(INT: n){
             }
             DIV(@n, p)
         } ELSE {
-            p = NEXT_PRIME( ADD(p, 1) )
+            p = NEXT_PRIME( ADD(p, 0d1) )
         }
     }
-    IF(GT(n, 1)){
-        IF(EQ(coll_len, 0)){
+    IF(GT(n, 0d1)){
+        IF(EQ(coll_len, 0d0)){
             TNS: last = [n]
             coll = last
-            coll_len = 1
+            coll_len = 0d1
         } ELSE {
-            INT: old_len2 = TLEN(coll, 1)
-            INT: new_len2 = ADD(old_len2, 1)
-            TNS: new_coll2 = TNS([new_len2], 0)
+            INT: old_len2 = TLEN(coll, 0d1)
+            INT: new_len2 = ADD(old_len2, 0d1)
+            TNS: new_coll2 = TNS([new_len2], 0d0)
             FOR(j, old_len2){
                 new_coll2[j] = coll[j]
             }
