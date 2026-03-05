@@ -900,6 +900,8 @@ Tensor indexing uses the expression form `tensor[i1, i2, ..., iN]`. The number o
 
 - `INT: PRINT(INT|STR: a1, INT|STR: a2, ..., INT|STR: aN)` ; prints `INT`/`STR` arguments (side-effect), tensors are rejected; returns `INT` 0
 
+- `INT: WARN(INT|STR: a1, INT|STR: a2, ..., INT|STR: aN)` ; if the interpreter was started with the `-verbose` flag, prints `WARNING: ` followed by the arguments side-by-side using the same rendering rules as `PRINT`. Returns `INT` 1 when the warning was printed, otherwise `INT` 0. Tensors are rejected.
+
 - `INT: CL(STR: command)` - Executes the provided `command` string using the host shell and returns the subprocess exit code as an `INT`. The `command` argument MUST be a `STR`. On a failure to start the subprocess (for example if the system cannot invoke a shell), the interpreter raises a runtime error (rewrite: CL). The call records a `CL` event in the execution I/O log containing the command text and returned exit code, enabling deterministic logging and replay.
 
 - `INT: SHUSH()` - Suppresses forwarding of console output to the configured output sink. While shushed, calls that would normally print to the console (for example, `PRINT` and output captured from `CL`) do not forward their text to the interpreter's output sink, though the interpreter continues to record the corresponding I/O events in the execution log for deterministic replay. `INPUT` prompts are still forwarded even when shushed. The `RUN`  operator temporarily disables shushing for the duration of the executed source, so any output produced by code run via `RUN` is forwarded regardless of the current shush state. `SHUSH` takes no arguments and returns `INT` 0 on success.

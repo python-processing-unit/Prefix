@@ -4894,6 +4894,45 @@ static Value builtin_print(Interpreter* interp, Value* args, int argc, Expr** ar
     return value_int(0);
 }
 
+static Value builtin_warn(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
+    (void)arg_nodes; (void)env; (void)line; (void)col;
+    if (!interp) return value_int(0);
+
+    int forward = (interp->verbose && !interp->shushed);
+
+    if (forward) {
+        printf("WARNING: ");
+        for (int i = 0; i < argc; i++) {
+            if (i > 0) printf(" ");
+            switch (args[i].type) {
+                case VAL_INT: {
+                    char* s = int_to_base_prefixed_str(args[i].as.i, numeric_base_of(args[i]));
+                    printf("%s", s);
+                    free(s);
+                    break;
+                }
+                case VAL_FLT: {
+                    char* s = flt_to_base_prefixed_str(args[i].as.f, numeric_base_of(args[i]), args[i].num_base_nan);
+                    printf("%s", s);
+                    free(s);
+                    break;
+                }
+                case VAL_STR:
+                    printf("%s", args[i].as.s);
+                    break;
+                case VAL_FUNC:
+                    printf("<func %p>", (void*)args[i].as.func);
+                    break;
+                default:
+                    printf("<null>");
+                    break;
+            }
+        }
+        printf("\n");
+    }
+    return value_int(forward ? 1 : 0);
+}
+
 static Value builtin_input(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
     (void)arg_nodes; (void)env; (void)interp; (void)line; (void)col;
     
@@ -7250,6 +7289,7 @@ static BuiltinFunction builtins_table[] = {
 
     // I/O
     {"PRINT", 0, -1, builtin_print},
+    {"WARN", 0, -1, builtin_warn},
     {"INPUT", 0, 1, builtin_input},
     {"SHUSH", 0, 0, builtin_shush},
     {"UNSHUSH", 0, 0, builtin_unshush},
