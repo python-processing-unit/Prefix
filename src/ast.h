@@ -20,6 +20,7 @@ typedef struct Stmt Stmt;
 typedef struct Param {
     DeclType type;
     char* name;
+    bool coerced;
     Expr* default_value; // optional
 } Param;
 

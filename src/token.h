@@ -28,6 +28,7 @@ typedef enum {
     TOKEN_EQUALS,   // =
     TOKEN_COLON,    // :
     TOKEN_AT,       // @
+    TOKEN_TILDE,    // ~
     TOKEN_STAR,     // *
     TOKEN_DOT,      // .
     TOKEN_DASH,     // - (when used as slice range separator)

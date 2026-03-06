@@ -194,8 +194,13 @@ static bool is_type_token(PTokenType type) {
 static bool parse_param_list(Parser* parser, ParamList* params) {
     if (parser->current_token.type == TOKEN_RPAREN) return true;
     do {
+        bool coerced = false;
+        if (match(parser, TOKEN_TILDE)) {
+            coerced = true;
+        }
         if (!is_type_token(parser->current_token.type)) {
-            report_error(parser, "Expected parameter type");
+            if (coerced) report_error(parser, "Expected parameter type after '~'");
+            else report_error(parser, "Expected parameter type");
             return false;
         }
         DeclType ptype = parse_type_name(parser->current_token.literal);
@@ -208,6 +213,7 @@ static bool parse_param_list(Parser* parser, ParamList* params) {
         Param param;
         param.type = ptype;
         param.name = parser->current_token.literal;
+        param.coerced = coerced;
         param.default_value = NULL;
         advance(parser);
         if (match(parser, TOKEN_EQUALS)) {
