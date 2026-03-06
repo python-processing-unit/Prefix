@@ -157,10 +157,13 @@ FUNC INT: BUILTIN_TESTS(){
     ! Typed first assignment returns the assigned value
     ASSERT( EQ( ASSIGN(INT: ax, 1), 1 ) )
     ASSERT( EQ( ax, 1 ) )
+    ASSERT( EQ( ASSIGN(STR: as, "ok"), "ok" ) )
+    ASSERT( EQ( as, "ok" ) )
     ! Untyped assignment allowed once type exists
     ASSERT( EQ( ASSIGN(ax, 10), 10 ) )
     ASSERT( EQ( ax, 10 ) )
     DEL(ax)
+    DEL(as)
 
     ! Indexed ASSIGN on tensor
     TNS: at = [0, 0]

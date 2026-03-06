@@ -1183,6 +1183,20 @@ static void ser_expr(JsonBuf* jb, SerCtx* ctx, Interpreter* interp, Expr* expr) 
             jb_append_char(jb, '}');
             return;
         }
+        case EXPR_TYPED_IDENT: {
+            jb_append_char(jb, '{');
+            bool first = true;
+            json_obj_field(jb, &first, "n");
+            jb_append_json_string(jb, "TypedIdentifier");
+            json_obj_field(jb, &first, "loc");
+            ser_loc(jb, expr->line, expr->column);
+            json_obj_field(jb, &first, "decl_type");
+            jb_append_json_string(jb, decl_type_name(expr->as.typed_ident.decl_type));
+            json_obj_field(jb, &first, "name");
+            jb_append_json_string(jb, expr->as.typed_ident.name ? expr->as.typed_ident.name : "");
+            jb_append_char(jb, '}');
+            return;
+        }
         case EXPR_PTR: {
             jb_append_char(jb, '{');
             bool first = true;
@@ -2038,6 +2052,13 @@ static Expr* deser_expr(JsonValue* obj, UnserCtx* ctx, Interpreter* interp, cons
         JsonValue* nm = json_obj_get(obj, "name");
         const char* s = (nm && nm->type == JSON_STR) ? nm->as.str : "";
         return expr_ident(strdup(s), line, col);
+    }
+    if (strcmp(name, "TypedIdentifier") == 0) {
+        JsonValue* typev = json_obj_get(obj, "decl_type");
+        JsonValue* nm = json_obj_get(obj, "name");
+        const char* t = (typev && typev->type == JSON_STR) ? typev->as.str : "";
+        const char* s = (nm && nm->type == JSON_STR) ? nm->as.str : "";
+        return expr_typed_ident(decl_type_from_name(t), strdup(s), line, col);
     }
     if (strcmp(name, "PointerExpression") == 0) {
         JsonValue* nm = json_obj_get(obj, "target");
@@ -6162,6 +6183,52 @@ static Value builtin_assign(Interpreter* interp, Value* args, int argc, Expr** a
     if (args == NULL) RUNTIME_ERROR(interp, "ASSIGN internal error", line, col);
 
     Value rhs = args[1];
+
+    if (target->type == EXPR_TYPED_IDENT) {
+        const char* name = target->as.typed_ident.name;
+        DeclType expected = target->as.typed_ident.decl_type;
+        DeclType actual;
+
+        switch (rhs.type) {
+            case VAL_INT: actual = TYPE_INT; break;
+            case VAL_FLT: actual = TYPE_FLT; break;
+            case VAL_STR: actual = TYPE_STR; break;
+            case VAL_TNS: actual = TYPE_TNS; break;
+            case VAL_MAP: actual = TYPE_MAP; break;
+            case VAL_FUNC: actual = TYPE_FUNC; break;
+            case VAL_THR: actual = TYPE_THR; break;
+            default: actual = TYPE_UNKNOWN; break;
+        }
+
+        if (expected != actual) {
+            char buf[128];
+            snprintf(buf, sizeof(buf), "Type mismatch: expected %s but got %s",
+                     decl_type_name(expected), value_type_name(rhs));
+            RUNTIME_ERROR(interp, buf, line, col);
+        }
+
+        EnvEntry* existing = env_get_entry(env, name);
+        if (existing && existing->decl_type != expected) {
+            char buf[128];
+            snprintf(buf, sizeof(buf), "Type mismatch: expected %s but got %s",
+                     decl_type_name(existing->decl_type), decl_type_name(expected));
+            RUNTIME_ERROR(interp, buf, line, col);
+        }
+
+        Env* assign_env = env;
+        if (!interp->isolate_env_writes && !existing && env->parent) {
+            assign_env = env->parent;
+        }
+        if (!existing) {
+            env_define(assign_env, name, expected);
+        }
+        if (!env_assign(assign_env, name, rhs, expected, true)) {
+            char buf[256];
+            snprintf(buf, sizeof(buf), "ASSIGN: cannot assign to target '%s'", name);
+            RUNTIME_ERROR(interp, buf, line, col);
+        }
+        return value_copy(rhs);
+    }
 
     // Identifier target
     if (target->type == EXPR_IDENT) {

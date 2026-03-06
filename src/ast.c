@@ -56,6 +56,16 @@ Expr* expr_ident(char* name, int line, int column) {
     return expr;
 }
 
+Expr* expr_typed_ident(DeclType decl_type, char* name, int line, int column) {
+    Expr* expr = ast_alloc(sizeof(Expr));
+    expr->type = EXPR_TYPED_IDENT;
+    expr->line = line;
+    expr->column = column;
+    expr->as.typed_ident.decl_type = decl_type;
+    expr->as.typed_ident.name = name;
+    return expr;
+}
+
 Expr* expr_call(Expr* callee, int line, int column) {
     Expr* expr = ast_alloc(sizeof(Expr));
     expr->type = EXPR_CALL;
@@ -398,6 +408,9 @@ void free_expr(Expr* expr) {
             break;
         case EXPR_STR:
             free(expr->as.str_value);
+            break;
+        case EXPR_TYPED_IDENT:
+            free(expr->as.typed_ident.name);
             break;
         case EXPR_PTR:
             free(expr->as.ptr_name);

@@ -194,6 +194,11 @@ DEL(y)
 PRINT("Pointers: PASS\n")
 
 PRINT("Testing ASSIGN inline operator...")
+! typed first assignment should declare, assign, and return the value
+ASSERT(EQ(ASSIGN(STR: as_s, "foo"), "foo"))
+ASSERT(EQ(as_s, "foo"))
+DEL(as_s)
+
 ! simple identifier assignment (target must already exist)
 INT: as_a = 0d0
 ASSIGN(as_a, 0d5)

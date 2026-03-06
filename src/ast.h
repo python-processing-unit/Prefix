@@ -36,6 +36,7 @@ typedef enum {
     EXPR_STR,
     EXPR_PTR,
     EXPR_IDENT,
+    EXPR_TYPED_IDENT,
     EXPR_CALL,
     EXPR_ASYNC,
     EXPR_TNS,
@@ -61,6 +62,7 @@ struct Expr {
         struct { double value; int base; int base_is_nan; } flt_value;
         char* str_value;
         char* ident;
+        struct { DeclType decl_type; char* name; } typed_ident;
         char* ptr_name;
             struct { Stmt* block; } async;
         struct {
@@ -156,6 +158,7 @@ Expr* expr_flt(double value, int base, int base_is_nan, int line, int column);
 Expr* expr_str(char* value, int line, int column);
 Expr* expr_ptr(char* name, int line, int column);
 Expr* expr_ident(char* name, int line, int column);
+Expr* expr_typed_ident(DeclType decl_type, char* name, int line, int column);
 Expr* expr_call(Expr* callee, int line, int column);
 void call_kw_add(Expr* call, char* name, Expr* value);
 Expr* expr_tns(int line, int column);
