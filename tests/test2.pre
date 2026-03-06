@@ -660,6 +660,29 @@ FUNC: greet_lambda = LAMBDA STR: (STR: name, STR: prefix = "Hi"){ RETURN(JOIN(" 
 ASSERT(EQ(greet_lambda("World"), "Hi World"))
 ASSERT(EQ(greet_lambda("World", prefix = "Hello"), "Hello World"))
 
+FUNC INT: COERCE_INT(~INT: x){
+    RETURN(x)
+}
+ASSERT(EQ(COERCE_INT("0d10"), 0d10))
+
+FUNC: lambda_coerce_int = LAMBDA INT: (~INT: x){ RETURN(x) }
+ASSERT(EQ(lambda_coerce_int("0d11"), 0d11))
+
+FUNC FLT: NEED_FLT(~FLT: x){
+    RETURN(x)
+}
+INT: coerce_failed = 0d0
+TRY{
+    NEED_FLT("not-a-number")
+}CATCH{
+    coerce_failed = 0d1
+}
+ASSERT(EQ(coerce_failed, 0d1))
+DEL(coerce_failed)
+DEL(NEED_FLT)
+DEL(lambda_coerce_int)
+DEL(COERCE_INT)
+
 FUNC FUNC: MAKE_ADDER(INT: seed){
     INT: local = seed
     RETURN(LAMBDA INT: (INT: delta){ RETURN(ADD(local, delta)) })
@@ -681,14 +704,21 @@ PRINT("Testing SIGNATURE...")
 FUNC INT: SIGTEST(INT: a, STR: b = "def"){
     RETURN(0d0)
 }
+FUNC INT: SIGCOERCE(~INT: a, STR: b = "def"){
+    RETURN(a)
+}
 INT: v = 0d5
 STR: s1 = SIGNATURE(SIGTEST)
 ASSERT(ISSTR(s1))
 ASSERT(EQ(s1, "INT: SIGTEST(INT: a, STR: b = \"def\")"))
+STR: s3 = SIGNATURE(SIGCOERCE)
+ASSERT(EQ(s3, "INT: SIGCOERCE(~INT: a, STR: b = \"def\")"))
 STR: s2 = SIGNATURE(v)
 ASSERT(EQ(s2, "INT: v"))
 DEL(s1)
 DEL(s2)
+DEL(s3)
+DEL(SIGCOERCE)
 DEL(v)
 PRINT("SIGNATURE: PASS\n")
 

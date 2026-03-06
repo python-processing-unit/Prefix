@@ -376,6 +376,7 @@ static Func* create_runtime_function(const char* name,
         for (size_t i = 0; i < src_params->count; i++) {
             f->params.items[i].type = src_params->items[i].type;
             f->params.items[i].name = strdup(src_params->items[i].name);
+            f->params.items[i].coerced = src_params->items[i].coerced;
             f->params.items[i].default_value = src_params->items[i].default_value;
         }
     }
@@ -578,6 +579,49 @@ static ValueType decl_type_to_value(DeclType dt) {
         case TYPE_THR: return VAL_THR;
         default: return VAL_NULL;
     }
+}
+
+static bool coerce_value_to_decl_type(Interpreter* interp,
+                                      Value input,
+                                      DeclType target,
+                                      Env* env,
+                                      int line,
+                                      int col,
+                                      Value* out_value) {
+    if (!out_value) return false;
+    *out_value = value_null();
+
+    if (value_type_to_decl(input.type) == target) {
+        *out_value = value_copy(input);
+        return true;
+    }
+
+    const char* builtin_name = NULL;
+    switch (target) {
+        case TYPE_INT: builtin_name = "INT"; break;
+        case TYPE_FLT: builtin_name = "FLT"; break;
+        case TYPE_STR: builtin_name = "STR"; break;
+        case TYPE_TNS: builtin_name = "TNS"; break;
+        default:
+            return false;
+    }
+
+    BuiltinFunction* builtin = builtin_lookup(builtin_name);
+    if (!builtin || !builtin->impl) return false;
+
+    Value args[1];
+    args[0] = input;
+    Value converted = builtin->impl(interp, args, 1, NULL, env, line, col);
+    if (interp->error) {
+        return false;
+    }
+    if (value_type_to_decl(converted.type) != target) {
+        value_free(converted);
+        return false;
+    }
+
+    *out_value = converted;
+    return true;
 }
 
 // Compute tensor shape from AST tensor literal. Returns true on success
@@ -1044,11 +1088,14 @@ Value eval_expr(Interpreter* interp, Expr* expr, Env* env) {
             for (size_t i = 0; i < user_func->params.count; i++) {
                 Param* param = &user_func->params.items[i];
                 Value arg_val = value_null();
+                int arg_from_pos = -1;
+                int arg_from_kw = -1;
 
                 bool provided = false;
                 // positional provided?
                 if ((int)i < pos_argc) {
                     arg_val = pos_vals[i];
+                    arg_from_pos = (int)i;
                     provided = true;
                     // check if a keyword also provided for same name -> error
                     for (int k = 0; k < kwc; k++) {
@@ -1057,10 +1104,11 @@ Value eval_expr(Interpreter* interp, Expr* expr, Env* env) {
                             interp->error_line = expr->line;
                             interp->error_col = expr->column;
                             // cleanup
-                            for (int t = 0; t < pos_argc; t++) if (t != i) value_free(pos_vals[t]);
+                            for (int t = 0; t < pos_argc; t++) value_free(pos_vals[t]);
                             free(pos_vals);
                             for (int t = 0; t < kwc; t++) value_free(kw_vals[t]);
                             free(kw_vals);
+                            if (kw_used) free(kw_used);
                             env_free(call_env);
                             return value_null();
                         }
@@ -1079,13 +1127,14 @@ Value eval_expr(Interpreter* interp, Expr* expr, Env* env) {
                             interp->error_col = expr->column;
                             for (int t = 0; t < pos_argc; t++) value_free(pos_vals[t]);
                             free(pos_vals);
-                            for (int t = 0; t < kwc; t++) if (t != found_kw) value_free(kw_vals[t]);
+                            for (int t = 0; t < kwc; t++) value_free(kw_vals[t]);
                             free(kw_vals);
                             free(kw_used);
                             env_free(call_env);
                             return value_null();
                         }
                         arg_val = kw_vals[found_kw];
+                        arg_from_kw = found_kw;
                         kw_used[found_kw] = 1;
                         provided = true;
                     } else if (param->default_value) {
@@ -1117,19 +1166,29 @@ Value eval_expr(Interpreter* interp, Expr* expr, Env* env) {
                     return value_null();
                 }
 
+                Value bind_val = arg_val;
+                bool used_coercion = false;
+                if (value_type_to_decl(bind_val.type) != param->type && param->coerced) {
+                    Value coerced = value_null();
+                    if (coerce_value_to_decl_type(interp, arg_val, param->type, call_env, expr->line, expr->column, &coerced)) {
+                        bind_val = coerced;
+                        used_coercion = true;
+                    }
+                }
+
                 // Type check
-                if (value_type_to_decl(arg_val.type) != param->type) {
+                if (value_type_to_decl(bind_val.type) != param->type) {
+                    if (interp->error) {
+                        free(interp->error);
+                        interp->error = NULL;
+                    }
                     char buf[128];
                     snprintf(buf, sizeof(buf), "Type mismatch for parameter '%s'", param->name);
                     interp->error = strdup(buf);
                     interp->error_line = expr->line;
                     interp->error_col = expr->column;
-                    // free val resources
-                    if ((int)i < pos_argc) {
-                        // pos_vals[i] will be freed below when cleaning pos_vals array
-                    } else {
-                        // arg_val came from kw_vals or default; if from kw_vals we will free kw_vals array later
-                    }
+                    if (used_coercion) value_free(bind_val);
+                    if (arg_from_pos < 0 && arg_from_kw < 0) value_free(arg_val);
                     for (int t = 0; t < pos_argc; t++) value_free(pos_vals[t]);
                     free(pos_vals);
                     for (int t = 0; t < kwc; t++) value_free(kw_vals[t]);
@@ -1139,12 +1198,14 @@ Value eval_expr(Interpreter* interp, Expr* expr, Env* env) {
                 }
 
                 env_define(call_env, param->name, param->type);
-                if (!env_assign(call_env, param->name, arg_val, param->type, true)) {
+                if (!env_assign(call_env, param->name, bind_val, param->type, true)) {
                     char buf[256];
                     snprintf(buf, sizeof(buf), "Cannot assign to frozen identifier '%s'", param->name);
                     interp->error = strdup(buf);
                     interp->error_line = expr->line;
                     interp->error_col = expr->column;
+                    if (used_coercion) value_free(bind_val);
+                    if (arg_from_pos < 0 && arg_from_kw < 0) value_free(arg_val);
                     for (int t = 0; t < pos_argc; t++) value_free(pos_vals[t]);
                     free(pos_vals);
                     for (int t = 0; t < kwc; t++) value_free(kw_vals[t]);
@@ -1152,8 +1213,22 @@ Value eval_expr(Interpreter* interp, Expr* expr, Env* env) {
                     env_free(call_env);
                     return value_null();
                 }
-                // Free the temporary argument value now that it's been copied into the callee env
-                value_free(arg_val);
+
+                // Release temporary values now that env_assign copied the argument.
+                if (arg_from_pos >= 0) {
+                    value_free(pos_vals[arg_from_pos]);
+                    pos_vals[arg_from_pos] = value_null();
+                }
+                if (arg_from_kw >= 0) {
+                    value_free(kw_vals[arg_from_kw]);
+                    kw_vals[arg_from_kw] = value_null();
+                }
+                if (arg_from_pos < 0 && arg_from_kw < 0) {
+                    value_free(arg_val);
+                }
+                if (used_coercion) {
+                    value_free(bind_val);
+                }
             }
 
             // Check for any unmatched keyword args

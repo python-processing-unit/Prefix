@@ -1486,6 +1486,8 @@ static void ser_stmt(JsonBuf* jb, SerCtx* ctx, Interpreter* interp, Stmt* stmt) 
                 jb_append_json_string(jb, "Param");
                 json_obj_field(jb, &pf, "type");
                 jb_append_json_string(jb, decl_type_name(p->type));
+                json_obj_field(jb, &pf, "coerced");
+                jb_append_str(jb, p->coerced ? "true" : "false");
                 json_obj_field(jb, &pf, "name");
                 jb_append_json_string(jb, p->name ? p->name : "");
                 json_obj_field(jb, &pf, "default");
@@ -1749,6 +1751,8 @@ static void ser_value(JsonBuf* jb, SerCtx* ctx, Interpreter* interp, Value v) {
                 jb_append_json_string(jb, p->name ? p->name : "");
                 json_obj_field(jb, &pf, "type");
                 jb_append_json_string(jb, decl_type_name(p->type));
+                json_obj_field(jb, &pf, "coerced");
+                jb_append_str(jb, p->coerced ? "true" : "false");
                 json_obj_field(jb, &pf, "default");
                 if (p->default_value) ser_expr(jb, ctx, interp, p->default_value);
                 else jb_append_str(jb, "null");
@@ -1773,6 +1777,8 @@ static void ser_value(JsonBuf* jb, SerCtx* ctx, Interpreter* interp, Value v) {
                 jb_append_json_string(jb, p->name ? p->name : "");
                 json_obj_field(jb, &pf, "type");
                 jb_append_json_string(jb, decl_type_name(p->type));
+                json_obj_field(jb, &pf, "coerced");
+                jb_append_str(jb, p->coerced ? "true" : "false");
                 json_obj_field(jb, &pf, "default");
                 if (p->default_value) ser_expr(jb, ctx, interp, p->default_value);
                 else jb_append_str(jb, "null");
@@ -2188,10 +2194,12 @@ static Stmt* deser_stmt(JsonValue* obj, UnserCtx* ctx, Interpreter* interp, cons
                 if (!p || p->type != JSON_OBJ) continue;
                 JsonValue* pname = json_obj_get(p, "name");
                 JsonValue* ptype = json_obj_get(p, "type");
+                JsonValue* pcoerced = json_obj_get(p, "coerced");
                 JsonValue* pdef = json_obj_get(p, "default");
                 Param pr;
                 pr.name = strdup((pname && pname->type == JSON_STR) ? pname->as.str : "");
                 pr.type = decl_type_from_name((ptype && ptype->type == JSON_STR) ? ptype->as.str : NULL);
+                pr.coerced = (pcoerced && pcoerced->type == JSON_BOOL) ? (pcoerced->as.boolean != 0) : false;
                 pr.default_value = deser_default_expr(pdef, ctx, interp, err);
                 param_list_add(&st->as.func_stmt.params, pr);
             }
@@ -2462,10 +2470,12 @@ static Value deser_val(JsonValue* obj, UnserCtx* ctx, Interpreter* interp, const
                     if (!p || p->type != JSON_OBJ) continue;
                     JsonValue* pn = json_obj_get(p, "name");
                     JsonValue* pt = json_obj_get(p, "type");
+                    JsonValue* pc = json_obj_get(p, "coerced");
                     JsonValue* pd = json_obj_get(p, "default");
                     Param pr;
                     pr.name = strdup((pn && pn->type == JSON_STR) ? pn->as.str : "");
                     pr.type = decl_type_from_name((pt && pt->type == JSON_STR) ? pt->as.str : NULL);
+                    pr.coerced = (pc && pc->type == JSON_BOOL) ? (pc->as.boolean != 0) : false;
                     pr.default_value = deser_default_expr(pd, ctx, interp, err);
                     param_list_add(&fn->params, pr);
                 }
@@ -5309,6 +5319,7 @@ static Value builtin_signature(Interpreter* interp, Value* args, int argc, Expr*
                     default: tname = "ANY"; break;
                 }
                 if (i > 0) strcat(buf, ", ");
+                if (p.coerced) strcat(buf, "~");
                 strcat(buf, tname);
                 strcat(buf, ": ");
                 strcat(buf, p.name ? p.name : "");

@@ -80,13 +80,15 @@ A comment begins with the `!` character and continues to the end of the current 
 
 Line separator alias: The semicolon character (`;`) is treated by the lexer as a newline-token alias. Whenever a `;` appears in source code outside of a string literal, the lexer emits a `NEWLINE` token (equivalent to a physical newline), so `;` can be used to separate statements on a single physical line.
 
-The program text is divided into several token kinds: binary integer literals (Section 3.1); string literals delimited by double or single quotation marks (`"`, `'`, Section 3.2); identifiers for variable names and user-defined function names (Section 2.5); keywords and built-ins (control-flow keywords, built-in operators and functions; see Sections 5 and 13); and delimiters, namely `(`, `)`, `{`, `}`, `[`, `]`, `,`, `:`, and `=`.
+The program text is divided into several token kinds: binary integer literals (Section 3.1); string literals delimited by double or single quotation marks (`"`, `'`, Section 3.2); identifiers for variable names and user-defined function names (Section 2.5); keywords and built-ins (control-flow keywords, built-in operators and functions; see Sections 5 and 13); and delimiters, namely `(`, `)`, `{`, `}`, `[`, `]`, `,`, `:`, `=`, and `~`.
 
 Keywords: The language's reserved keywords (for example, `IF`, `WHILE`, `FUNC`, etc.) are matched by the lexer exactly as listed in this specification and are case-sensitive. Programs MUST use the keywords in their canonical uppercase form; otherwise the token will be recognized as an identifier. Built-in operator names such as `INPUT`, `PRINT`, and `IMPORT` follow the same case-sensitive matching rules.
 
 Line continuation: The character `^` serves as a line-continuation marker. When a caret `^` appears in the source and is followed immediately by a newline, both the `^` and the newline are ignored by the lexer (that is, the logical line continues on the next physical line). The lexer also accepts a caret immediately before a code note (a comment beginning with `!`); in this case the `^`, the comment text up to the line terminator, and the terminating newline are treated as if they were not present. If a `^` is present in a string, it does not count as a line continuation. If a caret appears and is not immediately followed by a newline, a code note, or the platform's single-character newline sequence, the lexer MUST raise a syntax error.
 
 The character `-` primarily serves as the leading sign of a numeric literal (Section 3.1). A signed numeric literal MUST place the sign before the base prefix (for example, `-0xA`, `-0d10.5`). In other contexts (for example inside an index expression) a single `-` token is recognized as a dash used for slice notation `lo-hi`. If `-` appears in any other unsupported context the lexer MUST raise a syntax error.
+
+The character `~` is a dedicated lexical token used only to mark coerced function parameters (Section 5). It MUST NOT appear inside identifier names.
 
 Identifiers denote variables and user-defined functions. They MUST be non-empty and case-sensitive. An identifier MUST NOT contain non-ASCII characters, nor any of the following characters: `{`, `}`, `[`, `]`, `(`, `)`, `=`, `,`, `!`. The first character of an identifier MUST NOT be the digit `0` or `1` (these digits are used to begin binary integer literals). However, the characters `0` and `1` are permitted in subsequent positions within an identifier (for example, `a01` and `X10Y` are valid identifiers, while `0foo` and `1bar` are not). The namespace is flat: variables and functions share a single identifier space, so a given name cannot simultaneously denote both. A user-defined function name MUST NOT conflict with the name of any built-in operator or function (see Section 13).
 
@@ -100,7 +102,7 @@ Identifier character set (clarification): The (non-empty) sequence of characters
 
   - Decimal digits `2`-`9`
 
-  - The punctuation and symbol characters `/ $ % & ~ _ + | ?`
+  - The punctuation and symbol characters `/ $ % & _ + | ?`
 
 - Subsequent characters in an identifier MAY be any of the following:
 
@@ -111,7 +113,7 @@ Identifier character set (clarification): The (non-empty) sequence of characters
   - Decimal digits `0`-`9`
 
   - The punctuation and symbol characters
-    `/ $ % & ~ _ + | ?`
+    `/ $ % & _ + | ?`
 
   As noted above, non-ASCII characters remain disallowed, and the delimiter characters `{`, `}`, `(`, `)`, `=`, `,`, and `!` are never permitted inside identifiers.
 
@@ -290,11 +292,11 @@ CONTINUE statement: The language provides a statement form `CONTINUE()` that, wh
 
 ## 5. Functions
 
-Functions are defined using the `FUNC` keyword with explicit parameter and return types. The canonical positional-only form is `R: name(T1: arg1, T2: arg2, ..., TN: argN)`, where each `Tk` and `R` is `INT`, `FLT`, `STR`, `TNS`, `MAP`, `FUNC`, or `THR`. Parameters MAY also declare a call-time default value using `Tk: arg = expr`. A parameter without a default is positional; a parameter with a default is keyword-capable. Positional parameters MUST appear before any parameters with defaults. Defining a function binds `name` to a callable body with the specified typed formal parameters. Function names MUST NOT conflict with the names of built-in operators or functions.
+Functions are defined using the `FUNC` keyword with explicit parameter and return types. The canonical positional-only form is `R: name(T1: arg1, T2: arg2, ..., TN: argN)`, where each `Tk` and `R` is `INT`, `FLT`, `STR`, `TNS`, `MAP`, `FUNC`, or `THR`. A parameter type MAY be prefixed with `~` (for example, `~INT: x`) to mark that parameter as coerced. Parameters MAY also declare a call-time default value using `Tk: arg = expr` (or `~Tk: arg = expr` for a coerced parameter). A parameter without a default is positional; a parameter with a default is keyword-capable. Positional parameters MUST appear before any parameters with defaults. Defining a function binds `name` to a callable body with the specified typed formal parameters. Function names MUST NOT conflict with the names of built-in operators or functions.
 
-In addition to named functions, the language provides an anonymous function literal form `LAMBDA` which constructs a `FUNC` value without binding it to a function name in the global function table. The canonical form for lambdas is `R: (T1: arg1, T2: arg2, ..., TN: argN)`. Parameter typing, default-value rules, call semantics, and return-type rules are the same as for `FUNC`. Evaluating a `LAMBDA` expression captures (closes over) the current lexical environment, producing a first-class `FUNC` value that can be assigned to variables, stored in tensors, passed as an argument, or returned.
+In addition to named functions, the language provides an anonymous function literal form `LAMBDA` which constructs a `FUNC` value without binding it to a function name in the global function table. The canonical form for lambdas is `R: (T1: arg1, T2: arg2, ..., TN: argN)`, and lambda parameters MAY also use the `~Tk: arg` coerced form. Parameter typing, default-value rules, call semantics, and return-type rules are the same as for `FUNC`. Evaluating a `LAMBDA` expression captures (closes over) the current lexical environment, producing a first-class `FUNC` value that can be assigned to variables, stored in tensors, passed as an argument, or returned.
 
-A user-defined function is called with the same syntax as a built-in: `callee(expr1, expr2, ..., exprN)`. The callee MAY be any expression that evaluates to `FUNC`, including identifiers, tensor elements, or intermediate expressions. Calls MAY supply zero or more positional arguments (left-to-right) followed by zero or more keyword arguments of the form `param=expr`. Keyword arguments can only appear after all positional arguments. At the call site, every positional argument is bound to the next positional parameter; keyword arguments MUST match the name of a parameter that declared a default value. Duplicate keyword names, supplying too many positional arguments, or providing a keyword for an unknown parameter are runtime errors. If a keyword-capable parameter is omitted from the call, its default expression is evaluated at call time in the function's lexical environment after earlier parameters have been bound. The evaluated default MUST match the parameter's declared type. Arguments are evaluated left-to-right. The function body executes in a new environment (activation record) that closes over the defining environment. If a `RETURN(v)` statement is executed, the function terminates immediately and yields `v`; the returned value MUST match the declared return type. If control reaches the end of the body without `RETURN`, the function returns a default value of the declared return type (0 for `INT`, 0.0 for `FLT`, "" for `STR`). Functions whose return type is `TNS` or `FUNC` MUST execute an explicit `RETURN` of the declared type; reaching the end of the body without returning is a runtime error for `TNS`- or `FUNC`-returning functions.
+A user-defined function is called with the same syntax as a built-in: `callee(expr1, expr2, ..., exprN)`. The callee MAY be any expression that evaluates to `FUNC`, including identifiers, tensor elements, or intermediate expressions. Calls MAY supply zero or more positional arguments (left-to-right) followed by zero or more keyword arguments of the form `param=expr`. Keyword arguments can only appear after all positional arguments. At the call site, every positional argument is bound to the next positional parameter; keyword arguments MUST match the name of a parameter that declared a default value. Duplicate keyword names, supplying too many positional arguments, or providing a keyword for an unknown parameter are runtime errors. If a keyword-capable parameter is omitted from the call, its default expression is evaluated at call time in the function's lexical environment after earlier parameters have been bound. For a normal (non-coerced) parameter, the supplied value's runtime type MUST exactly match the declared parameter type; otherwise the call raises a runtime error. For a coerced parameter (`~Tk: name`), when the supplied argument type differs, the runtime MUST attempt to convert the value to `Tk` using the language's conversion rules; if conversion succeeds, the converted value is bound, and if conversion fails, the call raises a runtime error. The evaluated default MUST match (or, for coerced parameters, be coercible to) the parameter's declared type. Arguments are evaluated left-to-right. The function body executes in a new environment (activation record) that closes over the defining environment. If a `RETURN(v)` statement is executed, the function terminates immediately and yields `v`; the returned value MUST match the declared return type. If control reaches the end of the body without `RETURN`, the function returns a default value of the declared return type (0 for `INT`, 0.0 for `FLT`, "" for `STR`). Functions whose return type is `TNS` or `FUNC` MUST execute an explicit `RETURN` of the declared type; reaching the end of the body without returning is a runtime error for `TNS`- or `FUNC`-returning functions.
 
 Because `FUNC` is a first-class type, functions can be assigned to variables, stored inside tensors, passed as arguments, or returned from other functions. Calling `alias()` invokes the function bound to `alias`, while `tns[1]()` invokes the `FUNC` stored in the first tensor slot. Equality compares identity: two `FUNC` values are equal only if they refer to the same function object.
 
@@ -822,7 +824,7 @@ Tensor indexing uses the expression form `tensor[i1, i2, ..., iN]`. The number o
 
   `FUNC` and `THR` values are serialized with enough information to reconstruct them in a new interpreter process:
 
-  - `FUNC` values include an identifier, name, parameter list (including default expressions), return type, the function body AST, and a serialized snapshot of the closure environment. The closure snapshot serializes each bound value via `SER` so that the function can be rehydrated elsewhere.
+  - `FUNC` values include an identifier, name, parameter list (including coercion flags and default expressions), return type, the function body AST, and a serialized snapshot of the closure environment. The closure snapshot serializes each bound value via `SER` so that the function can be rehydrated elsewhere.
 
   - `THR` values include an identifier plus status metadata (paused/finished/stop/state) and, when available, the serialized block AST and environment captured when the thread was created. The underlying OS thread is not serialized.
 
@@ -928,7 +930,7 @@ Tensor indexing uses the expression form `tensor[i1, i2, ..., iN]`. The number o
 
 - `PARFOR(counter, INT: target){ block }` ; concurrently execute `target` iterations with `counter` bound to `1..T`. Iteration bodies run in parallel (threaded) and MAY race on shared mutable identifiers. `CONTINUE()` ends the current iteration only; `BREAK(n)` terminates the entire `PARFOR` (prevents starting further iterations, waits for in-flight iterations to finish, then propagates the `BreakSignal`). Runtime errors raised inside iterations are collected and the first such error is re-raised after all iterations join.
 
-- `R: name(T1: arg1, T2: arg2, ..., TN: argN)` ; typed function definition with return type R (`INT`, `STR`, or `TNS`); OPTIONAL defaults use `Tk: arg = expr` and MUST appear only after all positional parameters. Functions with return type `TNS` MUST explicitly execute `RETURN(value)`; there is no implicit default tensor value.
+- `R: name(T1: arg1, T2: arg2, ..., TN: argN)` ; typed function definition with return type R (`INT`, `STR`, or `TNS`); a parameter MAY use the coerced form `~Tk: arg` to request call-time conversion to `Tk`. OPTIONAL defaults use `Tk: arg = expr` (or `~Tk: arg = expr`) and MUST appear only after all positional parameters. Functions with return type `TNS` MUST explicitly execute `RETURN(value)`; there is no implicit default tensor value.
 
 - `RETURN(ANY: a)` ; return from function with value `a`
 
@@ -956,7 +958,7 @@ Tensor indexing uses the expression form `tensor[i1, i2, ..., iN]`. The number o
 
 - Argument evaluation order: left-to-right.
 
-- User-defined functions use the same call syntax as built-ins; keyword arguments are permitted only after positional arguments and only for parameters that declare defaults. Built-ins reject keyword arguments except that `READFILE` and `WRITEFILE` accept an OPTIONAL `coding=` keyword. When a keyword parameter is omitted, its default expression is evaluated at call time in the function's defining environment.
+- User-defined functions use the same call syntax as built-ins; keyword arguments are permitted only after positional arguments and only for parameters that declare defaults. Built-ins reject keyword arguments except that `READFILE` and `WRITEFILE` accept an OPTIONAL `coding=` keyword. When a keyword parameter is omitted, its default expression is evaluated at call time in the function's defining environment. For `~`-prefixed parameters, argument binding attempts type coercion before raising a mismatch error.
 
 
   </script>
