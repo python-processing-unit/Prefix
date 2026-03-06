@@ -225,6 +225,20 @@ static bool parse_param_list(Parser* parser, ParamList* params) {
     return true;
 }
 
+static Expr* parse_typed_ident_expr(Parser* parser) {
+    Token type_tok = parser->current_token;
+    DeclType dtype = parse_type_name(type_tok.literal);
+    advance(parser);
+    consume(parser, TOKEN_COLON, "Expected ':' after type");
+    if (parser->current_token.type != TOKEN_IDENT) {
+        report_error(parser, "Expected identifier name");
+        return NULL;
+    }
+    char* name = parser->current_token.literal;
+    advance(parser);
+    return expr_typed_ident(dtype, name, type_tok.line, type_tok.column);
+}
+
 static Expr* parse_primary(Parser* parser) {
     Token token = parser->current_token;
     // Recognize FLT literal names `INF` and `NaN` as primary expressions
@@ -393,8 +407,17 @@ static Expr* parse_call(Parser* parser) {
             if (parser->current_token.type != TOKEN_RPAREN) {
                 bool seen_kw = false;
                 do {
-                    // Keyword arg form: IDENT '=' expr
-                    if (parser->current_token.type == TOKEN_IDENT && parser->next_token.type == TOKEN_EQUALS) {
+                    if (call->as.call.callee->type == EXPR_IDENT
+                        && strcmp(call->as.call.callee->as.ident, "ASSIGN") == 0
+                        && call->as.call.args.count == 0
+                        && call->as.call.kw_count == 0
+                        && is_type_token(parser->current_token.type)
+                        && parser->next_token.type == TOKEN_COLON) {
+                        Expr* arg = parse_typed_ident_expr(parser);
+                        if (!arg) return NULL;
+                        expr_list_add(&call->as.call.args, arg);
+                    } else if (parser->current_token.type == TOKEN_IDENT && parser->next_token.type == TOKEN_EQUALS) {
+                        // Keyword arg form: IDENT '=' expr
                         seen_kw = true;
                         char* name = parser->current_token.literal;
                         advance(parser); // consume IDENT
