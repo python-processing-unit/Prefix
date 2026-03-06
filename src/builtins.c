@@ -5409,29 +5409,150 @@ static Value builtin_signature(Interpreter* interp, Value* args, int argc, Expr*
 
 static Value builtin_del(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
     (void)args;
-    
-    if (argc != 1 || arg_nodes[0]->type != EXPR_IDENT) {
+    if (argc != 1) {
         RUNTIME_ERROR(interp, "DEL expects an identifier", line, col);
     }
-    
-    const char* name = arg_nodes[0]->as.ident;
-    EnvEntry* entry = env_get_entry(env, name);
-    if (!entry || !entry->initialized) {
-        char buf[128];
-        snprintf(buf, sizeof(buf), "Cannot delete undefined identifier '%s'", name);
-        RUNTIME_ERROR(interp, buf, line, col);
+
+    Expr* target = arg_nodes[0];
+
+    /* Case 1: plain identifier – delete the binding */
+    if (target->type == EXPR_IDENT) {
+        const char* name = target->as.ident;
+        EnvEntry* entry = env_get_entry(env, name);
+        if (!entry || !entry->initialized) {
+            char buf[128];
+            snprintf(buf, sizeof(buf), "Cannot delete undefined identifier '%s'", name);
+            RUNTIME_ERROR(interp, buf, line, col);
+        }
+        if (entry->frozen || entry->permafrozen) {
+            char buf[128];
+            snprintf(buf, sizeof(buf), "Cannot delete frozen identifier '%s'", name);
+            RUNTIME_ERROR(interp, buf, line, col);
+        }
+        if (!env_delete(env, name)) {
+            char buf[128];
+            snprintf(buf, sizeof(buf), "Cannot delete identifier '%s'", name);
+            RUNTIME_ERROR(interp, buf, line, col);
+        }
+        return value_int(0);
     }
-    if (entry->frozen || entry->permafrozen) {
-        char buf[128];
-        snprintf(buf, sizeof(buf), "Cannot delete frozen identifier '%s'", name);
-        RUNTIME_ERROR(interp, buf, line, col);
+
+    /* Case 2: indexed expression – support deleting map entries like DEL(m<k>) or DEL(m<k1,k2>) */
+    if (target->type == EXPR_INDEX) {
+        /* collect chain of index nodes (possibly nested) */
+        size_t chain_len = 0;
+        Expr* walker = target;
+        while (walker && walker->type == EXPR_INDEX) {
+            chain_len++;
+            walker = walker->as.index.target;
+        }
+        if (!walker || walker->type != EXPR_IDENT) {
+            RUNTIME_ERROR(interp, "DEL expects an identifier or indexed identifier", line, col);
+        }
+
+        const char* base_name = walker->as.ident;
+        Value base_val = value_null();
+        DeclType base_type = TYPE_UNKNOWN;
+        bool base_initialized = false;
+        if (!env_get(env, base_name, &base_val, &base_type, &base_initialized) || !base_initialized) {
+            char buf[128];
+            snprintf(buf, sizeof(buf), "Cannot delete mapping from undefined identifier '%s'", base_name);
+            RUNTIME_ERROR(interp, buf, line, col);
+        }
+
+        Expr** nodes = malloc(sizeof(Expr*) * (chain_len ? chain_len : 1));
+        if (!nodes) {
+            value_free(base_val);
+            RUNTIME_ERROR(interp, "Out of memory", line, col);
+        }
+        walker = target;
+        for (size_t i = 0; i < chain_len; i++) {
+            nodes[i] = walker;
+            walker = walker->as.index.target;
+        }
+
+        /* operate on the in-memory copy and write back at end */
+        Value* cur = &base_val;
+
+        for (int ni = (int)chain_len - 1; ni >= 0; ni--) {
+            Expr* node = nodes[ni];
+            ExprList* indices = &node->as.index.indices;
+            if (indices->count == 0) {
+                free(nodes);
+                value_free(base_val);
+                RUNTIME_ERROR(interp, "Empty index list", line, col);
+            }
+
+            if (cur->type != VAL_MAP) {
+                free(nodes);
+                value_free(base_val);
+                RUNTIME_ERROR(interp, "Attempted map deletion on non-map value", node->line, node->column);
+            }
+
+            for (size_t i = 0; i < indices->count; i++) {
+                Expr* it = indices->items[i];
+                Value key = eval_expr(interp, it, env);
+                if (interp->error) {
+                    /* propagate evaluation error */
+                    char* em = interp->error;
+                    int el = interp->error_line;
+                    int ec = interp->error_col;
+                    clear_error(interp);
+                    free(nodes);
+                    value_free(base_val);
+                    RUNTIME_ERROR(interp, em, el, ec);
+                }
+                if (!(key.type == VAL_INT || key.type == VAL_STR || key.type == VAL_FLT)) {
+                    value_free(key);
+                    free(nodes);
+                    value_free(base_val);
+                    RUNTIME_ERROR(interp, "Map index must be INT, FLT or STR", it->line, it->column);
+                }
+
+                bool last_key_in_node = (i + 1 == indices->count);
+                bool last_node_in_chain = (ni == 0);
+
+                if (last_node_in_chain && last_key_in_node) {
+                    /* final key: perform deletion on current map */
+                    value_map_delete(cur, key);
+                    value_free(key);
+                    /* write back modified base into environment */
+                    if (!env_assign(env, base_name, base_val, TYPE_UNKNOWN, false)) {
+                        free(nodes);
+                        value_free(base_val);
+                        RUNTIME_ERROR(interp, "Cannot write back to identifier (frozen?)", line, col);
+                    }
+                    free(nodes);
+                    value_free(base_val);
+                    return value_int(0);
+                }
+
+                /* descend into child slot without creating missing entries */
+                Value* slot = value_map_get_ptr(cur, key, false);
+                value_free(key);
+                if (!slot) {
+                    /* intermediate missing -> nothing to delete (no-op) */
+                    free(nodes);
+                    value_free(base_val);
+                    return value_int(0);
+                }
+                if (slot->type != VAL_MAP) {
+                    free(nodes);
+                    value_free(base_val);
+                    RUNTIME_ERROR(interp, "Attempted nested map indexing on non-map value", it->line, it->column);
+                }
+                /* descend */
+                cur = slot;
+            }
+        }
+
+        /* unreachable, but keep cleanup */
+        free(nodes);
+        value_free(base_val);
+        return value_int(0);
     }
-    if (!env_delete(env, name)) {
-        char buf[128];
-        snprintf(buf, sizeof(buf), "Cannot delete identifier '%s'", name);
-        RUNTIME_ERROR(interp, buf, line, col);
-    }
-    return value_int(0);
+
+    RUNTIME_ERROR(interp, "DEL expects an identifier", line, col);
 }
 
 static Value builtin_freeze(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
