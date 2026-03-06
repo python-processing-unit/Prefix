@@ -716,7 +716,7 @@ static ExecResult make_ok(Value v) {
 }
 
 // Clear the interpreter error after handling it
-static void clear_error(Interpreter* interp) {
+void clear_error(Interpreter* interp) {
     if (interp->error) {
         free(interp->error);
         interp->error = NULL;

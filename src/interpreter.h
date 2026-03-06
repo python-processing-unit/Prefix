@@ -129,6 +129,8 @@ void interpreter_reset_traceback(Interpreter* interp, Env* top_env);
 // Functions needed by builtins.c
 Value eval_expr(Interpreter* interp, Expr* expr, Env* env);
 int value_truthiness(Value v);
+// Clear interpreter error (used by builtins & helpers)
+void clear_error(Interpreter* interp);
 // Expose indexed-assignment helper so builtins can reuse it
 ExecResult assign_index_chain(Interpreter* interp, Env* env, Expr* idx_expr, Value rhs, int stmt_line, int stmt_col);
 // Restart a finished thread `thr_val` by re-launching its stored body/env.
