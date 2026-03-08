@@ -451,7 +451,9 @@ int main(int argc, char** argv) {
     char* source_label = NULL;
 
     if (source_mode) {
-        source_label = strdup("<source>");
+        /* Per SPECIFICATION: when running with -source the primary
+           program's module name should be "<string>" (not "<source>"). */
+        source_label = strdup("<string>");
         src = strdup(source_text ? source_text : "");
         if (!source_label || !src) {
             free(source_label);
