@@ -6,13 +6,72 @@
   <title>Prefix Specification</title>
   <link rel="icon" href="./icon.png" />
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;700&display=swap');
-    @import url('https://fonts.googleapis.com/css2?family=Source+Code+Pro:wght@400;700&display=swap');
-    body{background:#222;color:#99ddff;font-family:Open Sans, sans-serif;margin:0;padding:1rem}
-    .container{max-width:1000px;margin:0 auto;text-align:justify;text-justify:inter-word}
-    .container h1{ text-align:center; margin-top:0; }
-    pre, code{background:#3c3c3c;color:inherit;font-family:Source Code Pro, monospace;padding:.25rem .5rem}
-    img{max-width:100%}
+      /* Self-hosted fonts (local workspace) */
+      @font-face {
+        font-family: 'Prefix Open Sans';
+        src: url('open-sans/OpenSans-Regular.ttf') format('truetype');
+        font-weight: 400;
+        font-style: normal;
+        font-display: swap;
+      }
+      @font-face {
+        font-family: 'Prefix Open Sans';
+        src: url('open-sans/OpenSans-Bold.ttf') format('truetype');
+        font-weight: 700;
+        font-style: normal;
+        font-display: swap;
+      }
+      @font-face {
+        font-family: 'Prefix Open Sans';
+        src: url('open-sans/OpenSans-Semibold.ttf') format('truetype');
+        font-weight: 600;
+        font-style: normal;
+        font-display: swap;
+      }
+      @font-face {
+        font-family: 'Prefix Open Sans';
+        src: url('open-sans/OpenSans-Italic.ttf') format('truetype');
+        font-weight: 400;
+        font-style: italic;
+        font-display: swap;
+      }
+      @font-face {
+        font-family: 'Prefix Open Sans';
+        src: url('open-sans/OpenSans-BoldItalic.ttf') format('truetype');
+        font-weight: 700;
+        font-style: italic;
+        font-display: swap;
+      }
+
+      @font-face {
+        font-family: 'Prefix Source Code Pro';
+        src: url('source-code-pro/SourceCodePro-Regular.otf') format('opentype');
+        font-weight: 400;
+        font-style: normal;
+        font-display: swap;
+      }
+
+      body{background:#222;color:#99ddff;font-family:'Prefix Open Sans', Open Sans, sans-serif;margin:0;padding:1rem}
+      .container{max-width:1000px;margin:0 auto;text-align:justify;text-justify:inter-word}
+      .container h1{position:relative;text-align:center;margin-top:0;min-height:3rem;line-height:3rem;-webkit-font-smoothing: antialiased;-moz-osx-font-smoothing: grayscale;}
+      .container h1 .grey{color:#3b3b3b}
+      .container h1 .semibold{font-weight:600}
+      .title-icon{position:absolute;left:0;top:50%;transform:translateY(-50%);display:block;width:3rem;height:3rem}
+      pre, code{background:#3c3c3c;color:inherit;font-family:'Prefix Source Code Pro', 'Source Code Pro', monospace;padding:.25rem .5rem}
+      /* User selection (highlight) colors */
+      ::selection { background: #000000; color: #FFFF00; }
+      ::-moz-selection { background: #000000; color: #FFFF00; }
+      pre{white-space:pre-wrap;overflow:auto;word-wrap:break-word;margin:0}
+      pre code{display:block;white-space:pre-wrap}
+      img{max-width:100%}
+      /* Markdown horizontal rules (---) rendered by marked.js */
+      .container hr, hr {
+        border: none;
+        border-top: 2px solid #3c3c3c;
+        height: 1px;
+        margin: 1.5rem 0;
+        background: transparent;
+      }
   </style>
 </head>
 <body>
@@ -20,140 +79,183 @@
 
   <!-- Markdown source is embedded below. marked.js will render it into #content. -->
   <script id="md" type="text/markdown">
-# Prefix Specification
+# <a href="index.html"><img class="title-icon" alt="Prefix icon" src="./icon.png"></a> <span class="semibold">Pre<span class="grey">fix</span></span> Specification
 
-<p align="center">
-  <img alt="Prefix icon" src="./icon.png">
-</p>
+---
 
 ## Table of contents
 
-- [1. Overview](#1-overview)
+---
 
-- [2. Lexical Structure](#2-lexical-structure)
+## 1. Preamble
 
-- [3. Data Model](#3-data-model)
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED",  "MAY", and "OPTIONAL" in this document are to be interpreted as described in [IETF RFC 2119](https://datatracker.ietf.org/doc/html/rfc2119), as clarified in [IETF RFC 8174](https://datatracker.ietf.org/doc/html/rfc8174).
 
-- [4. Statements and Control Flow](#4-statements-and-control-flow)
+Prefix is a statically typed, imperative, interpreted programming language focused on explicit, readable source code.
 
-- [5. Functions](#5-functions)
+Programs MUST consist of variable declarations via assignment, expressions, and control-flow constructs.
 
-- [6. Variables and Memory Model](#6-variables-and-memory-model)
+---
 
-- [7. Execution Model and Semantics](#7-execution-model-and-semantics)
+## 2. Lexical structure
 
-- [8. Standard Library](#8-standard-library)
+Source files MUST consist of ASCII characters. Non-ASCII characters MUST NOT appear in syntactic elements that enter the program namespace, such as identifiers.
 
-- [9. Tracebacks and Error Reporting](#9-tracebacks-and-error-reporting)
+---
 
-- [10. Interpreter Use](#10-interpreter-use)
+### 2.1 Whitespace, comments, and logical lines
 
-- [11. REPL (Interactive Mode)](#11-repl-interactive-mode)
+Whitespace consists of the space character (`U+0020`), horizontal tab, carriage return, and line feed. Whitespace MAY appear freely between tokens and is otherwise ignored, except that logical newlines delimit top-level statements.
 
-- [12. Operators, Functions, and Statements](#12-operators-functions-and-statements)
+Comments MUST begin with `!` and continue to the end of the current line. Comments have no effect on execution.
 
-The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED",  "MAY", and "OPTIONAL" in this document are to be interpreted as described in [IETF RFC 2119](https://datatracker.ietf.org/doc/html/rfc2119).
+The semicolon character (`;`) MUST act as a newline-token alias outside string literals. Each `;` therefore separates statements exactly as a physical newline would.
 
-This document specifies an imperative programming language with a statically typed data model and an explicit small-step execution semantics.
+The caret character (`^`) MUST act as a line-continuation marker when it is immediately followed by a newline or by a comment and that comment's terminating newline. In those cases the continuation marker and intervening text are ignored by the lexer. A caret inside a string literal has no continuation meaning. Any other use of `^` MUST raise a syntax error.
 
-A program is compiled into an initial machine state (a seed configuration) and then executed solely by repeatedly applying a fixed, program-independent state-transition (rewrite) function. All intermediate states are (semi-)human-readable and serializable, and execution can be traced and replayed exactly, including I/O and nondeterministic choices, which are modeled explicitly for deterministic replay.
+---
 
-## 1. Overview
+### 2.2 Tokens and reserved words
 
-The language is a familiar statement-based, imperative language.
+The lexer MUST distinguish at least the following token classes: numeric literals, string literals, identifiers, keywords and built-ins, and delimiters. The base delimiters of the language are `(`, `)`, `{`, `}`, `[`, `]`, `<`, `>`, `,`, `:`, `=`, and `~`. The pointer marker `@` MUST be tokenized separately and MUST NOT be treated as part of an identifier.
 
-Programs consist of variable declarations via assignment, expressions, and control-flow constructs such as `IF`, `ELSEIF`, `ELSE`, `WHILE`, and `FOR`.
+Keywords and built-in names MUST be matched case-sensitively and MUST be written in their canonical uppercase forms. If a reserved word is written in any other case, it MUST be tokenized as an identifier instead.
 
-Prefix has seven runtime data types: based integers (`INT`), based floating-point numbers (`FLT`, IEEE754), strings (`STR`), non-scalar tensors (`TNS`), first-class user-defined functions (`FUNC`), associative maps (`MAP`), and thread handles (`THR`).
+The character `-` MUST be interpreted only as the leading sign of a numeric literal or as the dash used by slice syntax `lo-hi`. Any unsupported use of `-` MUST raise a syntax error.
 
-Identifiers, function parameters, and return values are statically typed; the type of every symbol MUST be declared when it is first introduced. Computation proceeds by evaluating expressions and executing statements in sequence, with explicit constructs for branching and looping. Input and output are modeled through built-in operators, in particular `INPUT` and `PRINT`.
+The character `~` MUST be reserved for coerced function parameters and MUST NOT appear inside identifiers.
 
-The interpreter compiles source code into a single initial configuration (the seed state), which includes the program code, an empty variable environment, and an initial I/O history. It then advances execution by repeatedly applying a single, fixed small-step transition function that is independent of the particular program. A disassembler and log view expose all intermediate states so that every step and every control-flow decision is inspectable and replay-able.
+---
 
-## 2. Lexical Structure
+### 2.3 Identifiers
 
-Source files are sequences of ASCII characters. Non-ASCII characters are not permitted in syntactic elements that enter the program namespace, such as identifiers.
+Identifiers MUST be non-empty and case-sensitive. Variables and user-defined functions share a single flat namespace, so one name MUST NOT denote both a variable and a function. A user-defined function name MUST NOT conflict with any built-in operator or function name.
 
-Whitespace consists of the space character (`U+0020`), horizontal tab, carriage return, and line feed. It MAY appear freely between tokens and is otherwise ignored, except that newlines delimit top-level statements (see Section 5.1).
+Identifiers MUST NOT contain non-ASCII characters or any of the following characters: `{`, `}`, `[`, `]`, `(`, `)`, `=`, `,`, `!`, `~`, or `@`. The first character of an identifier MUST NOT be `0` or `1`.
 
-A comment begins with the `!` character and continues to the end of the current line. Comments have no effect on execution.
+The first identifier character MAY be a letter `A-Z` or `a-z`, a decimal digit `2-9`, or one of `/`, `$`, `%`, `&`, `_`, `+`, `|`, or `?`. Subsequent identifier characters MAY additionally include the digits `0` and `1`. This permissive ASCII-only character set preserves an unambiguous distinction between identifiers and numeric literals, which MUST begin with a `0`-prefixed base marker.
 
-Line separator alias: The semicolon character (`;`) is treated by the lexer as a newline-token alias. Whenever a `;` appears in source code outside of a string literal, the lexer emits a `NEWLINE` token (equivalent to a physical newline), so `;` can be used to separate statements on a single physical line.
+---
 
-The program text is divided into several token kinds: binary integer literals (Section 3.1); string literals delimited by double or single quotation marks (`"`, `'`, Section 3.2); identifiers for variable names and user-defined function names (Section 2.5); keywords and built-ins (control-flow keywords, built-in operators and functions; see Sections 5 and 13); and delimiters, namely `(`, `)`, `{`, `}`, `[`, `]`, `,`, `:`, `=`, and `~`.
+### 2.4 Pointer token
 
-Keywords: The language's reserved keywords (for example, `IF`, `WHILE`, `FUNC`, etc.) are matched by the lexer exactly as listed in this specification and are case-sensitive. Programs MUST use the keywords in their canonical uppercase form; otherwise the token will be recognized as an identifier. Built-in operator names such as `INPUT`, `PRINT`, and `IMPORT` follow the same case-sensitive matching rules.
+The syntax `@name` MUST form a pointer literal, where `@` is a dedicated lexical token and `name` is an identifier resolved in the current lexical environment. Because `@` is a separate token, it MUST NOT appear inside identifier names.
 
-Line continuation: The character `^` serves as a line-continuation marker. When a caret `^` appears in the source and is followed immediately by a newline, both the `^` and the newline are ignored by the lexer (that is, the logical line continues on the next physical line). The lexer also accepts a caret immediately before a code note (a comment beginning with `!`); in this case the `^`, the comment text up to the line terminator, and the terminating newline are treated as if they were not present. If a `^` is present in a string, it does not count as a line continuation. If a caret appears and is not immediately followed by a newline, a code note, or the platform's single-character newline sequence, the lexer MUST raise a syntax error.
+---
 
-The character `-` primarily serves as the leading sign of a numeric literal (Section 3.1). A signed numeric literal MUST place the sign before the base prefix (for example, `-0xA`, `-0d10.5`). In other contexts (for example inside an index expression) a single `-` token is recognized as a dash used for slice notation `lo-hi`. If `-` appears in any other unsupported context the lexer MUST raise a syntax error.
+## 3. Statements
 
-The character `~` is a dedicated lexical token used only to mark coerced function parameters (Section 5). It MUST NOT appear inside identifier names.
+A Prefix program MUST consist of zero or more statements separated by logical newlines. Each top-level expression statement or assignment MUST occupy its own logical line.
 
-Identifiers denote variables and user-defined functions. They MUST be non-empty and case-sensitive. An identifier MUST NOT contain non-ASCII characters, nor any of the following characters: `{`, `}`, `[`, `]`, `(`, `)`, `=`, `,`, `!`. The first character of an identifier MUST NOT be the digit `0` or `1` (these digits are used to begin binary integer literals). However, the characters `0` and `1` are permitted in subsequent positions within an identifier (for example, `a01` and `X10Y` are valid identifiers, while `0foo` and `1bar` are not). The namespace is flat: variables and functions share a single identifier space, so a given name cannot simultaneously denote both. A user-defined function name MUST NOT conflict with the name of any built-in operator or function (see Section 13).
+---
 
-Identifier character set (clarification): The (non-empty) sequence of characters that forms an identifier is determined by the following rules, which match the reference lexer implementation:
+### 3.1 Blocks and statement forms
 
-- The first character MUST NOT be `0` or `1`. Any other non-ASCII character is disallowed, but otherwise the lexer permits a broad set of ASCII punctuation and symbol characters in addition to letters and digits. In particular, the following characters are valid as the first character of an identifier:
+Blocks MUST be enclosed in matching curly braces as `{ statement1 ... statementN }`. Blocks are used as the bodies of conditionals, loops, thread constructs, exception handlers, and function definitions.
 
-  - Lowercase letters `a`-`z`
+The core statement forms of the language MUST include typed declarations, assignments, expression statements, conditional execution, loops, asynchronous execution, exception handling, loop-control statements, and low-level jump statements.
 
-  - Uppercase letters `A`-`Z`
+---
 
-  - Decimal digits `2`-`9`
+### 3.2 Declarations and assignment
 
-  - The punctuation and symbol characters `/ $ % & _ + | ?`
+A symbol MAY be declared without a value using `TYPE: name`. Such a declaration records the symbol's static type but does not create a readable runtime binding until an assignment occurs.
 
-- Subsequent characters in an identifier MAY be any of the following:
+The first assignment to a symbol MUST use a typed form such as `TYPE: name = expression`, with optional spaces around `:` and `=`. Subsequent assignments MAY omit the type annotation, but the symbol's type MUST remain unchanged for the lifetime of that name, including after deletion and re-assignment.
 
-  - Lowercase letters `a`-`z`
+Assignments to undeclared identifiers without a type annotation MUST raise a runtime error. A binding MUST remain allocated until it is deleted with `DEL(name)`.
 
-  - Uppercase letters `A`-`Z`
+The built-in `ASSIGN(target, expression)` MUST provide expression-position assignment. The `target` MAY be a plain identifier or an indexed target. If the identifier does not yet exist, the typed form `ASSIGN(TYPE: name, expression)` MUST be used, and that typed form is valid only for plain identifiers.
 
-  - Decimal digits `0`-`9`
+Indexed assignment to a tensor MUST use the form `tensor[i1, i2, ..., iN] = expression`. The base symbol MUST already be a `TNS`, the index count MUST match the tensor rank, indices MUST follow the language's one-based and negative-index rules, and the assignment MUST preserve the static element type at the selected position.
 
-  - The punctuation and symbol characters
-    `/ $ % & _ + | ?`
+Indexed assignment to a map MUST use the same form as ordinary map access, such as `map<k1, k2> = expression`. Intermediate nested maps MUST be created on demand when assigning to deeper keys. Reassigning an existing key to a value of a different static type MUST raise a runtime error.
 
-  As noted above, non-ASCII characters remain disallowed, and the delimiter characters `{`, `}`, `(`, `)`, `=`, `,`, and `!` are never permitted inside identifiers.
+If a tensor target uses slice indices such as `lo-hi` or `*`, the right-hand side MUST evaluate to a `TNS` whose shape exactly matches the selected slice, and every written element MUST satisfy the target's static type constraints.
 
-This deliberately-permissive identifier character set preserves an unambiguous lexical distinction between numeric literals (which MUST begin with a base prefix starting with `0`) and identifiers, while allowing module-qualified names and other symbolic conventions to be expressed directly as plain identifiers in source code.
+---
 
-### Pointer operator
+### 3.3 Conditionals and conditions
 
-The `@` character is a dedicated lexical token (not part of an identifier). When written before an identifier it produces a pointer literal that denotes an alias to an existing identifier in the current lexical environment. The pointer literal syntax is `@name` and is parsed as a distinct expression (see Section 6 for runtime semantics). Because `@` is a separate token it MUST NOT appear inside an identifier name.
+Conditional execution MUST use `IF(condition){ ... }`, optionally followed by one or more `ELSEIF(condition){ ... }` clauses and at most one trailing `ELSE{ ... }` clause. An `ELSEIF` or `ELSE` MUST immediately follow a preceding `IF` or `ELSEIF`; otherwise it is a syntax error.
 
+The interpreter MUST evaluate the initial `IF` condition first, then each `ELSEIF` condition in order until one is truthy. If no earlier branch is taken and an `ELSE` clause is present, its block MUST execute.
 
-## 3. Data Model
+Conditions MUST accept `INT`, `STR`, and `TNS`. A `STR` condition MUST first be converted using the language's `INT` conversion rules. A `TNS` condition MUST be treated as true if any contained element is truthy and false otherwise.
 
-Prefix supports seven runtime data types: based integers, based floating-point numbers, strings, non-scalar tensors, first-class functions, associative maps, and thread handles.
+---
 
-Numeric literals (`INT` and `FLT`) MUST include an explicit base prefix. Valid prefixes are:
+### 3.4 Exception handling
 
-- `0b` = base 2 digits `0-1`
-- `0o` = base 8 digits `0-7`
-- `0d` = base 10 digits `0-9`
-- `0x` = base 16 digits `0-9` and `A-F`
-- `0t` = base 32 digits `0-9` and `A-V`
-- `0c` = base 58 digits `1-9`, `A-H`, `J-N`, `P-Z`, `a-k`, `m-z`
-- `0s` = base 64 digits `0-9`, `A-Z`, `a-z`, `+`, `_`
-- `0rNN` = base `NN` where `NN` is two decimal digits and `2 <= NN <= 64`
+Structured exception handling MUST use either `TRY{ ... }CATCH{ ... }` or `TRY{ ... }CATCH(SYMBOL: name){ ... }`. A `TRY` block MUST be followed immediately by exactly one `CATCH` block, and a standalone `CATCH` is a syntax error.
 
-Signed numeric literals MUST place the sign before the prefix (for example, `-0d10`, `-0xA.8`). `FLT` literals MUST include both integer and fractional parts around the radix point. `FLT` infinities and NaN are written as `INF`, `-INF`, and `NaN`, and do not carry a numeric base prefix (they are considered base-NaN).
+If the `TRY` block completes without a runtime error, the `CATCH` block MUST be skipped. If a runtime error occurs while executing the `TRY` block, execution of that block MUST stop and the matching `CATCH` block MUST execute.
 
-`INT` and `FLT` values store their base at runtime. The result of a mathematical operation MUST use the highest base present in its numeric operands. Bases below 2 or above 64 are invalid and MUST raise an error when requested (for example via `CONVERT`).
+In the parameterized form, `CATCH(SYMBOL: name)` MUST create a temporary `STR` binding named `name` in the handler's lexical environment containing the triggering error message. That temporary binding MUST shadow any existing binding of the same name only for the duration of the `CATCH` block.
 
-When numeric values are converted to `STR` (including by `PRINT`), they MUST be rendered in their own base and MUST include the base prefix. `INF`, `-INF`, and `NaN` are rendered exactly as shown.
+`TRY` and `CATCH` MUST intercept interpreter-level runtime errors only. Errors raised inside `ASYNC` or other background execution contexts MUST be reported through the runtime's error-reporting mechanisms and MUST NOT synchronously transfer control to a surrounding `CATCH` block in another thread.
 
-The built-in operators `CONVERT(num, base)` and `BASE(num)` are provided. `CONVERT` returns `num` represented in `base` (2..64). `BASE` returns the numeric base for non-NaN-base values.
+---
 
-Bitwise shift/logic operators `BAND`, `BOR`, `BXOR`, `SHL`, and `SHR` accept only binary (`0b`) `INT` operands.
+### 3.5 Loops
 
-String literal: a sequence of characters enclosed in either double quotation marks (`"`) or single quotation marks (`'`). A string opened with one delimiter MUST be closed with the same delimiter. Newlines are not permitted inside string literals.
+`WHILE(condition){ ... }` MUST repeatedly evaluate its condition before each iteration and MUST terminate when the condition becomes false.
 
-String literals support backslash escape codes. Unknown escape codes (or invalid hexadecimal literals in `\x`/`\u`/`\U`) raise syntax errors at parse time.
+`FOR(counter, target){ ... }` MUST evaluate `target` exactly once at loop entry, require that value to be an `INT`, initialize `counter` to `1`, and execute the body once for each value through `target`, inclusive. The loop counter MUST be loop-local and MUST NOT persist after the loop finishes, though other symbols declared in the body remain bound in the enclosing environment.
 
-Supported escape codes:
+`PARFOR(counter, target){ ... }` MUST evaluate `target` once, require an `INT`, then execute the iterations `1..target` concurrently. The interpreter MUST wait for all iterations to finish before continuing. The loop counter is iteration-local and does not persist afterward, while other symbols declared in iteration bodies are merged back into the enclosing environment. Concurrent writes to shared identifiers are therefore race-prone, and the resulting value is implementation-defined.
+
+Runtime errors raised inside a `PARFOR` iteration MUST be collected and re-raised after all iterations have joined. `CONTINUE()` inside `PARFOR` MUST end only the current iteration. `BREAK(n)` inside any `PARFOR` iteration MUST terminate the `PARFOR` as a whole by preventing new iterations from starting, waiting for in-flight iterations to finish, and then propagating the break to surrounding loop handlers.
+
+---
+
+### 3.6 Asynchronous execution and threads
+
+The statement form `ASYNC{ ... }` MUST start a background task that executes the enclosed block asynchronously relative to the main flow of execution while sharing the same lexical environment. Mutations performed inside the block are therefore visible to the rest of the program as they occur.
+
+When `ASYNC{ ... }` appears in statement position, its resulting `THR` handle is ignored. When it appears in expression position, it MUST evaluate to a `THR` handle. If that expression is supplied as an argument to an enclosing call expression, the runtime MUST defer starting the worker until the enclosing call expression has completed.
+
+The statement form `THR(symbol){ ... }` MUST create a background task and bind its handle to `symbol` with static type `THR` in the current environment.
+
+Runtime errors raised inside asynchronous execution MUST be recorded by the interpreter's error-reporting and state-logging mechanisms and MUST NOT synchronously abort the main thread.
+
+---
+
+### 3.7 Loop control and jumps
+
+`BREAK(n)` MUST terminate the innermost `n` enclosing loops. The argument `n` MUST evaluate to a strictly positive integer. Using `BREAK` outside a loop, passing `n <= 0`, or requesting more loop exits than are currently available MUST raise a runtime error.
+
+`CONTINUE()` MUST skip the remainder of the current iteration of the innermost enclosing loop and proceed to the next iteration. If no further iteration would occur, `CONTINUE()` MUST have the same effect as `BREAK(1)`. Using `CONTINUE()` outside a loop MUST raise a runtime error.
+
+`GOTOPOINT(n)` MUST register a jump target identified by the runtime value `n`, where `n` MAY be either `INT` or `STR`. Negative integer gotopoint identifiers are invalid.
+
+`GOTO(n)` MUST jump to a previously registered gotopoint with matching type and value. The jump target MUST be visible within the same containing function or top-level scope unless an implementation explicitly widens that scope. `GOTO` MAY jump either forward or backward. Jumping to an unregistered target MUST raise a runtime error.
+
+Implementations MUST record `BREAK`, `CONTINUE`, `GOTOPOINT`, and `GOTO` in the state log so deterministic replay and traceback generation remain possible.
+
+---
+
+## 4. Types
+
+Prefix MUST support seven types: `STR` (strings), `INT` (integers), `FLT` (floating-point numbers), `TNS` (tensors), `MAP` (maps), `FUNC` (functions), and `THR` (threads). The type of a symbol is determined when it is first declared, and cannot be changed, even after deletion of the original symbol.
+
+---
+
+### 4.1 Strings
+
+`STR` MUST consist of a sequence of Unicode characters.
+
+---
+
+#### 4.1.1 String literals
+
+`STR` literals MUST be enclosed in either single quotes (`'`) or double quotes (`"`). The closing quote character MUST match the opening quote character.
+
+---
+
+#### 4.1.2 Escape sequences
+
+The character `\` MUST begin an escape sequence in a `STR` literal. The following escape sequences MUST be supported:
 
 - `\\` = U+005C
 
@@ -177,789 +279,820 @@ Supported escape codes:
 
 - `\e` = U+001B
 
-- `\xHH` = exactly two hex digits (0-9A-Fa-f). Produces code point U+00..U+FF specified by 0xHH.
+- `\xHH` = exactly two hexadecimal digits (`0-9`|`A-F`|`a-f`). Produces code point U+00..U+FF specified by 0xHH.
 
-- `\uHHHH` = exactly four hex digits. Produces code point U+HHHH.
+- `\uHHHH` = exactly four hexadecimal digits (`0-9`|`A-F`|`a-f`). Produces code point U+HHHH.
 
-- `\UHHHHHHHH` = exactly eight hex digits. Produces code point U+HHHHHHHH.
+- `\UHHHHHHHH` = exactly eight hexadecimal digits (`0-9`|`A-F`|`a-f`). Produces code point U+HHHHHHHH.
 
-Raw-mode escape: `\R` toggles raw-mode for the string (until the next `\R` or the end of the string). While raw mode is on, all escape codes (except `\R`) are treated as plaintext (so `\n` contributes the two characters `\` and `n`, and `\"` contributes the two characters `\` and `"`).
+- `\R` = raw mode toggle. In raw mode, all escape sequences (with the exception of `\R`) are treated as plain text until the next `\R` or the end of the string literal.
 
-Tensor literal: a non-empty bracketed collection of expressions. Each pair of matching brackets introduces a dimension; nested brackets MUST form a rectangular shape (all sublists at a given depth have the same length) or a syntax error is raised. The outermost bracket corresponds to dimension 1. Examples (lengths shown in binary):
+If an invalid escape sequence (or a non-Hexadecimal value when one is expected by the escape sequence) is encountered in a `STR` literal, an error MUST be raised.
 
-- `[0,1,10]` has shape `[11]` (one dimension of length three).
+---
 
-- `[[0,1,10],[0,10,100]]` has shape `[10,11]`.
+#### 4.1.3 Boolean representation
 
-- `[[[0,1,10],[1,10,100]]]` has shape `[1,10,11]`.
+When a `STR` is used in a boolean context, an empty string MUST be treated as `0`, and any non-empty string MUST be treated as `1`.
 
-Expressions inside a tensor literal MAY themselves evaluate to `INT`, `FLT`, `STR`, or `TNS`. If an element expression evaluates to a tensor value, it occupies a single position and does not contribute additional dimensions; only the explicit bracket structure determines the shape. A tensor literal that mixes sub-brackets of differing lengths is invalid (for example, `[[0,0,0],[1,1]]`).
+---
 
+### 4.2 Integers
 
-Map literal and `MAP` type: In addition to tensors, Prefix provides an N-dimensional associative map type `MAP` whose literal form uses angle brackets and key/value pairs. A map literal is written as `<key1 = value1, key2 = value2, ...>`. Values MAY themselves be maps, allowing nested associative structures. Examples:
+`INT` MUST be conceptually unbounded integers with an attached numeric base. Implementations MAY implement a size limit, but MUST support at least 32-bit signed integers. Implementations SHOULD support at least 64-bit signed integers.
 
-- `<"foo" = 1, "bar" = 10>` is a 1-level map with string keys.
-- `<"outer" = <"inner" = 1>, "other" = 0>` nests a map value under key `"outer"`.
+---
 
-A special literal `SELF` is recognized inside map literals. When used as a value within a map literal, `SELF` denotes a pointer (alias) to the enclosing `MAP` being constructed; storing `SELF` creates an entry that references the map itself so mutations via that reference affect the same map instance.
+#### 4.2.1 Integer literals
 
-Map indexing uses angle brackets and a comma-separated key list: `m<k1>` or `m<k1,k2>` to lookup nested values. Keys MUST be scalar values of type `INT`, `FLT`, or `STR` (tensor values are not permitted as keys). The number of keys supplied MAY vary between lookups and different keys need not share the same depth: maps are sparse and do not require rectangular shapes.
+`INT` literals MUST include a base prefix. Valid prefixes are `0b`, `0o`, `0d`, `0x`, `0t`, `0c`, `0s`, and `0rNN` where `NN` is two decimal digits and `2 <= NN <= 64`.
 
-Maps preserve insertion order: keys are stored in the order they are inserted (left-to-right for keys written in a literal and in the order of creation for keys added later). Iteration and serialized representations of a map reflect this insertion order.
+`INT` literals MUST support negative values via prefixing with a `-` before the base prefix, and positive values with no sign. `INT` literals MUST NOT support a `+` prefix.
 
-Assignment to a map element uses the same indexed-assignment form as tensors: `map<k1,k2> = expr` binds or updates the nested key. Intermediate nested maps are created on-demand when assigning deeper keys. Each map entry stores its value with a single static type: assigning a different type to an existing key is a runtime error. Keys MAY be added or removed after the map is created. To delete a key, use the built-in deletion operator: `DEL(map<k>)` removes the mapping for `k`. Examples (REPL):
+Literal digits MUST match the selected base's alphabet. Bases smaller than 2 or larger than 64 MUST raise an error.
 
-```
->>> MAP: map = <"foo" = 1, "bar" = 10, "boz" = <"foo" = 11, "bar" = 100>>
->>> PRINT(map<"foo">)
-1
->>> PRINT(map<"boz", "foo">)
-11
-```
+---
 
-Slice indexing: any index position inside `[...]` MAY be a range of the form `lo-hi` where `lo` and `hi` are ordinary index expressions. A range selects the contiguous inclusive span of positions from `lo` to `hi` (both endpoints follow the same one-based and negative-index rules described above). Slices MAY be mixed with hard indices (for example, `tensor[lo-hi, i]`) and reduce the dimensionality of the selected result according to which positions are fixed versus sliced: selecting one or more ranges produces a `TNS` value whose shape equals the lengths of the specified ranges (in the same order). Assigning to a slice is supported: the left-hand side MAY use ranges in its indices, and the right-hand-side expression MUST evaluate to a `TNS` whose shape exactly matches the selected slice. Elementwise type compatibility is REQUIRED: each element being written MUST match the static element type of the target position, otherwise a runtime error is raised. Example: `tensor[10-11] = [1,11]` writes a two-element tensor into the slice consisting of positions `10` and `11`.
+#### 4.2.2 Boolean representation
 
-Additionally, the symbol `*` MAY be used in an index position to denote a full-dimension slice selecting every element along that axis (for example, `tensor[*,1]` selects all elements of the first dimension at index `1` of the second dimension).
+When an `INT` is used in a boolean context, `0` MUST be treated as `0`, and any non-zero value MUST be treated as `1`.
 
-All other tensor operations are non-mutating: tensor literals and tensor-valued built-ins produce new tensor values rather than mutating existing ones. Because indexed assignment mutates a tensor object, if the same tensor value is explicitly aliased, all aliases observe the mutation.
+---
 
-MAP and `TNS` values are atomic (de-referenced) types: assigning a `MAP` or `TNS` to another identifier copies (duplicates) the container object so that subsequent mutations to one binding do not affect the other by default. The runtime provides explicit copy semantics to control sharing:
+### 4.3 Floating-point numbers
 
-When shared, aliased containers are required, developers should use pointer references (with `@`).
+`FLT` MUST be a compliant implementation of IEEE 754 floating-point numbers and carry an attached numeric base (or base-NaN for special values). `FLT` SHOULD use 64-bit double-precision representation.
 
-Every runtime value has a static type: `INT`, `FLT`, `STR`, `TNS`, `MAP`, `THR`, or `FUNC`. Integers are conceptually unbounded mathematical integers with an attached base in `[2,64]`. Floats are IEEE754 floating-point numbers with an attached base in `[2,64]` or base-NaN for `INF`/`NaN`. Strings are sequences of characters (source text is ASCII, but escape codes MAY denote non-ASCII code points). Tensors are non-scalar aggregates whose elements MAY be `INT`, `FLT`, `STR`, `MAP`, `THR`, `FUNC`, or `TNS`. Maps are associative containers mapping scalar keys (`INT`, `FLT`, or `STR`) to values of a single static type. Threads are handles to parallel code blocks. Functions are user-defined code blocks with lexical closures.
+---
 
-Function value (`FUNC`): a reference to a user-defined function body (including its lexical closure). A `FUNC` value can be stored in variables or tensors, passed as an argument, or returned from a function. The call syntax applies to any expression that evaluates to `FUNC`; for example, `alias()` calls the function bound to `alias`, and `tns[1]()` calls the function stored in that tensor element. `FUNC` values are always truthy; equality compares object identity (two references are equal only if they refer to the same function definition). String rendering produces an implementation-defined placeholder such as `<func name>`.
+#### 4.3.1 Floating-point literals
 
-When a Boolean interpretation is required, `INT` treats 0 as false and non-zero as true; `FLT` treats 0.0 as false and any non-zero value as true; `STR` treats the empty string as false and any non-empty string as true; `TNS` is true if any contained element is true by these rules, otherwise false. Control-flow conditions (`IF`, `ELSEIF`, `WHILE`) and `ASSERT` convert strings to integers using the same rules as the `INT` built-in (base-prefixed parse), and tensors are first reduced to their Boolean truth value (1 or 0).
+`FLT` literals MUST include a base prefix using the same prefix forms as `INT` literals.
 
-`INT` and `FLT` are not interoperable: no implicit conversion occurs. Operators that accept both types require that all numeric arguments have the same numeric type.
+`FLT` literals MUST consist of a prefixed integer part, a radix point (`.`), and a fractional part. The integer and fractional parts MUST each contain at least one digit in the selected base.
 
-## 4. Statements and Control Flow
+`FLT` literals MUST support negative values via prefixing with a `-` before the base prefix, and positive values with no sign. `FLT` literals MUST NOT support a `+` prefix.
 
-A program consists of zero or more statements separated by newlines. Each top-level expression or assignment MUST appear on its own line. The basic statement forms are assignments of the form `identifier = expression`, expression statements such as calls to `PRINT` whose result is ignored, control-flow constructs (`IF`, `ELSEIF`, `ELSE`, `WHILE`, and `FOR`), and function definitions (`FUNC` declarations; see Section 6).
+---
 
-Blocks group one or more statements and are enclosed in curly brackets: `{ statement1 ... statementN }`. Curly braces MUST match (that is, `{` closes with `}`). Blocks serve as the bodies of control-flow constructs and functions.
+#### 4.3.2 Special values
 
-ASYNC blocks: The `ASYNC` statement introduces a background task whose body is a regular block: `ASYNC{ ... }`. The statements inside the block execute synchronously with respect to each other but asynchronously relative to the rest of the program. The block shares the main program namespace (it executes with the same lexical environment), so assignments and mutations performed inside an `ASYNC` block are visible to the rest of the program immediately. Runtime errors raised inside an `ASYNC` block are reported via the interpreter's error hooks and recorded in the state log; they do not synchronously abort the main thread. When `ASYNC{ ... }` appears as a top-level statement the interpreter begins executing the block immediately in a background task and continues with the next statement. When `ASYNC{ ... }` is evaluated in expression position and is used as an argument to a surrounding call expression, the interpreter returns a `THR` handle but defers starting the worker thread until the immediately-enclosing call expression completes; this allows operators that receive the `THR` (for example `PAUSE` or `STOP`) to act on the thread before it begins execution. Note that language invariants still apply inside the `ASYNC` block (for example, `RETURN` outside a function is a runtime error).
+`FLT` MUST support the following special values:
 
-Thread values (`THR`): a `THR` value is a handle to a background task. In Boolean contexts, a finished `THR` (including one that has been stopped) is `0`, otherwise it is `1`.
+- `INF` - Infinity. `INF` MUST support negative values via prefixing with a `-` (`-INF`).
 
-`THR(symbol){ block }`: the `THR` statement starts executing `block` in a background task and binds the identifier `symbol` (static type `THR`) in the current environment to the newly-created thread handle. The spawned task shares the main program namespace (it executes with the same lexical environment) similarly to `ASYNC`.
+- `NaN` - Quiet Not a Number. `NaN` MUST NOT support negative values. Attempting to create a negative `NaN` MUST cause an error.
 
-`ASYNC{ block }` as an expression: `ASYNC{ ... }` MAY also appear in expression position, where it evaluates to a `THR` handle. In statement position, `ASYNC{ ... }` remains valid and its resulting `THR` value is ignored.
+`INF`, `-INF`, and `NaN` MUST NOT include a base prefix and are considered base-NaN.
 
-Assignments have the syntax `TYPE : identifier = expression` on first use, where TYPE is `INT`, `FLT`, `STR`, `TNS`, or `FUNC`. Spaces around the colon and equals sign are OPTIONAL. Subsequent assignments to an existing identifier MAY omit the type but MUST preserve the original type. Variables are deallocated only when `DEL(identifier)` is executed.
+When numeric values are converted to `STR`, they MUST render in their own base and MUST include the base prefix. `INF`, `-INF`, and `NaN` render without a base prefix.
 
-Inline assignment operator: the built-in `ASSIGN` provides an expression form of assignment, similar to a walrus operator. The general form is `ASSIGN(target, expression)` and it evaluates `expression`, assigns it to `target`, and returns the assigned value. The `target` MAY be a plain identifier (for example `ASSIGN(x, 1)`) or an indexed assignment target (for example `ASSIGN(tensor[1], 0)` or `ASSIGN(map<"k">, 1)`). If the identifier has not yet been declared, the typed form is required: `ASSIGN(TYPE: name, expression)` declares the identifier's type and performs the assignment in one step. The typed form is only valid for plain identifiers; indexed targets MUST already exist and follow the same indexed-assignment rules as statement assignments.
+Mathematical operations MUST produce results in the highest base present among numeric operands.
 
-Tensor elements can be reassigned with the indexed form `identifier[i1,...,iN] = expression`. The base MUST be a previously-declared `TNS` binding. The indices MUST match the tensor's dimensionality, follow the same one-based/negative-index rules as ordinary indexing, and MUST reference anexisting position. The element's original type cannot change: attempting to store a different type at that position is a runtime error. Indexed assignment mutates the `TNS`.
+---
 
-The language provides `IF`, `ELSEIF`, and `ELSE` constructs for conditional execution. An `IF` statement has the general form `IF(condition){ block }`. OPTIONAL chained branches MAY follow: one or more `ELSEIF(condition){ block }` clauses and an OPTIONAL terminal `ELSE{ block }` clause. An `ELSEIF` or `ELSE` MUST immediately follow an `IF` or another `ELSEIF`; otherwise it is a syntax error. At most one `ELSE` MAY appear in a given chain. Evaluation proceeds by first evaluating the condition of the initial `IF`. If it is non-zero, the associated block executes and the rest of the chain is skipped. Otherwise, the conditions of subsequent `ELSEIF` clauses are evaluated in order until one is non-zero; its block then executes and the chain terminates. If no `IF` or `ELSEIF` condition is satisfied and an `ELSE` is present, the `ELSE` block executes; if there is no `ELSE`, no block in the chain executes.
+#### 4.3.3 Boolean representation
 
-Exception handling: `TRY` / `CATCH` blocks
+When a `FLT` is used in a boolean context, `0.0` MUST be treated as `0`, and any non-zero value MUST be treated as `1`.
 
-The language provides a simple structured exception handling form using `TRY{ ... }CATCH{ ... }` or the alternate `TRY{ ... }CATCH(SYMBOL: name){ ... }` form. A `TRY` block MUST be immediately followed by a single `CATCH` block. If a `TRY` is not followed by a `CATCH`, parsing fails. A `CATCH` that does not immediately follow a `TRY` is a syntax error.
+---
 
-Semantics: the interpreter executes the `TRY` block normally. If the `TRY` block completes without a runtime error, execution proceeds to the statement following the `CATCH` block (the `CATCH` block is skipped). If a runtime error (an interpreter-level runtime exception) occurs anywhere during execution of the `TRY` block, normal execution of the `TRY` block stops and the associated `CATCH` block executes. Runtime errors raised inside the `CATCH` block (or propagated from it) behave as normal runtime errors and will be reported or propagated further.
+### 4.4 Tensors
 
-`CATCH(SYMBOL: name)` binding: when using the parameterized `CATCH` form the interpreter creates a temporary symbol `name` (of static type `STR`) visible in the lexical environment of the `CATCH` block whose value is the error message string describing the runtime error that triggered the handler. The temporary symbol shadows any existing binding with the same name for the duration of the `CATCH` block and is removed (or restored to its prior value) immediately after the `CATCH` block completes. The symbol is always a `STR` containing the textual error message; if the handler wishes to inspect richer error metadata it MUST do so via built-in facilities exposed by the runtime.
+`TNS` MUST represent a non-scalar aggregate of elements. The elements MAY be of type `INT`, `FLT`, `STR`, `MAP`, `THR`, `FUNC`, or `TNS`. `TNS` values MUST be atomic (de-referenced) types, where assigning a `TNS` to another identifier copies the container object by default.
 
-Notes and error rules: `TRY`/`CATCH` only intercept interpreter-level runtime errors (for example: undefined identifier, type mismatch, divide-by-zero). `ASYNC` blocks execute on background threads; runtime errors raised inside an `ASYNC` are reported via error hooks and do not synchronously transfer control to nearby `CATCH` blocks in the main thread. Nested `TRY`/`CATCH` works as expected: the innermost enclosing `TRY` with its directly-following `CATCH` handles errors raised within its `TRY` block.
+---
 
-Conditions accept `INT`, `STR`, or `TNS`. `STR` conditions are first converted to `INT` using the `INT` built-in rules (empty -> 0; binary string -> that integer; other non-empty -> 1) before truthiness is checked. A `TNS` condition is true if any of its elements is true by the `INT`/`STR` truthiness rules.
+#### 4.4.1 Tensor literals
 
-Loops are provided via `WHILE`, `FOR`, and `PARFOR`. A `WHILE` loop has the form `WHILE(condition){ block }`. On each iteration, the condition is evaluated; if it is non-zero, the block executes and control returns to the start of the loop to evaluate the condition again. If the condition evaluates to zero, the loop terminates and execution continues with the next statement.
+`TNS` literals MUST be enclosed in square brackets (`[` and `]`). Each pair of matching brackets MUST introduce a dimension, and nested brackets MUST form a rectangular shape where all sublists at a given depth have the same length. A `TNS` literal that mixes sub-brackets of differing lengths MUST raise a syntax error.
 
-The `FOR` construct has the form `FOR(counter, target){ block }`, where `counter` is an identifier and `target` is an expression. At loop entry, `target` is evaluated once to a value `T` (MUST be `INT`), and `counter` is initialized to the `INT` value `1`, creating it as an `INT` if necessary. The loop then repeats: if the current value of `counter` is greater than `T`, the loop exits; otherwise, the block executes and `counter` is incremented by `1` before the next iteration.
+Expressions inside a `TNS` literal MAY evaluate to `INT`, `FLT`, `STR`, or `TNS`. If an element evaluates to a `TNS` value, it MUST occupy a single position and MUST NOT contribute additional dimensions to the shape.
 
-Note on scoping: the loop `counter` is loop-local and does not persist in the enclosing environment after the `FOR` completes (any prior binding with the same name is restored). Any other identifiers that are declared (first assigned with a `TYPE:` declaration) inside the `FOR` body are bound in the enclosing environment (that is, they persist after the loop finishes).
+---
 
-The `PARFOR` construct has the form `PARFOR(counter, target){ block }`. Semantically, the interpreter evaluates `target` once at loop entry (MUST be `INT`) yielding `T`, then concurrently executes `T` independent iterations indexed from `1` to `T` (inclusive). Each iteration runs the loop `block` with the loop `counter` bound to its iteration index. The interpreter waits for all iterations to complete before proceeding to the statement following the `PARFOR` block. Iteration bodies execute in parallel and MAY run on different threads; therefore, writes to shared mutable identifiers are subject to race conditions. To avoid unintended races, iteration-local state SHOULD be stored in identifiers that are created inside the iteration body or otherwise synchronized by user code. Runtime errors raised inside an iteration are reported and will cause the `PARFOR` to fail after all iterations have joined; the first such error is re-raised to the caller.
+#### 4.4.2 Tensor indexing
 
-Note on scoping: as with `FOR`, the loop `counter` is iteration-local and does not persist in the enclosing environment after the `PARFOR` completes. Identifiers (other than the counter) that are declared inside iteration bodies are nevertheless bound in the enclosing environment; when iterations finish, the interpreter merges those bindings back into the enclosing scope. Because iterations execute concurrently, concurrent writes to the same identifier are subject to race conditions and the final value is implementation-defined (the reference implementation uses a last-writer-wins merge strategy).
+`TNS` indexing MUST use square brackets (`[` and `]`) with a comma-separated list of indices. Indexing MUST be one-based. Negative indices MUST count backwards from the end of the dimension.
 
-  Loop-control semantics inside `PARFOR` differ from sequential loops in the following ways:
-  
-  - `CONTINUE()` ends the current iteration only; it does not affect other concurrently running iterations.
-  
-  - `BREAK(n)` terminates the entire `PARFOR`. When a `BREAK` is executed in any iteration, the interpreter signals termination of the `PARFOR`, stops starting any further iterations, waits for currently-running iterations to complete, and then behaves as if `BREAK(n)` had executed at the `PARFOR` site (that is, a `BreakSignal` is propagated to outer loop handlers). Note that because iterations execute concurrently on threads, iterations already executing when the `BREAK` occurred will run to completion unless they themselves check user-level synchronization; `BREAK` prevents additional iterations from starting and ensures the `PARFOR` as a whole terminates as soon as the in-flight iterations finish.
+Slice indexing MUST be supported in any index position using a range of the form `lo-hi`. The selected slice MUST be inclusive of both endpoints. The symbol `*` MAY be used in an index position to denote a full-dimension slice, selecting every element along that axis.
 
-BREAK statement: The language provides a statement form `BREAK(n)` that terminates enclosing loops. When executed inside a loop body (either a `WHILE` or `FOR` loop), `BREAK(n)` breaks out of the innermost `n` loops and resumes execution at the statement following those loops. The argument `n` is evaluated as an integer at runtime and MUST be strictly positive. If `n ≤ 0` the interpreter raises a runtime error. If `n` is greater than the number of currently-enclosing loops (that is, the statement would escape all surrounding loops), the interpreter raises a runtime error rather than silently terminating the program. Using `BREAK` outside of any loop context similarly results in an error. The exact error type and reporting information are implementation-defined but MUST be recorded in the state log to make replay and debugging deterministic.
+---
 
-CONTINUE statement: The language provides a statement form `CONTINUE()` that, when executed inside a loop body (either a `WHILE` or `FOR` loop), immediately proceeds to the next iteration of the innermost enclosing loop, skipping any remaining statements in the current iteration. If the current iteration is the final one (that is, no further iterations would occur), `CONTINUE()` has the same effect as executing `BREAK(1)` and thus exits the innermost loop. Using `CONTINUE()` outside of any loop context is a runtime error. Implementations MUST record the use of `CONTINUE` in the state log so that replay and tracebacks remain deterministic.
+#### 4.4.3 Boolean representation
 
+When a `TNS` is used in a boolean context, a `TNS` MUST be treated as `1` if it contains any truthy elements (elements that are treated as `1` in a boolean context), and `0` otherwise.
 
-## 5. Functions
+---
 
-Functions are defined using the `FUNC` keyword with explicit parameter and return types. The canonical positional-only form is `R: name(T1: arg1, T2: arg2, ..., TN: argN)`, where each `Tk` and `R` is `INT`, `FLT`, `STR`, `TNS`, `MAP`, `FUNC`, or `THR`. A parameter type MAY be prefixed with `~` (for example, `~INT: x`) to mark that parameter as coerced. Parameters MAY also declare a call-time default value using `Tk: arg = expr` (or `~Tk: arg = expr` for a coerced parameter). A parameter without a default is positional; a parameter with a default is keyword-capable. Positional parameters MUST appear before any parameters with defaults. Defining a function binds `name` to a callable body with the specified typed formal parameters. Function names MUST NOT conflict with the names of built-in operators or functions.
+### 4.5 Maps
 
-In addition to named functions, the language provides an anonymous function literal form `LAMBDA` which constructs a `FUNC` value without binding it to a function name in the global function table. The canonical form for lambdas is `R: (T1: arg1, T2: arg2, ..., TN: argN)`, and lambda parameters MAY also use the `~Tk: arg` coerced form. Parameter typing, default-value rules, call semantics, and return-type rules are the same as for `FUNC`. Evaluating a `LAMBDA` expression captures (closes over) the current lexical environment, producing a first-class `FUNC` value that can be assigned to variables, stored in tensors, passed as an argument, or returned.
+`MAP` MUST represent an N-dimensional associative container mapping keys to values of a single static type. `MAP` values MUST be atomic (de-referenced) types, where assigning a `MAP` to another identifier copies the container object by default. Maps MUST preserve insertion order.
 
-A user-defined function is called with the same syntax as a built-in: `callee(expr1, expr2, ..., exprN)`. The callee MAY be any expression that evaluates to `FUNC`, including identifiers, tensor elements, or intermediate expressions. Calls MAY supply zero or more positional arguments (left-to-right) followed by zero or more keyword arguments of the form `param=expr`. Keyword arguments can only appear after all positional arguments. At the call site, every positional argument is bound to the next positional parameter; keyword arguments MUST match the name of a parameter that declared a default value. Duplicate keyword names, supplying too many positional arguments, or providing a keyword for an unknown parameter are runtime errors. If a keyword-capable parameter is omitted from the call, its default expression is evaluated at call time in the function's lexical environment after earlier parameters have been bound. For a normal (non-coerced) parameter, the supplied value's runtime type MUST exactly match the declared parameter type; otherwise the call raises a runtime error. For a coerced parameter (`~Tk: name`), when the supplied argument type differs, the runtime MUST attempt to convert the value to `Tk` using the language's conversion rules; if conversion succeeds, the converted value is bound, and if conversion fails, the call raises a runtime error. The evaluated default MUST match (or, for coerced parameters, be coercible to) the parameter's declared type. Arguments are evaluated left-to-right. The function body executes in a new environment (activation record) that closes over the defining environment. If a `RETURN(v)` statement is executed, the function terminates immediately and yields `v`; the returned value MUST match the declared return type. If control reaches the end of the body without `RETURN`, the function returns a default value of the declared return type (0 for `INT`, 0.0 for `FLT`, "" for `STR`). Functions whose return type is `TNS` or `FUNC` MUST execute an explicit `RETURN` of the declared type; reaching the end of the body without returning is a runtime error for `TNS`- or `FUNC`-returning functions.
+---
 
-Because `FUNC` is a first-class type, functions can be assigned to variables, stored inside tensors, passed as arguments, or returned from other functions. Calling `alias()` invokes the function bound to `alias`, while `tns[1]()` invokes the `FUNC` stored in the first tensor slot. Equality compares identity: two `FUNC` values are equal only if they refer to the same function object.
+#### 4.5.1 Map literals
 
-Built-in operators and functions can be viewed as pre-defined functions provided by the runtime environment. User-defined functions share the same call syntax and are distinguished only by their names and bodies. Because of the shared namespace, a user-defined function is not permitted to use any name already reserved for a built-in. Attempting to violate this will raise an exception.
+`MAP` literals MUST be enclosed in angle brackets (`<` and `>`), consisting of a comma-separated list of key-value bindings of the form `key = value`. Values MAY themselves be maps.
 
+The literal `SELF` MAY be evaluated inside `MAP` literals. When used as a value within a map literal, `SELF` MUST denote a pointer (alias) to the enclosing `MAP` being constructed.
 
-## 6. Variables and Memory Model
+---
 
-A symbol's type MAY be declared without assigning a value using the form `TYPE : name` (for example `INT: x`). Such a declaration records the name's type but does not create a runtime binding: reading `name` before it has been assigned still yields an undefined-identifier error. A variable is created when it is first assigned with an explicit type annotation `TYPE : name = expression`, or when a value is assigned to a previously-declared name. Subsequent assignments to the same name MUST match the declared type and MAY omit the type annotation (for example `x = 1` after `INT: x`). Assigning to an undeclared name without either an inline type annotation or a prior declaration is a runtime error. A variable exists until `DEL(name)` is executed. Referencing a variable that has never been assigned (even if it was previously declared) or that has been deleted is a runtime error.
+#### 4.5.2 Map indexing
 
-The language assumes at least a global typed environment mapping identifiers to (type, value) pairs. Function calls create new environments for parameters and local variables, as described in Section 6.2; the precise details of name resolution depend on the chosen scoping rules.
+`MAP` indexing MUST use angle brackets (`<` and `>`) with a comma-separated list of keys. Each key MUST evaluate to a scalar value of type `INT`, `FLT`, or `STR`. Tensor values MUST NOT be permitted as keys. The number of keys supplied MAY vary between lookups.
 
-### Pointers
+Intermediate nested maps MUST be created on-demand when assigning to deeper keys. Assigning a value of a different type to an existing key MUST raise a runtime error.
 
-Prefix supports pointer (alias) literals using the `@` prefix. A pointer literal has the form `@name` where `name` is an existing identifier in the visible lexical environment. The `@` token is syntactically distinct from identifiers (see Section 2); it cannot appear inside an identifier name.
+---
 
-- Creation: evaluating `@name` produces a pointer value that refers to the binding named `name`. If `name` is undefined an error is raised. Pointer creation resolves any existing chain of pointers so that the created alias ultimately references the non-pointer target.
+#### 4.5.3 Boolean representation
 
-- Dereference-on-read: a plain identifier read behaves as if it were dereferenced: if the bound value is a pointer, reads yield the pointed-to value. Thus if `INT: x = 10` and `INT: y = @x`, then reading `y` yields `10`.
+When a `MAP` is used in a boolean context, a `MAP` MUST be treated as `1` if it contains any key-value pairs, MUST be treated as `0` otherwise.
 
-- Assignment routing: assigning to a variable whose current binding is a pointer mutates the underlying pointer target rather than replacing the pointer object. Assigning a pointer value that would create a direct self-reference is a runtime error; pointer cycles are detected and rejected when they would create an infinite chain.
+---
 
-- Builtin writeback: when a built-in or function is called with an explicit pointer argument (an argument written using `@`), the runtime MAY perform a writeback of results into the first pointer argument to support in-place updates (for example `ADD(@x, 1)` increments the pointed-to binding when the builtin semantics specify writeback).
+### 4.6 Functions
 
-- Freezing rule: creating a new pointer to a binding that is frozen or permanently frozen is forbidden. If the identifier `name` is marked frozen or permafrozen, evaluating `@name` raises a runtime error. An identifier that already has pointers bound to it MAY still be frozen or permafrozen; freezing prevents any *new* pointer aliasing from being created to that binding until it is thawed.
+`FUNC` MUST represent a reference to a user-defined function body, including its lexical closure. `FUNC` values MAY be assigned to variables, stored in `TNS` or `MAP` objects, passed as arguments, or returned.
 
-- Deletion behavior: when a variable is deleted using `DEL(name)`, the binding (value) is removed from the environment and the pointer state is erased. The symbol's static type information remains recorded, even after deletion. Subsequent assignment to the deleted identifier MUST match the original declared type, but reading the deleted identifier before a new assignment results in an undefined-identifier error.
+---
 
-Pointers are a convenience for aliasing and in-place update patterns; implementations MUST reflect pointer creation and dereference operations in the state log so that tracebacks and state replay remain deterministic.
+#### 4.6.1 Function literals
 
+`FUNC` statements MUST define explicit parameter and return types. The definition MUST use the `FUNC` keyword followed by the return type, a colon, the function name, a comma-separated list of typed parameters in parentheses, and the body in curly braces.
 
-## 7. Execution Model and Semantics
+Parameters MAY declare a call-time default value. Positional parameters MUST appear before any parameters with defaults. A `RETURN(value)` statement terminates the function; the returned value MUST match the declared return type. Functions with a `TNS` or `FUNC` return type MUST execute an explicit `RETURN` or raise a runtime error.
 
-The interpreter compiles the source program into an initial machine state, called the seed configuration. This configuration contains at least the parsed (and possibly transformed) program representation, the initial variable environments such as an empty global environment, and an explicit model of I/O and nondeterministic inputs, initially empty.
+---
 
-Execution is driven by a single, fixed, program-independent small-step state-transition function `step`. At each step, `step` takes the current state and produces the next one, encompassing expression evaluation, statement execution, function call and return, and I/O events.
+#### 4.6.2 Lambdas
 
-Every state produced during execution is serializable and human-readable. The interpreter maintains a disassembler and log that record the sequence of states visited, the program locations and conditions involved in each control-flow decision, and all I/O actions with their corresponding values. Because I/O and nondeterminism are modeled explicitly within the state, the execution of any program can be deterministically replayed from its seed configuration together with the recorded inputs.
+Lambdas MUST construct an anonymous `FUNC` value without binding it to a name in the global function table. They MUST be defined using the `LAMBDA` keyword.
 
+Evaluating a `LAMBDA` expression MUST capture the current lexical environment to produce a first-class `FUNC` value. Parameter typing, default values, and return type semantics MUST follow the same rules as `FUNC` definitions.
 
-## 8. Standard Library
+---
 
-The standard library is a group of modules for common use cases distributed with the interpreter. These bundled modules live under `stdlib/`. Module/package search paths for `IMPORT` and `IMPORT_PATH` MUST include `stdlib/` immediately before `lib/` so that standard, bundled modules take precedence over legacy or user-installed modules in `lib/`.
+#### 4.6.3 Coerced type parameters
 
-Extension libraries shipped with the interpreter live under `stdext/`. Extension search paths MUST include `stdext/` immediately before `ext/` so that bundled extensions are preferred over user-installed `ext/` copies.
+If the type declaration of a `FUNC` parameter is prefixed with `~`, the parameter MUST accept values of any type that can be converted to the declared type, and convert them to the declared type at call time. If conversion is not possible, a runtime error MUST be raised.
 
-## 9. Tracebacks and Error Reporting
+---
 
-When a runtime error or exception occurs the interpreter MUST produce a deterministic, human-readable traceback derived from the state log. The traceback exposes the call stack (frames) at the point of failure and associates each frame with both (1) a compact source-location description and (2) the relevant serialized state sections and state-transformation records from the state log. The goal is to provide developers with the same immediate debugging information that Python's traceback provides but with the additional ability to inspect the exact machine states and the rewrite steps that led to the error for deterministic replay.
+#### 4.6.4 Boolean representation
 
-### 9.1 Traceback semantics (high level)
+When a `FUNC` is used in a boolean context, a `FUNC` MUST be treated as `1`.
 
+---
 
-`GOTOPOINT` and `GOTO`: Two additional control-flow primitives allow program execution to jump to a dynamically-registered program location. The statement form `GOTOPOINT(n)` evaluates the expression `n` and registers a gotopoint with that identifier at the point where the statement executes. Registration occurs at runtime when the `GOTOPOINT` statement executes; subsequent execution (including execution within loops or after imports) MAY depend on whether the gotopoint has been registered. Identifiers MAY be `INT` or `STR`; negative `INT` identifiers are invalid.
+### 4.7 Threads
 
-The statement form `GOTO(n)` evaluates `n` at runtime and transfers execution to the previously-registered gotopoint whose identifier equals `n`, matching both type and value. If no gotopoint with that identifier has been registered in a scope visible to the jump target, the interpreter raises a runtime error. `GOTO` MAY jump forward or backward relative to the target gotopoint; jumping to an unregistered identifier is an error. Gotopoints are not restricted to a single lexical block: they are visible across the containing function (or top-level program scope) in which they are defined. Implementations MAY choose to expose an even broader scope (for example, process-wide), but by default gotopoints registered within a function or at top-level are available to any `GOTO` executed within the same function or top-level code. This change enables cross-block jumps while preserving a clear containment model: a `GOTO` cannot target a gotopoint defined in an unrelated function or module unless the implementation explicitly exposes that mapping.
+`THR` MUST represent a handle to a background task that executes asynchronously relative to the rest of the program.
 
-`GOTO` and `GOTOPOINT` are intended to be low-level primitives and their use can make programs harder to reason about. They are serialized in the stat log like other statements so that execution is fully replayable for debugging and tracing.
+---
 
-- Trigger: a traceback is produced when a runtime error occurs that prevents normal forward execution (for example, an assertion failure, divide by zero, undefined variable reference, executing `RETURN` outside of a function, or any other interpreter-defined runtime error).
+#### 4.7.1 Thread literals
 
-- Content: the traceback MUST list frames in chronological call order from the outermost (earliest) frame to the innermost (where the error occurred), and for each frame include: function name (or `<top-level>` for global code), precise source location, a short excerpt of the offending statement, and identifiers linking to the corresponding states in the state log.
+`THR` handles MUST be created using the `ASYNC{ ... }` expression or the `THR(symbol){ ... }` statement. The block inside them MUST run synchronously within itself but asynchronously with the caller thread. The spun task MUST share the main program namespace (executing with the same lexical environment).
 
-- State linkage: every frame MUST reference at least one serialized state snapshot from the state log that corresponds to the machine configuration immediately before the failing rewrite step for that frame. The innermost frame MUST also reference the rewrite (transition) record that produced the error (that is, the failing step).
+---
 
-- Presentation modes: the interpreter MUST support a concise textual traceback (default) and a verbose mode. The concise mode shows the usual file/line/function stack with a one-line code excerpt per frame and the state-log index. The verbose mode prints, for each frame, the selected state sections (for example: local environment, selected global variables, and the expression evaluation stack) and the full state-transformation record (from_state -> to_state, the rewrite rule name and arguments). The verbose mode is intended for interactive debugging and post-mortem inspection.
+#### 4.7.2 Boolean representation
 
-### 9.2 Fields and invariants in the state log
+When a `THR` is used in a boolean context, a completed or stopped `THR` MUST be treated as `0`, and any other state MUST be treated as `1`.
 
-To make tracebacks precise and implementable, the state log (and the machine state representation) MUST (excepting those specifically excluded) include the following information at every step when the `-verbose` flag is enabled:
+---
 
-- `step_index` (integer): monotonically increasing index of the rewrite step in the state log.
+## 5. Namespaces and symbols
 
-- `state_id` (opaque string or integer): stable identifier for the serialized machine state (seed, intermediate, or terminal).
+Prefix MUST maintain a typed lexical environment mapping identifiers to bindings. Variables and user-defined functions share a single flat identifier namespace within each scope. Imported modules expose distinct qualified namespaces under the module name or an explicit import alias.
 
-- `source_location` (SHOULD): when a rewrite step is associated with a program location, include a `source_location` record with at least the following fields: `file` (string), `line` (integer), and `statement` (string containing the top-level statement text or canonical snippet).
+---
 
-- `frame_id` (when present): identifier for the active call-frame in that state; frames MUST be addressable and referable by the traceback generator.
+### 5.1 Declarations, bindings, and lifetime
 
-- `env_snapshot` (selectable): a serialized partial view of the state containing bindings for the local variables of the active frame and, where reasonable, a subset of global variables. The interpreter MAY elide large or sensitive values by policy, but MUST provide a clear indication when values are elided.
+A declaration MUST record the symbol's static type without necessarily creating a readable runtime value. A readable binding is created only when a value is first assigned.
 
-- `rewrite_record`: for each step that performs a state transition, the log MUST include a record describing the rewrite rule (name, inputs, and parameters), and the `from_state_id` and `to_state_id` pairs.
+Reading an undeclared symbol, a declared-but-never-assigned symbol, or a deleted symbol MUST raise a runtime error. Removing a binding MUST preserve its recorded static type, so any later re-assignment to the same name MUST still match the original type.
 
-### 9.3 Traceback textual format (RECOMMENDED)
+Re-assignment MUST preserve the declared type for the lifetime of the symbol, including after deletion and re-creation. Symbol existence, lifetime, and mutability MAY be inspected or modified only through the language's dedicated symbol-management facilities.
 
-The following format is RECOMMENDED for the concise textual traceback:
+---
 
-```
+### 5.2 Lexical environments and scope
+
+The top-level program MUST execute in a global environment. Function calls MUST create new activation records that close over the lexical environment captured when the callable was defined.
+
+Unqualified identifier lookup MUST search the current environment first and then enclosing lexical environments. Loop counters introduced by iterative constructs are loop-local: any prior binding with the same name MUST be restored when the loop completes. Other symbols first declared inside loop bodies remain bound in the enclosing environment after the loop finishes.
+
+Modules loaded through the language's import facilities MUST execute in their own top-level environments. Their bindings are exposed only through qualified names, and repeated imports of the same module MUST reuse the same cached module namespace rather than re-executing the module source.
+
+---
+
+### 5.3 Function symbols and call binding
+
+Named function definitions MUST bind callable values into the surrounding environment. Anonymous function forms MUST instead produce callable values without introducing a new top-level name.
+
+Calls MAY target any expression that evaluates to a callable value. Arguments MUST be evaluated left-to-right. Positional arguments MUST bind from left to right, and named arguments MUST appear only after all positional arguments. Unknown names, duplicate names, or too many positional arguments MUST raise a runtime error.
+
+Default parameter expressions MUST be evaluated at call time in the function's lexical environment after earlier parameters have been bound. For an ordinary parameter, the supplied or defaulted value MUST already have the declared type. For a coerced parameter, the runtime MUST attempt conversion to the declared type and MUST raise a runtime error if that conversion fails.
+
+Any explicit return value MUST match the declared return type. If execution reaches the end of a function body without an explicit return, the runtime MUST apply the following default-return rules: `INT` functions MUST return `0`, `FLT` functions MUST return `0.0`, and `STR` functions MUST return the empty string. Functions declared with return type `TNS`, `MAP`, `FUNC`, or `THR` MUST raise a runtime error if control reaches the end of the body without an explicit `RETURN`.
+
+---
+
+### 5.4 Pointers, aliasing, and symbol state
+
+The language's pointer mechanism MUST create an alias to an existing visible binding. Pointer creation MUST resolve any existing pointer chain so the new pointer refers to the underlying non-pointer target. Reading through a symbol bound to a pointer MUST behave as an ordinary dereference, so plain reads yield the pointed-to value.
+
+Assigning through a symbol whose current binding is a pointer MUST update the pointed-to target rather than replace the pointer object. Pointer cycles, including direct self-reference, MUST be rejected as runtime errors.
+
+Because `TNS` and `MAP` are atomic container types, ordinary assignment of those values MUST duplicate the container object by default. Shared mutable aliasing for containers therefore requires the explicit alias mechanism.
+
+Bindings MAY be frozen or permanently frozen by the runtime's symbol-state facilities. A frozen binding MUST reject reassignment and deletion. A permanently frozen binding MUST additionally reject re-enabling mutation. Creating a new pointer to a frozen binding MUST raise a runtime error, though an existing aliased binding MAY itself later become frozen.
+
+---
+
+### 5.5 Execution state and replay
+
+Program execution MUST begin from a seed configuration containing the parsed program, the initial environments, and explicit models of I/O and nondeterministic inputs. The interpreter MUST advance execution by repeatedly applying a fixed, program-independent small-step transition function.
+
+Each intermediate machine state MUST be serializable and sufficiently human-readable for tracing and replay. The interpreter's state log MUST record the sequence of visited states, control-flow decisions, I/O events, and nondeterministic choices so that execution can be replayed deterministically from the seed configuration together with the recorded inputs.
+
+---
+
+## 6. Execution model
+
+The execution model defines how the interpreter advances program state and how runtime effects are recorded.
+
+Implementations MUST describe execution in terms of a deterministic small-step transition function that consumes a seed configuration and produces a sequence of serializable states. The state log produced by these transitions MUST be sufficient for deterministic replay, diagnostics, and tooling integration.
+
+---
+
+### 6.1 Seed configuration and machine state
+
+Execution MUST begin from a seed configuration. At minimum, that seed configuration MUST contain the parsed program representation, the initial lexical environments, the module cache state, the initial control position, and explicit models of external inputs, I/O history, and any other nondeterministic data sources that execution may consult.
+
+Each machine state MUST contain enough information for the interpreter to compute the next transition without relying on hidden process state. The state representation MAY be implementation-specific, but it MUST preserve the currently active control location, the visible environments, any pending call frames, the set of live asynchronous or parallel tasks, and the execution-log metadata needed for replay and traceback construction.
+
+Two executions that begin from equivalent seed configurations and consume the same recorded nondeterministic choices MUST be observationally equivalent: they MUST visit the same sequence of abstract machine states and produce the same externally visible results.
+
+---
+
+### 6.2 Small-step transition semantics
+
+The interpreter MUST advance execution by repeatedly applying a single, fixed transition function to the current machine state. That transition function MUST be program-independent: the same transition rules apply to every Prefix program, with the current state supplying the specific code location, environment contents, and pending effects.
+
+Expression evaluation, statement execution, function call and return, module loading, thread creation, loop control transfer, exception propagation, and I/O MUST all be modeled as one or more explicit state transitions. A transition MAY be purely internal, or it MAY emit an observable effect record such as consumed input, produced output, or a runtime error.
+
+Execution MUST terminate only when the interpreter reaches a terminal state. Terminal states include normal completion of the top-level program, explicit process termination, and unhandled runtime failure.
+
+---
+
+### 6.3 State logging and observable effects
+
+Every non-private execution MUST produce a state log whose entries are ordered by a monotonically increasing rewrite-step index. Each logged transition MUST identify at least the source state, the resulting state, and the rewrite or transition rule that was applied. When a transition corresponds to a source location, the implementation SHOULD also record that source location together with a short statement excerpt.
+
+Observable effects MUST be represented explicitly in the execution record rather than being left implicit in host-language side effects. This includes printed output, consumed input, extension hook activity, runtime error creation, thread lifecycle events, and scheduler decisions that influence visible behavior.
+
+Logging configuration MAY change how much diagnostic data is retained, but it MUST NOT change the language semantics of the running program. In particular, enabling verbose tracing or disabling snapshots for privacy MUST affect diagnostics only, except that disabling the state logger necessarily removes replay artifacts that depend on that log.
+
+---
+
+### 6.4 Concurrency, scheduling, and interleaving
+
+`ASYNC`, `THR`, and `PARFOR` introduce multiple runnable execution contexts that share the language's lexical environment according to the rules defined elsewhere in this specification. Unless a construct states otherwise, the implementation MAY choose any scheduling order for runnable contexts.
+
+Scheduling decisions that can affect observable behavior MUST be treated as explicit nondeterministic choices. When replay logging is enabled, those choices MUST be recorded in sufficient detail for the implementation to reproduce the same interleaving on replay.
+
+Each individual rewrite step MUST belong to exactly one active execution context. The implementation MAY choose statement-level or finer-grained interleaving, but whatever granularity it uses for a given execution MUST be reflected in the state log strongly enough to explain shared-state races, asynchronous errors, and cross-thread visibility of mutations.
+
+Runtime errors raised in background or parallel contexts MUST be attributed to the originating execution context in the log and reported according to the control-flow rules in [3.4](#34-exception-handling), [3.5](#35-loops), and [7](#7-tracebacks-and-error-handling). A surrounding handler in another execution context MUST NOT intercept such an error synchronously unless some future language construct explicitly specifies that behavior.
+
+---
+
+### 6.5 Deterministic replay requirements
+
+When state logging is enabled, the interpreter MUST support deterministic replay from the seed configuration together with the recorded sequence of external inputs and nondeterministic choices. Replay MUST reconstruct the same transition sequence, the same observable effects, and the same terminal outcome as the original execution.
+
+Replay tooling SHOULD be able to resume from any serialized intermediate state whose required predecessor data is available. If an implementation redacts or omits diagnostic data, it MUST clearly indicate that omission and MUST NOT present the resulting replay record as complete when it is not.
+
+The state log defined by this section is the normative source for tracebacks, diagnostics, and replay-oriented tooling. Any alternate implementation strategy remains conforming only if it preserves the same externally visible execution behavior and can expose an equivalent serialized transition history.
+
+---
+
+## 7. Tracebacks and error handling
+
+Structured exception handling is defined in [3.4](#34-exception-handling). This section defines how unhandled runtime failures MUST be reported and how those reports are tied to the serialized execution log.
+
+---
+
+### 7.1 Runtime failures and traceback triggers
+
+A traceback MUST be produced whenever a runtime error prevents normal forward execution, including but not limited to undefined identifier access, type mismatch, divide-by-zero, invalid control-flow transfer, or failed assertion.
+
+Errors raised inside background execution contexts MUST be recorded through the same error-reporting and state-logging mechanisms, but they MUST NOT synchronously transfer control to an exception handler running on a different thread. Nested handlers MUST continue to obey the language's innermost-handler rule.
+
+---
+
+### 7.2 Required traceback contents
+
+The interpreter MUST emit a deterministic, human-readable traceback derived from the state log. Frames MUST be listed from the outermost call site to the innermost frame where the failure occurred.
+
+Each frame MUST include the active function name, or `<top-level>` for global code, together with a precise source location, a short excerpt of the relevant statement, and references that identify the corresponding serialized states in the state log. The innermost frame MUST additionally identify the failing rewrite step that produced the error.
+
+---
+
+### 7.3 State-log linkage
+
+When verbose logging is enabled, the state log MUST make at least the following fields available for traceback construction:
+
+- `step_index`, a monotonically increasing rewrite-step counter.
+
+- `state_id`, a stable identifier for each serialized state.
+
+- `source_location`, when applicable, including file, line, and statement text.
+
+- `frame_id`, when a call frame is active.
+
+- `env_snapshot`, containing the selected local environment and any included global bindings.
+
+- `rewrite_record`, containing the rewrite rule name, its inputs or parameters, and the `from_state_id` and `to_state_id` pair.
+
+Implementations MAY redact or elide large or sensitive values, but they MUST clearly indicate when snapshot data has been omitted.
+
+---
+
+### 7.4 Presentation modes
+
+The default traceback form MUST be a concise textual stack trace. The interpreter MUST also support a verbose mode that includes per-frame state snapshots and full rewrite records, and a machine-readable form suitable for editors and diagnostics tooling.
+
+The following concise textual layout is RECOMMENDED:
+
+```text
 Traceback (most recent call last):
   File "<file>", line <line>, in <function_or_<top-level>>
     <statement excerpt>
     State log index: <step_index>  State id: <state_id>
 ```
 
-The final (innermost) frame is then followed by a short error message that includes the failing rewrite (for example: `DivisionByZero`), the rewrite rule name and the `step_index` at which it failed. In verbose mode, each frame block is followed by a labelled `State snapshot: and a `State transformation: section that contain the serialized `env_snapshot` and the `rewrite_record` (including `from_state_id` and `to_state_id`) so that the failure can be reproduced by replaying the states and the associated inputs.
+The final line of the traceback MUST identify the runtime error, the failing rewrite rule when known, and the `step_index` at which execution failed.
 
-### 9.4 Machine-readable traceback (JSON)
+---
 
-The interpreter MUST also be able to emit a machine-readable traceback structure suitable for diagnostics tools and editors. The only requirement is that a consumer of the state log can identify which state and which rewrite step correspond to each frame.
+### 7.5 Point of origin and replay integration
 
-### 9.5 Point of origin in source code
+The traceback MUST clearly identify the point of origin of the failure by including the source location and failing step index. When available, implementations SHOULD also identify the exact token or sub-expression that triggered the error and SHOULD include a small surrounding source excerpt.
 
-The trace MUST clearly identify the point of origin (the expression or statement that directly caused the error) by including the `source_location` and the `step_index` of the failing rewrite. Implementations SHOULD also include the exact token or sub-expression when available (for example, the `DIV(a, 0)` call that produced the division-by-zero), and the surrounding source excerpt (at least one line above and below, if available) to make diagnosis easier.
+The disassembler or replay tooling MUST support jumping from a traceback frame to the referenced state-log entry and source location. Because the state log records I/O and nondeterministic choices explicitly, the failing step MUST be replayable exactly from the seed configuration together with the recorded inputs.
 
-### 9.6 Integrating tracebacks with the disassembler and replay
+---
 
-- The disassembler view MUST support jumping from a printed traceback to the corresponding state-log entry (`step_index`) and to the reconstructed source location so that a user can inspect the full `from_state` and `to_state` pair and step through the rewrite that produced the error.
+## 8. Interpreter use
 
-- Because the state log records I/O and nondeterminism explicitly, the disassembler/replayer MUST be able to replay the exact failing step when given the seed configuration and the recorded inputs.
+This section defines how the reference interpreter accepts source input, loads extensions, exposes diagnostics flags, and operates in interactive mode.
 
-### 9.7 Implementation notes for builders
+---
 
-- The instrumentation needed for tracebacks is primarily bookkeeping: ensure the state log records `step_index`, `state_id`, `frame_id`, and OPTIONAL `source_location` for each step when appropriate.
+### 8.1 Invocation and program source
 
-- When collecting `env_snapshot` data, prefer including only the local environment of the active frame and a small set of globals to keep tracebacks readable; provide a `--verbose` or similar flag to emit full snapshots.
+The interpreter MUST accept a single program argument. Without `-source`, that argument MUST be interpreted as a path to a Prefix source file. With `-source`, the same argument MUST instead be interpreted as source text and parsed directly without reading a file.
 
-- Security note: because state snapshots MAY contain sensitive data, implementations SHOULD provide a configurable policy to redact or obfuscate values when generating tracebacks for untrusted logs.
+If no program argument and no `-source` text are supplied, the interpreter MUST enter REPL mode. When the only supplied positional arguments are extensions, the interpreter MUST load those extensions and then enter the REPL.
 
-### 9.8 Example (concise textual traceback)
+---
 
+### 8.2 Extensions and pointer files
+
+The interpreter MAY accept zero or more extension arguments before the program argument. Extensions MUST be loaded before parsing so that extension-defined type names, operators, and hooks are available during parse and execution.
+
+A compiled extension MUST be a platform-specific dynamic library (`.dll` on Windows, `.so` on Unix-like systems, and `.dylib` on macOS) and MUST export a public initialization function named `prefix_extension_init`. The interpreter MUST call that function with the extension context defined in `prefix_extension.h`, which provides the API version constant together with registration callbacks for operators, custom types, event handlers, periodic hooks, and optional REPL replacement.
+
+Compiled extensions MUST be built against the public extension API declared in `prefix_extension.h`. That API MUST expose at least `PREFIX_EXTENSION_API_VERSION`, operator-registration callbacks, custom-type hooks, event-handler registration, periodic-hook registration, REPL-replacement registration, and helper facilities for constructing and inspecting Prefix runtime values.
+
+At load time, the interpreter MUST use the host platform's dynamic-library facilities to load the extension, locate the exported `prefix_extension_init` symbol, invoke it with the extension context, and record all registered operators and hooks. On Windows this SHOULD use `LoadLibraryEx`; on Unix-like systems this SHOULD use `dlopen` or an equivalent facility.
+
+Extensions that opt into module-qualified registration MUST expose their operators under the extension name as a dotted prefix rather than injecting those operators into the global built-in namespace. Event-handler registration MUST support the runtime lifecycle hooks defined by the interpreter, including program start and end, error reporting, statement boundaries, and call boundaries.
+
+The extension context MUST provide registration surfaces equivalent to the following:
+
+- `register_operator(name, handler_fn, flags)` to add new callable operators. The `flags` parameter MUST include a module-qualification option equivalent to `PREFIX_EXTENSION_ASMODULE`, which exposes an operator under the extension name as a dotted prefix such as `mymod.FOO`.
+
+- `register_periodic_hook(N, handler_fn)` to request execution after rewrite steps whose `step_index % N == 0`.
+
+- `register_event_handler(event_name, handler_fn)` for lifecycle events including `program_start`, `program_end`, `on_error`, `before_statement`, `after_statement`, `before_call`, and `after_call`.
+
+- `register_repl_handler(repl_fn)` to replace or augment the default REPL implementation.
+
+A `.prex` pointer file MUST be treated as a text file containing one extension path per line. Blank lines MUST be ignored, and lines beginning with `!` MUST be treated as comments. Relative paths in a pointer file MUST be resolved relative to the pointer file's directory, with the current working directory and the interpreter's `stdext/` and `ext/` directories available as fallbacks when necessary. When both bundled and user extension directories are searched, `stdext/` MUST be consulted before `ext/`.
+
+If a `.prex` file is supplied as an argument, the interpreter MUST load all referenced extensions. If no explicit extension arguments are supplied, the interpreter MUST also search for an automatically-discovered pointer file named `.prex` in the current working directory, and when running a source file it MUST also search the program's directory and the companion `<program>.prex` file beside the source file.
+
+---
+
+### 8.3 Flags, diagnostics, and exit codes
+
+With `-verbose`, tracebacks MUST include the environment snapshots and state-log references required by [7](#7-tracebacks-and-error-handling). With `-private`, the interpreter MUST disable the state logger and suppress environment snapshots while still emitting a traceback that clearly states that snapshot data has been withheld.
+
+The interpreter MAY support additional flags and alternative argument ordering, but the semantics of the program argument, `-source`, `-verbose`, and `-private` MUST remain stable for tooling.
+
+Normal program termination MUST return process exit code `0`. Uncaught runtime failure MUST return exit code `1`. Any explicit process-termination request issued by the program MUST terminate the interpreter immediately and return the supplied integer as the process exit code.
+
+---
+
+### 8.4 REPL behaviour
+
+The REPL MUST execute Prefix statements using the same parser, runtime, built-ins, and state-logging semantics as file-mode execution. It MUST present a primary prompt for new input and a continuation prompt while the user is entering a multi-line construct.
+
+A complete single-line top-level statement MUST be parsed and executed immediately. If the user begins a multi-line block, the REPL MUST buffer input until the block is complete and then execute the collected text as a unit.
+
+Top-level bindings and the state log MUST persist for the lifetime of the REPL session unless the user explicitly deletes symbols. Errors raised in the REPL MUST produce tracebacks using the same concise and verbose formats as file execution.
+
+The REPL MUST support immediate termination through the language's normal process-termination mechanism. Implementations MAY additionally provide meta-commands such as `.exit` or an EOF shortcut.
+
+---
+
+## 9. Built-ins
+
+---
+
+### 9.1 Operators
+
+Built-in operators are pre-defined callable entities provided by the interpreter. They share the same uniform function-call syntax as user-defined functions: `NAME(arg1, arg2, ..., argN)`. The argument list MAY be empty for nullary operators. Arguments MUST be separated by commas; spaces MAY appear freely around commas and parentheses. Each operator has a fixed or variable arity; supplying the wrong number of arguments MUST raise a runtime error.
+
+The subsections below use a type-annotation convention. A union notation such as `INT|FLT` restricts an argument to any one of the listed types. `ANY` denotes any runtime type (`INT`, `FLT`, `STR`, `TNS`, `MAP`, `FUNC`, or `THR`), including extension-defined types when extensions are active, unless the signature narrows the set explicitly. `SYMBOL` is a pseudo-type indicating that the argument MUST be a plain unquoted identifier; such operators receive the symbol name rather than its runtime value.
+
+`MODULE` is a pseudo-type indicating that the argument MUST be a plain unquoted module identifier or a package-qualified module name using the language's `..` separator. A slash-separated signature such as `ADD/SUB/MUL` denotes a family of distinct operators that share the same argument rules and differ only in the named operation.
+
+`INT` and `FLT` are not interoperable. Unless an operator explicitly permits or requires type mixing, all numeric operands MUST share the same numeric type; supplying mismatched types MUST raise a runtime error. The numeric base of an operation's result MUST be the highest base present among its numeric operands.
+
+Built-in operator names MUST be matched case-sensitively and MUST be written in their canonical form. A user-defined function MUST NOT share a name with any built-in operator; such a conflict MUST raise a runtime error. Extensions MAY register additional operators, which are dispatched through the same call syntax and MAY be qualified with a dotted extension-name prefix, but whose names MUST NOT conflict with those of built-in operators.
+
+---
+
+#### 9.1.1 Symbol and type operators
+
+- `DEL(SYMBOL: name)` = MUST delete the readable runtime binding designated by `name`. Deletion MUST preserve the symbol's recorded static type as defined in [5.1](#51-declarations-bindings-and-lifetime). Deleting an undeclared, never-assigned, or already-deleted symbol MUST raise a runtime error. Deleting a frozen or permanently frozen binding MUST raise a runtime error.
+
+- `DEL(target<key>)` or `DEL(target<k1, k2, ...>)` = MUST delete the map entry identified by the final key in the chain of map indices. `target` MUST resolve to a `MAP` value and all intermediate lookups MUST resolve to nested `MAP` values; indexing a non-`MAP` MUST raise a runtime error. If an intermediate key does not exist, the operation MUST be a no-op. After deletion the modified map MUST be written back to the environment.
+
+- `ANY: ASSIGN(target, ANY: value)` = MUST evaluate `value`, assign it to `target`, and return the assigned value. `target` MAY be a plain identifier, a tensor indexed target, or a map indexed target. If a plain identifier has not yet been declared, the typed form `ASSIGN(TYPE: name, value)` MUST be used. The typed form MUST NOT be used with indexed targets.
+
+- `INT: EXIST(SYMBOL: name)` = MUST return `1` if `name` resolves to a visible readable binding in the current lexical environment chain and `0` otherwise.
+
+- `INT: ISINT/ISFLT/ISSTR/ISTNS(SYMBOL: name)` = MUST return `1` if `name` resolves to a visible binding whose static type is respectively `INT`, `FLT`, `STR`, or `TNS`, and `0` otherwise.
+
+- `STR: TYPE(ANY: value)` = MUST return the runtime type name of `value` as a `STR`. For core language values, the result MUST be one of `INT`, `FLT`, `STR`, `TNS`, `MAP`, `FUNC`, or `THR`. For null or otherwise unrecognized internal values, the result MUST be `NULL`. Extension-defined values MUST report their registered type names.
+
+- `STR: SIGNATURE(SYMBOL: name)` = MUST return a textual signature for `name`. If `name` denotes a user-defined function, the result MUST use the canonical function-signature form of this specification. For any other visible binding, the result MUST be `TYPE: name`.
+
+- `INT: FREEZE(SYMBOL: name)`, `INT: THAW(SYMBOL: name)`, and `INT: PERMAFREEZE(SYMBOL: name)` = MUST modify the mutability state of the binding designated by `name`. `FREEZE` MUST prevent reassignment and deletion until thawed. `PERMAFREEZE` MUST permanently prevent reassignment, deletion, and later thawing. `THAW` MUST clear a non-permanent freeze, MUST raise a runtime error when applied to a permanently frozen binding, and MUST otherwise succeed as a no-op when applied to a binding that is not currently frozen. `FREEZE`, `THAW`, and `PERMAFREEZE` MUST each return `0` on success and MUST raise a runtime error if `name` is undefined.
+
+- `INT: FROZEN(SYMBOL: name)` and `INT: PERMAFROZEN(SYMBOL: name)` = MUST report the freeze state of `name`. `FROZEN` MUST return `-1` for permanently frozen bindings, `1` for non-permanent frozen bindings, and `0` otherwise. `PERMAFROZEN` MUST return `1` only for permanently frozen bindings and `0` otherwise. If `name` is undefined, both operators MUST return `0`.
+
+#### 9.1.2 Conversion and construction operators
+
+- `INT: INT(INT|FLT|STR: value)` and `FLT: FLT(INT|FLT|STR: value)` = MUST perform explicit scalar conversion among the three numeric and string types. Converting a `FLT` to `INT` MUST truncate toward zero. Converting a `STR` to `INT` or `FLT` MUST parse a base-prefixed numeric literal; a `STR` that does not parse as a valid integer literal MUST be treated as it's boolean representation (converted to `FLT` for `FLT`). Passing a type other than `INT`, `FLT`, or `STR` MUST raise a runtime error.
+
+- `STR: STR(STR|INT|FLT: value)` = MUST convert `value` to a `STR`. For `INT` and `FLT`, the result MUST be the base-prefixed numeric spelling, except that `INF`, `-INF`, and `NaN` render without a prefix. For `STR`, the result MUST be a copy.
+
+- `INT|FLT: CONVERT(INT|FLT: value, INT: base)` and `INT: BASE(INT|FLT: value)` = MUST expose numeric-base manipulation. `CONVERT` MUST return `value` represented in `base`, where `base` MUST be between `2` and `64`, inclusive. `BASE` MUST return the stored base of a numeric value. Asking for an invalid base MUST raise a runtime error.
+
+- `TNS: BYTES(INT: value, STR: endian = "big")` = MUST convert a non-negative integer to a one-dimensional tensor of byte-sized `INT` elements in the range `0` through `0xFF`. `endian` MUST be either `"big"` or `"little"`. `BYTES(0)` MUST return a single zero byte. A negative integer or invalid endianness MUST raise a runtime error.
+
+- `ANY: COPY(ANY: value)` and `ANY: DEEPCOPY(ANY: value)` = MUST return, respectively, a shallow copy and a deep copy of `value`. For primitive scalar values, both operations MAY return an equivalent scalar value. For `TNS` and `MAP`, `COPY` MUST duplicate only the outer container, while `DEEPCOPY` MUST recursively duplicate nested containers so that the result shares no mutable container objects with the input.
+
+- `TNS: TINT/TFLT/TSTR(TNS: tensor)` = MUST convert each scalar element of `tensor` elementwise to `INT`, `FLT`, or `STR`, respectively. If any element cannot be converted, the operator MUST raise a runtime error.
+
+- `FLT: ROUND(FLT: value, STR: mode = "floor", INT: ndigits = 0)` = MUST round `value` to `ndigits` places to the right of the radix point, where negative `ndigits` values round to positions to the left of the radix point. Supported modes MUST include `"floor"`, `"ceiling"` and `"ceil"`, `"zero"`, and `"logical"` and `"half-up"`. When exactly two arguments are supplied and the second argument is an `INT`, it MUST be interpreted as `ndigits` and the mode MUST default to `"floor"`.
+
+#### 9.1.3 Arithmetic operators
+
+- `INT|FLT: ADD/SUB/MUL/DIV/CDIV/POW/MOD(INT|FLT: a, INT|FLT: b)` = MUST implement, respectively, addition, subtraction, multiplication, division, ceiling division, exponentiation, and remainder. Except where an operator explicitly states otherwise, `a` and `b` MUST have the same numeric type. Division by zero MUST raise a runtime error.
+
+- `INT|FLT: NEG/ABS(INT|FLT: value)` = MUST return the additive inverse or absolute value of `value`, respectively.
+
+- `INT|FLT: GCD/LCM(INT|FLT: a, INT|FLT: b)` = MUST compute the greatest common divisor or least common multiple of `a` and `b`. Mixed `INT` and `FLT` operands MUST be rejected.
+
+- `INT|FLT: ROOT(INT|FLT: x, INT|FLT: n)` = MUST compute the `n`th root of `x`. For `INT` operands, positive `n` MUST produce the greatest integer `r` such that `r^n <= x` when that notion is defined; `n = 0` MUST raise a runtime error; and negative-`n` integer results are valid only where the reciprocal remains an integer. For `FLT` operands, the result MUST be `x^(1/n)`, with negative `x` permitted only when `n` denotes an odd integer. Invalid roots MUST raise a runtime error.
+
+- `INT: IADD/ISUB/IMUL/IDIV/IPOW/IROOT(INT|FLT: a, INT|FLT: b)` and `FLT: FADD/FSUB/FMUL/FDIV/FPOW/FROOT(INT|FLT: a, INT|FLT: b)` = MUST first coerce both operands to the target numeric type and then perform the corresponding arithmetic operation. Failed coercion MUST raise a runtime error.
+
+- `INT|FLT: SUM/PROD(INT|FLT: a1, ..., INT|FLT: aN)`, `INT: ISUM/IPROD(INT|FLT: a1, ..., INT|FLT: aN)`, and `FLT: FSUM/FPROD(INT|FLT: a1, ..., INT|FLT: aN)` = MUST compute the corresponding aggregate sum or product across all arguments. The unprefixed forms MUST reject mixed `INT` and `FLT` operands.
+
+- `INT|FLT|STR: MAX/MIN(INT|FLT|STR: a1, ..., INT|FLT|STR: aN)` = MUST return the numeric maximum or minimum for numeric arguments and the longest or shortest element for string arguments. Mixing runtime types MUST raise a runtime error.
+
+- `INT|FLT|STR: MAX/MIN(TNS: t1, ..., TNS: tN)` = MUST flatten the supplied tensors and apply the same maximum or minimum rules to their scalar elements. Every encountered element MUST be scalar, and all encountered scalar elements MUST have the same runtime type.
+
+- `INT|FLT: LOG(INT|FLT: value)` and `INT: CLOG(INT: value)` = MUST compute, respectively, floor base-2 logarithm and ceiling base-2 logarithm. The argument MUST be strictly positive.
+
+- `INT: ILEN(INT: value)` = MUST return the length of the absolute value of `value` in binary digits. `ILEN(0)` MUST return `1`.
+
+- `INT: LEN(INT|STR: a1, ..., INT|STR: aN)` = MUST return the number of supplied arguments. Passing a `TNS` or any other unsupported type MUST raise a runtime error.
+
+#### 9.1.4 Logical and comparison operators
+
+- `INT: AND/OR/XOR(ANY: a1, ..., ANY: aN)` and `INT: NOT(ANY: value)` = MUST perform boolean conjunction, disjunction, exclusive disjunction, and negation using the language's truthiness rules.
+
+- `INT: ALL(ANY: a1, ..., ANY: aN)` and `INT: ANY(ANY: a1, ..., ANY: aN)` = MUST compute boolean conjunction and disjunction across the supplied arguments and return the result as `INT` `0` or `1`.
+
+- `INT: BOOL(ANY: value)` = MUST return the truthiness of `value` as `0` or `1` according to the boolean rules of the value's runtime type.
+
+- `INT: BAND/BOR/BXOR(INT: a, INT: b)`, `INT: BNOT(INT: value)`, and `INT: SHL/SHR(INT: a, INT: b)` = MUST perform bitwise boolean operations and bit shifting on integer operands. These operators MUST reject `INT` with a radix besides 2.
+
+- `INT: EQ/NEQ(ANY: a, ANY: b)` = MUST test equality or inequality using the language's normal value-comparison rules.
+
+- `INT: GT/LT/GTE/LTE(INT|FLT: a, INT|FLT: b)` = MUST perform the corresponding ordered comparison on like-typed numeric operands and return `1` when the relation holds and `0` otherwise. Mixed `INT` and `FLT` comparisons MUST raise a runtime error.
+
+#### 9.1.5 String operators
+
+- `INT: SLEN(STR: value)` = MUST return the character length of `value`.
+
+- `STR: UPPER/LOWER(STR: value)` = MUST return the uppercase or lowercase form of `value`, respectively.
+
+- `INT|STR: FLIP(INT|STR: value)` = MUST reverse `value`. For `STR`, the result MUST be the character-reversed string. For `INT`, the result MUST reverse the integer's binary-digit spelling while preserving the sign.
+
+- `INT|STR: SLICE(INT|STR: value, INT: start, INT: end)` = MUST slice either an integer or a string. For `STR`, the operator MUST return the inclusive character slice from `start` to `end`, counting from `1`, with negative indices counting from the end. For `INT`, the operator MUST return the corresponding inclusive slice of the integer's digit or bit representation according to the implementation's integer-slicing rules.
+
+- `INT|STR: JOIN(INT|STR: a1, ..., INT|STR: aN)` = MUST concatenate all arguments. When all arguments are `STR`, the result MUST be their direct concatenation. When all arguments are `INT`, the result MUST be an integer formed by concatenating their binary-digit spellings. Mixing positive and negative `INT` values or mixing `INT` and `STR` MUST raise a runtime error.
+
+- `TNS: SPLIT(STR: value, STR: delimiter = " ")` = MUST split `value` on the exact substring `delimiter` and return the parts as a one-dimensional tensor of `STR`. `delimiter` MUST be non-empty. Consecutive delimiters and trailing delimiters MUST produce empty-string elements.
+
+- `STR: STRIP(STR: value, STR: remove)` = MUST return `value` with every occurrence of the non-empty substring `remove` removed.
+
+- `STR: REPLACE(STR: value, STR: old, STR: new)` = MUST return `value` with every occurrence of the non-empty substring `old` replaced by `new`.
+
+#### 9.1.6 Tensor operators
+
+- `TNS: TNS(TNS: shape, ANY: value)` and `TNS: TNS(STR: value)` = MUST construct tensors. In the shape form, `shape` MUST be a one-dimensional tensor of positive `INT` lengths and the result MUST be filled with `value`. In the string form, the result MUST be a one-dimensional tensor of one-character `STR` elements.
+
+- `TNS: SHAPE(TNS: tensor)` and `INT: TLEN(TNS: tensor, INT: dim)` = MUST expose tensor shape information. `SHAPE` MUST return a one-dimensional tensor of dimension lengths, and `TLEN` MUST return the length of the specified one-based dimension. An out-of-range dimension MUST raise a runtime error.
+
+- `TNS: TFLIP(TNS: tensor, INT: dim)` = MUST return a new tensor whose elements are reversed along the one-based dimension `dim`.
+
+- `TNS: SCAT(TNS: src, TNS: dst, TNS: ind)` = MUST return a copy of `dst` with a rectangular slice replaced by `src`. `ind` MUST encode one inclusive `[lo, hi]` range pair per destination dimension. The selected slice shape MUST exactly match the shape of `src`, and out-of-range indices MUST raise a runtime error.
+
+- `TNS: FILL(TNS: tensor, ANY: value)` = MUST return a new tensor with the same shape as `tensor`, filled with `value`. `value` MUST satisfy the target tensor's element-type constraints.
+
+- `TNS: CONV(TNS: x, TNS: kernel, INT: stride_w = 1, INT: stride_h = 1, INT: pad_w = 0, INT: pad_h = 0, TNS: bias = [])` = MUST support both the legacy two-argument N-dimensional convolution form and the extended 2-D multi-output form. In the legacy form, `kernel` MUST have the same rank as `x`, every kernel dimension length MUST be odd, boundary sampling MUST clamp to the nearest valid index, and the result MUST have the same shape as `x`. In the extended form, when any keyword argument is supplied and `x` is rank 3 while `kernel` is rank 4 with shape `[kw, kh, in_c, out_c]`, the operator MUST perform 2-D convolution with the given strides, explicit zero padding, and optional per-output-channel bias, returning shape `[out_w, out_h, out_c]`. Where both inputs are `INT`, the output MUST be `INT`; otherwise it MUST be `FLT`.
+
+- `INT: IN(ANY: value, TNS: tensor)` = MUST return `1` if any tensor element is equal to `value` and `0` otherwise.
+
+- `TNS: MADD/MSUB/MMUL/MDIV(TNS: x, TNS: y)` = MUST perform elementwise tensor-tensor arithmetic. The input shapes MUST match exactly, the element types MUST be uniformly numeric and mutually compatible, and division by zero MUST raise a runtime error.
+
+- `TNS: MSUM/MPROD(TNS: t1, ..., TNS: tN)` = MUST perform elementwise sum or product across tensors of identical shape and mutually compatible numeric element type.
+
+- `TNS: TADD/TSUB/TMUL/TDIV/TPOW(TNS: tensor, INT|FLT: scalar)` = MUST perform tensor-scalar arithmetic. All tensor elements and the scalar MUST share the same numeric type, except where a specific operator explicitly permits widening. Division by zero MUST raise a runtime error.
+
+#### 9.1.7 Map operators
+
+- `TNS: KEYS(MAP: map)` and `TNS: VALUES(MAP: map)` = MUST return one-dimensional tensors containing, respectively, the keys and values of `map` in insertion order.
+
+- `INT: KEYIN(INT|FLT|STR: key, MAP: map)` and `INT: VALUEIN(ANY: value, MAP: map)` = MUST return `1` when the given key or value occurs in `map` and `0` otherwise.
+
+- `INT: MATCH(MAP: map, MAP: template, INT: typing = 0, INT: recurse = 0, INT: shape = 0)` = MUST return `1` if every key in `template` is present in `map`. When `typing` is non-zero, the corresponding stored value types MUST also match. When `shape` is non-zero, corresponding tensor values MUST additionally have identical shapes. When `recurse` is non-zero, the same rules MUST be applied recursively to nested maps. Any failed condition MUST produce `0` rather than raising an error.
+
+- `MAP: INV(MAP: map)` = MUST return a new map whose keys and values are reversed. Every value in `map` MUST be a scalar key type (`INT`, `FLT`, or `STR`), and duplicate values MUST raise a runtime error.
+
+#### 9.1.8 Function and module operators
+
+- `RUN(STR: source)` = MUST parse and execute `source` as Prefix code in the caller's current lexical environment. Parse failure or runtime failure inside the executed source MUST raise a runtime error. If console output is currently suppressed by `SHUSH`, `RUN` MUST temporarily disable that suppression for the duration of the executed source and then restore the prior shush state afterward.
+
+- `ASSERT(ANY: value)` = MUST raise a runtime error if `value` is falsey according to the language's truthiness rules.
+
+- `THROW()` or `THROW(INT|STR: a1, ..., INT|STR: aN)` = MUST raise a runtime error. When one or more arguments are supplied, the error message MUST be formed by concatenating those arguments using the same rendering rules as `PRINT`, but without a trailing newline. When no arguments are supplied, the error message MUST be `"Exception thrown"`.
+
+- `INT: MAIN()` = MUST return `1` when the call site is in the primary program source and `0` when the call site is executing from imported module code. The result MUST depend on the source location of the call expression rather than on the dynamic caller stack.
+
+- `IMPORT(MODULE: name)` or `IMPORT(MODULE: name, SYMBOL: alias)` = MUST load the named module, execute it in its own top-level environment on first import, cache that environment, and expose its bindings under the module name or the supplied alias. The implementation MUST search the referring source directory first, then bundled library locations as described in [8.2](#82-extensions-and-pointer-files), [10](#10-standard-library), and the language's module-search rules. Re-importing an already loaded module MUST reuse the cached module namespace rather than re-executing the module.
+
+  Prefix package namespaces MUST use `..` as the package separator. The canonical form is `package..subpackage..module`. When `IMPORT(pkg)` is used and a package directory named `pkg` exists, the interpreter MUST prefer package resolution and attempt to load `pkg/init.pre`. If that package directory exists but contains no `init.pre`, the import MUST raise a runtime error. When `IMPORT(pkg..mod)` is used, the interpreter MUST resolve to `pkg/mod.pre`. If both a package directory and a same-named module file exist in the same search location, the package MUST take precedence.
+
+  When the referring source was itself loaded from a file, the search MUST begin in that source file's directory. When the referring source is executing via `-source`, the primary search directory MUST be the current working directory. After local search, the interpreter MUST consult bundled library locations before legacy `lib/` locations.
+
+  On first import, the module source MUST execute in its own isolated top-level environment. Unqualified identifiers during that execution MUST resolve within the module's own namespace. After execution completes, that namespace MUST be cached and reused by subsequent imports in the same interpreter process. Multiple aliases for the same module MUST provide distinct qualified views into the same cached module instance.
+
+  When a module is imported, the interpreter MUST also attempt to load any associated runtime extensions. It MUST first look for a companion pointer file named `<module>.prex` beside the resolved module source. If no such pointer file is present, or as an additional fallback, it MUST also check the configured extension search locations for a same-named extension module. Any extensions loaded this way MUST become available before control returns from the import.
+
+- `IMPORT_PATH(STR: path)` or `IMPORT_PATH(STR: path, SYMBOL: alias)` = MUST load a module from an explicit filesystem path and expose it under `alias` or, if omitted, under a basename-derived module name. The argument MUST at minimum accept an absolute path to a `.pre` source file. The module's basename, excluding the `.pre` suffix, MUST be used as the default qualified module name when no alias is supplied. The loaded module MUST otherwise obey the same isolation, caching, and exposure rules as `IMPORT`, including companion extension loading from a sibling `<module>.prex` pointer file when present and same-named extension-module lookup in the configured extension search locations.
+
+- `INT: EXPORT(SYMBOL: symbol, MODULE: module)` = MUST copy the caller's current binding for `symbol` into the namespace of the already imported module designated by `module`, making the exported binding available through that module's qualified namespace. `EXPORT` MUST return `0` on success and MUST raise a runtime error if `module` is not currently imported.
+
+#### 9.1.9 Concurrency operators
+
+The expression form `ASYNC{ ... }` and the statement form `THR(symbol){ ... }` are defined in [3.6](#36-asynchronous-execution-and-threads). The operators in this subsection act on `THR` handles.
+
+- `INT: PARALLEL(TNS: functions)` or `INT: PARALLEL(FUNC: f1, FUNC: f2, ..., FUNC: fN)` = MUST invoke each supplied function concurrently with no arguments, wait for all invocations to complete, and return `0` on success. Any non-`FUNC` argument or any worker failure MUST raise a runtime error.
+
+- `THR: AWAIT(THR: thread)` = MUST block until `thread` has finished and then return the same thread handle.
+
+- `THR: PAUSE(THR: thread, FLT: seconds = -1)` = MUST pause `thread`. If `seconds` is supplied and is non-negative, the runtime MUST automatically resume the thread after that duration. Pausing a thread that is already paused MUST raise a runtime error.
+
+- `THR: RESUME(THR: thread)` = MUST resume a paused thread. Resuming a thread that is not paused MUST raise a runtime error.
+
+- `INT: PAUSED(THR: thread)` = MUST return `1` when `thread` is paused and `0` otherwise.
+
+- `THR: STOP(THR: thread)` = MUST cooperatively stop `thread`, mark it finished, and return the resulting handle.
+
+- `THR: RESTART(THR: thread)` = MUST reinitialize `thread` and begin its execution again, returning the restarted handle.
+
+#### 9.1.10 Serialization
+
+This section specifies the on-the-wire JSON encoding used by the `SER` and `UNSER` operators. Implementations MUST follow this schema and the encoding rules below to ensure interoperability.
+
+- The serializer emits a single JSON text (compact, no insignificant whitespace). Decoders MUST accept any JSON whitespace allowed by the JSON specification.
+- All emitted JSON string values MUST be ASCII-only: characters with code < 0x20 or >= 0x7F MUST be escaped as `\\uXXXX`. The serializer MUST also escape `"`, `\\`, `\b`, `\f`, `\n`, `\r`, and `\t` as JSON requires.
+- The top-level JSON value for any serialized runtime value MUST be an object with a discriminator string field named `t`.
+
+The canonical object forms produced by the reference implementation are (examples shown compactly):
+
+```json
+{"t":"INT","v":"<Prefix integer literal>"}
+{"t":"FLT","v":"<Prefix floating-point literal or INF or -INF or NaN>"}
+{"t":"STR","v":"<string contents>"}
+{"t":"TNS","shape":[d1,d2,...,dN],"v":[e1,e2,...,eM]}
+{"t":"MAP","v":[{"k":k1,"v":v1},{"k":k2,"v":v2},...]}
+{"t":"FUNC",...}
+{"t":"THR",...}
 ```
-Traceback (most recent call last):
-  File "prog.pre", line 21, in <top-level>
-    result = compute(foo, bar)
-    State log index: 121  State id: s_0121
-  File "lib.pre", line 88, in compute
-    x = DIV(a, b)
-    State log index: 123  State id: s_0123
-DivisionByZero: attempted to DIV by zero at step_index=123 (rewrite: DIV)
+
+- For `INT`, `v` is the Prefix base-prefixed integer spelling (string). For `FLT`, `v` is the Prefix base-prefixed floating-point spelling (string), except `INF`, `-INF`, and `NaN` are emitted exactly as those strings with no base prefix.
+- For `TNS`, `shape` is an array of positive integers and `v` is the flattened element array in row-major order.
+- For `MAP`, `v` is an array of objects preserving insertion order; each element must be an object with fields `k` and `v` containing the serialized key and value.
+
+To represent shared/recursive structures, the serializer emits auxiliary records with generated IDs:
+
+```json
+{"t":"ENV","id":"eN","ref":true}
+{"t":"ENV","id":"eN","def":{"values":{...},"declared":{...},"frozen":[...],"permafrozen":[...],"parent":<ENV-or-null>}}
+{"t":"PTR","name":"<identifier>","env":<ENV>,"value_type":"INT|FLT|STR|TNS|MAP|FUNC|THR|UNKNOWN"}
+{"t":"FUNC","id":"fN","ref":true}
+{"t":"FUNC","id":"fN","name":"<name>","return":"<TYPE>","params":[...],"def":{"name":"<name>","return":"<TYPE>","params":[...],"body":<Stmt>,"closure":<ENV-or-null>}}
+{"t":"THR","id":"tN","state":"running|paused|finished","paused":<bool>,"finished":<bool>,"stop":<bool>,"env":<ENV-or-null>,"block":<Stmt-or-null>}
 ```
 
-This example shows the outer call at the program top-level and the innermost failing call in `compute`. A verbose report would additionally print the `env_snapshot` for `compute` showing `a: 17, b: 0` and the full `rewrite_record` describing the DIV operation that failed.
+- Generated environment IDs are `e1`, `e2`, ... in first-encounter order. Function IDs are `f1`, `f2`, ...; thread IDs are `t1`, `t2`, ... .
+- `ENV` and `FUNC` records may be emitted first as a full `def` object; subsequent encounters use the `{..."ref":true}` form. The reference emitter behavior is normative: decoders MUST resolve `ENV` and `FUNC` by `id` and accept reference-only forms. The reference-only form for `THR` is not emitted by the reference implementation; repeated `THR` objects may appear with the same `id` and decoders MUST coalesce by `id`.
 
-## 10. Interpreter Use
+The `ENV.def.values` object contains one member per initialized binding (keyed by symbol name). Pointer bindings are represented as `PTR` objects. `ENV.def.declared` maps symbol names to declared type names. `frozen` and `permafrozen` are arrays of symbol names. `parent` is another `ENV` object or `null`.
 
-This section documents how the reference interpreter accepts program input and how to enable verbose tracebacks that include environment snapshots.
+Function parameter records use the shape:
 
-- Program argument: the interpreter reads a single *program* argument as its input program. If the `-source` flag is not present, the program argument is interpreted as a path to a source file and the interpreter loads and parses that file. If the `-source` flag is present, the program argument is treated as the source text itself (a string containing the program) and is parsed directly without reading a file.
+```json
+{"name":"<param name>","type":"<TYPE>","coerced":<bool>,"default":<Expr-or-null>}
+```
 
-- Extensions: the interpreter MAY also accept zero or more *extension* arguments that load compiled extension modules before parsing and execution. Extensions MAY add new operators, new runtime types, and runtime hooks (including custom REPL implementations), but MUST NOT replace or modify existing built-in operators or types.
+AST nodes embedded in function bodies, thread blocks, and default expressions are objects with an `n` kind field and a `loc` location object of the form:
 
-  - A compiled extension is a platform-specific dynamically-linked library (`.dll` on Windows, `.so` on Unix/Linux, `.dylib` on macOS) built from C code. Extensions MUST define a single public C function with C calling convention: `void prefix_extension_init(struct prefix_ext_context *ctx)` that the interpreter invokes at load time to register operators, types, and hooks.
-  
-  - Extension API: Extensions include the public header `prefix_extension.h` which defines the extension API, including:
-    - `PREFIX_EXTENSION_API_VERSION`: a version constant that the extension MUST match (currently 1).
-    - Registration function pointers (supplied in `prefix_ext_context`) for registering operators: `register_operator(const char *name, prefix_operator_fn fn, int asmodule)`.
-    - Registration for type constructors and custom type hooks.
-    - Registration for event handlers: `on_event(const char *event_name, prefix_event_fn fn)` for events such as `program_start`, `program_end`, `on_error`, `before_statement`, `after_statement`, `before_call`, and `after_call`.
-    - Utilities for allocating and manipulating Prefix runtime values (`prefix_value_t`).
-  
-  - A pointer file is a `.prex` text file containing one extension path per line. Lines are trimmed; blank lines are ignored; lines beginning with `!` are comments. Relative paths are resolved relative to the `.prex` file's directory; when a referenced path is not found there the interpreter will also try the current working directory and, as a final fallback, the interpreter's own `ext/` subdirectory.
-  
-  - If a `.prex` file is supplied as an argument, all of the linked extensions are loaded.
-  
-  - If no explicit extension arguments are provided, the interpreter will automatically look for a pointer file named `.prex` in the current working directory. When a program path is being executed (not when `-source` is used), the interpreter also checks the program's directory for a `.prex` pointer file and will additionally accept a pointer file that shares the program's basename but ends with `.prex` (for example `program.pre` alongside `program.prex`). If any pointer file is found the extensions listed in that pointer file are loaded as if supplied on the command line.
-  
-  - Extensions are loaded before parsing so that extension-defined type names are recognized in typed assignments and function signatures. At load time, the interpreter uses platform-specific mechanisms (`LoadLibraryEx` on Windows, `dlopen` on Unix-like systems) to load the extension library, locates the `prefix_extension_init` symbol, invokes it with a context pointer, and records all registered operators and hooks.
-  
-  - If the only supplied positional inputs are extensions (and no program is supplied), the interpreter runs the REPL with the loaded extensions.
-  
-  - Hook surfaces and registration: Extensions register operators and hooks by calling registration functions provided in the `prefix_ext_context` structure. Supported operations include:
+```json
+{"file":"<unknown>","line":N,"column":N,"statement":""}
+```
 
-    - Operators: Extensions call `register_operator(name, handler_fn, flags)` to add new operators dispatched like built-ins. The `flags` parameter includes `PREFIX_EXTENSION_ASMODULE` to opt into module-qualifying all of an extension's operators with the extension's name as a dotted prefix (for example, an extension named `mymod` registering `FOO` will expose `mymod.FOO`). This mirrors imported module-qualified bindings and avoids global name collisions.
+Canonical expression node shapes emitted by the reference serializer include, for example:
 
-    - Per-N-steps rules: `register_periodic_hook(N, handler_fn)` registers a handler to run after state-log step indices where `step_index % N == 0`.
+```json
+{"n":"Literal","loc":<loc>,"value":<json-number-or-json-string>,"base":<json-number-or-null>,"literal_type":"INT|FLT|STR"}
+{"n":"TensorLiteral","loc":<loc>,"items":[<Expr>,...]}
+{"n":"MapLiteral","loc":<loc>,"items":[{"k":<Expr>,"v":<Expr>},...]}
+{"n":"Identifier","loc":<loc>,"name":"<identifier>"}
+{"n":"TypedIdentifier","loc":<loc>,"decl_type":"<TYPE>","name":"<identifier>"}
+{"n":"PointerExpression","loc":<loc>,"target":"<identifier>"}
+{"n":"CallExpression","loc":<loc>,"callee":<Expr>,"args":[{"n":"CallArgument","name":null,"expression":<Expr>},...,{"n":"CallArgument","name":"<keyword>","expression":<Expr>}]}
+{"n":"AsyncExpression","loc":<loc>,"block":<Stmt>}
+{"n":"IndexExpression","loc":<loc>,"base":<Expr>,"indices":[<Expr>,...],"is_map":false}
+{"n":"Range","loc":<loc>,"lo":<Expr>,"start":<Expr>}
+{"n":"Star","loc":<loc>}
+```
 
-    - Event-bound rules: `register_event_handler(event_name, handler_fn)` for the following event names:
+And example statement node shapes include:
 
-      - `program_start(interpreter, program, env)`
+```json
+{"n":"Block","loc":<loc>,"statements":[<Stmt>,...]}
+{"n":"Assignment","loc":<loc>,"target":"<identifier>","declared_type":"<TYPE>"|null,"expression":<Expr>}
+{"n":"TensorSetStatement","loc":<loc>,"target":<Expr>,"value":<Expr>}
+{"n":"Declaration","loc":<loc>,"name":"<identifier>","declared_type":"<TYPE>"}
+{"n":"ExpressionStatement","loc":<loc>,"expression":<Expr>}
+{"n":"IfStatement","loc":<loc>,"condition":<Expr>,"then_block":<Stmt>,"elifs":[{"n":"IfBranch","condition":<Expr>,"block":<Stmt>},...],"else_block":<Stmt-or-null>}
+{"n":"WhileStatement","loc":<loc>,"condition":<Expr>,"block":<Stmt>}
+{"n":"ForStatement","loc":<loc>,"counter":"<identifier>","target_expr":<Expr>,"block":<Stmt>}
+{"n":"ParForStatement","loc":<loc>,"counter":"<identifier>","target_expr":<Expr>,"block":<Stmt>}
+{"n":"FuncDef","loc":<loc>,"name":"<identifier>","params":[{"n":"Param","type":"<TYPE>","coerced":<bool>,"name":"<identifier>","default":<Expr-or-null>},...],"return_type":"<TYPE>","body":<Stmt>}
+{"n":"ReturnStatement","loc":<loc>,"expression":<Expr-or-null>}
+{"n":"PopStatement","loc":<loc>,"expression":{"n":"Identifier","loc":<loc>,"name":"<identifier>"}}
+{"n":"BreakStatement","loc":<loc>,"expression":<Expr>}
+{"n":"GotoStatement","loc":<loc>,"expression":<Expr>}
+{"n":"GotopointStatement","loc":<loc>,"expression":<Expr>}
+{"n":"ContinueStatement","loc":<loc>}
+{"n":"AsyncStatement","loc":<loc>,"block":<Stmt>}
+{"n":"ThrStatement","loc":<loc>,"symbol":"<identifier>","block":<Stmt>}
+{"n":"TryStatement","loc":<loc>,"try_block":<Stmt>,"catch_symbol":"<identifier>"|null,"catch_block":<Stmt>}
+```
 
-      - `program_end(interpreter, exit_code)`
+The operator semantics that use this format are defined next.
 
-      - `on_error(interpreter, error)`
+- `STR: SER(ANY: value)` = MUST serialize `value` to a `STR` containing a single JSON text that conforms to the encoding rules and schema described above. `SER` returns that `STR` on success.
 
-      - `before_statement(interpreter, stmt, env)` / `after_statement(interpreter, stmt, env)`
+- `ANY: UNSER(STR: text)` = MUST parse `text` as JSON and reconstruct the runtime value according to the schema above. `UNSER` MUST raise a runtime error for invalid JSON, invalid/missing fields, invalid numeric spellings, unsupported key types for `MAP`, unknown discriminators that cannot be reconstructed, or other structural violations.
 
-      - `before_call(interpreter, name, args, env, location)` / `after_call(interpreter, name, result, env, location)`
+#### 9.1.11 File and host operators
 
-    - REPL: Extensions MAY register a custom REPL implementation via `register_repl_handler(repl_fn)`.
+- `STR: READFILE(STR: path, STR: coding = "UTF-8")` = MUST read the filesystem object at `path` and return its contents as a `STR`. Supported `coding` values MUST include `UTF-8`, `UTF-8 BOM`, `UTF-16 LE`, `UTF-16 BE`, `ANSI`, `binary`, and `hexadecimal`, along with the aliases `bin` for `binary` and `hex` for `hexadecimal`. Coding names MUST be matched case-insensitively. Text decoders MUST tolerate invalid data using replacement semantics. `UTF-8` MUST accept and strip a BOM if present. `ANSI` MUST map to Windows-1252 on Windows and Latin-1 on other hosts. `binary` MUST return an 8-bit-per-byte bitstring, and `hexadecimal` MUST return lowercase hexadecimal text. Read failure MUST raise a runtime error.
 
-- Verbose tracebacks: if the `-verbose` flag is supplied on the command line, tracebacks include the environment snapshots described in Section 10.8. In concise traceback mode the `-verbose` flag causes the interpreter to attach an `env_snapshot` entry to each frame shown; in verbose traceback mode the same flag expands the printed `State snapshot: blocks to include the selected local environment and any small set of globals included by policy. The snapshot contents follow the requirements in Section 10.2 and are suitable for deterministic replay.
+- `INT: WRITEFILE(STR: blob, STR: path, STR: coding = "UTF-8")` = MUST write `blob` to `path` using the selected coding rules. Coding names MUST be matched case-insensitively. `UTF-8 BOM` MUST emit a BOM. `ANSI` MUST map to Windows-1252 on Windows and Latin-1 on other hosts. `binary` MUST require a bitstring whose length is a multiple of 8, and `hexadecimal` MUST require valid hexadecimal text. Invalid coding names or malformed binary or hexadecimal input MUST raise a runtime error. Ordinary I/O failure MUST cause the operator to return `0`.
 
-- Private mode: if the `-private` flag is supplied on the command line, the interpreter MUST disable the state logger and suppress environment snapshots in tracebacks. Tracebacks MUST still be emitted (concise or verbose as requested) but MUST omit any `env_snapshot` content and must not emit state-log entries; the traceback should clearly indicate when snapshot information has been suppressed.
+- `INT: EXISTFILE(STR: path)` = MUST return `1` if a filesystem object exists at `path` and `0` otherwise.
 
-Notes:
+- `INT: DELETEFILE(STR: path)` = MUST delete the filesystem object at `path` and return `1` on success. Missing files, permission failures, and other deletion failures MUST raise a runtime error.
 
-- The interpreter MAY support additional flags and a different ordering of arguments; the rules above define the semantics for `argv[1]`, `-source`, and `-verbose` specifically and are intended to be stable for tooling and replay purposes.
+- `STR: OS()` = MUST return a short lowercase ASCII string describing the host operating-system family, such as `win`, `linux`, `macos`, or `unix`.
 
-- Exit codes: On normal termination (the program completes without an explicit `EXIT()` call and without encountering a runtime error or uncaught exception) the interpreter returns exit code `0` to the operating system. If execution terminates due to a runtime error or uncaught exception the interpreter returns exit code `1`. If the program invokes `EXIT(n)`, the interpreter returns the supplied integer `n` as the process exit code.
+- `TNS: ARGV()` = MUST return the process argument vector as a one-dimensional tensor of `STR`, preserving the host-provided order.
 
-Example invocations (illustrative):
+#### 9.1.12 Console and process operators
 
-- File mode: `prefix program.pre`
+`INT: PRINT(INT|STR: arg1, ..., INT|STR: argN)` = MUST render each argument according to the language's `STR` conversion rules for `INT` and `STR`, separate adjacent rendered arguments with a single space, append a trailing newline, write the result to the console output, record the corresponding I/O event in the execution log, and return `0`.
 
-- Source-string mode: `prefix -source "foo = INPUT\nPRINT(foo)" -verbose`
+`STR: INPUT()` or `STR: INPUT(STR: prompt)` = MUST read a single line of text from the console input and return it as a `STR`. If `prompt` is supplied, the interpreter MUST write it to the console before reading input. The resulting input event MUST be recorded in the execution log, and if a prompt was supplied the recorded event MUST include that prompt text.
 
-- With compiled extension (file mode): `prefix myext.dll program.pre` (Windows) or `prefix myext.so program.pre` (Unix/Linux)
+`INT: WARN(INT|STR: arg1, ..., INT|STR: argN)` = MUST behave like `PRINT`, except that output MUST occur only when the interpreter was started with `-verbose`, the rendered line MUST be prefixed with `WARNING: `, and the operator MUST return `1` when output occurred and `0` otherwise. Arguments outside `INT` and `STR` MUST raise a runtime error.
 
-- With pointer file: `prefix extensions.prex program.pre`
+`INT: CL(STR: command)` = MUST execute `command` using the host command shell and return the resulting subprocess exit code as an `INT`. Failure to start the subprocess MUST raise a runtime error. The execution log MUST record the command text and resulting exit code.
 
-- REPL / Interactive mode: `prefix` (no program argument), or `prefix myext.dll` (extensions only)
+`EXIT()` or `EXIT(INT: code)` = MUST immediately terminate the interpreter and return process exit code `0` or the supplied integer `code`, respectively. The termination event MUST be recorded in the execution log when logging is enabled.
 
-## 11. REPL (Interactive Mode)
+`INT: SHUSH()` = MUST suppress forwarding of console output produced by operators such as `PRINT`, `WARN`, and shell-output capture from `CL`, while leaving the corresponding I/O events available for deterministic logging and replay. `INPUT` prompts MUST continue to be forwarded while shushing is active. `RUN` MUST temporarily disable shushing for the duration of the executed source. `SHUSH` MUST return `0`.
 
-When the interpreter is invoked without a program path or a `-source` string argument it enters an interactive read-eval-print loop (REPL). The REPL is a convenient development and exploration environment that executes Prefix statements using the same parser, runtime, built-ins, and state-logging semantics as file-mode execution. The following rules describe REPL behaviour:
+`INT: UNSHUSH()` = MUST clear the shush state established by `SHUSH` so that subsequent console output is forwarded normally again. `UNSHUSH` MUST return `0`.
 
-- Invocation: running `prefix` with no program argument launches the REPL. If one or more extensions are supplied and no program argument is supplied, the interpreter launches a REPL with those extensions loaded; if an extension provides a replacement REPL, that REPL MAY be used.
+### 9.2 Statements
 
-- Prompting and input: the REPL presents a primary prompt for new top-level input and a continuation prompt while the user is entering a multi-line block (for example, the body of `FUNC`, `IF`, `WHILE`, or `FOR`).
+---
 
-- Single-line execution: when the user enters a single complete top-level statement (for example `x = 1010` or `PRINT(x)`), the REPL parses and executes that statement immediately and prints any side-effect output. This means `EXIT()` typed as a single-line statement will terminate the REPL immediately and return the supplied exit code (or `0` if omitted), identical to the behaviour when `EXIT()` is executed in a file.
+#### 9.2.1 Block and expression statements
 
-- Multi-line buffering: if a statement begins a block (for example a `FUNC` definition or an `IF(...){` that spans multiple lines), the REPL buffers lines until the block is complete (a blank line MAY be used to indicate end-of-entry when appropriate). When the buffer is complete the REPL parses and executes the collected statements as a unit.
+The block form `{ statement1 ... statementN }` MUST execute its enclosed statements in source order within the current control context. If execution of any enclosed statement transfers control by `RETURN`, `BREAK`, `CONTINUE`, `GOTO`, runtime failure, or process termination, the remaining statements in that block MUST NOT execute.
 
-- Environment persistence: variables, function definitions, and the state logger persist for the duration of the REPL session (that is, top-level bindings remain available across successive inputs until explicitly deleted with `DEL(SYMBOL: name)`). This lets the user incrementally build up a program interactively.
+An expression written in statement position MUST be evaluated for its side effects and its resulting value MUST be discarded. Expression statements MUST otherwise obey the same evaluation-order and runtime-error rules as the corresponding expression in expression position.
 
-- Deterministic logging and tracebacks: all REPL-executed statements are recorded in the same state log format used for file-mode execution. Errors produce tracebacks in the same concise and verbose modes; the `-verbose` flag causes the REPL to attach `env_snapshot` entries in tracebacks when available.
+#### 9.2.2 Declaration and assignment statements
 
-Notes and examples:
+The declaration form `TYPE: name` MUST record the static type of `name` without creating a readable runtime binding. Reading that symbol before a later assignment MUST raise a runtime error.
 
-- Start REPL: `prefix`
+The assignment forms `TYPE: name = expression` and `name = expression` MUST, respectively, perform first assignment with declaration and subsequent assignment to an already-declared symbol. An untyped assignment to an undeclared symbol MUST raise a runtime error, and every assignment MUST preserve the symbol's recorded static type.
 
-- Exit via meta-command: type `.exit` or press Ctrl-D (EOF)
+Indexed assignment statements `tensor[i1, ..., iN] = expression` and `map<k1, ..., kN> = expression` MUST follow the same typing, indexing, and mutation rules defined in [3.2](#32-declarations-and-assignment). Slice assignment to tensors MUST require exact shape agreement between the selected slice and the right-hand-side tensor value.
 
-- Exit programmatically: `EXIT()` - this immediately terminates the interpreter and returns the specified exit code to the shell, just like in batch execution.
+#### 9.2.3 Conditional statements
 
+The conditional statement form `IF(condition){ ... }` MAY be followed immediately by zero or more `ELSEIF(condition){ ... }` clauses and at most one trailing `ELSE{ ... }` clause. Any `ELSEIF` or `ELSE` not directly attached to a preceding `IF` or `ELSEIF` MUST be rejected as a syntax error.
 
-## 12 Operators, Functions, and Statements
+Conditions in statement position MUST accept only `INT`, `STR`, or `TNS`, with `STR` and `TNS` values interpreted according to the truthiness rules defined elsewhere in this specification. The interpreter MUST evaluate the `IF` branch first, then each `ELSEIF` in source order until one branch is taken, and finally the `ELSE` block when present and no earlier branch matched.
 
-This section lists built-in functions, operators and statement signatures, along with a (somewhat) brief description of their behaviour.
+#### 9.2.4 Exception-handling statements
 
-Type notation: union signatures such as `INT|STR` restrict arguments to the listed types. `ANY` means "any runtime value"; in the base language this includes `INT`, `STR`, and `TNS`, and when extensions are enabled it also includes extension-defined types (unless a signature explicitly narrows the set).
+Structured exception handling MUST use either `TRY{ ... }CATCH{ ... }` or `TRY{ ... }CATCH(SYMBOL: name){ ... }`. The `CATCH` block MUST immediately follow its `TRY` block, and exactly one `CATCH` block MUST be provided for each `TRY` statement.
 
-### Expression syntax
+If execution of the `TRY` block completes normally, the corresponding `CATCH` block MUST be skipped. If execution raises an interpreter-level runtime error, execution of the `TRY` block MUST stop and the `CATCH` block MUST run; in the parameterized form, the temporary binding named by `name` MUST be a `STR` containing the error message for the duration of that handler block only.
 
-All operators and functions, both built-in and user-defined, share a uniform function-call style syntax of the form `NAME(arg1, arg2, ..., argN)`. The argument list MAY be empty for certain functions such as `INPUT`. Arguments are separated by commas, and spaces MAY appear around commas and inside parentheses without changing meaning. Each operator has either a fixed or a variable arity.
+#### 9.2.5 Loop statements
 
-Tensor indexing uses the expression form `tensor[i1, i2, ..., iN]`. The number of indices MUST equal the tensor's dimension count. Indices are one-based; 0 is invalid. Negative indices address from the end of the dimension (for example, -1 is the last element). Attempting to index with an out-of-range position raises a runtime error.
+The statement `WHILE(condition){ ... }` MUST evaluate `condition` before each iteration and execute its body only while that condition remains truthy. When the condition becomes false, control MUST continue with the statement following the loop.
 
-### 12.1 Function / Operator Signatures (expression position)
+The counted-loop form `FOR(counter, target){ ... }` MUST evaluate `target` exactly once at loop entry, require it to be an `INT`, initialize `counter` to `1`, and execute the body once for each value through `target`, inclusive. The parallel counted-loop form `PARFOR(counter, target){ ... }` MUST evaluate `target` once, require an `INT`, execute iterations `1..target` concurrently, wait for all iterations to finish, and then either continue normally or re-raise any collected iteration failures as described in [3.5](#35-loops).
 
-- `RUN(STR: s)` ; Run a string as a Prefix program within the current environment;
+Loop counters introduced by `FOR` and `PARFOR` MUST be loop-local. Other declarations created in loop bodies MUST remain bound in the enclosing environment, subject to the merge and race semantics defined for `PARFOR`.
 
-- `ASSERT(ANY: a)` ; crashes if `INT`-style` truthiness of `a` is 0
+#### 9.2.6 Function-definition and return statements
 
-- `STR: THROW(INT|STR: a1, INT|STR: a2, ...)` ; concatenates its arguments using the same rendering rules as `PRINT` and raises a runtime error with the resulting string as the message (rewrite: `THROW`).
+Named function definitions MUST use the `FUNC` statement form with an explicit return type, function name, typed parameter list, and block body. Parameters MAY declare default expressions, coerced parameters MUST be marked with `~`, and all parameter-binding and default-evaluation behavior MUST follow the rules defined in [4.6](#46-functions) and [5.3](#53-function-symbols-and-call-binding).
 
-- `INT: MAIN()` - Returns `1` when the call site belongs to the primary program file (the file passed as the interpreter's first argument, or `<string>` when `-source` is used). Returns `0` when executed from code that came from an `IMPORT` (including nested imports). The result is determined solely by the source file that contains the call expression, not by the caller's call stack.
+The statement `RETURN(expression)` MUST terminate the innermost enclosing function immediately and produce the supplied value as that function's result. The returned value MUST satisfy the function's declared return type, and using `RETURN` outside a function MUST raise a runtime error.
 
-- `DEL(SYMBOL: x)` ; delete variable `x` from environment
+The statement `POP(SYMBOL: name)` MUST be valid only inside a function body. It MUST retrieve the current value bound to `name`, delete that binding from the environment, and then return the retrieved value as though `RETURN(name)` had executed immediately before the deletion. Using `POP` outside a function, or applying it to an unreadable binding, MUST raise a runtime error.
 
-- `ANY: ASSIGN(SYMBOL: target, ANY: value)` - Evaluate `value`, assign it to `target`, and return the assigned value. `target` MAY be a plain identifier or an indexed target (`tensor[...]` or `map<...>`). If the identifier has not been declared, use the typed form `ASSIGN(TYPE: name, value)` to declare and assign in one step. The typed form is only valid for plain identifiers; indexed targets MUST already exist.
+#### 9.2.7 Asynchronous and thread statements
 
-- `EXIT()` or `EXIT(INT: code)` - Requests immediate termination of the interpreter. If an integer `code` is supplied, it is used as the interpreter's process exit code; otherwise `0` is used. Execution stops immediately when `EXIT` is executed (no further statements run), and an entry is recorded in the state log to make deterministic replay possible. Using `EXIT` inside a function terminates the entire program (not just the function).
+The statement form `ASYNC{ ... }` MUST start execution of its block in a background task that runs asynchronously with respect to the caller while sharing the same lexical environment. When used as a statement, any resulting `THR` handle MUST be ignored.
 
-- `INT: INT(STR: x)` ; `STR` -> `INT` using empty/01/other rules; `INT` passthrough
+The statement form `THR(symbol){ ... }` MUST create a background task and bind its handle to `symbol` with static type `THR` in the current lexical environment. Runtime failures originating in either asynchronous statement form MUST be reported through the runtime's asynchronous error-reporting mechanisms and MUST NOT synchronously abort another execution context.
 
-- `STR: STR(INT: x)` ; `INT` -> binary-spelled `STR`; `STR` passthrough
+#### 9.2.8 Loop-control and jump statements
 
-- `TNS: BYTES(INT: n, endian = "big")` - Converts a non-negative integer into its byte representation. The OPTIONAL `endian` parameter controls byte order: if `endian` is `"little"` the result is little-endian (least-significant byte first); if `endian` is `"big"` the result is big-endian (most-significant byte first). The result is a one-dimensional `TNS` whose elements are `INT` values in the range `0..11111111` (0-255 decimal). The tensor length is `max(1, ceil(bit_length(n)/8))`; `BYTES(0)` returns a single zero byte. Supplying a negative integer is a runtime error. Supplying an `endian` value other than `"big"` or `"little"` is a runtime error.
+The statement `BREAK(n)` MUST exit the innermost `n` enclosing loops, where `n` evaluates to a strictly positive `INT`. The statement `CONTINUE()` MUST skip the remainder of the current iteration of the innermost enclosing loop and proceed according to the next-iteration rules of that loop. Using either statement outside an applicable loop context MUST raise a runtime error.
 
-- Binary literal: OPTIONAL leading `-` (spaces/tabs/CR allowed after the dash) then `{0,1}+`
+The statement `GOTOPOINT(n)` MUST register a jump target identified by runtime value `n`, and `GOTO(n)` MUST transfer control to a previously registered matching target within the permitted visibility scope. Invalid target values, unregistered targets, or jumps that otherwise violate the control-flow rules defined in [3.7](#37-loop-control-and-jumps) MUST raise runtime errors.
 
-- String literal: `"` characters `"` (supports escape codes; no newlines)
+## 10. Standard library
 
-- `INT: EXIST(SYMBOL: x)` ; returns `1` if the identifier `x` exists in the current environment (searching enclosing environments), else `0`. The argument MUST be an identifier; supplying an expression that is not a plain identifier is a runtime error.
+The standard library is a set of packages and modules bundled with the interpreter that provide a set of common utilities.
 
-- `INT: ISINT(SYMBOL: x)` ; returns `1` if the identifier `x` exists and is of type `INT`, otherwise returns `0`. The argument MUST be an identifier; supplying any other expression is a runtime error.
+Bundled standard-library modules MUST live under `stdlib/`. Module and package search paths used by `IMPORT` and `IMPORT_PATH` MUST consult `stdlib/` immediately before `lib/`, so bundled modules are preferred over legacy or user-installed library copies.
 
-- `INT: ISSTR(SYMBOL: x)` ; returns `1` if the identifier `x` exists and is of type `STR`, otherwise returns `0`. The argument MUST be an identifier; supplying any other expression is a runtime error.
+Bundled extensions shipped with the interpreter MUST live under `stdext/`. Extension search paths MUST consult `stdext/` immediately before `ext/`, so bundled extensions are preferred over user-installed copies with the same name.
 
-- `INT: ISTNS(SYMBOL: x)` ; returns `1` if the identifier `x` exists and is of type `TNS`, otherwise returns `0`. The argument MUST be an identifier; supplying any other expression is a runtime error.
-
-- `STR: TYPE(ANY: obj)` ; returns the runtime type name of `obj` as a `STR` - one of `INT`, `FLT`, `STR`, `TNS`, `MAP`, `FUNC`, or `THR` (or `NULL` for null/uninitialized values). Extension-defined type names are returned unchanged when extensions are enabled.
-
-- `STR: SIGNATURE(SYMBOL: sym)` ; returns a textual signature for the identifier `sym`. If `sym` denotes a user-defined function (`FUNC`) the result is formatted in the canonical form used in this specification, for example `R: name(T1: arg1, T2: arg2 = default)`. For other bound symbols the result is `TYPE: symbol` (for example `INT: x`). The argument MUST be a plain identifier.
-
-- `ANY: COPY(ANY: obj)` ; return a shallow copy of `obj`. For `INT`, `FLT`, `STR`, and `FUNC` this produces a same-typed value wrapper. For `TNS` it returns a newly-allocated tensor with the same shape whose elements reference the original element values (shallow). For `MAP` it returns a new map with the same keys and the same value references (shallow).
-
-- `ANY: DEEPCOPY(ANY: obj)` ; return a deep copy of `obj`. Recursively copies container values so that the returned value shares no mutable container objects with the original: tensors are duplicated element-by-element and maps are duplicated with their values deep-copied. Primitive values (`INT`, `FLT`, `STR`, and `FUNC`) are treated as atomic and copied by value.
-
-- `INT: SLEN(STR: s)` returns the length of the supplied `STR` in characters as an `INT`. The argument MUST be a `STR`; passing an `INT` raises a runtime error.
-
-- `INT: ILEN(INT: n)` returns the length in binary digits of the absolute value of the supplied `INT`. `ILEN(0)` returns 1. The argument MUST be an `INT`; passing a `STR` raises a runtime error.
-
-### 12.2 Arithmetic (`INT` or `FLT`, no mixing)
-
-- `INT|FLT: ADD(INT|FLT: a, INT|FLT: b)` ; `a` + `b`
-
-- `INT|FLT: SUB(INT|FLT: a, INT|FLT: b)` ; `a` - `b`
-
-- `INT|FLT: MUL(INT|FLT: a, INT|FLT: b)` ; `a` * `b`
-
-- `INT|FLT: DIV(INT|FLT: a, INT|FLT: b)` ; `a` / `b`
-
-- `INT|FLT: CDIV(INT|FLT: a, INT|FLT: b)` ; ceil(`a` / `b`)
-
-- `INT|FLT: POW(INT|FLT: a, INT|FLT: b)` ; `a` ^ `b`
-
-- `INT|FLT: ROOT(INT|FLT: x, INT|FLT: n)` ; `n`th root of `x`. No mixing of `INT` and `FLT` is allowed. For `INT` arguments `n` MUST be non-zero; positive `n` returns the integer nth root (largest integer r with r^n <= x for x >= 0); negative `n` yields an integer result only for `x` equal to `1` or `-1` (reciprocal is integer), and `x < 0` requires odd `n`. For `FLT` arguments the result is `x^(1/n)` (negative `n` allowed); negative `x` is allowed only when `n` is an odd integer. Division by zero is an error.
-
-- `INT|FLT: MOD(INT|FLT: a, INT|FLT: b)` ; remainder of `a` / `b`
-
-- `INT|FLT: NEG(INT|FLT: a)` ; -`a` (additive inverse)
-
-- `INT|FLT: ABS(INT|FLT: a)` ; absolute value of `a`
-
-- `INT|FLT: GCD(INT|FLT: a, INT|FLT: b)` ; greatest common divisor of `a` and `b`
-
-- `INT|FLT: LCM(INT|FLT: a, INT|FLT: b)` ; least common multiple of `a` and `b`
-
-### 12.3 Coercion arithmetic
-
-- `INT: IADD(INT|FLT: a, INT|FLT: b)` ; Convert `a` and `b` to `INT`, return `a` + `b`.
-
-- `INT: ISUB(INT|FLT: a, INT|FLT: b)` ; Convert `a` and `b` to `INT`, return `a` - `b`.
-
-- `INT: IMUL(INT|FLT: a, INT|FLT: b)` ; Convert `a` and `b` to `INT`, return `a` * `b`.
-
-- `INT: IDIV(INT|FLT: a, INT|FLT: b)` ; Convert `a` and `b` to `INT`, return `a` / `b`.
-
-- `INT: IPOW(INT|FLT: a, INT|FLT: b)` ; Convert `a` and `b` to `INT`, return `a` ^ `b`.
-
-- `INT: IROOT(INT|FLT: a, INT|FLT: b)` ; Convert `a` and `b` to `INT`, return `b`th root of `a`.
-
-- `INT: ISUM(INT|FLT: a1, ..., INT|FLT: aN)` ; Convert all arguments to `INT`, return the sum of arguments.
-
-- `INT: IPROD(INT|FLT: a1, ..., INT|FLT: aN)` ; Convert all arguments to `INT`, return the product of the arguments.
-
-- `FLT: FADD(INT|FLT: a, INT|FLT: b)` ; Convert `a` and `b` to `FLT`, return `a` + `b`.
-
-- `FLT: FSUB(INT|FLT: a, INT|FLT: b)` ; Convert `a` and `b` to `FLT`, return `a` - `b`.
-
-- `FLT: FMUL(INT|FLT: a, INT|FLT: b)` ; Convert `a` and `b` to `FLT`, return `a` * `b`.
-
-- `FLT: FDIV(INT|FLT: a, INT|FLT: b)` ; Convert `a` and `b` to `FLT`, return `a` / `b`.
-
-- `FLT: FPOW(INT|FLT: a, INT|FLT: b)` ; Convert `a` and `b` to `FLT`, return `a` ^ `b`.
-
-- `FLT: FROOT(INT|FLT: a, INT|FLT: b)` ; Convert `a` and `b` to `FLT`, return `b`th root of `a`.
-
-- `FLT: FSUM(INT|FLT: a1, ..., INT|FLT: aN)` ; Convert all arguments to `FLT`, return the sum of arguments.
-
-- `FLT: FPROD(INT|FLT: a1, ..., INT|FLT: aN)` ; Convert all arguments to `FLT`, return the product of arguments.
-
-### 12.4 Bitwise / Boolean
-
-- `INT: BAND(INT: a, INT: b)` ; bitwise AND
-
-- `INT: BOR(INT: a, INT: b)` ; bitwise OR
-
-- `INT: BXOR(INT: a, INT: b)` ; bitwise XOR
-
-- `INT: BNOT(INT: a)` ; bitwise NOT
-
-- `INT: SHL(INT: a, INT: b)` ; shift left
-
-- `INT: SHR(INT: a, INT: b)` ; shift right
-
-- `INT|STR: SLICE(INT|STR: a, INT: start, INT: end)` ; `INT` target -> bit-slice [start:end]; `STR` target -> inclusive char-slice counting from the left (index 1 = first char).
-
-- `INT: AND(ANY: a1, ..., ANY: aN)` ; Boolean AND
-
-- `INT: OR(ANY: a1, ..., ANY: aN)` ; Boolean OR
-
-- `INT: XOR(ANY: a1, ..., ANY: aN)` ; Boolean XOR
-
-- `INT: NOT(ANY: a)` ; Boolean NOT
-
-- `INT: BOOL(ANY: item)` ; returns the truthiness of `item` as `INT` (`INT`: non-zero -> `1`, `STR`: non-empty -> `1`, `TNS`: true if any element is true), otherwise `0`, `THR` is true if it is not stopped, `MAP` is true if it has any entries.
-
-### 12.5 Comparisons
-
-- `INT: EQ(ANY: a, ANY: b)` ; 1 if `a` == `b` else 0
- 
-- `INT: NEQ(ANY: a, ANY: b)` ; 0 if `a` == `b` else 1
-
-- `INT: GT(INT|FLT: a, INT|FLT: b)` ; 1 if `a` > `b` else 0 (no mixing `INT`/`FLT`)
-
-- `INT: LT(INT|FLT: a, INT|FLT: b)` ; 1 if `a` < `b` else 0 (no mixing `INT`/`FLT`)
-
-- `INT: GTE(INT|FLT: a, INT|FLT: b)` ; 1 if `a` >= `b` else 0 (no mixing `INT`/`FLT`)
-
-- `INT: LTE(INT|FLT: a, INT|FLT: b)` ; 1 if `a` <= `b` else 0 (no mixing `INT`/`FLT`)
-
-### 12.6 Aggregates / Utilities
-
-- `INT|FLT|STR: MAX(INT|FLT|STR: a1, ..., INT|FLT|STR: aN)` ; numeric max for `INT`/`FLT`, longest for `STR`; supplying tensors or mixing types is an error
-
-- `INT|FLT|STR: MAX(TNS: t1, ..., TNS: tN)` ; flatten the provided tensors and return the largest scalar element according to the normal rules (numeric max for `INT`/`FLT`, longest for `STR`). All tensor elements MUST be scalar (`INT`, `FLT`, or `STR`) and share the same type. Mixing element types or including `TNS` elements (tensor-of-tensors) is an error.
-
-- `INT|FLT|STR: MIN(INT|FLT|STR: a1, ..., INT|FLT|STR: aN)` ; numeric min for `INT`/`FLT`, shortest for `STR`; supplying tensors or mixing types is an error
-
-- `INT|FLT|STR: MIN(TNS: t1, ..., TNS: tN)` ; flatten the provided tensors and return the smallest scalar element according to the normal rules (numeric min for `INT`/`FLT`, shortest for `STR`). All tensor elements MUST be scalar (`INT`, `FLT`, or `STR`) and share the same type. Mixing element types or including `TNS` elements (tensor-of-tensors) is an error.
-
-- `INT|FLT: SUM(INT|FLT: a1, ..., INT|FLT: aN)` ; sum of the arguments (no mixing `INT`/`FLT`)
-
-- `INT: LEN(INT|STR: a1, ..., INT|STR: aN)` ; number of arguments (N), rejects tensors
-
-- `INT: ALL(ANY: a1, ..., ANY: aN)` ; Boolean AND (empty string -> false, non-empty -> true)
-
-- `INT: ANY(ANY: a1, ..., ANY: aN)` ; Boolean OR (empty string -> false, non-empty -> true)
-
-- `INT|STR: JOIN(INT|STR: a1, INT|STR: a2, ..., INT|STR: aN)` ; `INT` -> concatenate binary spellings with consistent sign; `STR` -> concatenate strings; mixing `INT` and `STR` or supplying tensors raises an error.
-
-- `INT|FLT: PROD(INT|FLT: a1, ..., INT|FLT: aN)` ; product of the arguments (no mixing `INT`/`FLT`)
-
-### 12.7 String operations
-
-- `STR: UPPER(STR: s)` ; `STR` -> uppercase `STR`; error if `s` is `INT`
-
-- `STR: LOWER(STR: s)` ; `STR` -> lowercase `STR`; error if `s` is `INT`
-
-- `TNS: SPLIT(STR: string, STR: delimiter = " ")` - Splits `string` on the exact substring `delimiter` and returns the parts as a one-dimensional `TNS` of `STR`. The delimiter defaults to a single space. The delimiter MUST be non-empty; otherwise a runtime error is raised. Consecutive delimiters and trailing delimiters are preserved, so empty-string elements MAY appear in the result.
-
-- `STR: STRIP(STR: string, STR: remove)` - Returns a `STR` formed by removing every occurrence of the substring `remove` from `string`. The `remove` argument MUST be a non-empty string; supplying an empty `remove` raises a runtime error.
-
-- `STR: REPLACE(STR: string, STR: a, STR: b)` - Returns a `STR` formed by replacing every occurrence of the substring `a` in `string` with `b`. The `a` argument MUST be a non-empty string; supplying an empty `a` raises a runtime error.
-
-- `INT|STR: FLIP(INT|STR: obj)` - For `INT` input, returns an `INT` whose binary-digit spelling is the reverse of the absolute-value binary spelling of `obj` (sign is preserved). For `STR` input, returns the character-reversed `STR`.
-
-### 12.8 Tensor operations
-
-- `TNS: SHAPE(TNS: tensor)` - Returns the tensor's shape as a 1D `TNS` (vector) of `INT` lengths (one entry per dimension).
-
-- `INT: TLEN(TNS: tensor, INT: dim)` - Returns the length of the specified 1-based dimension. Errors if `dim` is out of range.
-
-- `TNS: TFLIP(TNS: obj, INT: dim)` - Returns a new `TNS` with the elements along 1-based dimension `dim` reversed. Errors if `dim` is out of range.
-
-- `TNS: SCAT(TNS: src, TNS: dst, TNS: ind)` - Returns a copy of `dst` with a rectangular slice replaced by `src`. `ind` MUST be a 2D tensor of `INT` pairs with shape `[TLEN(dst, 1), 10]` (binary `10` = decimal 2), that is, one `[lo, hi]` row per destination dimension (rank; for example `rank = TLEN(SHAPE(dst), 1)`). Indices are 1-based; negatives follow the tensor indexing rules (for example, `-1` is the last element) and `0` is invalid. For each dimension, the inclusive span `hi - lo + 1` MUST equal the corresponding `src` dimension length, and all bounds MUST fall within `dst`. Elements outside the slice are copied from `dst` unchanged.
-
-- `TNS: FILL(TNS: tensor, ANY: value)` - Returns a new tensor with the same shape as `tensor`, filled with `value`. The supplied value`s type MUST match the existing element type at every position.
-
-- `TNS: TNS(TNS: shape, ANY: value)` - Creates a new `TNS` with the shape described by a 1D `TNS` of positive `INT` lengths, filled with `value`.
-
-- `TNS: TNS(STR: string)` - Converts a `STR` into a 1-D `TNS` of `STR` characters. Each element of the resulting tensor is a `STR` containing a single character from the input string. For example, `TNS("foo")` yields `["f","o","o"]`.
-
-- `TNS: CONV(TNS: x, TNS: kernel, INT: stride_w = 1, INT: stride_h = 1, INT: pad_w = 0, INT: pad_h = 0, TNS: bias = [])` - Extended convolution operator.
-
-  - Backward-compatible two-argument form: when called as `CONV(x, kernel)` the operator performs the original N-dimensional discrete convolution and returns a tensor with the same shape as `x`. Requirements and semantics from the original behavior remain unchanged: `kernel` MUST have the same rank as `x`, every kernel dimension length MUST be odd (so the kernel has a well-defined center), boundary sampling is clamped to the nearest valid index (replicate padding), and tensor element types MUST be uniformly `INT` or uniformly `FLT` within each tensor. If both tensors are `INT` the output is `INT`, otherwise the output is `FLT`.
-
-  - 2-D multi-output extension (keyword form): when called with any of the keywords `stride_w`, `stride_h`, `pad_w`, `pad_h`, or `bias`, and when the input `x` is a 3-D WHC tensor (width, height, channels) and `kernel` is a 4-D tensor of shape `[kw, kh, in_c, out_c]`, `CONV` performs a multi-output 2-D convolution. In this mode:
-
-  - `pad_w` / `pad_h` specify zero-padding added to both sides of the width/height dimensions (padding value = 0). The padded input size is `in_w + 2*pad_w` by `in_h + 2*pad_h`.
-
-  - `stride_w` / `stride_h` specify the horizontal and vertical strides (default `1`).
-
-  - Output spatial dimensions are computed as `out_w = floor((p_w - kw) / stride_w) + 1` and `out_h = floor((p_h - kh) / stride_h) + 1` where `p_w = in_w + 2*pad_w`, `p_h = in_h + 2*pad_h`.
-
-  - If `bias` is supplied and is a 1-D `TNS` of length `out_c`, per-output-channel bias is added to each output channel; otherwise no bias is applied.
-
-    - The resulting tensor shape is `[out_w, out_h, out_c]` and numeric typing follows the usual rule: if both input and kernel are `INT` the output is `INT`, otherwise `FLT` (`INT`/`FLT` mixing is allowed and yields `FLT`).
-
-    - Unknown keyword names result in a runtime error; keywords are OPTIONAL and supplying only `x` and `kernel` preserves original N-D semantics.
-
-  - Note: the two-argument N-D form remains available and unchanged. The keyword extension provides a convenient, backward-compatible way to express common 2-D CNN patterns (stride, explicit zero-padding, and OPTIONAL bias) without requiring users to compose lower-level primitives manually.
-
-- `INT: IN(ANY: value, TNS: tensor)` ; returns `1` if `value` is equal to any element of `tensor` (using the language's equality semantics), otherwise `0`.
-
-- `TNS: MADD/MSUB/MMUL/MDIV(TNS: x, TNS: y)` - Elementwise addition, subtraction, multiplication, and division. Shapes MUST match; all elements MUST be `INT` or all `FLT` (no mixing). Division by zero is an error.
-
-- `TNS: MSUM(TNS: t1, ..., TNS: tN)` - Elementwise sum across tensors. Shapes MUST match; elements MUST be all `INT` or all `FLT` (no mixing).
-
-- `TNS: MPROD(TNS: t1, ..., TNS: tN)` - Elementwise product across tensors. Shapes MUST match; elements MUST be all `INT` or all `FLT` (no mixing).
-
-- `TNS: TADD/TSUB/TMUL/TDIV/TPOW(TNS: x, INT|FLT: y)` - Tensor-scalar arithmetic. Tensor elements and scalar MUST both be `INT` or both be `FLT` (no mixing). Division by zero is an error.
-
-### 12.9 Map operations
-
-- `TNS: KEYS(MAP: map)` - Return a 1-D `TNS` containing each of the keys in `map`, in insertion order. Each element of the returned tensor has the native key type (`INT`, `FLT`, or `STR`).
-
-- `TNS: VALUES(MAP: map)` - Return a 1-D `TNS` containing each of the values in `map`, in insertion order. Each element of the returned tensor is the stored value and preserves its type (`INT`, `FLT`, `STR`, `TNS`, or `MAP`).
-
-- `INT: KEYIN(INT|FLT|STR: key, MAP: map)` - Returns `1` if `map` contains `key` (matching by type and value), otherwise `0`.
-
-- `INT: VALUEIN(ANY: value, MAP: map)` - Returns `1` if any value stored in `map` is equal to `value` using the language's equality semantics, otherwise `0`.
-
-- `INT: MATCH(MAP: map, MAP: template, INT: typing = 0, INT: recurse = 0, INT: shape = 0)` - Returns `1` if every key in `template` is present in `map`. If `typing` is true, also require that for each matching key the stored value types are identical between `map` and `template`. If `shape` is true, require that for any matching key where either side is a `TNS`, both sides are `TNS` and their shapes are identical. If `recurse` is true, apply these same rules to every `MAP` value nested anywhere within `map` (recursively). On any failure return `0`.
-
-- `MAP: INV(MAP: map)` - Return a new map whose key/value pairs are reversed. Each value in `map` becomes a key in the returned map and each original key becomes the corresponding value. All values in `map` MUST be scalar (`INT`, `FLT`, or `STR`) so they can be used as keys; otherwise `INV` raises a runtime error. If `map` contains duplicate values (by key type and value), `INV` raises a runtime error.
-
-### 12.10 Concurrency
-
-- `INT: PARALLEL(TNS: functions)` - Execute each element of `functions` in parallel. Each element MUST evaluate to a `FUNC` value; the interpreter invokes each function with no arguments (in separate worker threads) and waits for all workers to complete. Returns `INT` 0 on success. If any element is not a `FUNC` or any worker raises an error, `PARALLEL` raises a runtime error (rewrite: `PARALLEL`) and the failing worker's error is propagated.
-
-- `INT: PARALLEL(FUNC: f1, FUNC: f2, ... )` - Variadic form: accept one or more `FUNC` values as direct arguments. Behaviour is equivalent to the tensor form: each supplied function is invoked in parallel with no arguments and the call waits for completion; returns `INT` 0 on success or raises on error.
-
-- `THR: ASYNC{ block }` - Expression form: start executing `block` asynchronously in a separate thread (while sharing the same namespace) and return a `THR` handle. In statement position, `ASYNC{ block }` is permitted and the returned handle is ignored.
-
-- `THR: STOP(THR: thread)` - Cooperatively stop a running thread and mark it finished.
-
-- `THR: AWAIT(THR: thread)` - Block until `thread` is finished.
-
-- `THR: PAUSE(THR: thread, FLT: seconds=-1)` - Pause execution while preserving the current location. If `seconds` is provided and is >= 0, `thread` is automatically resumed after that duration. Pausing an already-paused thread is a runtime error.
-
-- `THR: RESUME(THR: thread)` - Resume a paused thread. Resuming a thread that is not paused is a runtime error.
-
-- `INT: PAUSED(THR: thread)` - Returns `INT` 1 if `thread` is paused, otherwise `INT` 0.
-
-- `THR: RESTART(THR: thread)` - Reinitialize and start executing the thread again.
-
-### 12.11 Logarithms
-
-- `INT|FLT: LOG(INT|FLT: a)` ; floor(log2(a)) for a > 0
-
-- `INT: CLOG(INT: a)` ; ceil(log2(a)) for a > 0
-
-### 12.12 Numeric conversions / predicates
-
-- `INT: INT(ANY: a)` - Explicit conversion to integer. If `a` is `FLT`, conversion truncates toward zero.
-
-- `FLT: FLT(ANY: a)` - Explicit conversion to float.
-
-- `TNS: TINT(TNS: obj)` - Convert each scalar element of `obj` to `INT` using the `INT` conversion rules; raises a runtime error if any element cannot be converted.
-
-- `TNS: TFLT(TNS: obj)` - Convert each scalar element of `obj` to `FLT` using the `FLT` conversion rules; raises a runtime error if any element cannot be converted.
-
-- `TNS: TSTR(TNS: obj)` - Convert each scalar element of `obj` to `STR` using the `STR` conversion rules; raises a runtime error if any element cannot be converted.
-
-- `INT: ISFLT(SYMBOL: name)` - 1 if `name` is bound and has type `FLT`, otherwise 0.
-
-### 12.13 Serialization
-
-- `STR: SER(INT|FLT|STR|TNS|MAP|FUNC|THR: obj)` ; return a `STR` containing a compact JSON representation of `obj` that encodes runtime type information. Encoding rules (summary): `INT` values are encoded as binary-digit strings (with a leading `-` for negatives), `FLT` values as decimal text via `repr()`, `STR` values as raw strings, `TNS` values as an object with `shape` (list of `INT` lengths) and a flat list of serialized elements, and `MAP` values as a list of key/value entries where keys are encoded with their native type (`INT`, `FLT`, or `STR`) and values are recursively serialized.
-
-  `FUNC` and `THR` values are serialized with enough information to reconstruct them in a new interpreter process:
-
-  - `FUNC` values include an identifier, name, parameter list (including coercion flags and default expressions), return type, the function body AST, and a serialized snapshot of the closure environment. The closure snapshot serializes each bound value via `SER` so that the function can be rehydrated elsewhere.
-
-  - `THR` values include an identifier plus status metadata (paused/finished/stop/state) and, when available, the serialized block AST and environment captured when the thread was created. The underlying OS thread is not serialized.
-
-- `INT|FLT|STR|TNS|MAP|FUNC|THR: UNSER(STR: obj)` ; reverse of `SER`. Given a string produced by `SER`, reconstruct the runtime value.
-
-  - For `INT`, `FLT`, `STR`, `TNS`, and `MAP`, reconstruction is exact.
-
-  - For `FUNC`, the interpreter rebuilds the function body and closure environment from the serialized definition so the function can be called in a fresh process.
-
-  - For `THR`, the interpreter reconstructs a `THR` handle with the recorded metadata. The handle is inert: it does not resume the original background task, but supports `TYPE`, `PAUSED`, `STOP`, and `AWAIT` (which returns immediately).
-
-  If the input is not a valid serialization produced by `SER`, `UNSER` raises a runtime error.
-
-
-### 12.14 Rounding
-
-- `FLT: ROUND(FLT: float, STR: mode = "floor", INT: ndigits = 0)` - Round `float` to `ndigits` places right of the radix point (binary places; `ndigits` MAY be negative). When exactly two arguments are supplied and the second is an `INT`, it is treated as `ndigits` with the mode defaulting to `"floor"`. Modes are:
-
-  - `"floor"` - round toward -∞
-
-  - `"ceiling"` or `"ceil"` - round toward ∞
-
-  - `"zero"` - round toward zero
-
-  - `"logical"` or `"half-up"` - round half away from zero
-
-### 12.15 Module operations:
-
-- `IMPORT(MODULE: name)` or `IMPORT(MODULE: name, SYMBOL: alias)` - Loads another source file and exposes it as a distinct module namespace. When an OPTIONAL alias identifier is supplied, the imported module's bindings are exposed under the `alias` prefix rather than the module's own name (for example, `IMPORT(mod, ali)` makes `ali.F()` valid while `mod.F()` is not).
-
-  Package imports: Prefix supports package namespaces using `..` as the package separator. The canonical form is `package..subpackage..module`. When `IMPORT(pkg)` is used the interpreter will prefer a package layout and attempt to load `pkg/init.pre` from the referring source's directory (falling back to the interpreter `lib/` directory). If a directory named `pkg` exists but contains no `init.pre` the import raises a clear error. When `IMPORT(pkg..mod)` is used the interpreter resolves to `pkg/mod.pre` (or the corresponding file under `lib/`). When a package directory and a same-named module file both exist in the same search location, the package takes precedence. Items within the package are still imported using their full dotted names (for example, `pkg..mod.FOO`).
-
-  The first argument MUST be an identifier naming a module; the interpreter first looks for a file named `<name>.pre` in the same directory as the referring source file. When the referring source is provided via the `-source` string literal mode, the primary search directory is the process's current working directory. If the module file is not found there, the interpreter will additionally attempt to load the file from a `lib` subdirectory located alongside the interpreter implementation (that is, `<interpreter_dir>/lib/<name>.pre`, where `<interpreter_dir>` is the directory containing the interpreter script or executable).
-
-  If no module file is found in any search location, `IMPORT` throws an error.
-
-  The imported file is parsed and executed in its own isolated top-level environment on the first import during a given interpreter invocation: top-level assignments and function definitions in the imported module do not directly mutate the caller's environment during execution. During that execution unqualified identifiers (for example, `x` or `helper`) refer to names in the module's own top-level namespace. Qualified identifiers (for example, `other.FOO`) refer only to the dotted names that the module itself has created or imported; those qualified bindings are scoped to the module's namespace.
-
-  After the module finishes executing the first time, the interpreter caches the module's top-level environment and the module-qualified function objects. Subsequent `IMPORT` calls for the same module identifier within the same interpreter process reuse that cached namespace/instance and do not re-execute the module source. Callers importing the same module later will observe the same shared module environment (that is, the same binding objects and the same function objects). By default bindings are exposed under the module's own dotted prefix (`module.FOO`, `module.bar`, etc.); however, if the importer supplied an alias the bindings are instead exposed under the alias prefix (`alias.FOO`, `alias.bar`). Multiple different aliases for the same module identifier will each get their own dotted view into the same cached module instance. If the module imported other modules during its execution, those nested qualified bindings are preserved in the cached namespace and remain accessible via the same dotted paths (for example, `module.other.SYM` or `alias.other.SYM` or `module.alias.SYM`).
-
-  This caching behavior ensures that importing a module multiple times produces the same shared module namespace instance for all importers. The interpreter does not automatically perform cycle detection beyond using the cached instance once execution has completed; careful module design SHOULD avoid import cycles where possible.
-
-  When a module is imported, the interpreter also attempts to load any associated runtime extensions so their operators are immediately available to the importer. The interpreter first looks for a companion pointer file named `<module>.prex` next to the resolved module file (or in the interpreter `lib/` fallback) and loads any extensions listed there. If no pointer file is present (or as an additional fallback), the interpreter will also check its built-in `ext/` directory for a single-file extension named `<module>.py` and load it if present. Operators registered by such extensions are attached to the running interpreter at import time and become callable (typically under the module-qualified names they register).
-
-
-- `IMPORT_PATH(STR: path)` - Loads a Prefix module from the absolute filesystem `path` provided as a `STR`. The argument MUST be an absolute path to a `.pre` source file. The imported module is treated the same as `IMPORT` with respect to parsing, execution isolation, function/module caching, and companion extension loading (companion `<module>.prex` alongside the resolved file and a built-in `ext/<module>.py` are both checked and loaded if present). The module's basename (filename without extension) is used as the module identifier for qualifying exported bindings.
-
-- `INT: EXPORT(SYMBOL: symbol, MODULE: module)` - Adds the caller's binding for the identifier `symbol` into the namespace of the imported module named by the identifier `module`. The first argument MUST be an identifier (not a string literal); its current value in the caller's environment is copied into the imported module's namespace and becomes available as the qualified name `module.symbol` in the caller's environment. The second argument MUST be an identifier naming a previously-imported module; if the module has not been imported yet, the interpreter raises a runtime error (rewrite: EXPORT). `EXPORT` returns `INT` 0 on success.
-
-### 12.16 File operations:
-
-- `STR: READFILE(STR: path, STR: coding = "UTF-8")` - Reads the file at `path` and returns its contents as a `STR`. Supported `coding` values (case-insensitive) are `UTF-8`, `UTF-8 BOM`, `UTF-16 LE`, `UTF-16 BE`, `ANSI` (Windows-1252 on Windows, Latin-1 elsewhere), `binary` (alias `bin`), and `hexadecimal` (alias `hex`). Text codings decode with replacement on invalid bytes; `UTF-8` tolerates and strips a BOM if present. `binary` returns an 8-bit-per-byte bitstring; `hexadecimal` returns a lowercase hexadecimal string. If the file cannot be opened or read, the interpreter raises a runtime error (rewrite: `READFILE`).
-
-- `INT: WRITEFILE(STR: blob, STR: path, STR: coding = "UTF-8")` - Writes `blob` to `path` using the same `coding` options as `READFILE`. Text codings write in the specified encoding (`UTF-8 BOM` emits a BOM; `ANSI` maps to Windows-1252 on Windows, Latin-1 elsewhere). `binary` expects a bitstring of 0/1 characters whose length is a multiple of 8; `hexadecimal` expects valid hexadecimal. On I/O failure the call returns `INT` 0; invalid coding or malformed binary/hex data raises a runtime error (rewrite: `WRITEFILE`).
-
-- `INT: EXISTFILE(STR: path)` - Returns `INT` 1 when a filesystem object exists at `path`, otherwise returns `INT` 0. The argument MUST be a `STR`.
-
-- `INT: DELETEFILE(STR: path)` - Deletes the filesystem object at `path`. If no filesystem object exists at `path`, the interpreter raises a runtime error (rewrite: `DELETEFILE`). Permission errors and other filesystem failures also raise a runtime error (rewrite: `DELETEFILE`). On success `DELETEFILE` returns `INT` 1.
-
-### 12.17 Symbol Freezing:
-
-- `INT: FREEZE(SYMBOL: symbol)` - Marks the identifier `symbol` as frozen. The first argument MUST be an identifier (not a string literal). On success `FREEZE` returns `INT` 0. Once a binding is frozen, any attempt to reassign it (via `=` assignment) or to delete it (`DEL`) raises a runtime error (assign attempts signal rewrite: `ASSIGN`; deletion attempts signal rewrite: `DEL`). `FREEZE` locates the binding in the usual lexical environment chain and freezes that specific binding; if the identifier is undefined, the call raises a runtime error (rewrite: `FREEZE`).
-
-- `INT: THAW(SYMBOL: symbol)` - Unfreezes a previously-frozen identifier. The single argument MUST be an identifier (not a string literal). On success `THAW` returns `INT` 0. If the identifier is undefined the call raises a runtime error (rewrite: `THAW`). If the identifier has been permanently frozen by `PERMAFREEZE`, calling `THAW` raises a runtime error and the binding remains frozen (rewrite: `THAW`). Calling `THAW` on an identifier that is not frozen is a no-op and succeeds.
-
-- `INT: PERMAFREEZE(SYMBOL: symbol)` - Permanently freezes the identifier `symbol`. The argument MUST be an identifier (not a string literal). On success `PERMAFREEZE` returns `INT` 0. A permanently-frozen identifier cannot later be thawed; attempts to call `THAW` on such an identifier raise a runtime error (rewrite: `THAW`). As with `FREEZE`, `PERMAFREEZE` locates the binding in the lexical environment chain and applies the permanent-freeze to that specific binding; if the identifier is undefined the call raises a runtime error (rewrite: `PERMAFREEZE`).
-
-- `INT: FROZEN(SYMBOL: symbol)` - Returns `INT` -1 when the named identifier binding is permanently frozen (was previously frozen via `PERMAFREEZE`). If the binding is frozen but not permanently (was frozen via `FREEZE`) the call returns `INT` 1. Otherwise it returns `INT` 0. The single argument MUST be an identifier (not a string literal). If the identifier is undefined the call returns `INT` 0.
-
-- `INT: PERMAFROZEN(SYMBOL: symbol)` - Returns `INT` 1 when the named identifier binding is permanently frozen (was previously frozen via `PERMAFREEZE`), otherwise returns `INT` 0. The single argument MUST be an identifier (not a string literal). If the identifier is undefined the call returns `INT` 0.
-
-### 12.18 Command Line:
-
-- `STR: INPUT()` or `STR: INPUT(STR: s)` ; returns a `STR` from the input stream; use `INT` to coerce to an integer when needed. The interpreter prints the prompt inline (so a REPL or other output sink can display it) before reading a line of input. The I/O event is recorded for replay and, when a prompt was supplied, the recorded event includes the prompt text.
-
-- `INT: PRINT(INT|STR: a1, INT|STR: a2, ..., INT|STR: aN)` ; prints `INT`/`STR` arguments (side-effect), tensors are rejected; returns `INT` 0
-
-- `INT: WARN(INT|STR: a1, INT|STR: a2, ..., INT|STR: aN)` ; if the interpreter was started with the `-verbose` flag, prints `WARNING: ` followed by the arguments side-by-side using the same rendering rules as `PRINT`. Returns `INT` 1 when the warning was printed, otherwise `INT` 0. Tensors are rejected.
-
-- `INT: CL(STR: command)` - Executes the provided `command` string using the host shell and returns the subprocess exit code as an `INT`. The `command` argument MUST be a `STR`. On a failure to start the subprocess (for example if the system cannot invoke a shell), the interpreter raises a runtime error (rewrite: CL). The call records a `CL` event in the execution I/O log containing the command text and returned exit code, enabling deterministic logging and replay.
-
-- `INT: SHUSH()` - Suppresses forwarding of console output to the configured output sink. While shushed, calls that would normally print to the console (for example, `PRINT` and output captured from `CL`) do not forward their text to the interpreter's output sink, though the interpreter continues to record the corresponding I/O events in the execution log for deterministic replay. `INPUT` prompts are still forwarded even when shushed. The `RUN`  operator temporarily disables shushing for the duration of the executed source, so any output produced by code run via `RUN` is forwarded regardless of the current shush state. `SHUSH` takes no arguments and returns `INT` 0 on success.
-
-- `INT: UNSHUSH()` - Re-enables forwarding of console output that was previously suppressed by `SHUSH`. Calling `UNSHUSH` clears the shush state so subsequent side-effecting calls that normally produce console output (for example, `PRINT` and output captured from `CL`) are forwarded to the configured output sink. `UNSHUSH` takes no arguments and returns `INT` 0 on success. The interpreter continues to record I/O events in the execution log for deterministic replay; `INPUT` prompts and `RUN` behaviour are unchanged (that is, `INPUT` is always forwarded and `RUN` still temporarily disables shushing while it runs).
-
-### 12.19 Host and environment information:
-
-- `STR: OS()` - Returns a short, lowercase ASCII string identifying the host operating-system family. Typical values include `win` for Windows, `linux` for Linux, `macos` for macOS, and `unix` for other Unix-like platforms. The call takes no arguments and returns a `STR`.
-
-- `TNS: ARGV()` - Returns the interpreter's argument vector as a one-dimensional `TNS` of `STR`. The tensor's elements are the command-line argument strings supplied to the process, in the same order as the process `argv`, with index 1 holding the interpreter's invocation entry (TNS indices are 1-based).
-
-### 12.20 Control / Function / Statement Signatures (statement position)
-
-- Assignment: `TYPE : identifier = expression` on first use; subsequent assignments omit TYPE but MUST match the original type. TYPE is `INT`, `FLT`, `STR`, or `TNS`. Tensor elements MAY be reassigned with `identifier[i1,...,iN] = expression` (indices are 1-based with negative-index support, and the stored type at that element MUST NOT change).
-
-- Block: `{ statement1 ... statementN }`
-
-- `IF(condition){ block }` (OPTIONAL `ELSEIF(condition){ block }` ... `ELSE{ block }`)
-
-- `WHILE(condition){ block }`
-
-- `FOR(counter, INT: target){ block }` ; `counter` initialized to 1, loop until counter >= target
-
-- `PARFOR(counter, INT: target){ block }` ; concurrently execute `target` iterations with `counter` bound to `1..T`. Iteration bodies run in parallel (threaded) and MAY race on shared mutable identifiers. `CONTINUE()` ends the current iteration only; `BREAK(n)` terminates the entire `PARFOR` (prevents starting further iterations, waits for in-flight iterations to finish, then propagates the `BreakSignal`). Runtime errors raised inside iterations are collected and the first such error is re-raised after all iterations join.
-
-- `R: name(T1: arg1, T2: arg2, ..., TN: argN)` ; typed function definition with return type R (`INT`, `STR`, or `TNS`); a parameter MAY use the coerced form `~Tk: arg` to request call-time conversion to `Tk`. OPTIONAL defaults use `Tk: arg = expr` (or `~Tk: arg = expr`) and MUST appear only after all positional parameters. Functions with return type `TNS` MUST explicitly execute `RETURN(value)`; there is no implicit default tensor value.
-
-- `RETURN(ANY: a)` ; return from function with value `a`
-
-- `POP(SYMBOL: x)` - Convenience statement combining `RETURN` and `DEL`: when executed inside a function body it retrieves the current value of the identifier `x`, deletes the binding `x` from the environment (so subsequent references are an error), and returns the retrieved value to the caller. Using `POP` outside of a function is a runtime error.
-
-- `BREAK(INT: n)` ; break out of the innermost `n` enclosing loops; raises a runtime error if `n` ≤ 0 or if `n` is greater than the current loop nesting depth
-
-- `CONTINUE()` ; skip remaining statements in the innermost loop iteration and proceed to the next iteration; if used in the last iteration it acts like `BREAK(1)`. Using `CONTINUE()` outside of a loop is a runtime error.
-
-- `GOTOPOINT(INT|STR: n)` ; register a gotopoint with identifier `n` at this statement's location (identifier MAY be `INT` or `STR`) (n evaluated at runtime). Gotopoints are visible across the containing function or top-level scope rather than being restricted to a single lexical block.
-
-- `GOTO(INT|STR: n)` ; jump to a previously-registered gotopoint with identifier `n` (`INT` or `STR`) within the same function or top-level scope; runtime error if not registered in that scope
-
-- `ASYNC{ block }` ; execute `block` asynchronously in a separate thread (while sharing the same namespace); the caller continues executing immediately without waiting for the async block to complete. Any uncaught errors in the async block are logged to the interpreter's error log but do not affect the caller. When used in expression position, `ASYNC{ block }` evaluates to a `THR` handle. If the expression is used as an argument to a surrounding call expression, the worker thread's start is deferred until that enclosing call completes so that the callee MAY operate on the `THR` (for example, `PAUSE` or `STOP`) before the worker runs; in statement position the worker starts immediately and the returned handle is ignored.
-
-- `THR(SYMBOL: symbol){ block }` ; execute `block` asynchronously in a separate thread and bind the identifier `symbol` (static type `THR`) to the thread handle.
-
-- `TRY{ block }CATCH{ block }` ; execute `block` in the `TRY` and, if an interpreter-level runtime error occurs during the `TRY` block, stop the `TRY` and execute the directly-following `CATCH` block. If no error occurs, the `CATCH` block is skipped.
-
-- `TRY{ block }CATCH(SYMBOL: name){ block }` ; like the previous form but bind a temporary `STR` symbol `name` visible inside the `CATCH` block containing the error message. The temporary symbol shadows any existing binding for `name` and is restored or removed after the `CATCH` block completes.
-
-### 12.21 Notes
-
-- Built-ins are statically typed. Boolean contexts treat `INT` 0 as false and non-zero as true; `FLT` is false when 0.0 and true otherwise; `STR` is false when empty and true when non-empty unless a rule explicitly converts via `INT`. A `TNS` is true if any element is true by those rules.
-
-- Argument evaluation order: left-to-right.
-
-- User-defined functions use the same call syntax as built-ins; keyword arguments are permitted only after positional arguments and only for parameters that declare defaults. Built-ins reject keyword arguments except that `READFILE` and `WRITEFILE` accept an OPTIONAL `coding=` keyword. When a keyword parameter is omitted, its default expression is evaluated at call time in the function's defining environment. For `~`-prefixed parameters, argument binding attempts type coercion before raising a mismatch error.
-
+At present, the standard library is not defined by the specification, and any reasonable set of standard utilities is acceptable for a conforming implementation. Backwards-incompatible changes to the standard library MUST NOT increment the major version number of the specification, unless the incompatible change is altering a behaviour defined in this specification (NOTE: *At present* none of the stdlib is documented, and the stdlib should be considered unstable.). 
 
   </script>
 
@@ -987,6 +1120,96 @@ Tensor indexing uses the expression form `tensor[i1, i2, ..., iN]`. The number o
           h.id = slugify(h.textContent || h.innerText || '');
         }
       });
+
+      function ensureTocStyle() {
+        if (document.getElementById('generated-toc-style')) return;
+        const style = document.createElement('style');
+        style.id = 'generated-toc-style';
+        style.textContent = '\n' +
+          '.generated-toc { padding-left: 1.2rem; }\n' +
+          '.generated-toc > li { margin: 0.6rem 0; }\n' +
+          '.generated-toc li ul { margin-top: 0.25rem; margin-bottom: 0.25rem; }\n';
+        document.head.appendChild(style);
+      }
+
+      function findTocHeading(root) {
+        return Array.from(root.querySelectorAll('h2')).find(h =>
+          (h.textContent || '').trim().toLowerCase() === 'table of contents'
+        );
+      }
+
+      function buildTocList(root, tocHeading) {
+        const tocLevels = new Set([2, 3, 4]);
+        const items = Array.from(root.querySelectorAll('h2,h3,h4')).filter(h => h !== tocHeading);
+        if (items.length === 0) return null;
+
+        const tocRoot = document.createElement('ul');
+        tocRoot.className = 'generated-toc';
+        const listStack = [tocRoot];
+        let currentLevel = 2;
+
+        items.forEach(h => {
+          const level = Number(h.tagName.slice(1));
+          if (!tocLevels.has(level)) return;
+
+          while (currentLevel < level) {
+            const parentList = listStack[listStack.length - 1];
+            let parentLi = parentList.lastElementChild;
+            if (!parentLi || parentLi.tagName.toLowerCase() !== 'li') {
+              parentLi = document.createElement('li');
+              parentLi.textContent = '';
+              parentList.appendChild(parentLi);
+            }
+            const nested = document.createElement('ul');
+            parentLi.appendChild(nested);
+            listStack.push(nested);
+            currentLevel += 1;
+          }
+
+          while (currentLevel > level) {
+            listStack.pop();
+            currentLevel -= 1;
+          }
+
+          const li = document.createElement('li');
+          const a = document.createElement('a');
+          a.href = '#' + h.id;
+          a.textContent = (h.textContent || '').trim();
+          li.appendChild(a);
+          listStack[listStack.length - 1].appendChild(li);
+        });
+
+        return tocRoot;
+      }
+
+      function replaceTocBlock(root) {
+        const tocHeading = findTocHeading(root);
+        if (!tocHeading) return;
+
+        let stop = tocHeading.nextElementSibling;
+        while (stop && stop.tagName.toLowerCase() !== 'hr') {
+          stop = stop.nextElementSibling;
+        }
+
+        let node = tocHeading.nextSibling;
+        while (node && node !== stop) {
+          const next = node.nextSibling;
+          node.remove();
+          node = next;
+        }
+
+        ensureTocStyle();
+        const tocList = buildTocList(root, tocHeading);
+        if (!tocList) return;
+
+        if (stop) {
+          root.insertBefore(tocList, stop);
+        } else {
+          root.appendChild(tocList);
+        }
+      }
+
+      replaceTocBlock(container);
     });
   </script>
 </body>
