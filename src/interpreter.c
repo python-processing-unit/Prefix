@@ -1316,6 +1316,11 @@ Value eval_expr(Interpreter* interp, Expr* expr, Env* env) {
                 case TYPE_STR:
                     trace_pop_frame(interp);
                     return value_str("");
+                case TYPE_MAP:
+                    interp->error = strdup("MAP-returning function must return a value");
+                    interp->error_line = expr->line;
+                    interp->error_col = expr->column;
+                    return value_null();
                 case TYPE_TNS:
                     interp->error = strdup("TNS-returning function must return a value");
                     interp->error_line = expr->line;
