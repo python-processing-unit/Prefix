@@ -2439,6 +2439,48 @@ static ExecResult exec_stmt(Interpreter* interp, Stmt* stmt, Env* env, LabelMap*
             return res;
         }
 
+        case STMT_GOTOPOINT: {
+            // Gotopoint declarations are collected in exec_stmt_list's first pass.
+            // At runtime they are effectively a no-op (the label mapping is already built).
+            return make_ok(value_null());
+        }
+
+        case STMT_GOTO: {
+            Value target = eval_expr(interp, stmt->as.goto_stmt.target, env);
+            if (interp->error) {
+                ExecResult err = make_error(interp->error, interp->error_line, interp->error_col);
+                clear_error(interp);
+                return err;
+            }
+
+            if (!(target.type == VAL_INT || target.type == VAL_STR)) {
+                value_free(target);
+                return make_error("GOTO requires INT or STR argument", stmt->line, stmt->column);
+            }
+
+            if (target.type == VAL_INT && target.as.i < 0) {
+                value_free(target);
+                return make_error("Negative GOTO target is not allowed", stmt->line, stmt->column);
+            }
+
+            int idx = label_map_find(labels, target);
+            value_free(target);
+
+            if (idx < 0) {
+                return make_error("Unregistered GOTO target", stmt->line, stmt->column);
+            }
+
+            ExecResult res;
+            res.status = EXEC_GOTO;
+            res.value = value_null();
+            res.break_count = 0;
+            res.jump_index = idx;
+            res.error = NULL;
+            res.error_line = 0;
+            res.error_column = 0;
+            return res;
+        }
+
         case STMT_THR: {
             Value thr_val = value_thr_new();
             Value thr_for_worker = value_copy(thr_val);
