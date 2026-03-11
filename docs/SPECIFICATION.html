@@ -193,7 +193,7 @@ If the `TRY` block completes without a runtime error, the `CATCH` block MUST be 
 
 In the parameterized form, `CATCH(SYMBOL: name)` MUST create a temporary `STR` binding named `name` in the handler's lexical environment containing the triggering error message. That temporary binding MUST shadow any existing binding of the same name only for the duration of the `CATCH` block.
 
-`TRY` and `CATCH` MUST intercept interpreter-level runtime errors only. Errors raised inside `ASYNC` or other background execution contexts MUST be reported through the runtime's error-reporting mechanisms and MUST NOT synchronously transfer control to a surrounding `CATCH` block in another thread.
+`TRY` and `CATCH` MUST intercept interpreter-level errors. Errors raised inside `ASYNC` or other background execution contexts MUST be reported through the runtime's error-reporting mechanisms and MUST NOT synchronously transfer control to a surrounding `CATCH` block in another thread.
 
 ---
 
