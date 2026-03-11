@@ -205,6 +205,13 @@ static bool is_number_body_char(char c) {
 Token lexer_next_token(Lexer* lexer) {
     while (!is_at_end(lexer)) {
         char c = peek(lexer);
+        unsigned char uc = (unsigned char)c;
+        if (uc > 0x7F) {
+            char msg[128];
+            snprintf(msg, sizeof(msg), "Non-ASCII character in source; raw non-ASCII is disallowed");
+            advance(lexer);
+            return error_token(lexer, msg);
+        }
 
         if (c == ' ' || c == '\t') {
             advance(lexer);
@@ -332,6 +339,11 @@ static Token string_token(Lexer* lexer, char quote_char) {
     
     while (!is_at_end(lexer)) {
         char c = peek(lexer);
+        unsigned char uc = (unsigned char)c;
+        if (uc > 0x7F) {
+            free(value);
+            return error_token(lexer, "Non-ASCII character in string literal; use escape sequences");
+        }
         
         if (c == quote_char) {
             advance(lexer);
