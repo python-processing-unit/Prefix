@@ -1603,7 +1603,7 @@ tns_eval_fail:
                 if (vexpr->type == EXPR_IDENT && vexpr->as.ident && strcmp(vexpr->as.ident, "SELF") == 0) {
                     value_map_set_self(&mv, k);
                     value_free(k);
-                } else if (vexpr->type == EXPR_INDEX && vexpr->as.index.target && vexpr->as.index.target->type == EXPR_IDENT
+                } else if (vexpr->type == EXPR_INDEX && vexpr->as.index.is_map && vexpr->as.index.target && vexpr->as.index.target->type == EXPR_IDENT
                            && vexpr->as.index.target->as.ident && strcmp(vexpr->as.index.target->as.ident, "SELF") == 0) {
                     // Evaluate index key(s) and perform lookup on the partially-constructed map `mv`.
                     ExprList* idxs = &vexpr->as.index.indices;
@@ -1660,8 +1660,27 @@ tns_eval_fail:
                 interp->error_col = expr->column;
                 return value_null();
             }
+            bool is_map_index = expr->as.index.is_map;
 
-            if (tval.type == VAL_MAP) {
+            if (is_map_index) {
+                if (tval.type != VAL_MAP) {
+                    value_free(tval);
+                    interp->error = strdup("Angle-bracket indexing '<...>' is only allowed on MAP values");
+                    interp->error_line = expr->line;
+                    interp->error_col = expr->column;
+                    return value_null();
+                }
+            } else {
+                if (tval.type != VAL_TNS) {
+                    value_free(tval);
+                    interp->error = strdup("Square-bracket indexing '[...]' is only allowed on TNS values");
+                    interp->error_line = expr->line;
+                    interp->error_col = expr->column;
+                    return value_null();
+                }
+            }
+
+            if (is_map_index && tval.type == VAL_MAP) {
                 // map indexing: support nested lookups m<k1,k2>
                 Value cur = tval;
                 for (size_t i = 0; i < nidx; i++) {
@@ -1947,9 +1966,27 @@ ExecResult assign_index_chain(Interpreter* interp, Env* env, Expr* idx_expr, Val
             goto cleanup;
         }
 
-        // Auto-promote NULL to MAP when assigning through indexes.
+        // Auto-promote NULL to MAP only when angle-bracket (map) indexing is used.
         if (cur->type == VAL_NULL) {
-            *cur = value_map_new();
+            if (node->as.index.is_map) {
+                *cur = value_map_new();
+            } else {
+                out = make_error("Attempted tensor indexing on uninitialized value", node->line, node->column);
+                goto cleanup;
+            }
+        }
+
+        /* Enforce bracket kind matches the container type: angle-brackets -> MAP, square-brackets -> TNS */
+        if (node->as.index.is_map) {
+            if (cur->type != VAL_MAP) {
+                out = make_error("Angle-bracket indexing '<...>' used on non-map value", node->line, node->column);
+                goto cleanup;
+            }
+        } else {
+            if (cur->type != VAL_TNS) {
+                out = make_error("Square-bracket indexing '[...]' used on non-tensor value", node->line, node->column);
+                goto cleanup;
+            }
         }
 
         if (cur->type == VAL_TNS) {

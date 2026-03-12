@@ -443,7 +443,7 @@ static Expr* parse_call(Parser* parser) {
             int line = parser->current_token.line;
             int column = parser->current_token.column;
             advance(parser); // consume '['
-            Expr* idx = expr_index(expr, line, column);
+            Expr* idx = expr_index(expr, line, column, false);
             if (parser->current_token.type == TOKEN_RBRACKET) {
                 report_error(parser, "Empty index list");
                 return NULL;
@@ -489,7 +489,7 @@ static Expr* parse_call(Parser* parser) {
             int line = parser->current_token.line;
             int column = parser->current_token.column;
             advance(parser); // consume '<'
-            Expr* idx = expr_index(expr, line, column);
+            Expr* idx = expr_index(expr, line, column, true);
             if (parser->current_token.type == TOKEN_RANGLE) {
                 report_error(parser, "Empty index list");
                 return NULL;
@@ -680,7 +680,7 @@ static Stmt* parse_statement(Parser* parser) {
                     int line = parser->current_token.line;
                     int column = parser->current_token.column;
                     advance(parser); // consume '['
-                    Expr* idx = expr_index(base, line, column);
+                    Expr* idx = expr_index(base, line, column, false);
                     if (parser->current_token.type == TOKEN_RBRACKET) {
                         report_error(parser, "Empty index list");
                         return NULL;
@@ -719,7 +719,7 @@ static Stmt* parse_statement(Parser* parser) {
                     int line = parser->current_token.line;
                     int column = parser->current_token.column;
                     advance(parser); // consume '<'
-                    Expr* idx = expr_index(base, line, column);
+                    Expr* idx = expr_index(base, line, column, true);
                     if (parser->current_token.type == TOKEN_RANGLE) {
                         report_error(parser, "Empty index list");
                         return NULL;
