@@ -140,6 +140,50 @@ DEL(pause_thr)
 DEL(waited_p)
 PRINT("PAUSE/RESUME/PAUSED: PASS\n")
 
+! Regression test for GH-66: ASYNC argument execution must be deferred
+! until STOP/PAUSE call evaluation completes.
+PRINT("Testing deferred ASYNC in STOP/PAUSE (regression GH-66)...")
+
+INT: gh66_stop_flag = 0d0
+THR: gh66_stop_thr = STOP(ASYNC{
+    gh66_stop_flag = 0d1
+})
+INT: gh66_wait = 0d0
+WHILE(LT(gh66_wait, 0d11390)){
+    IF(EQ(gh66_stop_flag, 0d1)){ BREAK(0d1) }
+    gh66_wait = ADD(gh66_wait, 0d1)
+}
+ASSERT(EQ(gh66_stop_flag, 0d0))
+DEL(gh66_stop_thr)
+DEL(gh66_stop_flag)
+DEL(gh66_wait)
+
+INT: gh66_pause_flag = 0d0
+INT: gh66_pause_go = 0d0
+THR: gh66_pause_thr = PAUSE(ASYNC{
+    gh66_pause_flag = 0d1
+    WHILE(EQ(gh66_pause_go, 0d0)){
+        ! busy-wait until main resumes and releases this worker
+    }
+})
+INT: gh66_wait2 = 0d0
+WHILE(LT(gh66_wait2, 0d11390)){
+    IF(EQ(gh66_pause_flag, 0d1)){ BREAK(0d1) }
+    gh66_wait2 = ADD(gh66_wait2, 0d1)
+}
+ASSERT(EQ(gh66_pause_flag, 0d0))
+ASSERT(EQ(PAUSED(gh66_pause_thr), 0d1))
+gh66_pause_go = 0d1
+RESUME(gh66_pause_thr)
+AWAIT(gh66_pause_thr)
+ASSERT(EQ(gh66_pause_flag, 0d1))
+DEL(gh66_pause_thr)
+DEL(gh66_pause_flag)
+DEL(gh66_pause_go)
+DEL(gh66_wait2)
+
+PRINT("Deferred ASYNC STOP/PAUSE: PASS\n")
+
 PRINT("Testing maps...")
 ! Simple map literal and lookup
 MAP: m = <"foo" = 0d5, "bar" = 0d10, "nested" = <"a" = 0d1, "b" = 0d2>>
