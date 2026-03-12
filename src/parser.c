@@ -543,7 +543,6 @@ static Stmt* parse_if(Parser* parser) {
     Stmt* then_block = parse_block(parser);
     Stmt* stmt = stmt_if(cond, then_block, if_tok.line, if_tok.column);
 
-    skip_newlines(parser);
     while (parser->current_token.type == TOKEN_ELSEIF) {
         advance(parser);
         consume(parser, TOKEN_LPAREN, "Expected '(' after ELSEIF");
@@ -553,7 +552,6 @@ static Stmt* parse_if(Parser* parser) {
         Stmt* elif_block = parse_block(parser);
         expr_list_add(&stmt->as.if_stmt.elif_conditions, elif_cond);
         stmt_list_add(&stmt->as.if_stmt.elif_blocks, elif_block);
-        skip_newlines(parser);
     }
 
     if (parser->current_token.type == TOKEN_ELSE) {
