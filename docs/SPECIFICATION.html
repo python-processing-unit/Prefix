@@ -181,7 +181,7 @@ Conditional execution MUST use `IF(condition){ ... }`, optionally followed by on
 
 The interpreter MUST evaluate the initial `IF` condition first, then each `ELSEIF` condition in order until one is truthy. If no earlier branch is taken and an `ELSE` clause is present, its block MUST execute.
 
-Conditions MUST accept `INT`, `STR`, and `TNS`. A `STR` condition MUST first be converted using the language's `INT` conversion rules. A `TNS` condition MUST be treated as true if any contained element is truthy and false otherwise.
+Conditions MUST accept values of any type. When evaluating a condition, the runtime MUST coerce the value to its boolean representation according to that type's conversion rules (see [4](#4-types) for type-specific boolean semantics).
 
 ---
 
