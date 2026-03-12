@@ -1074,7 +1074,7 @@ Indexed assignment statements `tensor[i1, ..., iN] = expression` and `map<k1, ..
 
 The conditional statement form `IF(condition){ ... }` MAY be followed immediately by zero or more `ELSEIF(condition){ ... }` clauses and at most one trailing `ELSE{ ... }` clause. Any `ELSEIF` or `ELSE` not directly attached to a preceding `IF` or `ELSEIF` MUST be rejected as a syntax error.
 
-Conditions in statement position MUST accept only `INT`, `STR`, or `TNS`, with `STR` and `TNS` values interpreted according to the truthiness rules defined elsewhere in this specification. The interpreter MUST evaluate the `IF` branch first, then each `ELSEIF` in source order until one branch is taken, and finally the `ELSE` block when present and no earlier branch matched.
+Conditions in statement position MUST accept values of any type, coercing them to their boolean representation. The interpreter MUST evaluate the `IF` branch first, then each `ELSEIF` in source order until one branch is taken, and finally the `ELSE` block when present and no earlier branch matched.
 
 ---
 
