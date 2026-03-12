@@ -7229,8 +7229,9 @@ static int parallel_worker(void* arg) {
     // Prepare a call environment from the function's closure
     Env* call_env = env_create(ps->func->closure);
 
-    // Execute the function body as a program block
-    ExecResult res = exec_program_in_env(thr_interp, ps->func->body, call_env);
+    // Execute the function body as if it were a function call so RETURN
+    // statements inside the function body are allowed.
+    ExecResult res = exec_program_in_env_as_function(thr_interp, ps->func->body, call_env, ps->func->name);
 
     if (res.status == EXEC_ERROR && res.error) {
         ps->errors[ps->index] = res.error; // transfer ownership
