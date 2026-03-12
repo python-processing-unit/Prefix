@@ -140,6 +140,15 @@ DEL(pause_thr)
 DEL(waited_p)
 PRINT("PAUSE/RESUME/PAUSED: PASS\n")
 
+! --- FOR counter scope tests (regression gh-75) ---
+FOR(i, 0b1) { }
+ASSERT(EQ(EXIST(i), 0d0))
+
+INT: j = 0b101
+FOR(j, 0b10) { }
+ASSERT(EQ(j, 0b101))
+DEL(j)
+
 ! Regression test for GH-66: ASYNC argument execution must be deferred
 ! until STOP/PAUSE call evaluation completes.
 PRINT("Testing deferred ASYNC in STOP/PAUSE (regression GH-66)...")

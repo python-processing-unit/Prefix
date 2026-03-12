@@ -27,6 +27,7 @@ static void wait_if_paused(Interpreter* interp) {
 
 static mtx_t g_tns_lock;
 static mtx_t g_parfor_merge_lock;
+static int g_for_temp_id = 0;
 
 static const char* stmt_type_name(StmtType type) {
     switch (type) {
@@ -2796,22 +2797,99 @@ static ExecResult exec_stmt(Interpreter* interp, Stmt* stmt, Env* env, LabelMap*
             int64_t limit = target.as.i;
             value_free(target);
 
+            /*
+             * Create a loop-local binding for the counter so it does not
+             * persist after the loop finishes. We implement this by
+             * creating a unique temporary local variable and aliasing the
+             * user-visible counter name to that temporary binding for the
+             * duration of the loop. After the loop we remove the alias and
+             * restore any previous local binding if necessary.
+             */
+            char temp_name[64];
+            int my_temp_id = ++g_for_temp_id;
+            snprintf(temp_name, sizeof(temp_name), "__for_cnt_%d_%d_%d", my_temp_id, stmt->line, stmt->column);
+
+            /* Save any previous value (in local or parent) so we can restore local bindings */
+            Value prev_val = value_null();
+            DeclType prev_type = TYPE_UNKNOWN;
+            bool prev_initialized = false;
+            env_get(env, stmt->as.for_stmt.counter, &prev_val, &prev_type, &prev_initialized);
+
+            /* Detect whether a local binding already exists (trial define) */
+            bool local_existed = true;
+            if (env_define(env, stmt->as.for_stmt.counter, TYPE_INT)) {
+                /* no local existed; clean up the probe */
+                env_delete(env, stmt->as.for_stmt.counter);
+                local_existed = false;
+            }
+
+            /* Create the temporary target binding */
+            if (!env_define(env, temp_name, TYPE_INT)) {
+                int retries = 0;
+                while (retries < 1000 && !env_define(env, temp_name, TYPE_INT)) {
+                    my_temp_id = ++g_for_temp_id;
+                    snprintf(temp_name, sizeof(temp_name), "__for_cnt_%d_%d_%d", my_temp_id, stmt->line, stmt->column);
+                    retries++;
+                }
+                if (retries >= 1000) {
+                    value_free(prev_val);
+                    interp->loop_depth--;
+                    return make_error("Internal error setting up FOR counter", stmt->line, stmt->column);
+                }
+            }
+
+            /* Create a local alias `counter -> temp_name` (creates local entry if missing)
+             * This will shadow any parent binding for the duration of the loop.
+             */
+            if (!env_set_alias(env, stmt->as.for_stmt.counter, temp_name, TYPE_INT, true)) {
+                /* cleanup temp binding */
+                env_delete(env, temp_name);
+                value_free(prev_val);
+                interp->loop_depth--;
+                return make_error("Cannot create loop-local counter", stmt->line, stmt->column);
+            }
+
             for (int64_t idx = 1; idx <= limit; idx++) {
                 if (++iteration_count > max_iterations) {
+                    /* cleanup alias/temp and restore previous local if needed */
+                    env_delete(env, stmt->as.for_stmt.counter);
+                    env_delete(env, temp_name);
+                    if (local_existed) {
+                        env_define(env, stmt->as.for_stmt.counter, prev_type);
+                        if (prev_initialized) env_assign(env, stmt->as.for_stmt.counter, prev_val, prev_type, false);
+                    }
+                    value_free(prev_val);
                     interp->loop_depth--;
                     return make_error("Infinite loop detected", stmt->line, stmt->column);
                 }
 
-                // Bind or assign the loop counter in the current environment
+                /* Assign to the aliased counter (writes to temp_name) */
                 if (!env_assign(env, stmt->as.for_stmt.counter, value_int(idx), TYPE_INT, true)) {
                     char buf[256];
                     snprintf(buf, sizeof(buf), "Cannot assign to frozen identifier '%s'", stmt->as.for_stmt.counter);
+                    /* cleanup alias and temp binding before returning */
+                    env_delete(env, stmt->as.for_stmt.counter);
+                    env_delete(env, temp_name);
+                    if (local_existed) {
+                        env_define(env, stmt->as.for_stmt.counter, prev_type);
+                        if (prev_initialized) env_assign(env, stmt->as.for_stmt.counter, prev_val, prev_type, false);
+                    }
+                    value_free(prev_val);
+                    interp->loop_depth--;
                     return make_error(buf, stmt->line, stmt->column);
                 }
 
                 ExecResult res = exec_stmt(interp, stmt->as.for_stmt.body, env, labels);
 
                 if (res.status == EXEC_ERROR || res.status == EXEC_RETURN || res.status == EXEC_GOTO) {
+                    /* cleanup before propagating */
+                    env_delete(env, stmt->as.for_stmt.counter);
+                    env_delete(env, temp_name);
+                    if (local_existed) {
+                        env_define(env, stmt->as.for_stmt.counter, prev_type);
+                        if (prev_initialized) env_assign(env, stmt->as.for_stmt.counter, prev_val, prev_type, false);
+                    }
+                    value_free(prev_val);
                     interp->loop_depth--;
                     return res;
                 }
@@ -2819,6 +2897,14 @@ static ExecResult exec_stmt(Interpreter* interp, Stmt* stmt, Env* env, LabelMap*
                 if (res.status == EXEC_BREAK) {
                     if (res.break_count > 1) {
                         res.break_count--;
+                        /* cleanup before returning */
+                        env_delete(env, stmt->as.for_stmt.counter);
+                        env_delete(env, temp_name);
+                        if (local_existed) {
+                            env_define(env, stmt->as.for_stmt.counter, prev_type);
+                            if (prev_initialized) env_assign(env, stmt->as.for_stmt.counter, prev_val, prev_type, false);
+                        }
+                        value_free(prev_val);
                         interp->loop_depth--;
                         return res;
                     }
@@ -2827,6 +2913,15 @@ static ExecResult exec_stmt(Interpreter* interp, Stmt* stmt, Env* env, LabelMap*
 
                 // EXEC_CONTINUE is treated as a normal completion (loop continues)
             }
+
+            /* Normal loop completion: remove alias and temp binding, restore local if needed */
+            env_delete(env, stmt->as.for_stmt.counter);
+            env_delete(env, temp_name);
+            if (local_existed) {
+                env_define(env, stmt->as.for_stmt.counter, prev_type);
+                if (prev_initialized) env_assign(env, stmt->as.for_stmt.counter, prev_val, prev_type, false);
+            }
+            value_free(prev_val);
 
             interp->loop_depth--;
             return make_ok(value_null());
