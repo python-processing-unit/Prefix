@@ -406,6 +406,69 @@ static int builtin_param_index(BuiltinFunction* builtin, const char* kw) {
     return -1;
 }
 
+static int should_defer_async_argument_for_call(const char* func_name, int arg_index, Expr* arg_expr) {
+    if (!func_name || !arg_expr) return 0;
+    if (arg_index != 0) return 0;
+    if (arg_expr->type != EXPR_ASYNC) return 0;
+    return strcmp(func_name, "STOP") == 0 || strcmp(func_name, "PAUSE") == 0;
+}
+
+static Value make_deferred_async_handle(Expr* async_expr, Env* env) {
+    Value thr_val = value_thr_new();
+    if (thr_val.type == VAL_THR && thr_val.as.thr) {
+        thr_val.as.thr->body = async_expr->as.async.block;
+        thr_val.as.thr->env = env;
+    }
+    return thr_val;
+}
+
+static int start_deferred_async_handle(Interpreter* interp, Value thr_val, int line, int col) {
+    if (thr_val.type != VAL_THR || !thr_val.as.thr) return 0;
+    if (value_thr_get_finished(thr_val) || value_thr_get_started(thr_val)) return 0;
+
+    if (!thr_val.as.thr->body || !thr_val.as.thr->env) {
+        if (interp && !interp->error) {
+            interp->error = strdup("Cannot start deferred ASYNC: missing body or environment");
+            interp->error_line = line;
+            interp->error_col = col;
+        }
+        return -1;
+    }
+
+    ThrStart* start = safe_malloc(sizeof(ThrStart));
+    Interpreter* thr_interp = safe_malloc(sizeof(Interpreter));
+    *thr_interp = (Interpreter){0};
+    thr_interp->global_env = interp->global_env;
+    thr_interp->loop_depth = 0;
+    thr_interp->error = NULL;
+    thr_interp->error_line = 0;
+    thr_interp->error_col = 0;
+    thr_interp->in_try_block = false;
+    thr_interp->modules = interp->modules;
+    thr_interp->shushed = interp->shushed;
+
+    start->interp = thr_interp;
+    start->env = thr_val.as.thr->env;
+    start->body = thr_val.as.thr->body;
+    start->thr_val = value_copy(thr_val);
+
+    if (thrd_create(&thr_val.as.thr->thread, thr_worker, start) != thrd_success) {
+        value_thr_set_finished(thr_val, 1);
+        value_free(start->thr_val);
+        free(thr_interp);
+        free(start);
+        if (interp && !interp->error) {
+            interp->error = strdup("Failed to start deferred ASYNC");
+            interp->error_line = line;
+            interp->error_col = col;
+        }
+        return -1;
+    }
+
+    value_thr_set_started(thr_val, 1);
+    return 0;
+}
+
 static void label_map_add(LabelMap* map, Value key, int index) {
     if (map->count + 1 > map->capacity) {
         size_t new_cap = map->capacity == 0 ? 8 : map->capacity * 2;
@@ -828,6 +891,7 @@ Value eval_expr(Interpreter* interp, Expr* expr, Env* env) {
                     int kwc = (int)expr->as.call.kw_count;
                     Value* args = NULL;
                     Expr** arg_nodes = NULL;
+                    bool deferred_async_arg0 = false;
 
                     // For builtins, keywords are supported only if the builtin declares param names.
                     if (kwc > 0 && (!builtin->param_names || builtin->param_count <= 0)) {
@@ -875,13 +939,19 @@ Value eval_expr(Interpreter* interp, Expr* expr, Env* env) {
 
                         // Evaluate positional args
                         for (int i = 0; i < pos_argc; i++) {
-                            arg_nodes[i] = expr->as.call.args.items[i];
+                            Expr* arg_expr = expr->as.call.args.items[i];
+                            arg_nodes[i] = arg_expr;
+                            if (should_defer_async_argument_for_call(func_name, i, arg_expr)) {
+                                args[i] = make_deferred_async_handle(arg_expr, env);
+                                deferred_async_arg0 = true;
+                                continue;
+                            }
                             if (((strcmp(func_name, "DEL") == 0 || strcmp(func_name, "EXIST") == 0 || strcmp(func_name, "IMPORT") == 0 || strcmp(func_name, "ASSIGN") == 0) && i == 0)
                                 || ((strcmp(func_name, "IMPORT") == 0 || strcmp(func_name, "IMPORT_PATH") == 0) && i == 1)) {
                                 // leave as null placeholder
                                 continue;
                             }
-                            args[i] = eval_expr(interp, expr->as.call.args.items[i], env);
+                            args[i] = eval_expr(interp, arg_expr, env);
                             if (interp->error) {
                                 for (int j = 0; j <= i; j++) value_free(args[j]);
                                 free(args);
@@ -915,12 +985,18 @@ Value eval_expr(Interpreter* interp, Expr* expr, Env* env) {
                                 return value_null();
                             }
                             // Evaluate kw expr in caller env (left-to-right preserved)
-                            Value v = eval_expr(interp, valnode, env);
-                            if (interp->error) {
-                                for (int j = 0; j < max_slot; j++) value_free(args[j]);
-                                free(args);
-                                free(arg_nodes);
-                                return value_null();
+                            Value v;
+                            if (should_defer_async_argument_for_call(func_name, idx, valnode)) {
+                                v = make_deferred_async_handle(valnode, env);
+                                deferred_async_arg0 = true;
+                            } else {
+                                v = eval_expr(interp, valnode, env);
+                                if (interp->error) {
+                                    for (int j = 0; j < max_slot; j++) value_free(args[j]);
+                                    free(args);
+                                    free(arg_nodes);
+                                    return value_null();
+                                }
                             }
                             // assign into slot
                             if (idx >= max_slot) {
@@ -977,6 +1053,17 @@ Value eval_expr(Interpreter* interp, Expr* expr, Env* env) {
 
                     // Call builtin
                     Value result = builtin->impl(interp, args, effective_argc, arg_nodes, env, expr->line, expr->column);
+
+                    // Start deferred STOP/PAUSE ASYNC argument only after the builtin call completes.
+                    if (deferred_async_arg0 && args && max_slot > 0) {
+                        if (start_deferred_async_handle(interp, args[0], expr->line, expr->column) != 0) {
+                            value_free(result);
+                            for (int i = 0; i < max_slot; i++) value_free(args[i]);
+                            free(args);
+                            free(arg_nodes);
+                            return value_null();
+                        }
+                    }
 
                     // Clean up
                     if (args) {
