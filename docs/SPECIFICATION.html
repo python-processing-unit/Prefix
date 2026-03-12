@@ -752,6 +752,8 @@ Built-in operator names MUST be matched case-sensitively and MUST be written in 
 
 - `INT: FROZEN(SYMBOL: name)` and `INT: PERMAFROZEN(SYMBOL: name)` = MUST report the freeze state of `name`. `FROZEN` MUST return `-1` for permanently frozen bindings, `1` for non-permanent frozen bindings, and `0` otherwise. `PERMAFROZEN` MUST return `1` only for permanently frozen bindings and `0` otherwise. If `name` is undefined, both operators MUST return `0`.
 
+---
+
 #### 9.1.2 Conversion and construction operators
 
 - `INT: INT(INT|FLT|STR: value)` and `FLT: FLT(INT|FLT|STR: value)` = MUST perform explicit scalar conversion among the three numeric and string types. Converting a `FLT` to `INT` MUST truncate toward zero. Converting a `STR` to `INT` or `FLT` MUST parse a base-prefixed numeric literal; a `STR` that does not parse as a valid integer literal MUST be treated as it's boolean representation (converted to `FLT` for `FLT`). Passing a type other than `INT`, `FLT`, or `STR` MUST raise a runtime error.
@@ -767,6 +769,8 @@ Built-in operator names MUST be matched case-sensitively and MUST be written in 
 - `TNS: TINT/TFLT/TSTR(TNS: tensor)` = MUST convert each scalar element of `tensor` elementwise to `INT`, `FLT`, or `STR`, respectively. If any element cannot be converted, the operator MUST raise a runtime error.
 
 - `FLT: ROUND(FLT: value, STR: mode = "floor", INT: ndigits = 0)` = MUST round `value` to `ndigits` places to the right of the radix point, where negative `ndigits` values round to positions to the left of the radix point. Supported modes MUST include `"floor"`, `"ceiling"` and `"ceil"`, `"zero"`, and `"logical"` and `"half-up"`. When exactly two arguments are supplied and the second argument is an `INT`, it MUST be interpreted as `ndigits` and the mode MUST default to `"floor"`.
+
+---
 
 #### 9.1.3 Arithmetic operators
 
@@ -792,6 +796,8 @@ Built-in operator names MUST be matched case-sensitively and MUST be written in 
 
 - `INT: LEN(INT|STR: a1, ..., INT|STR: aN)` = MUST return the number of supplied arguments. Passing a `TNS` or any other unsupported type MUST raise a runtime error.
 
+---
+
 #### 9.1.4 Logical and comparison operators
 
 - `INT: AND/OR/XOR(ANY: a1, ..., ANY: aN)` and `INT: NOT(ANY: value)` = MUST perform boolean conjunction, disjunction, exclusive disjunction, and negation using the language's truthiness rules.
@@ -805,6 +811,8 @@ Built-in operator names MUST be matched case-sensitively and MUST be written in 
 - `INT: EQ/NEQ(ANY: a, ANY: b)` = MUST test equality or inequality using the language's normal value-comparison rules.
 
 - `INT: GT/LT/GTE/LTE(INT|FLT: a, INT|FLT: b)` = MUST perform the corresponding ordered comparison on like-typed numeric operands and return `1` when the relation holds and `0` otherwise. Mixed `INT` and `FLT` comparisons MUST raise a runtime error.
+
+---
 
 #### 9.1.5 String operators
 
@@ -823,6 +831,8 @@ Built-in operator names MUST be matched case-sensitively and MUST be written in 
 - `STR: STRIP(STR: value, STR: remove)` = MUST return `value` with every occurrence of the non-empty substring `remove` removed.
 
 - `STR: REPLACE(STR: value, STR: old, STR: new)` = MUST return `value` with every occurrence of the non-empty substring `old` replaced by `new`.
+
+---
 
 #### 9.1.6 Tensor operators
 
@@ -846,6 +856,8 @@ Built-in operator names MUST be matched case-sensitively and MUST be written in 
 
 - `TNS: TADD/TSUB/TMUL/TDIV/TPOW(TNS: tensor, INT|FLT: scalar)` = MUST perform tensor-scalar arithmetic. All tensor elements and the scalar MUST share the same numeric type, except where a specific operator explicitly permits widening. Division by zero MUST raise a runtime error.
 
+---
+
 #### 9.1.7 Map operators
 
 - `TNS: KEYS(MAP: map)` and `TNS: VALUES(MAP: map)` = MUST return one-dimensional tensors containing, respectively, the keys and values of `map` in insertion order.
@@ -855,6 +867,8 @@ Built-in operator names MUST be matched case-sensitively and MUST be written in 
 - `INT: MATCH(MAP: map, MAP: template, INT: typing = 0, INT: recurse = 0, INT: shape = 0)` = MUST return `1` if every key in `template` is present in `map`. When `typing` is non-zero, the corresponding stored value types MUST also match. When `shape` is non-zero, corresponding tensor values MUST additionally have identical shapes. When `recurse` is non-zero, the same rules MUST be applied recursively to nested maps. Any failed condition MUST produce `0` rather than raising an error.
 
 - `MAP: INV(MAP: map)` = MUST return a new map whose keys and values are reversed. Every value in `map` MUST be a scalar key type (`INT`, `FLT`, or `STR`), and duplicate values MUST raise a runtime error.
+
+---
 
 #### 9.1.8 Function and module operators
 
@@ -880,6 +894,8 @@ Built-in operator names MUST be matched case-sensitively and MUST be written in 
 
 - `INT: EXPORT(SYMBOL: symbol, MODULE: module)` = MUST copy the caller's current binding for `symbol` into the namespace of the already imported module designated by `module`, making the exported binding available through that module's qualified namespace. `EXPORT` MUST return `0` on success and MUST raise a runtime error if `module` is not currently imported.
 
+---
+
 #### 9.1.9 Concurrency operators
 
 The expression form `ASYNC{ ... }` and the statement form `THR(symbol){ ... }` are defined in [3.6](#36-asynchronous-execution-and-threads). The operators in this subsection act on `THR` handles.
@@ -897,6 +913,8 @@ The expression form `ASYNC{ ... }` and the statement form `THR(symbol){ ... }` a
 - `THR: STOP(THR: thread)` = MUST cooperatively stop `thread`, mark it finished, and return the resulting handle.
 
 - `THR: RESTART(THR: thread)` = MUST reinitialize `thread` and begin its execution again, returning the restarted handle.
+
+---
 
 #### 9.1.10 Serialization
 
@@ -996,6 +1014,8 @@ The operator semantics that use this format are defined next.
 
 - `ANY: UNSER(STR: text)` = MUST parse `text` as JSON and reconstruct the runtime value according to the schema above. `UNSER` MUST raise a runtime error for invalid JSON, invalid/missing fields, invalid numeric spellings, unsupported key types for `MAP`, unknown discriminators that cannot be reconstructed, or other structural violations.
 
+---
+
 #### 9.1.11 File and host operators
 
 - `STR: READFILE(STR: path, STR: coding = "UTF-8")` = MUST read the filesystem object at `path` and return its contents as a `STR`. Supported `coding` values MUST include `UTF-8`, `UTF-8 BOM`, `UTF-16 LE`, `UTF-16 BE`, `ANSI`, `binary`, and `hexadecimal`, along with the aliases `bin` for `binary` and `hex` for `hexadecimal`. Coding names MUST be matched case-insensitively. Text decoders MUST tolerate invalid data using replacement semantics. `UTF-8` MUST accept and strip a BOM if present. `ANSI` MUST map to Windows-1252 on Windows and Latin-1 on other hosts. `binary` MUST return an 8-bit-per-byte bitstring, and `hexadecimal` MUST return lowercase hexadecimal text. Read failure MUST raise a runtime error.
@@ -1010,21 +1030,23 @@ The operator semantics that use this format are defined next.
 
 - `TNS: ARGV()` = MUST return the process argument vector as a one-dimensional tensor of `STR`, preserving the host-provided order.
 
+---
+
 #### 9.1.12 Console and process operators
 
-`INT: PRINT(INT|STR: arg1, ..., INT|STR: argN)` = MUST render each argument according to the language's `STR` conversion rules for `INT` and `STR`, separate adjacent rendered arguments with a single space, append a trailing newline, write the result to the console output, record the corresponding I/O event in the execution log, and return `0`.
+- `INT: PRINT(INT|STR: arg1, ..., INT|STR: argN)` = MUST render each argument according to the language's `STR` conversion rules for `INT` and `STR`, separate adjacent rendered arguments with a single space, append a trailing newline, write the result to the console output, record the corresponding I/O event in the execution log, and return `0`.
 
-`STR: INPUT()` or `STR: INPUT(STR: prompt)` = MUST read a single line of text from the console input and return it as a `STR`. If `prompt` is supplied, the interpreter MUST write it to the console before reading input. The resulting input event MUST be recorded in the execution log, and if a prompt was supplied the recorded event MUST include that prompt text.
+- `STR: INPUT()` or `STR: INPUT(STR: prompt)` = MUST read a single line of text from the console input and return it as a `STR`. If `prompt` is supplied, the interpreter MUST write it to the console before reading input. The resulting input event MUST be recorded in the execution log, and if a prompt was supplied the recorded event MUST include that prompt text.
 
-`INT: WARN(INT|STR: arg1, ..., INT|STR: argN)` = MUST behave like `PRINT`, except that output MUST occur only when the interpreter was started with `-verbose`, the rendered line MUST be prefixed with `WARNING: `, and the operator MUST return `1` when output occurred and `0` otherwise. Arguments outside `INT` and `STR` MUST raise a runtime error.
+- `INT: WARN(INT|STR: arg1, ..., INT|STR: argN)` = MUST behave like `PRINT`, except that output MUST occur only when the interpreter was started with `-verbose`, the rendered line MUST be prefixed with `WARNING: `, and the operator MUST return `1` when output occurred and `0` otherwise. Arguments outside `INT` and `STR` MUST raise a runtime error.
 
-`INT: CL(STR: command)` = MUST execute `command` using the host command shell and return the resulting subprocess exit code as an `INT`. Failure to start the subprocess MUST raise a runtime error. The execution log MUST record the command text and resulting exit code.
+- `INT: CL(STR: command)` = MUST execute `command` using the host command shell and return the resulting subprocess exit code as an `INT`. Failure to start the subprocess MUST raise a runtime error. The execution log MUST record the command text and resulting exit code.
 
-`EXIT()` or `EXIT(INT: code)` = MUST immediately terminate the interpreter and return process exit code `0` or the supplied integer `code`, respectively. The termination event MUST be recorded in the execution log when logging is enabled.
+- `EXIT()` or `EXIT(INT: code)` = MUST immediately terminate the interpreter and return process exit code `0` or the supplied integer `code`, respectively. The termination event MUST be recorded in the execution log when logging is enabled.
 
-`INT: SHUSH()` = MUST suppress forwarding of console output produced by operators such as `PRINT`, `WARN`, and shell-output capture from `CL`, while leaving the corresponding I/O events available for deterministic logging and replay. `INPUT` prompts MUST continue to be forwarded while shushing is active. `RUN` MUST temporarily disable shushing for the duration of the executed source. `SHUSH` MUST return `0`.
+- `INT: SHUSH()` = MUST suppress forwarding of console output produced by operators such as `PRINT`, `WARN`, and shell-output capture from `CL`, while leaving the corresponding I/O events available for deterministic logging and replay. `INPUT` prompts MUST continue to be forwarded while shushing is active. `RUN` MUST temporarily disable shushing for the duration of the executed source. `SHUSH` MUST return `0`.
 
-`INT: UNSHUSH()` = MUST clear the shush state established by `SHUSH` so that subsequent console output is forwarded normally again. `UNSHUSH` MUST return `0`.
+- `INT: UNSHUSH()` = MUST clear the shush state established by `SHUSH` so that subsequent console output is forwarded normally again. `UNSHUSH` MUST return `0`.
 
 ### 9.2 Statements
 
@@ -1036,6 +1058,8 @@ The block form `{ statement1 ... statementN }` MUST execute its enclosed stateme
 
 An expression written in statement position MUST be evaluated for its side effects and its resulting value MUST be discarded. Expression statements MUST otherwise obey the same evaluation-order and runtime-error rules as the corresponding expression in expression position.
 
+---
+
 #### 9.2.2 Declaration and assignment statements
 
 The declaration form `TYPE: name` MUST record the static type of `name` without creating a readable runtime binding. Reading that symbol before a later assignment MUST raise a runtime error.
@@ -1044,17 +1068,23 @@ The assignment forms `TYPE: name = expression` and `name = expression` MUST, res
 
 Indexed assignment statements `tensor[i1, ..., iN] = expression` and `map<k1, ..., kN> = expression` MUST follow the same typing, indexing, and mutation rules defined in [3.2](#32-declarations-and-assignment). Slice assignment to tensors MUST require exact shape agreement between the selected slice and the right-hand-side tensor value.
 
+---
+
 #### 9.2.3 Conditional statements
 
 The conditional statement form `IF(condition){ ... }` MAY be followed immediately by zero or more `ELSEIF(condition){ ... }` clauses and at most one trailing `ELSE{ ... }` clause. Any `ELSEIF` or `ELSE` not directly attached to a preceding `IF` or `ELSEIF` MUST be rejected as a syntax error.
 
 Conditions in statement position MUST accept only `INT`, `STR`, or `TNS`, with `STR` and `TNS` values interpreted according to the truthiness rules defined elsewhere in this specification. The interpreter MUST evaluate the `IF` branch first, then each `ELSEIF` in source order until one branch is taken, and finally the `ELSE` block when present and no earlier branch matched.
 
+---
+
 #### 9.2.4 Exception-handling statements
 
 Structured exception handling MUST use either `TRY{ ... }CATCH{ ... }` or `TRY{ ... }CATCH(SYMBOL: name){ ... }`. The `CATCH` block MUST immediately follow its `TRY` block, and exactly one `CATCH` block MUST be provided for each `TRY` statement.
 
 If execution of the `TRY` block completes normally, the corresponding `CATCH` block MUST be skipped. If execution raises an interpreter-level runtime error, execution of the `TRY` block MUST stop and the `CATCH` block MUST run; in the parameterized form, the temporary binding named by `name` MUST be a `STR` containing the error message for the duration of that handler block only.
+
+---
 
 #### 9.2.5 Loop statements
 
@@ -1064,6 +1094,8 @@ The counted-loop form `FOR(counter, target){ ... }` MUST evaluate `target` exact
 
 Loop counters introduced by `FOR` and `PARFOR` MUST be loop-local. Other declarations created in loop bodies MUST remain bound in the enclosing environment, subject to the merge and race semantics defined for `PARFOR`.
 
+---
+
 #### 9.2.6 Function-definition and return statements
 
 Named function definitions MUST use the `FUNC` statement form with an explicit return type, function name, typed parameter list, and block body. Parameters MAY declare default expressions, coerced parameters MUST be marked with `~`, and all parameter-binding and default-evaluation behavior MUST follow the rules defined in [4.6](#46-functions) and [5.3](#53-function-symbols-and-call-binding).
@@ -1072,17 +1104,23 @@ The statement `RETURN(expression)` MUST terminate the innermost enclosing functi
 
 The statement `POP(SYMBOL: name)` MUST be valid only inside a function body. It MUST retrieve the current value bound to `name`, delete that binding from the environment, and then return the retrieved value as though `RETURN(name)` had executed immediately before the deletion. Using `POP` outside a function, or applying it to an unreadable binding, MUST raise a runtime error.
 
+---
+
 #### 9.2.7 Asynchronous and thread statements
 
 The statement form `ASYNC{ ... }` MUST start execution of its block in a background task that runs asynchronously with respect to the caller while sharing the same lexical environment. When used as a statement, any resulting `THR` handle MUST be ignored.
 
 The statement form `THR(symbol){ ... }` MUST create a background task and bind its handle to `symbol` with static type `THR` in the current lexical environment. Runtime failures originating in either asynchronous statement form MUST be reported through the runtime's asynchronous error-reporting mechanisms and MUST NOT synchronously abort another execution context.
 
+---
+
 #### 9.2.8 Loop-control and jump statements
 
 The statement `BREAK(n)` MUST exit the innermost `n` enclosing loops, where `n` evaluates to a strictly positive `INT`. The statement `CONTINUE()` MUST skip the remainder of the current iteration of the innermost enclosing loop and proceed according to the next-iteration rules of that loop. Using either statement outside an applicable loop context MUST raise a runtime error.
 
 The statement `GOTOPOINT(n)` MUST register a jump target identified by runtime value `n`, and `GOTO(n)` MUST transfer control to a previously registered matching target within the permitted visibility scope. Invalid target values, unregistered targets, or jumps that otherwise violate the control-flow rules defined in [3.7](#37-loop-control-and-jumps) MUST raise runtime errors.
+
+---
 
 ## 10. Standard library
 
