@@ -3145,6 +3145,14 @@ static ExecResult exec_stmt_list(Interpreter* interp, StmtList* list, Env* env, 
             if (interp->error) {
                 return make_error(interp->error, interp->error_line, interp->error_col);
             }
+            if (!(target.type == VAL_INT || target.type == VAL_STR)) {
+                value_free(target);
+                return make_error("GOTOPOINT requires INT or STR argument", stmt->line, stmt->column);
+            }
+            if (target.type == VAL_INT && target.as.i < 0) {
+                value_free(target);
+                return make_error("Negative GOTOPOINT identifier is not allowed", stmt->line, stmt->column);
+            }
             label_map_add(labels, target, (int)i);
             value_free(target);
         }
