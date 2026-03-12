@@ -489,7 +489,21 @@ static Token identifier_token(Lexer* lexer) {
             if (len_val + 1 >= capacity) { capacity *= 2; value = safe_realloc(value, capacity); }
             value[len_val++] = c;
         } else if (c == '^') {
-            consume_line_continuation(lexer);
+            /* Only treat '^' as a continuation marker when it is
+             * immediately followed by a newline (LF/CR) or a comment
+             * introducer ('!'). Otherwise it's a syntax error per
+             * the specification.
+             */
+            if (lexer->current + 1 < lexer->source_len) {
+                char next = lexer->source[lexer->current + 1];
+                if (next == '\n' || next == '\r' || next == '!') {
+                    consume_line_continuation(lexer);
+                    continue;
+                }
+            }
+            free(value);
+            advance(lexer); /* consume the '^' so error token has correct location */
+            return error_token(lexer, "Invalid line continuation");
         } else {
             break;
         }
@@ -546,8 +560,20 @@ static Token number_token(Lexer* lexer, bool is_negative_start) {
     while (!is_at_end(lexer)) {
         char c = peek(lexer);
         if (c == '^') {
-            consume_line_continuation(lexer);
-            continue;
+            /* Same rule as for identifiers: '^' only allowed as a
+             * continuation marker when followed immediately by newline
+             * or comment; otherwise it's a syntax error.
+             */
+            if (lexer->current + 1 < lexer->source_len) {
+                char next = lexer->source[lexer->current + 1];
+                if (next == '\n' || next == '\r' || next == '!') {
+                    consume_line_continuation(lexer);
+                    continue;
+                }
+            }
+            free(value);
+            advance(lexer);
+            return error_token(lexer, "Invalid line continuation");
         }
         if (c == '.' && !has_dot) {
             has_dot = true;
