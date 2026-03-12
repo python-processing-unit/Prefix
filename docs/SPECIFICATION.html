@@ -1034,7 +1034,7 @@ The operator semantics that use this format are defined next.
 
 #### 9.1.12 Console and process operators
 
-- `INT: PRINT(INT|STR: arg1, ..., INT|STR: argN)` = MUST render each argument according to the language's `STR` conversion rules for `INT` and `STR`, separate adjacent rendered arguments with a single space, append a trailing newline, write the result to the console output, record the corresponding I/O event in the execution log, and return `0`.
+- `INT: PRINT(INT|STR: arg1, ..., INT|STR: argN)` = MUST render each argument according to the language's `STR` conversion rules for `INT` and `STR`, concatenate the rendered arguments, append a trailing newline, write the result to the console output, record the corresponding I/O event in the execution log, and return `0`.
 
 - `STR: INPUT()` or `STR: INPUT(STR: prompt)` = MUST read a single line of text from the console input and return it as a `STR`. If `prompt` is supplied, the interpreter MUST write it to the console before reading input. The resulting input event MUST be recorded in the execution log, and if a prompt was supplied the recorded event MUST include that prompt text.
 
