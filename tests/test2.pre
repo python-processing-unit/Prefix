@@ -579,7 +579,7 @@ TRY{
             ASSERT(0d0)  ! trigger runtime error in one iteration
         }
     }
-}CATCH(SYMBOL: e){
+}CATCH(e){
     caught_pf = 0d1
 }
 ASSERT(EQ(caught_pf, 0d1))
@@ -608,7 +608,7 @@ INT: caught_par = 0d0
 TRY{
     PARALLEL(BAD, NOOP_A)
     ASSERT(0d0)
-}CATCH(SYMBOL: e){
+}CATCH(e){
     caught_par = 0d1
 }
 ASSERT(EQ(caught_par, 0d1))
@@ -754,7 +754,7 @@ PRINT("Testing TRY/CATCH...")
 INT: caught = 0d0
 TRY{
     THROW("Test error")
-}CATCH(SYMBOL: e){
+}CATCH(e){
     caught = 0d1
 }
 ASSERT(EQ(caught, 0d1))
@@ -898,7 +898,7 @@ ASSERT(EQ(FROZEN(f), 0d1))
 TRY{
     f = 0d2
     ASSERT(0d0)
-}CATCH(SYMBOL: e){
+}CATCH(e){
     ASSERT(EQ(f, 0d5))
 }
 TRY{
@@ -914,7 +914,7 @@ ASSERT(EQ(PERMAFROZEN(f), 0d1))
 TRY{
     THAW(f)
     ASSERT(0d0)
-}CATCH(SYMBOL: e){
+}CATCH(e){
     ASSERT(EQ(f, 0d2))
 }
 TRY{

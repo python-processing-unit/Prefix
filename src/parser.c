@@ -619,10 +619,6 @@ static Stmt* parse_try(Parser* parser) {
     consume(parser, TOKEN_CATCH, "Expected 'CATCH' after TRY");
     char* catch_name = NULL;
     if (match(parser, TOKEN_LPAREN)) {
-        if (parser->current_token.type == TOKEN_IDENT && strcmp(parser->current_token.literal, "SYMBOL") == 0) {
-            advance(parser);
-            consume(parser, TOKEN_COLON, "Expected ':' after SYMBOL");
-        }
         if (parser->current_token.type == TOKEN_IDENT) {
             catch_name = parser->current_token.literal;
             advance(parser);
