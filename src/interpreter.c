@@ -790,6 +790,21 @@ Value eval_expr(Interpreter* interp, Expr* expr, Env* env) {
         }
 
         case EXPR_LAMBDA: {
+            // Validate lambda parameter ordering just like named functions:
+            for (size_t _pi = 0; _pi < expr->as.lambda.params.count; _pi++) {
+                Param* _p = &expr->as.lambda.params.items[_pi];
+                if (!_p) continue;
+                if (_p->default_value) continue;
+                for (size_t _pj = 0; _pj < _pi; _pj++) {
+                    if (expr->as.lambda.params.items[_pj].default_value) {
+                        interp->error = strdup("Parameters with defaults must follow positional parameters");
+                        interp->error_line = expr->line;
+                        interp->error_col = expr->column;
+                        return value_null();
+                    }
+                }
+            }
+
             Func* f = create_runtime_function(NULL,
                                               expr->as.lambda.return_type,
                                               &expr->as.lambda.params,
@@ -2249,6 +2264,32 @@ static ExecResult exec_stmt(Interpreter* interp, Stmt* stmt, Env* env, LabelMap*
         }
 
         case STMT_FUNC: {
+            // Validate parameter ordering: per specification positional
+            // parameters MUST appear before any parameters with defaults.
+            // Reject function definitions which violate this rule early so
+            // callers get a clear error at definition time instead of
+            // experiencing confusing call-time failures.
+            for (size_t _pi = 0; _pi < stmt->as.func_stmt.params.count; _pi++) {
+                Param* _p = &stmt->as.func_stmt.params.items[_pi];
+                if (!_p) continue;
+                // Once we observe a parameter with a default, all subsequent
+                // parameters must also have defaults.
+                if (_p->default_value) {
+                    // mark and continue scanning remaining params to ensure
+                    // any subsequent non-defaults are detected below
+                    continue;
+                }
+                // If any earlier parameter had a default, but this one does
+                // not, that's a violation. To detect that we scan backwards
+                // from here to see if any prior param had a default.
+                for (size_t _pj = 0; _pj < _pi; _pj++) {
+                    if (stmt->as.func_stmt.params.items[_pj].default_value) {
+                        return make_error("Parameters with defaults must follow positional parameters",
+                        stmt->line, stmt->column);
+                    }
+                }
+            }
+
             // Register user-defined function in the interpreter
             Func* f = create_runtime_function(stmt->as.func_stmt.name,
                                               stmt->as.func_stmt.return_type,
