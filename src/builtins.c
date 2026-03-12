@@ -4896,7 +4896,6 @@ static Value builtin_print(Interpreter* interp, Value* args, int argc, Expr** ar
     int forward = !(interp && interp->shushed);
 
     for (int i = 0; i < argc; i++) {
-        if (i > 0 && forward) printf(" ");
         switch (args[i].type) {
             case VAL_INT: {
                 char* s = int_to_base_prefixed_str(args[i].as.i, numeric_base_of(args[i]));
