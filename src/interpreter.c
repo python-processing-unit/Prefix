@@ -2414,6 +2414,14 @@ static ExecResult exec_stmt(Interpreter* interp, Stmt* stmt, Env* env, LabelMap*
         }
 
         case STMT_RETURN: {
+            // RETURN is valid only inside a function. Detect function
+            // execution context by inspecting the trace stack: function
+            // call frames are pushed with has_call_location == 1.
+            if (interp->trace_stack_count == 0 ||
+                interp->trace_stack[interp->trace_stack_count - 1].has_call_location == 0) {
+                return make_error("RETURN used outside function", stmt->line, stmt->column);
+            }
+
             // Evaluate return expression and propagate as EXEC_RETURN
             Value v = eval_expr(interp, stmt->as.return_stmt.value, env);
             if (interp->error) {
@@ -3292,6 +3300,40 @@ ExecResult exec_program_in_env(Interpreter* interp, Stmt* program, Env* env) {
 
     if (interp->trace_stack_count == 0) {
         (void)trace_push_frame(interp, "<top-level>", env, 0, 0, 0);
+    }
+
+    LabelMap labels = {0};
+    ExecResult res = exec_stmt_list(interp, &program->as.block, env, &labels);
+
+    if (res.status == EXEC_ERROR) {
+        char* tb = interpreter_format_traceback(interp, res.error, res.error_line, res.error_column);
+        free(res.error);
+        res.error = tb;
+    }
+
+    for (size_t i = 0; i < labels.count; i++) value_free(labels.items[i].key);
+    free(labels.items);
+
+    return res;
+}
+
+// Execute a parsed function body (`program`) within an existing Interpreter
+// and Env treating the execution as a function call frame so `RETURN` is
+// permitted. `func_name` is used for traceback entries.
+ExecResult exec_program_in_env_as_function(Interpreter* interp, Stmt* program, Env* env, const char* func_name) {
+    if (!interp || !program || !env) {
+        ExecResult r = make_error("Internal: invalid args to exec_program_in_env_as_function", 0, 0);
+        return r;
+    }
+
+    // Ensure there's a call-like trace frame so RETURN is valid.
+    if (interp->trace_stack_count == 0) {
+        (void)trace_push_frame(interp, func_name ? func_name : "<lambda>", env, 0, 0, 1);
+    } else {
+        if (trace_push_frame(interp, func_name ? func_name : "<lambda>", env, 0, 0, 1) != 0) {
+            ExecResult r = make_error("Out of memory", 0, 0);
+            return r;
+        }
     }
 
     LabelMap labels = {0};

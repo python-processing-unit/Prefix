@@ -119,6 +119,11 @@ ExecResult exec_program(Stmt* program, const char* source_path);
 // `exec_program`.
 ExecResult exec_program_in_env(Interpreter* interp, Stmt* program, Env* env);
 
+// Execute a parsed function body (`program`) within an interpreter and
+// environment while treating the execution as a function call. This pushes
+// a call-frame so `RETURN` is valid inside `program`.
+ExecResult exec_program_in_env_as_function(Interpreter* interp, Stmt* program, Env* env, const char* func_name);
+
 // Build and return a traceback string for the current interpreter call stack.
 // Caller owns the returned string.
 char* interpreter_format_traceback(Interpreter* interp, const char* error_msg, int line, int col);
