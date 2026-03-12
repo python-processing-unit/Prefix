@@ -367,7 +367,7 @@ When a `FLT` is used in a boolean context, `0.0` MUST be treated as `0`, and any
 
 `TNS` literals MUST be enclosed in square brackets (`[` and `]`). Each pair of matching brackets MUST introduce a dimension, and nested brackets MUST form a rectangular shape where all sublists at a given depth have the same length. A `TNS` literal that mixes sub-brackets of differing lengths MUST raise a syntax error.
 
-Expressions inside a `TNS` literal MAY evaluate to `INT`, `FLT`, `STR`, or `TNS`. If an element evaluates to a `TNS` value, it MUST occupy a single position and MUST NOT contribute additional dimensions to the shape.
+If an element evaluates to a `TNS` value, it MUST occupy a single position and MUST NOT contribute additional dimensions to the shape.
 
 ---
 
