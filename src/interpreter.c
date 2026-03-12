@@ -599,6 +599,11 @@ int value_truthiness(Value v) {
             }
             return 0;
         }
+        case VAL_MAP: {
+            Map* m = v.as.map;
+            if (!m) return 0;
+            return m->count > 0;
+        }
         default:
             return 0;
     }
