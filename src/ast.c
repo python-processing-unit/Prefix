@@ -109,7 +109,7 @@ Expr* expr_map(int line, int column) {
     return expr;
 }
 
-Expr* expr_index(Expr* target, int line, int column) {
+Expr* expr_index(Expr* target, int line, int column, bool is_map) {
     Expr* expr = ast_alloc(sizeof(Expr));
     expr->type = EXPR_INDEX;
     expr->line = line;
@@ -118,6 +118,7 @@ Expr* expr_index(Expr* target, int line, int column) {
     expr->as.index.indices.items = NULL;
     expr->as.index.indices.count = 0;
     expr->as.index.indices.capacity = 0;
+    expr->as.index.is_map = is_map;
     return expr;
 }
 

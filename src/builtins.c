@@ -1282,7 +1282,7 @@ static void ser_expr(JsonBuf* jb, SerCtx* ctx, Interpreter* interp, Expr* expr) 
             }
             jb_append_char(jb, ']');
             json_obj_field(jb, &first, "is_map");
-            jb_append_str(jb, "false");
+            jb_append_str(jb, expr->as.index.is_map ? "true" : "false");
             jb_append_char(jb, '}');
             return;
         }
@@ -2092,7 +2092,10 @@ static Expr* deser_expr(JsonValue* obj, UnserCtx* ctx, Interpreter* interp, cons
     }
     if (strcmp(name, "IndexExpression") == 0) {
         Expr* base = deser_expr(json_obj_get(obj, "base"), ctx, interp, err);
-        Expr* idx = expr_index(base, line, col);
+        JsonValue* is_map_v = json_obj_get(obj, "is_map");
+        bool is_map = false;
+        if (is_map_v && is_map_v->type == JSON_BOOL) is_map = is_map_v->as.boolean ? true : false;
+        Expr* idx = expr_index(base, line, col, is_map);
         JsonValue* indices = json_obj_get(obj, "indices");
         if (indices && indices->type == JSON_ARR) {
             for (size_t i = 0; i < indices->as.arr.count; i++) {

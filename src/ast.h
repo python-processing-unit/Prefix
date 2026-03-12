@@ -76,6 +76,7 @@ struct Expr {
         struct {
             Expr* target;
             ExprList indices;
+            bool is_map; /* true if angle-bracket indexing '<...>' was used */
         } index;
         struct {
             Expr* start;
@@ -164,7 +165,7 @@ void call_kw_add(Expr* call, char* name, Expr* value);
 Expr* expr_tns(int line, int column);
 Expr* expr_async(Stmt* block, int line, int column);
 Expr* expr_map(int line, int column);
-Expr* expr_index(Expr* target, int line, int column);
+Expr* expr_index(Expr* target, int line, int column, bool is_map);
 Expr* expr_range(Expr* start, Expr* end, int line, int column);
 Expr* expr_wildcard(int line, int column);
 Expr* expr_lambda(ParamList params, DeclType return_type, Stmt* body, int line, int column);
