@@ -613,7 +613,6 @@ static Stmt* parse_try(Parser* parser) {
     Token tok = parser->current_token;
     consume(parser, TOKEN_TRY, "Expected 'TRY'");
     Stmt* try_block = parse_block(parser);
-    skip_newlines(parser);
     consume(parser, TOKEN_CATCH, "Expected 'CATCH' after TRY");
     char* catch_name = NULL;
     if (match(parser, TOKEN_LPAREN)) {
