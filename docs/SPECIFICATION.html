@@ -872,7 +872,7 @@ Built-in operator names MUST be matched case-sensitively and MUST be written in 
 
 #### 9.1.8 Function and module operators
 
-- `RUN(STR: source)` = MUST parse and execute `source` as Prefix code in the caller's current lexical environment. Parse failure or runtime failure inside the executed source MUST raise a runtime error. If console output is currently suppressed by `SHUSH`, `RUN` MUST temporarily disable that suppression for the duration of the executed source and then restore the prior shush state afterward.
+- `RUN(STR: source)` = MUST parse and execute `source` as Prefix code in the caller's current lexical environment. Parse failure or runtime failure inside the executed source MUST raise a runtime error.
 
 - `ASSERT(ANY: value)` = MUST raise a runtime error if `value` is falsey according to the language's truthiness rules.
 
@@ -1044,7 +1044,7 @@ The operator semantics that use this format are defined next.
 
 - `EXIT()` or `EXIT(INT: code)` = MUST immediately terminate the interpreter and return process exit code `0` or the supplied integer `code`, respectively. The termination event MUST be recorded in the execution log when logging is enabled.
 
-- `INT: SHUSH()` = MUST suppress forwarding of console output produced by operators such as `PRINT`, `WARN`, and shell-output capture from `CL`, while leaving the corresponding I/O events available for deterministic logging and replay. `INPUT` prompts MUST continue to be forwarded while shushing is active. `RUN` MUST temporarily disable shushing for the duration of the executed source. `SHUSH` MUST return `0`.
+- `INT: SHUSH()` = MUST suppress forwarding of console output produced by operators such as `PRINT`, `WARN`, and shell-output capture from `CL`, while leaving the corresponding I/O events available for deterministic logging and replay. `INPUT` prompts MUST continue to be forwarded while shushing is active.
 
 - `INT: UNSHUSH()` = MUST clear the shush state established by `SHUSH` so that subsequent console output is forwarded normally again. `UNSHUSH` MUST return `0`.
 
