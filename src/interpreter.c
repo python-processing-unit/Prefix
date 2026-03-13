@@ -256,6 +256,10 @@ typedef struct {
     int* err_lines;
     int* err_cols;
     const char* counter_name;
+    ExecStatus* statuses;
+    int* break_counts;
+    int* stop_launch;
+    mtx_t* control_lock;
 } ParforStart;
 
 static int parfor_merge_iteration_env(ParforStart* start, char** merge_error) {
@@ -306,13 +310,46 @@ static int parfor_merge_iteration_env(ParforStart* start, char** merge_error) {
 static int parfor_worker(void* arg) {
     ParforStart* start = (ParforStart*)arg;
     LabelMap labels = {0};
-    start->interp->current_thr = start->thr_val.as.thr;
-    ExecResult res = exec_stmt(start->interp, start->body, start->env, &labels);
+    int skip_iteration = 0;
+    if (start->control_lock && start->stop_launch) {
+        mtx_lock(start->control_lock);
+        skip_iteration = *start->stop_launch;
+        mtx_unlock(start->control_lock);
+    }
+
+    ExecResult res;
+    if (!skip_iteration) {
+        start->interp->current_thr = start->thr_val.as.thr;
+        res = exec_stmt(start->interp, start->body, start->env, &labels);
+    } else {
+        res.status = EXEC_OK;
+        res.value = value_null();
+        res.break_count = 0;
+        res.jump_index = -1;
+        res.error = NULL;
+        res.error_line = 0;
+        res.error_column = 0;
+    }
+
+    if (res.status == EXEC_BREAK && start->control_lock && start->stop_launch) {
+        mtx_lock(start->control_lock);
+        *start->stop_launch = 1;
+        mtx_unlock(start->control_lock);
+    }
 
     char* merge_error = NULL;
     if (res.status != EXEC_ERROR) {
         (void)parfor_merge_iteration_env(start, &merge_error);
     }
+
+    ExecStatus final_status = res.status;
+    int final_break_count = (res.status == EXEC_BREAK) ? res.break_count : 0;
+    if (merge_error) {
+        final_status = EXEC_ERROR;
+        final_break_count = 0;
+    }
+    if (start->statuses) start->statuses[start->index] = final_status;
+    if (start->break_counts) start->break_counts[start->index] = final_break_count;
 
     for (size_t i = 0; i < labels.count; i++) value_free(labels.items[i].key);
     free(labels.items);
@@ -3029,23 +3066,57 @@ static ExecResult exec_stmt(Interpreter* interp, Stmt* stmt, Env* env, LabelMap*
 
             // Spawn worker threads for each iteration
             size_t n = (size_t)limit;
+            if (n == 0) {
+                interp->loop_depth--;
+                return make_ok(value_null());
+            }
             char** errors = calloc(n, sizeof(char*));
             int* err_lines = calloc(n, sizeof(int));
             int* err_cols = calloc(n, sizeof(int));
-            Value* thr_vals = malloc(sizeof(Value) * n);
-            ParforStart** starts = malloc(sizeof(ParforStart*) * n);
+            ExecStatus* statuses = calloc(n, sizeof(ExecStatus));
+            int* break_counts = calloc(n, sizeof(int));
+            Value* thr_vals = calloc(n, sizeof(Value));
+            int stop_launch = 0;
+            mtx_t parfor_control_lock;
+            int control_lock_inited = 0;
+
+            if (mtx_init(&parfor_control_lock, 0) == thrd_success) {
+                control_lock_inited = 1;
+            }
+
+            if (!errors || !err_lines || !err_cols || !statuses || !break_counts || !thr_vals || !control_lock_inited) {
+                interp->loop_depth--;
+                free(errors);
+                free(err_lines);
+                free(err_cols);
+                free(statuses);
+                free(break_counts);
+                free(thr_vals);
+                if (control_lock_inited) mtx_destroy(&parfor_control_lock);
+                return make_error("Out of memory", stmt->line, stmt->column);
+            }
 
             for (size_t i = 0; i < n; i++) {
+                int should_stop = 0;
+                mtx_lock(&parfor_control_lock);
+                should_stop = stop_launch;
+                mtx_unlock(&parfor_control_lock);
+                if (should_stop) {
+                    break;
+                }
+
                 if (++iteration_count > max_iterations) {
                     interp->loop_depth--;
                     // cleanup
                     for (size_t j = 0; j < i; j++) value_free(thr_vals[j]);
                     free(thr_vals);
-                    free(starts);
                     for (size_t j = 0; j < n; j++) free(errors[j]);
                     free(errors);
                     free(err_lines);
                     free(err_cols);
+                    free(statuses);
+                    free(break_counts);
+                    mtx_destroy(&parfor_control_lock);
                     return make_error("Infinite loop detected", stmt->line, stmt->column);
                 }
 
@@ -3055,7 +3126,7 @@ static ExecResult exec_stmt(Interpreter* interp, Stmt* stmt, Env* env, LabelMap*
                 Interpreter* thr_interp = safe_malloc(sizeof(Interpreter));
                 *thr_interp = (Interpreter){0};
                 thr_interp->global_env = interp->global_env;
-                thr_interp->loop_depth = 0;
+                thr_interp->loop_depth = interp->loop_depth;
                 thr_interp->error = NULL;
                 thr_interp->error_line = 0;
                 thr_interp->error_col = 0;
@@ -3090,8 +3161,11 @@ static ExecResult exec_stmt(Interpreter* interp, Stmt* stmt, Env* env, LabelMap*
                 start->err_cols = err_cols;
                 start->index = (int)i;
                 start->counter_name = stmt->as.parfor_stmt.counter;
+                start->statuses = statuses;
+                start->break_counts = break_counts;
+                start->stop_launch = &stop_launch;
+                start->control_lock = &parfor_control_lock;
                 start->thr_val = value_copy(thr_vals[i]);
-                starts[i] = start;
 
                 /* record body/env on Thr so restart is possible */
                 thr_vals[i].as.thr->body = start->body;
@@ -3127,14 +3201,24 @@ static ExecResult exec_stmt(Interpreter* interp, Stmt* stmt, Env* env, LabelMap*
                 if (errors[i]) { first_err = errors[i]; first_err_line = err_lines[i]; first_err_col = err_cols[i]; break; }
             }
 
+            int first_break_count = 0;
+            for (size_t i = 0; i < n; i++) {
+                if (statuses[i] == EXEC_BREAK) {
+                    first_break_count = break_counts[i];
+                    break;
+                }
+            }
+
             // Cleanup thr values
             for (size_t i = 0; i < n; i++) value_free(thr_vals[i]);
             free(thr_vals);
-            free(starts);
             for (size_t i = 0; i < n; i++) if (errors[i] && errors[i] != first_err) free(errors[i]);
             free(errors);
             free(err_lines);
             free(err_cols);
+            free(statuses);
+            free(break_counts);
+            mtx_destroy(&parfor_control_lock);
 
             interp->loop_depth--;
 
@@ -3149,6 +3233,21 @@ static ExecResult exec_stmt(Interpreter* interp, Stmt* stmt, Env* env, LabelMap*
                 ExecResult err = make_error(first_err, interp->error_line, interp->error_col);
                 free(first_err);
                 return err;
+            }
+
+            if (first_break_count > 0) {
+                if (first_break_count > 1) {
+                    ExecResult res;
+                    res.status = EXEC_BREAK;
+                    res.value = value_null();
+                    res.break_count = first_break_count - 1;
+                    res.jump_index = -1;
+                    res.error = NULL;
+                    res.error_line = 0;
+                    res.error_column = 0;
+                    return res;
+                }
+                return make_ok(value_null());
             }
 
             return make_ok(value_null());

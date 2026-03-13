@@ -637,6 +637,26 @@ TRY{
 }
 ASSERT(EQ(caught_pf, 0d1))
 DEL(caught_pf)
+
+TNS: pcont = [0d0,0d0,0d0]
+PARFOR(k, 0d3){
+    IF(EQ(k, 0d2)){
+        CONTINUE()
+    }
+    pcont[k] = k
+}
+ASSERT(EQ(pcont, [0d1,0d0,0d3]))
+DEL(pcont)
+
+INT: pf_outer_hits = 0d0
+FOR(pf_outer, 0d3){
+    PARFOR(pf_inner, 0d5){
+        BREAK(0d2)
+    }
+    pf_outer_hits = ADD(pf_outer_hits, 0d1)
+}
+ASSERT(EQ(pf_outer_hits, 0d0))
+DEL(pf_outer_hits)
 PRINT("PARFOR: PASS\n")
 
 PRINT("Testing PARALLEL...")
