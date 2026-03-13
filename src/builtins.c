@@ -13,6 +13,7 @@
 #include <time.h>
 #include <stdarg.h>
 #include <limits.h>
+#include <stdint.h>
 #ifndef _MSC_VER
 #include <sys/wait.h>
 #endif
@@ -95,6 +96,221 @@ static bool writeback_first_ptr(Interpreter* interp, Expr** arg_nodes, Env* env,
         return false;
     }
     return true;
+}
+
+// --- Encoding helpers ---
+static char* dec_latin1_to_utf8(const unsigned char* buf, size_t sz) {
+    size_t outcap = sz * 2 + 1;
+    char* out = malloc(outcap);
+    if (!out) return NULL;
+    size_t op = 0;
+    for (size_t i = 0; i < sz; i++) {
+        unsigned char b = buf[i];
+        if (b < 0x80) {
+            out[op++] = (unsigned char)b;
+        } else {
+            if (op + 2 + 1 > outcap) {
+                outcap *= 2;
+                char* n = realloc(out, outcap);
+                if (!n) { free(out); return NULL; }
+                out = n;
+            }
+            out[op++] = (unsigned char)(0xC0 | (b >> 6));
+            out[op++] = (unsigned char)(0x80 | (b & 0x3F));
+        }
+    }
+    out[op] = '\0';
+    return out;
+}
+
+static const uint32_t cp1252_map[32] = {
+    0x20AC, 0x0081, 0x201A, 0x0192, 0x201E, 0x2026, 0x2020, 0x2021,
+    0x02C6, 0x2030, 0x0160, 0x2039, 0x0152, 0x008D, 0x017D, 0x008F,
+    0x0090, 0x2018, 0x2019, 0x201C, 0x201D, 0x2022, 0x2013, 0x2014,
+    0x02DC, 0x2122, 0x0161, 0x203A, 0x0153, 0x009D, 0x017E, 0x0178
+};
+
+static char* dec_cp1252_to_utf8(const unsigned char* buf, size_t sz) {
+    size_t outcap = sz * 2 + 16;
+    char* out = malloc(outcap);
+    if (!out) return NULL;
+    size_t op = 0;
+    for (size_t i = 0; i < sz; i++) {
+        uint32_t cp;
+        unsigned char b = buf[i];
+        if (b < 0x80) cp = b;
+        else if (b >= 0xA0) cp = b;
+        else cp = cp1252_map[b - 0x80];
+
+        if (cp <= 0x7F) {
+            out[op++] = (unsigned char)cp;
+        } else if (cp <= 0x7FF) {
+            if (op + 2 + 1 > outcap) { outcap *= 2; char* n = realloc(out, outcap); if (!n) { free(out); return NULL; } out = n; }
+            out[op++] = (unsigned char)(0xC0 | (cp >> 6));
+            out[op++] = (unsigned char)(0x80 | (cp & 0x3F));
+        } else if (cp <= 0xFFFF) {
+            if (op + 3 + 1 > outcap) { outcap *= 2; char* n = realloc(out, outcap); if (!n) { free(out); return NULL; } out = n; }
+            out[op++] = (unsigned char)(0xE0 | (cp >> 12));
+            out[op++] = (unsigned char)(0x80 | ((cp >> 6) & 0x3F));
+            out[op++] = (unsigned char)(0x80 | (cp & 0x3F));
+        } else {
+            if (op + 4 + 1 > outcap) { outcap *= 2; char* n = realloc(out, outcap); if (!n) { free(out); return NULL; } out = n; }
+            out[op++] = (unsigned char)(0xF0 | (cp >> 18));
+            out[op++] = (unsigned char)(0x80 | ((cp >> 12) & 0x3F));
+            out[op++] = (unsigned char)(0x80 | ((cp >> 6) & 0x3F));
+            out[op++] = (unsigned char)(0x80 | (cp & 0x3F));
+        }
+    }
+    out[op] = '\0';
+    return out;
+}
+
+static char* dec_utf16_to_utf8(const unsigned char* buf, size_t sz, int little_endian) {
+    size_t outcap = sz * 3 + 16;
+    char* out = malloc(outcap);
+    if (!out) return NULL;
+    size_t op = 0;
+    size_t i = 0;
+    while (i + 1 < sz) {
+        uint16_t cu;
+        if (little_endian) cu = (uint16_t)(buf[i] | (buf[i+1] << 8));
+        else cu = (uint16_t)((buf[i] << 8) | buf[i+1]);
+        i += 2;
+        uint32_t cp;
+        if (cu >= 0xD800 && cu <= 0xDBFF) {
+            if (i + 1 < sz) {
+                uint16_t cu2;
+                if (little_endian) cu2 = (uint16_t)(buf[i] | (buf[i+1] << 8));
+                else cu2 = (uint16_t)((buf[i] << 8) | buf[i+1]);
+                if (cu2 >= 0xDC00 && cu2 <= 0xDFFF) {
+                    i += 2;
+                    cp = 0x10000 + (((uint32_t)cu - 0xD800) << 10) + ((uint32_t)cu2 - 0xDC00);
+                } else {
+                    cp = 0xFFFD;
+                }
+            } else {
+                cp = 0xFFFD;
+            }
+        } else if (cu >= 0xDC00 && cu <= 0xDFFF) {
+            cp = 0xFFFD;
+        } else {
+            cp = cu;
+        }
+
+        if (cp <= 0x7F) {
+            out[op++] = (unsigned char)cp;
+        } else if (cp <= 0x7FF) {
+            if (op + 2 + 1 > outcap) { outcap *= 2; char* n = realloc(out, outcap); if (!n) { free(out); return NULL; } out = n; }
+            out[op++] = (unsigned char)(0xC0 | (cp >> 6));
+            out[op++] = (unsigned char)(0x80 | (cp & 0x3F));
+        } else if (cp <= 0xFFFF) {
+            if (op + 3 + 1 > outcap) { outcap *= 2; char* n = realloc(out, outcap); if (!n) { free(out); return NULL; } out = n; }
+            out[op++] = (unsigned char)(0xE0 | (cp >> 12));
+            out[op++] = (unsigned char)(0x80 | ((cp >> 6) & 0x3F));
+            out[op++] = (unsigned char)(0x80 | (cp & 0x3F));
+        } else {
+            if (op + 4 + 1 > outcap) { outcap *= 2; char* n = realloc(out, outcap); if (!n) { free(out); return NULL; } out = n; }
+            out[op++] = (unsigned char)(0xF0 | (cp >> 18));
+            out[op++] = (unsigned char)(0x80 | ((cp >> 12) & 0x3F));
+            out[op++] = (unsigned char)(0x80 | ((cp >> 6) & 0x3F));
+            out[op++] = (unsigned char)(0x80 | (cp & 0x3F));
+        }
+    }
+    if (i < sz) {
+        // trailing byte -> replacement
+        if (op + 3 + 1 > outcap) { outcap += 16; char* n = realloc(out, outcap); if (!n) { free(out); return NULL; } out = n; }
+        out[op++] = (unsigned char)0xEF; out[op++] = (unsigned char)0xBF; out[op++] = (unsigned char)0xBD;
+    }
+    out[op] = '\0';
+    return out;
+}
+
+static unsigned char* enc_utf8_to_utf16(const char* s, size_t* out_sz, int little_endian) {
+    size_t slen = s ? strlen(s) : 0;
+    size_t outcap = (slen + 1) * 4 + 4;
+    unsigned char* out = malloc(outcap);
+    if (!out) return NULL;
+    size_t op = 0;
+    size_t i = 0;
+    while (i < slen) {
+        unsigned char c = (unsigned char)s[i];
+        uint32_t cp = 0;
+        size_t need = 0;
+        if (c < 0x80) { cp = c; need = 1; i += 1; }
+        else if ((c & 0xE0) == 0xC0) {
+            if (i + 1 >= slen) { cp = 0xFFFD; i += 1; }
+            else { cp = ((c & 0x1F) << 6) | ((unsigned char)s[i+1] & 0x3F); i += 2; }
+        } else if ((c & 0xF0) == 0xE0) {
+            if (i + 2 >= slen) { cp = 0xFFFD; i += 1; }
+            else { cp = ((c & 0x0F) << 12) | (((unsigned char)s[i+1] & 0x3F) << 6) | ((unsigned char)s[i+2] & 0x3F); i += 3; }
+        } else if ((c & 0xF8) == 0xF0) {
+            if (i + 3 >= slen) { cp = 0xFFFD; i += 1; }
+            else { cp = ((c & 0x07) << 18) | (((unsigned char)s[i+1] & 0x3F) << 12) | (((unsigned char)s[i+2] & 0x3F) << 6) | ((unsigned char)s[i+3] & 0x3F); i += 4; }
+        } else { cp = 0xFFFD; i += 1; }
+
+        if (cp <= 0xFFFF) {
+            uint16_t cu = (uint16_t)cp;
+            if (op + 2 + 2 > outcap) { outcap *= 2; unsigned char* n = realloc(out, outcap); if (!n) { free(out); return NULL; } out = n; }
+            if (little_endian) { out[op++] = (unsigned char)(cu & 0xFF); out[op++] = (unsigned char)((cu >> 8) & 0xFF); }
+            else { out[op++] = (unsigned char)((cu >> 8) & 0xFF); out[op++] = (unsigned char)(cu & 0xFF); }
+        } else {
+            // encode surrogate pair
+            uint32_t v = cp - 0x10000;
+            uint16_t hi = 0xD800 | (uint16_t)((v >> 10) & 0x3FF);
+            uint16_t lo = 0xDC00 | (uint16_t)(v & 0x3FF);
+            if (op + 4 + 2 > outcap) { outcap *= 2; unsigned char* n = realloc(out, outcap); if (!n) { free(out); return NULL; } out = n; }
+            if (little_endian) {
+                out[op++] = (unsigned char)(hi & 0xFF); out[op++] = (unsigned char)((hi >> 8) & 0xFF);
+                out[op++] = (unsigned char)(lo & 0xFF); out[op++] = (unsigned char)((lo >> 8) & 0xFF);
+            } else {
+                out[op++] = (unsigned char)((hi >> 8) & 0xFF); out[op++] = (unsigned char)(hi & 0xFF);
+                out[op++] = (unsigned char)((lo >> 8) & 0xFF); out[op++] = (unsigned char)(lo & 0xFF);
+            }
+        }
+    }
+    *out_sz = op;
+    return out;
+}
+
+static unsigned char* enc_utf8_to_cp1252(const char* s, size_t* out_sz, int is_windows) {
+    size_t slen = s ? strlen(s) : 0;
+    size_t outcap = slen + 16;
+    unsigned char* out = malloc(outcap);
+    if (!out) return NULL;
+    size_t op = 0;
+    size_t i = 0;
+    while (i < slen) {
+        unsigned char c = (unsigned char)s[i];
+        uint32_t cp = 0;
+        if (c < 0x80) { cp = c; i++; }
+        else if ((c & 0xE0) == 0xC0) {
+            if (i + 1 >= slen) { cp = 0xFFFD; i++; }
+            else { cp = ((c & 0x1F) << 6) | ((unsigned char)s[i+1] & 0x3F); i += 2; }
+        } else if ((c & 0xF0) == 0xE0) {
+            if (i + 2 >= slen) { cp = 0xFFFD; i++; }
+            else { cp = ((c & 0x0F) << 12) | (((unsigned char)s[i+1] & 0x3F) << 6) | ((unsigned char)s[i+2] & 0x3F); i += 3; }
+        } else if ((c & 0xF8) == 0xF0) {
+            if (i + 3 >= slen) { cp = 0xFFFD; i++; }
+            else { cp = ((c & 0x07) << 18) | (((unsigned char)s[i+1] & 0x3F) << 12) | (((unsigned char)s[i+2] & 0x3F) << 6) | ((unsigned char)s[i+3] & 0x3F); i += 4; }
+        } else { cp = 0xFFFD; i++; }
+
+        unsigned char outb = 0;
+        if (cp <= 0x7F) outb = (unsigned char)cp;
+        else if (cp >= 0x00A0 && cp <= 0x00FF) outb = (unsigned char)cp;
+        else {
+            int found = -1;
+            for (int j = 0; j < 32; j++) {
+                if (cp1252_map[j] == cp) { found = 0x80 + j; break; }
+            }
+            if (found >= 0) outb = (unsigned char)found;
+            else { free(out); return NULL; }
+        }
+
+        if (op + 1 > outcap) { outcap *= 2; unsigned char* n = realloc(out, outcap); if (!n) { free(out); return NULL; } out = n; }
+        out[op++] = outb;
+    }
+    *out_sz = op;
+    return out;
 }
 
 static char* canonicalize_existing_path(const char* path) {
@@ -483,7 +699,7 @@ static void jb_append_json_string(JsonBuf* jb, const char* s) {
                 if (c < 0x20 || c >= 0x7f) {
                     jb_append_fmt(jb, "\\u%04x", (unsigned int)c);
                 } else {
-                    jb_append_char(jb, (char)c);
+                    jb_append_char(jb, (unsigned char)c);
                 }
                 break;
         }
@@ -659,16 +875,16 @@ static char* json_parse_string_raw(JsonParser* p) {
                         if (v < 0) { p->error = "Invalid unicode escape"; jb_free(&sb); return NULL; }
                         code = (code << 4) | v;
                     }
-                    if (code <= 0x7f) {
-                        jb_append_char(&sb, (char)code);
-                    } else if (code <= 0x7ff) {
-                        jb_append_char(&sb, (char)(0xC0 | ((code >> 6) & 0x1F)));
-                        jb_append_char(&sb, (char)(0x80 | (code & 0x3F)));
-                    } else {
-                        jb_append_char(&sb, (char)(0xE0 | ((code >> 12) & 0x0F)));
-                        jb_append_char(&sb, (char)(0x80 | ((code >> 6) & 0x3F)));
-                        jb_append_char(&sb, (char)(0x80 | (code & 0x3F)));
-                    }
+                                if (code <= 0x7f) {
+                                    jb_append_char(&sb, (unsigned char)code);
+                                } else if (code <= 0x7ff) {
+                                    jb_append_char(&sb, (unsigned char)(0xC0 | ((code >> 6) & 0x1F)));
+                                    jb_append_char(&sb, (unsigned char)(0x80 | (code & 0x3F)));
+                                } else {
+                                    jb_append_char(&sb, (unsigned char)(0xE0 | ((code >> 12) & 0x0F)));
+                                    jb_append_char(&sb, (unsigned char)(0x80 | ((code >> 6) & 0x3F)));
+                                    jb_append_char(&sb, (unsigned char)(0x80 | (code & 0x3F)));
+                                }
                     break;
                 }
                 default:
@@ -5111,24 +5327,57 @@ static Value builtin_readfile(Interpreter* interp, Value* args, int argc, Expr**
         return v;
     }
 
-    // Text modes: handle UTF-8 BOM strip
-    size_t start = 0;
-    if ((strcmp(codelb, "utf-8-bom") == 0 || strcmp(codelb, "utf-8 bom") == 0) && sz >= 3) {
-        if (buf[0] == 0xEF && buf[1] == 0xBB && buf[2] == 0xBF) start = 3;
-    } else if (strcmp(codelb, "utf-8") == 0 && sz >= 3) {
-        if (buf[0] == 0xEF && buf[1] == 0xBB && buf[2] == 0xBF) start = 3;
+    // Text modes: handle UTF-8 and other supported encodings
+    // UTF-8 and UTF-8 BOM: return UTF-8 string (strip BOM if present)
+    if (strcmp(codelb, "utf-8") == 0 || strcmp(codelb, "utf8") == 0 || strcmp(codelb, "utf-8-bom") == 0 || strcmp(codelb, "utf-8 bom") == 0) {
+        size_t start = 0;
+        if (sz >= 3 && buf[0] == 0xEF && buf[1] == 0xBB && buf[2] == 0xBF) start = 3;
+        size_t tlen = (size_t)sz - start;
+        char* out = malloc(tlen + 1);
+        if (!out) { free(buf); RUNTIME_ERROR(interp, "Out of memory", line, col); }
+        memcpy(out, buf + start, tlen);
+        out[tlen] = '\0';
+        free(buf);
+        Value v = value_str(out);
+        free(out);
+        return v;
     }
 
-    // For other encodings (ANSI, UTF-16 LE/BE) we fall back to returning raw bytes as-is.
-    size_t tlen = (size_t)sz - start;
-    char* out = malloc(tlen + 1);
-    if (!out) { free(buf); RUNTIME_ERROR(interp, "Out of memory", line, col); }
-    memcpy(out, buf + start, tlen);
-    out[tlen] = '\0';
+    // UTF-16 (LE/BE)
+    if (strstr(codelb, "utf-16") != NULL) {
+        int little = 1;
+        size_t start = 0;
+        if (sz >= 2) {
+            if (buf[0] == 0xFF && buf[1] == 0xFE) { little = 1; start = 2; }
+            else if (buf[0] == 0xFE && buf[1] == 0xFF) { little = 0; start = 2; }
+        }
+        if (strstr(codelb, "be") != NULL) little = 0;
+        if (strstr(codelb, "le") != NULL) little = 1;
+        char* out = dec_utf16_to_utf8(buf + start, (size_t)sz - start, little);
+        free(buf);
+        if (!out) RUNTIME_ERROR(interp, "Out of memory", line, col);
+        Value v = value_str(out);
+        free(out);
+        return v;
+    }
+
+    // ANSI -> cp1252 on Windows, Latin-1 elsewhere
+    if (strcmp(codelb, "ansi") == 0) {
+#ifdef _WIN32
+        char* out = dec_cp1252_to_utf8(buf, (size_t)sz);
+#else
+        char* out = dec_latin1_to_utf8(buf, (size_t)sz);
+#endif
+        free(buf);
+        if (!out) RUNTIME_ERROR(interp, "Out of memory", line, col);
+        Value v = value_str(out);
+        free(out);
+        return v;
+    }
+
+    // Unknown/unsupported coding: error
     free(buf);
-    Value v = value_str(out);
-    free(out);
-    return v;
+    RUNTIME_ERROR(interp, "READFILE: unsupported coding", line, col);
 }
 
 // WRITEFILE(STR: blob, STR: path, STR: coding = "UTF-8"):INT
@@ -5198,27 +5447,84 @@ static Value builtin_writefile(Interpreter* interp, Value* args, int argc, Expr*
         return value_int(1);
     }
 
-    // Text encodings: write raw bytes; for utf-8-bom emit BOM
-    FILE* f = fopen(args[1].as.s, "wb");
-    if (!f) {
-        // Try text mode as a fallback (may succeed on some platforms)
-        fprintf(stderr, "WRITEFILE: open('%s','wb') failed: %s; trying text mode...\n", args[1].as.s, strerror(errno));
-        f = fopen(args[1].as.s, "w");
+    // Text encodings: handle UTF-8, UTF-16, ANSI/Latin-1
+    if (strstr(codelb, "utf-16") != NULL) {
+        int little = 1;
+        if (strstr(codelb, "be") != NULL) little = 0;
+        if (strstr(codelb, "le") != NULL) little = 1;
+        size_t outlen = 0;
+        unsigned char* outbuf = enc_utf8_to_utf16(blob, &outlen, little);
+        if (!outbuf) RUNTIME_ERROR(interp, "WRITEFILE: encoding failed", line, col);
+        FILE* f = fopen(args[1].as.s, "wb");
+        if (!f) {
+            fprintf(stderr, "WRITEFILE: cannot open '%s' for writing: %s\n", args[1].as.s, strerror(errno));
+            free(outbuf);
+            return value_int(0);
+        }
+        if (outlen > 0) {
+            if (fwrite(outbuf, 1, outlen, f) != outlen) { fclose(f); free(outbuf); return value_int(0); }
+        }
+        fclose(f);
+        free(outbuf);
+        return value_int(1);
+    }
+
+    if (strcmp(codelb, "ansi") == 0) {
+        size_t outlen = 0;
+        unsigned char* outbuf = enc_utf8_to_cp1252(blob, &outlen,
+#ifdef _WIN32
+            1
+#else
+            0
+#endif
+        );
+        if (!outbuf) RUNTIME_ERROR(interp, "WRITEFILE: data contains characters not representable in ANSI", line, col);
+        FILE* f = fopen(args[1].as.s, "wb");
+        if (!f) {
+            fprintf(stderr, "WRITEFILE: cannot open '%s' for writing: %s\n", args[1].as.s, strerror(errno));
+            free(outbuf);
+            return value_int(0);
+        }
+        if (outlen > 0) {
+            if (fwrite(outbuf, 1, outlen, f) != outlen) { fclose(f); free(outbuf); return value_int(0); }
+        }
+        fclose(f);
+        free(outbuf);
+        return value_int(1);
+    }
+
+    // UTF-8 (with optional BOM)
+    if (strcmp(codelb, "utf-8-bom") == 0 || strcmp(codelb, "utf-8 bom") == 0) {
+        FILE* f = fopen(args[1].as.s, "wb");
         if (!f) {
             fprintf(stderr, "WRITEFILE: cannot open '%s' for writing: %s\n", args[1].as.s, strerror(errno));
             return value_int(0);
         }
-    }
-    if (strcmp(codelb, "utf-8-bom") == 0 || strcmp(codelb, "utf-8 bom") == 0) {
         unsigned char bom[3] = {0xEF,0xBB,0xBF};
         if (fwrite(bom, 1, 3, f) != 3) { fclose(f); return value_int(0); }
+        size_t towrite = strlen(blob);
+        if (towrite > 0) {
+            if (fwrite(blob, 1, towrite, f) != towrite) { fclose(f); return value_int(0); }
+        }
+        fclose(f);
+        return value_int(1);
     }
-    size_t towrite = strlen(blob);
-    if (towrite > 0) {
-        if (fwrite(blob, 1, towrite, f) != towrite) { fclose(f); return value_int(0); }
+
+    if (strcmp(codelb, "utf-8") == 0 || strcmp(codelb, "utf8") == 0) {
+        FILE* f = fopen(args[1].as.s, "wb");
+        if (!f) {
+            fprintf(stderr, "WRITEFILE: cannot open '%s' for writing: %s\n", args[1].as.s, strerror(errno));
+            return value_int(0);
+        }
+        size_t towrite = strlen(blob);
+        if (towrite > 0) {
+            if (fwrite(blob, 1, towrite, f) != towrite) { fclose(f); return value_int(0); }
+        }
+        fclose(f);
+        return value_int(1);
     }
-    fclose(f);
-    return value_int(1);
+
+    RUNTIME_ERROR(interp, "WRITEFILE: unsupported coding", line, col);
 }
 
 // EXISTFILE(STR: path):INT
