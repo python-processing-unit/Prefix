@@ -1,7 +1,7 @@
 <#
 build.ps1
 Compiles the interpreter in a temporary directory and copies the resulting EXE
-back into this repo. Also discovers extension C sources under stdext/ and stdlib/
+back into this repo. Also discovers extension C sources under ext/ and lib/
 and compiles each one into a dynamic library next to its source file.
 
 Requires: run from a Developer Command Prompt for Visual Studio where cl.exe is on PATH.
@@ -12,8 +12,8 @@ Usage (from Prefix-C folder):
 $script = Split-Path -Parent $MyInvocation.MyCommand.Definition
 $src = Join-Path $script "src"
 $extRoots = @(
-    (Join-Path $script "stdext"),
-    (Join-Path $script "stdlib"),
+    (Join-Path $script "ext"),
+    (Join-Path $script "lib"),
     (Join-Path $script "tests")
 )
 
@@ -76,7 +76,7 @@ try {
     }
 
     if ($extSources.Count -eq 0) {
-        Write-Host "No extension C sources found under stdext/ or stdlib/."
+        Write-Host "No extension C sources found under ext/, lib/"
     } else {
         Write-Host "Found $($extSources.Count) extension source file(s)."
     }
@@ -92,7 +92,7 @@ try {
         Push-Location $extBuildDir
         try {
             $extArgs = @(
-                "/std:c17", "/Gd", "/O2", "/W4", "/WX", "/nologo", "/LD",
+                "/std:c17", "/Gd", "/O2", "/W4", "/WX", "/nologo", "/LD", "/LTCG",
                 "/I$src",
                 "/Fe:$extOutName",
                 $extSourcePath

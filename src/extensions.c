@@ -167,36 +167,31 @@ static char* resolve_extension_path(const char* input, const char* base_dir) {
     }
 
     if (g_interpreter_dir && g_interpreter_dir[0] != '\0') {
-        /* Prefer stdext/ before ext/ as per gh-55 */
-        char* stdext_dir = path_join2(g_interpreter_dir, "stdext");
-        if (stdext_dir) {
-            char* p_std = path_join2(stdext_dir, input);
-            free(stdext_dir);
-            if (p_std && file_exists_regular(p_std)) {
-                char* c = canonicalize_existing_path(p_std);
-                free(p_std);
+        const char* ext_roots[] = { "ext/std", "ext/usr" };
+        for (size_t i = 0; i < sizeof(ext_roots) / sizeof(ext_roots[0]); i++) {
+            char* ext_dir = path_join2(g_interpreter_dir, ext_roots[i]);
+            if (!ext_dir) continue;
+            char* p = path_join2(ext_dir, input);
+            free(ext_dir);
+            if (p && file_exists_regular(p)) {
+                char* c = canonicalize_existing_path(p);
+                free(p);
                 return c;
             }
-            free(p_std);
-        }
-
-        char* ext_dir = path_join2(g_interpreter_dir, "ext");
-        char* p = path_join2(ext_dir, input);
-        free(ext_dir);
-        if (p && file_exists_regular(p)) {
-            char* c = canonicalize_existing_path(p);
             free(p);
-            return c;
         }
-        free(p);
     }
 
-    /* Also check the interpreter's lib/ directory for extensions. This
-       allows pointer files that list a bare filename (e.g. "image.dll") to
-       resolve to lib/<name>/<file> or lib/<file>. */
+    /* Also check the interpreter's bundled and user module directories for
+       extensions. This allows pointer files that list a bare filename (for
+       example, "image.dll") to resolve to lib/std/<name>/<file>,
+       lib/usr/<name>/<file>, or their root-level equivalents. */
     if (g_interpreter_dir && g_interpreter_dir[0] != '\0') {
-        char* lib_dir = path_join2(g_interpreter_dir, "lib");
-        if (lib_dir) {
+        const char* lib_roots[] = { "lib/std", "lib/usr" };
+        for (size_t i = 0; i < sizeof(lib_roots) / sizeof(lib_roots[0]); i++) {
+            char* lib_dir = path_join2(g_interpreter_dir, lib_roots[i]);
+            if (!lib_dir) continue;
+
             char* p1 = path_join2(lib_dir, input);
             if (p1 && file_exists_regular(p1)) {
                 char* c = canonicalize_existing_path(p1);
@@ -206,7 +201,6 @@ static char* resolve_extension_path(const char* input, const char* base_dir) {
             }
             free(p1);
 
-            /* Try lib/<basename_no_ext>/<input> e.g. lib/image/image.dll */
             char* base = path_basename_no_ext_dup(input);
             char* subdir = path_join2(lib_dir, base);
             char* p2 = path_join2(subdir, input);

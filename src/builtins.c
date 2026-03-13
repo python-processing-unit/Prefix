@@ -6844,76 +6844,65 @@ static Value builtin_import(Interpreter* interp, Value* args, int argc, Expr** a
     char* found_path = NULL;
     char* srcbuf = NULL;
 
-    /* Search locations: referring dir, then primary-source stdlib/, primary-source lib/,
-       then executable stdlib/, executable lib/. This ensures `stdlib/` is tried
-       immediately before `lib/` as required by gh-55. */
+    /* Search locations: referring dir, then primary-source lib/std, primary-source lib/usr,
+       then executable lib/std, executable lib/usr. This keeps bundled modules ahead
+       of user-installed modules while preserving local-directory precedence. */
     const char* search_dirs[5];
     search_dirs[0] = referer_dir;
 
     EnvEntry* primary_src_entry = interp && interp->global_env ? env_get_entry(interp->global_env, "__MODULE_SOURCE__") : NULL;
-    char primary_base_dir[1024];
-    primary_base_dir[0] = '\0';
+    char primary_program_dir[1024];
+    char primary_std_dir[1024];
+    char primary_usr_dir[1024];
+    primary_program_dir[0] = '\0';
+    primary_std_dir[0] = '\0';
+    primary_usr_dir[0] = '\0';
     if (primary_src_entry && primary_src_entry->initialized && primary_src_entry->value.type == VAL_STR && primary_src_entry->value.as.s && primary_src_entry->value.as.s[0] != '\0') {
-        strncpy(primary_base_dir, primary_src_entry->value.as.s, sizeof(primary_base_dir)-1);
-        primary_base_dir[sizeof(primary_base_dir)-1] = '\0';
+        strncpy(primary_program_dir, primary_src_entry->value.as.s, sizeof(primary_program_dir)-1);
+        primary_program_dir[sizeof(primary_program_dir)-1] = '\0';
         char* last_sep = NULL;
-        for (char* q = primary_base_dir; *q; q++) if (*q == '/' || *q == '\\') last_sep = q;
+        for (char* q = primary_program_dir; *q; q++) if (*q == '/' || *q == '\\') last_sep = q;
         if (last_sep) *last_sep = '\0';
-        size_t used = strnlen(primary_base_dir, sizeof(primary_base_dir));
-        /* primary stdlib */
-        if (used + 7 < sizeof(primary_base_dir)) {
-            primary_base_dir[used] = '/';
-            memcpy(primary_base_dir + used + 1, "stdlib", 6);
-            primary_base_dir[used+7] = '\0';
-            search_dirs[1] = primary_base_dir;
+        if (snprintf(primary_std_dir, sizeof(primary_std_dir), "%s/lib/std", primary_program_dir) >= 0) {
+            search_dirs[1] = primary_std_dir;
         } else {
-            search_dirs[1] = "stdlib";
+            search_dirs[1] = "lib/std";
         }
-        /* construct a separate primary lib string for lib/ */
-        static char primary_lib_dir[1024];
-        primary_lib_dir[0] = '\0';
-        strncpy(primary_lib_dir, primary_base_dir, sizeof(primary_lib_dir)-1);
-        primary_lib_dir[sizeof(primary_lib_dir)-1] = '\0';
-        /* replace trailing "stdlib" with "lib" */
-        char* tail = strrchr(primary_lib_dir, '/');
-        if (tail) {
-            strcpy(tail+1, "lib");
+        if (snprintf(primary_usr_dir, sizeof(primary_usr_dir), "%s/lib/usr", primary_program_dir) >= 0) {
+            search_dirs[2] = primary_usr_dir;
+        } else {
+            search_dirs[2] = "lib/usr";
         }
-        search_dirs[2] = primary_lib_dir;
     } else {
-        search_dirs[1] = "stdlib";
-        search_dirs[2] = "lib";
+        search_dirs[1] = "lib/std";
+        search_dirs[2] = "lib/usr";
     }
 
-    char exe_base_dir[1024];
-    exe_base_dir[0] = '\0';
-    static char exe_lib_dir[1024];
-    exe_lib_dir[0] = '\0';
+    char exe_program_dir[1024];
+    char exe_std_dir[1024];
+    char exe_usr_dir[1024];
+    exe_program_dir[0] = '\0';
+    exe_std_dir[0] = '\0';
+    exe_usr_dir[0] = '\0';
     if (g_argv && g_argv[0] && g_argv[0][0] != '\0') {
-        strncpy(exe_base_dir, g_argv[0], sizeof(exe_base_dir)-1);
-        exe_base_dir[sizeof(exe_base_dir)-1] = '\0';
+        strncpy(exe_program_dir, g_argv[0], sizeof(exe_program_dir)-1);
+        exe_program_dir[sizeof(exe_program_dir)-1] = '\0';
         char* last_sep = NULL;
-        for (char* q = exe_base_dir; *q; q++) if (*q == '/' || *q == '\\') last_sep = q;
+        for (char* q = exe_program_dir; *q; q++) if (*q == '/' || *q == '\\') last_sep = q;
         if (last_sep) *last_sep = '\0';
-        size_t used = strnlen(exe_base_dir, sizeof(exe_base_dir));
-        if (used + 7 < sizeof(exe_base_dir)) {
-            exe_base_dir[used] = '/';
-            memcpy(exe_base_dir + used + 1, "stdlib", 6);
-            exe_base_dir[used+7] = '\0';
-            search_dirs[3] = exe_base_dir;
-            /* construct exe lib by replacing trailing part */
-            strncpy(exe_lib_dir, exe_base_dir, sizeof(exe_lib_dir)-1);
-            exe_lib_dir[sizeof(exe_lib_dir)-1] = '\0';
-            char* tail = strrchr(exe_lib_dir, '/');
-            if (tail) strcpy(tail+1, "lib");
-            search_dirs[4] = exe_lib_dir;
+        if (snprintf(exe_std_dir, sizeof(exe_std_dir), "%s/lib/std", exe_program_dir) >= 0) {
+            search_dirs[3] = exe_std_dir;
         } else {
-            search_dirs[3] = "stdlib";
-            search_dirs[4] = "lib";
+            search_dirs[3] = "lib/std";
+        }
+        if (snprintf(exe_usr_dir, sizeof(exe_usr_dir), "%s/lib/usr", exe_program_dir) >= 0) {
+            search_dirs[4] = exe_usr_dir;
+        } else {
+            search_dirs[4] = "lib/usr";
         }
     } else {
-        search_dirs[3] = "stdlib";
-        search_dirs[4] = "lib";
+        search_dirs[3] = "lib/std";
+        search_dirs[4] = "lib/usr";
     }
 
     for (int sd = 0; sd < 5 && !found_path; sd++) {
@@ -6960,7 +6949,7 @@ static Value builtin_import(Interpreter* interp, Value* args, int argc, Expr** a
 
     /* Attempt to load a companion .prex pointer file next to the resolved
        module file so that any extension libraries listed there are available
-       during module execution (e.g. lib/image/init.prex -> win32.dll). */
+    during module execution (e.g. lib/std/image/init.prex -> win32.dll). */
     if (found_path) {
         char noext[2048];
         strncpy(noext, found_path, sizeof(noext)-1);

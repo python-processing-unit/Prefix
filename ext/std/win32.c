@@ -3,9 +3,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "../src/prefix_extension.h"
-#include "../src/interpreter.h"
-#include "../src/value.h"
+#include "../../src/prefix_extension.h"
+#include "../../src/interpreter.h"
+#include "../../src/value.h"
 
 // Minimal C implementation of the win32 extension. This implements a
 // subset of the convenience operators provided by the Python version.
