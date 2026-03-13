@@ -4936,7 +4936,6 @@ static Value builtin_warn(Interpreter* interp, Value* args, int argc, Expr** arg
     if (forward) {
         printf("WARNING: ");
         for (int i = 0; i < argc; i++) {
-            if (i > 0) printf(" ");
             switch (args[i].type) {
                 case VAL_INT: {
                     char* s = int_to_base_prefixed_str(args[i].as.i, numeric_base_of(args[i]));
