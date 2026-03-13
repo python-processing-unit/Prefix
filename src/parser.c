@@ -820,9 +820,33 @@ static Stmt* parse_statement(Parser* parser) {
         case TOKEN_CONTINUE: {
             Token tok = parser->current_token;
             advance(parser);
-            if (match(parser, TOKEN_LPAREN)) {
-                consume(parser, TOKEN_RPAREN, "Expected ')' after CONTINUE");
+            if (!consume(parser, TOKEN_LPAREN, "Expected '(' after CONTINUE")) {
+                return stmt_continue(tok.line, tok.column);
             }
+
+            /* If the next token is a real expression-start token, report
+             * that CONTINUE does not accept arguments and skip until the
+             * closing ')'. If the token is something like '}' or EOF,
+             * prefer the missing-')' message so the user sees the
+             * syntactically relevant error.
+             */
+            PTokenType t = parser->current_token.type;
+            bool looks_like_expr = (t == TOKEN_NUMBER || t == TOKEN_FLOAT || t == TOKEN_STRING ||
+                                   t == TOKEN_IDENT || t == TOKEN_AT || t == TOKEN_LPAREN ||
+                                   t == TOKEN_LBRACKET || t == TOKEN_LANGLE || t == TOKEN_ASYNC ||
+                                   t == TOKEN_LAMBDA || t == TOKEN_DASH);
+
+            if (looks_like_expr) {
+                report_error(parser, "CONTINUE does not accept arguments");
+                while (parser->current_token.type != TOKEN_RPAREN && parser->current_token.type != TOKEN_EOF) {
+                    advance(parser);
+                }
+            }
+
+            /* Require the closing paren; this will produce the standard
+             * "Expected ')' after CONTINUE" message when appropriate.
+             */
+            consume(parser, TOKEN_RPAREN, "Expected ')' after CONTINUE");
             return stmt_continue(tok.line, tok.column);
         }
         case TOKEN_GOTO: {
