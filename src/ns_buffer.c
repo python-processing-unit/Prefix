@@ -26,6 +26,7 @@
 
 #include "ns_buffer.h"
 #include "env.h"
+#include "interpreter.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -40,6 +41,7 @@
 /* ------------------------------------------------------------------ */
 
 static NsBuffer* g_ns_buf = NULL;
+static _Thread_local int g_ns_prepare_thread = 0;
 
 /* ------------------------------------------------------------------ */
 /*  Helpers                                                            */
@@ -95,6 +97,19 @@ static void execute_op(NsOp* op) {
         op->result_ok = env_assign_direct(op->env, op->name, op->value,
                                           op->decl_type, op->declare_if_missing);
         break;
+    case NS_OP_INDEX_ASSIGN: {
+        ExecResult res = assign_index_chain(op->interp, op->env, op->index_expr,
+                                            op->value, op->stmt_line, op->stmt_col);
+        op->result_ok = (res.status == EXEC_OK);
+        if (res.status == EXEC_ERROR && res.error) {
+            op->error_message = strdup(res.error);
+            op->error_line = res.error_line;
+            op->error_col = res.error_column;
+        }
+        value_free(res.value);
+        if (res.error) free(res.error);
+        break;
+    }
     case NS_OP_DELETE:
         op->result_ok = env_delete_direct(op->env, op->name);
         break;
@@ -121,6 +136,7 @@ static void execute_op(NsOp* op) {
 
 static int prepare_thread_func(void* arg) {
     NsBuffer* buf = (NsBuffer*)arg;
+    g_ns_prepare_thread = 1;
 
     while (buf->running) {
         /* ---- Phase 1: wait for and dequeue the oldest operation ---- */
@@ -202,6 +218,7 @@ static int prepare_thread_func(void* arg) {
     }
     mtx_unlock(&buf->queue_mtx);
 
+    g_ns_prepare_thread = 0;
     return 0;
 }
 
@@ -265,6 +282,10 @@ void ns_buffer_shutdown(void) {
 
 bool ns_buffer_active(void) {
     return g_ns_buf != NULL && g_ns_buf->running;
+}
+
+bool ns_buffer_is_prepare_thread(void) {
+    return g_ns_prepare_thread != 0;
 }
 
 /* ------------------------------------------------------------------ */
@@ -332,6 +353,7 @@ static void wait_op(NsOp* op) {
 static void free_op(NsOp* op) {
     free(op->name);
     if (op->target_name) free(op->target_name);
+    if (op->error_message) free(op->error_message);
     /* Note: op->value is NOT freed here – ownership was transferred
        to the env by the _direct function.  If the op failed we must
        still not double-free because the _direct function already
@@ -366,6 +388,52 @@ bool ns_buffer_assign(struct Env* env, const char* name, Value value,
     bool r = op->result_ok;
     /* Free the value copy we made – env_assign_direct did its own copy */
     value_free(op->value);
+    free_op(op);
+    return r;
+}
+
+static const char* ns_index_base_name(Expr* idx_expr) {
+    Expr* walker = idx_expr;
+    while (walker && walker->type == EXPR_INDEX) {
+        walker = walker->as.index.target;
+    }
+    if (!walker || walker->type != EXPR_IDENT) return NULL;
+    return walker->as.ident;
+}
+
+bool ns_buffer_assign_index(struct Interpreter* interp, struct Env* env,
+                            Expr* idx_expr, Value value,
+                            int stmt_line, int stmt_col,
+                            char** out_error, int* out_line, int* out_col) {
+    const char* base_name = ns_index_base_name(idx_expr);
+    if (out_error) *out_error = NULL;
+    if (out_line) *out_line = 0;
+    if (out_col) *out_col = 0;
+    if (!base_name) {
+        if (out_error) *out_error = strdup("Indexed assignment base must be an identifier");
+        if (out_line) *out_line = stmt_line;
+        if (out_col) *out_col = stmt_col;
+        return false;
+    }
+
+    NsOp* op = make_op(NS_OP_INDEX_ASSIGN, env, base_name);
+    op->interp = interp;
+    op->index_expr = idx_expr;
+    op->value = value_copy(value);
+    op->stmt_line = stmt_line;
+    op->stmt_col = stmt_col;
+    enqueue_op(op);
+    wait_op(op);
+
+    bool r = op->result_ok;
+    value_free(op->value);
+    if (!r) {
+        if (out_error) {
+            *out_error = strdup(op->error_message ? op->error_message : "Indexed assignment failed");
+        }
+        if (out_line) *out_line = op->error_line ? op->error_line : stmt_line;
+        if (out_col) *out_col = op->error_col ? op->error_col : stmt_col;
+    }
     free_op(op);
     return r;
 }

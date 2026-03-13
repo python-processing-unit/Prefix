@@ -659,6 +659,31 @@ ASSERT(EQ(pf_outer_hits, 0d0))
 DEL(pf_outer_hits)
 PRINT("PARFOR: PASS\n")
 
+PRINT("Testing PARFOR indexed assignment serialization (regression GH-91)...")
+FOR(pf_rep, 0d16){
+    TNS: pf_tns_serial = [0d0,0d0,0d0,0d0,0d0,0d0,0d0,0d0]
+    PARFOR(pf_idx, 0d8){
+        pf_tns_serial[pf_idx] = pf_idx
+    }
+    ASSERT(EQ(pf_tns_serial, [0d1,0d2,0d3,0d4,0d5,0d6,0d7,0d8]))
+    DEL(pf_tns_serial)
+
+    MAP: pf_map_serial = <0d1 = 0d0, 0d2 = 0d0, 0d3 = 0d0, 0d4 = 0d0, 0d5 = 0d0, 0d6 = 0d0, 0d7 = 0d0, 0d8 = 0d0>
+    PARFOR(pf_key, 0d8){
+        pf_map_serial<pf_key> = pf_key
+    }
+    ASSERT(EQ(pf_map_serial<0d1>, 0d1))
+    ASSERT(EQ(pf_map_serial<0d2>, 0d2))
+    ASSERT(EQ(pf_map_serial<0d3>, 0d3))
+    ASSERT(EQ(pf_map_serial<0d4>, 0d4))
+    ASSERT(EQ(pf_map_serial<0d5>, 0d5))
+    ASSERT(EQ(pf_map_serial<0d6>, 0d6))
+    ASSERT(EQ(pf_map_serial<0d7>, 0d7))
+    ASSERT(EQ(pf_map_serial<0d8>, 0d8))
+    DEL(pf_map_serial)
+}
+PRINT("PARFOR indexed assignment serialization: PASS\n")
+
 PRINT("Testing PARALLEL...")
 
 ! Simple no-op functions to exercise PARALLEL

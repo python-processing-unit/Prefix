@@ -1,5 +1,6 @@
 #include "builtins.h"
 #include "interpreter.h"
+#include "ns_buffer.h"
 #include "lexer.h"
 #include "parser.h"
 #include "extensions.h"
@@ -6692,7 +6693,33 @@ static Value builtin_assign(Interpreter* interp, Value* args, int argc, Expr** a
 
     // Indexed target (e.g., tns[...], map<...>)
     if (target->type == EXPR_INDEX) {
-        ExecResult res = assign_index_chain(interp, env, target, rhs, line, col);
+        ExecResult res;
+        if (ns_buffer_active() && !ns_buffer_is_prepare_thread()) {
+            char* buffered_error = NULL;
+            int buffered_line = 0;
+            int buffered_col = 0;
+            if (!ns_buffer_assign_index(interp, env, target, rhs, line, col,
+                                        &buffered_error, &buffered_line, &buffered_col)) {
+                res.status = EXEC_ERROR;
+                res.value = value_null();
+                res.break_count = 0;
+                res.jump_index = -1;
+                res.error = buffered_error ? strdup(buffered_error) : strdup("Indexed assignment failed");
+                res.error_line = buffered_line ? buffered_line : line;
+                res.error_column = buffered_col ? buffered_col : col;
+            } else {
+                res.status = EXEC_OK;
+                res.value = value_null();
+                res.break_count = 0;
+                res.jump_index = -1;
+                res.error = NULL;
+                res.error_line = 0;
+                res.error_column = 0;
+            }
+            free(buffered_error);
+        } else {
+            res = assign_index_chain(interp, env, target, rhs, line, col);
+        }
         if (res.status == EXEC_ERROR) {
             if (res.error) {
                 interp->error = strdup(res.error);
