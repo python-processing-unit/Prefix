@@ -1,4 +1,4 @@
-#include "../src/prefix_extension.h"
+#include "../../src/prefix_extension.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -40,7 +40,7 @@ typedef int SOCKET;
 #define closesocket close
 #endif
 
-#include "../src/interpreter.h"
+#include "../../src/interpreter.h"
 
 typedef struct {
 	int id;

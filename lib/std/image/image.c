@@ -1,6 +1,6 @@
-#include "../../src/prefix_extension.h"
-#include "../../src/interpreter.h"
-#include "../../src/value.h"
+#include "../../../src/prefix_extension.h"
+#include "../../../src/interpreter.h"
+#include "../../../src/value.h"
 
 #include <math.h>
 #include <stdint.h>

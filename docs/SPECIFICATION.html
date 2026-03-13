@@ -686,7 +686,7 @@ The extension context MUST provide registration surfaces equivalent to the follo
 
 - `register_repl_handler(repl_fn)` to replace or augment the default REPL implementation.
 
-A `.prex` pointer file MUST be treated as a text file containing one extension path per line. Blank lines MUST be ignored, and lines beginning with `!` MUST be treated as comments. Relative paths in a pointer file MUST be resolved relative to the pointer file's directory, with the current working directory and the interpreter's `stdext/` and `ext/` directories available as fallbacks when necessary. When both bundled and user extension directories are searched, `stdext/` MUST be consulted before `ext/`.
+A `.prex` pointer file MUST be treated as a text file containing one extension path per line. Blank lines MUST be ignored, and lines beginning with `!` MUST be treated as comments. Relative paths in a pointer file MUST be resolved relative to the pointer file's directory, with the current working directory and the interpreter's `ext/std/` and `ext/usr/` directories available as fallbacks when necessary. When both bundled and user extension directories are searched, `ext/std/` MUST be consulted before `ext/usr/`.
 
 If a `.prex` file is supplied as an argument, the interpreter MUST load all referenced extensions. If no explicit extension arguments are supplied, the interpreter MUST also search for an automatically-discovered pointer file named `.prex` in the current working directory, and when running a source file it MUST also search the program's directory and the companion `<program>.prex` file beside the source file.
 
@@ -884,7 +884,7 @@ Built-in operator names MUST be matched case-sensitively and MUST be written in 
 
   Prefix package namespaces MUST use `..` as the package separator. The canonical form is `package..subpackage..module`. When `IMPORT(pkg)` is used and a package directory named `pkg` exists, the interpreter MUST prefer package resolution and attempt to load `pkg/init.pre`. If that package directory exists but contains no `init.pre`, the import MUST raise a runtime error. When `IMPORT(pkg..mod)` is used, the interpreter MUST resolve to `pkg/mod.pre`. If both a package directory and a same-named module file exist in the same search location, the package MUST take precedence.
 
-  When the referring source was itself loaded from a file, the search MUST begin in that source file's directory. When the referring source is executing via `-source`, the primary search directory MUST be the current working directory. After local search, the interpreter MUST consult bundled library locations before legacy `lib/` locations.
+  When the referring source was itself loaded from a file, the search MUST begin in that source file's directory. When the referring source is executing via `-source`, the primary search directory MUST be the current working directory. After local search, the interpreter MUST consult `lib/std/` immediately before `lib/usr/`.
 
   On first import, the module source MUST execute in its own isolated top-level environment. Unqualified identifiers during that execution MUST resolve within the module's own namespace. After execution completes, that namespace MUST be cached and reused by subsequent imports in the same interpreter process. Multiple aliases for the same module MUST provide distinct qualified views into the same cached module instance.
 
@@ -1126,9 +1126,9 @@ The statement `GOTOPOINT(n)` MUST register a jump target identified by runtime v
 
 The standard library is a set of packages and modules bundled with the interpreter that provide a set of common utilities.
 
-Bundled standard-library modules MUST live under `stdlib/`. Module and package search paths used by `IMPORT` and `IMPORT_PATH` MUST consult `stdlib/` immediately before `lib/`, so bundled modules are preferred over legacy or user-installed library copies.
+Bundled standard-library modules MUST live under `lib/std/`. User-installed modules and packages MUST live under `lib/usr/`. Module and package search paths used by `IMPORT` and `IMPORT_PATH` MUST consult `lib/std/` immediately before `lib/usr/`, so bundled modules are preferred over user-installed copies.
 
-Bundled extensions shipped with the interpreter MUST live under `stdext/`. Extension search paths MUST consult `stdext/` immediately before `ext/`, so bundled extensions are preferred over user-installed copies with the same name.
+Bundled extensions shipped with the interpreter MUST live under `ext/std/`. User-installed extensions MUST live under `ext/usr/`. Extension search paths MUST consult `ext/std/` immediately before `ext/usr/`, so bundled extensions are preferred over user-installed copies with the same name.
 
 At present, the standard library is not defined by the specification, and any reasonable set of standard utilities is acceptable for a conforming implementation. Backwards-incompatible changes to the standard library MUST NOT increment the major version number of the specification, unless the incompatible change is altering a behaviour defined in this specification (NOTE: *At present* none of the stdlib is documented, and the stdlib should be considered unstable.). 
 
