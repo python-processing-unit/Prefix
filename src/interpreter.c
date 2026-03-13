@@ -350,6 +350,17 @@ static int parfor_worker(void* arg) {
 
 // ============ Helper functions ============
 
+// Return non-zero if the current executing thread has been requested to stop.
+static inline int interpreter_thr_should_stop(Interpreter* interp) {
+    if (!interp || !interp->current_thr) return 0;
+    int finished = 0;
+    mtx_lock(&interp->current_thr->state_lock);
+    finished = interp->current_thr->finished;
+    mtx_unlock(&interp->current_thr->state_lock);
+    return finished;
+}
+
+
 static void* safe_malloc(size_t size) {
     void* ptr = malloc(size);
     if (!ptr) {
@@ -2245,6 +2256,12 @@ static ExecResult exec_stmt(Interpreter* interp, Stmt* stmt, Env* env, LabelMap*
     if (!stmt) return make_ok(value_null());
     trace_log_step(interp, stmt, env);
 
+    // If running in a background thread and a STOP has been requested for
+    // this thread, terminate execution cooperatively by returning early.
+    if (interpreter_thr_should_stop(interp)) {
+        return make_ok(value_null());
+    }
+
     switch (stmt->type) {
         case STMT_BLOCK:
             return exec_stmt_list(interp, &stmt->as.block, env, labels);
@@ -2785,6 +2802,9 @@ static ExecResult exec_stmt(Interpreter* interp, Stmt* stmt, Env* env, LabelMap*
             const unsigned long long max_iterations = 18446744073709551615; // Prevent infinite loops
 
             while (1) {
+                if (interpreter_thr_should_stop(interp)) {
+                    break;
+                }
                 if (++iteration_count > max_iterations) {
                     interp->loop_depth--;
                     return make_error("Infinite loop detected", stmt->line, stmt->column);
@@ -2900,6 +2920,9 @@ static ExecResult exec_stmt(Interpreter* interp, Stmt* stmt, Env* env, LabelMap*
             }
 
             for (int64_t idx = 1; idx <= limit; idx++) {
+                if (interpreter_thr_should_stop(interp)) {
+                    break;
+                }
                 if (++iteration_count > max_iterations) {
                     /* cleanup alias/temp and restore previous local if needed */
                     env_delete(env, stmt->as.for_stmt.counter);
