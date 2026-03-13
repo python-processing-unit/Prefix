@@ -394,27 +394,27 @@ int env_permafreeze_direct(Env* env, const char* name) {
 /* ================================================================== */
 
 bool env_define(Env* env, const char* name, DeclType type) {
-    if (ns_buffer_active())
+    if (ns_buffer_active() && !ns_buffer_is_prepare_thread())
         return ns_buffer_define(env, name, type);
     return env_define_direct(env, name, type);
 }
 
 bool env_assign(Env* env, const char* name, Value value,
                 DeclType type, bool declare_if_missing) {
-    if (ns_buffer_active())
+    if (ns_buffer_active() && !ns_buffer_is_prepare_thread())
         return ns_buffer_assign(env, name, value, type, declare_if_missing);
     return env_assign_direct(env, name, value, type, declare_if_missing);
 }
 
 bool env_delete(Env* env, const char* name) {
-    if (ns_buffer_active())
+    if (ns_buffer_active() && !ns_buffer_is_prepare_thread())
         return ns_buffer_delete(env, name);
     return env_delete_direct(env, name);
 }
 
 bool env_set_alias(Env* env, const char* name, const char* target_name,
                    DeclType type, bool declare_if_missing) {
-    if (ns_buffer_active())
+    if (ns_buffer_active() && !ns_buffer_is_prepare_thread())
         return ns_buffer_set_alias(env, name, target_name, type,
                                    declare_if_missing);
     return env_set_alias_direct(env, name, target_name, type,
@@ -422,19 +422,19 @@ bool env_set_alias(Env* env, const char* name, const char* target_name,
 }
 
 int env_freeze(Env* env, const char* name) {
-    if (ns_buffer_active())
+    if (ns_buffer_active() && !ns_buffer_is_prepare_thread())
         return ns_buffer_freeze(env, name);
     return env_freeze_direct(env, name);
 }
 
 int env_thaw(Env* env, const char* name) {
-    if (ns_buffer_active())
+    if (ns_buffer_active() && !ns_buffer_is_prepare_thread())
         return ns_buffer_thaw(env, name);
     return env_thaw_direct(env, name);
 }
 
 int env_permafreeze(Env* env, const char* name) {
-    if (ns_buffer_active())
+    if (ns_buffer_active() && !ns_buffer_is_prepare_thread())
         return ns_buffer_permafreeze(env, name);
     return env_permafreeze_direct(env, name);
 }
@@ -447,7 +447,7 @@ int env_permafreeze(Env* env, const char* name) {
 
 EnvEntry* env_get_entry(Env* env, const char* name) {
     EnvEntry* snap = env_entry_snap_alloc();
-    if (ns_buffer_active()) {
+    if (ns_buffer_active() && !ns_buffer_is_prepare_thread()) {
         ns_buffer_read_lock(name);
         EnvEntry* entry = env_get_entry_raw(env, name);
         env_entry_snap_from_raw(snap, entry);
@@ -471,7 +471,7 @@ EnvEntry* env_get_entry(Env* env, const char* name) {
 
 bool env_get(Env* env, const char* name, Value* out_value,
              DeclType* out_type, bool* out_initialized) {
-    if (ns_buffer_active()) {
+    if (ns_buffer_active() && !ns_buffer_is_prepare_thread()) {
         ns_buffer_read_lock(name);
         bool r = env_get_raw(env, name, out_value, out_type, out_initialized);
         ns_buffer_read_unlock();
@@ -481,7 +481,7 @@ bool env_get(Env* env, const char* name, Value* out_value,
 }
 
 bool env_exists(Env* env, const char* name) {
-    if (ns_buffer_active()) {
+    if (ns_buffer_active() && !ns_buffer_is_prepare_thread()) {
         ns_buffer_read_lock(name);
         bool r = env_exists_raw(env, name);
         ns_buffer_read_unlock();
@@ -491,7 +491,7 @@ bool env_exists(Env* env, const char* name) {
 }
 
 int env_frozen_state(Env* env, const char* name) {
-    if (ns_buffer_active()) {
+    if (ns_buffer_active() && !ns_buffer_is_prepare_thread()) {
         ns_buffer_read_lock(name);
         int r = env_frozen_state_raw(env, name);
         ns_buffer_read_unlock();
@@ -501,7 +501,7 @@ int env_frozen_state(Env* env, const char* name) {
 }
 
 int env_permafrozen(Env* env, const char* name) {
-    if (ns_buffer_active()) {
+    if (ns_buffer_active() && !ns_buffer_is_prepare_thread()) {
         ns_buffer_read_lock(name);
         int r = env_permafrozen_raw(env, name);
         ns_buffer_read_unlock();

@@ -11,12 +11,15 @@ struct Env; // forward declaration
 typedef enum {
     NS_OP_DEFINE,
     NS_OP_ASSIGN,
+    NS_OP_INDEX_ASSIGN,
     NS_OP_DELETE,
     NS_OP_ALIAS,
     NS_OP_FREEZE,
     NS_OP_THAW,
     NS_OP_PERMAFREEZE
 } NsOpType;
+
+struct Interpreter;
 
 // A single write operation enqueued in the central buffer.
 typedef struct NsOp {
@@ -27,6 +30,13 @@ typedef struct NsOp {
     DeclType decl_type;     // for DEFINE / ASSIGN / ALIAS
     bool declare_if_missing;// for ASSIGN / ALIAS
     char* target_name;      // for ALIAS  (owned copy)
+    struct Interpreter* interp;
+    Expr* index_expr;
+    int stmt_line;
+    int stmt_col;
+    char* error_message;
+    int error_line;
+    int error_col;
 
     // Result fields – filled by the prepare thread after execution
     bool result_ok;         // true = success (for bool-returning ops)
@@ -86,6 +96,11 @@ void ns_buffer_shutdown(void);
 // Returns true if the buffer system is active.
 bool ns_buffer_active(void);
 
+// Returns true when called on the prepare thread itself. The prepare
+// thread must bypass buffered env access to avoid recursive queueing and
+// self-deadlocks while it is draining the buffer.
+bool ns_buffer_is_prepare_thread(void);
+
 // Block the calling thread until all pending writes for `name` have
 // been processed.  Then acquire the env-access lock so the caller can
 // safely read.  The caller MUST call ns_buffer_read_unlock() when done.
@@ -101,6 +116,10 @@ void ns_buffer_read_unlock(void);
 bool ns_buffer_define(struct Env* env, const char* name, DeclType type);
 bool ns_buffer_assign(struct Env* env, const char* name, Value value,
                       DeclType type, bool declare_if_missing);
+bool ns_buffer_assign_index(struct Interpreter* interp, struct Env* env,
+                            Expr* idx_expr, Value value,
+                            int stmt_line, int stmt_col,
+                            char** out_error, int* out_line, int* out_col);
 bool ns_buffer_delete(struct Env* env, const char* name);
 bool ns_buffer_set_alias(struct Env* env, const char* name,
                          const char* target_name, DeclType type,

@@ -2362,7 +2362,24 @@ static ExecResult exec_stmt(Interpreter* interp, Stmt* stmt, Env* env, LabelMap*
                     return make_error("Can only assign to indexed targets or identifiers", stmt->line, stmt->column);
                 }
 
-                ExecResult ar = assign_index_chain(interp, env, stmt->as.assign.target, v, stmt->line, stmt->column);
+                ExecResult ar;
+                if (ns_buffer_active() && !ns_buffer_is_prepare_thread()) {
+                    char* buffered_error = NULL;
+                    int buffered_line = 0;
+                    int buffered_col = 0;
+                    if (!ns_buffer_assign_index(interp, env, stmt->as.assign.target, v,
+                                                stmt->line, stmt->column,
+                                                &buffered_error, &buffered_line, &buffered_col)) {
+                        ar = make_error(buffered_error ? buffered_error : "Indexed assignment failed",
+                                        buffered_line ? buffered_line : stmt->line,
+                                        buffered_col ? buffered_col : stmt->column);
+                    } else {
+                        ar = make_ok(value_null());
+                    }
+                    free(buffered_error);
+                } else {
+                    ar = assign_index_chain(interp, env, stmt->as.assign.target, v, stmt->line, stmt->column);
+                }
                 if (ar.status == EXEC_ERROR) {
                     value_free(v);
                     return ar;
