@@ -86,6 +86,72 @@ The change log is a document recording what changed with every release of Prefix
 
 ---
 
+## 0.8.0
+
+### Major changes
+
+N/A
+
+### Minor changes
+
+Remove spaces between args in `PRINT`.
+
+### Patches
+
+Fix `CATCH` specification in [section 3.4 of the specification](https://python-processing-unit.github.io/Prefix/SPECIFICATION.html#34-exception-handling).
+
+Update [specification section 3.3](https://python-processing-unit.github.io/Prefix/SPECIFICATION.html#33-conditionals-and-conditions) to specify that conditions accept all types.
+
+Add horizontal rules to [the specification section 9](https://python-processing-unit.github.io/Prefix/SPECIFICATION.html#9-built-ins).
+
+Complete `GOTO` implementation.
+
+Ban implicit `MAP` returns from `FUNC`.
+
+Ban non-ASCII chars from source code.
+
+Ban `SYMBOL` pseudo-type from `CATCH`.
+
+Ban newline between `IF` and `ELSEIF`|`ELSE`.
+
+Ban newline between `TRY` and `CATCH`.
+
+Correct argument parsing.
+
+Do not run `ASYNC` in `STOP` or `PAUSE`.
+
+Fix `SHUSH` specification.
+
+Make `FOR` counter loop-local.
+
+Ban `RETURN` from outside `FUNC`.
+
+Fix [specification 9.2.3](https://python-processing-unit.github.io/Prefix/SPECIFICATION.html#923-conditional-statements).
+
+Fix `MAP`'s Boolean representation.
+
+Ban invalid `^`.
+
+Ban incorrect bracket kinds.
+
+Fix [specification section 4.4.1](https://python-processing-unit.github.io/Prefix/SPECIFICATION.html#441-tensor-literals).
+
+Restrict `GOTOPOINT` to `STR` and positive `INT`.
+
+Require parentheses for `CONTINUE`.
+
+Remove spaces from `WARN`.
+
+Fix [specification 9.1.12](https://python-processing-unit.github.io/Prefix/SPECIFICATION.html#9112-console-and-process-operators).
+
+Enforce `STOP`.
+
+Fix `READFILE` and `WRITEFILE`.
+
+Fix `PARFOR` loop control.
+
+---
+
 ## 0.7.2
 
 ### Major features
