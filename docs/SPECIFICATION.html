@@ -1034,11 +1034,11 @@ The operator semantics that use this format are defined next.
 
 #### 9.1.12 Console and process operators
 
-- `INT: PRINT(INT|STR: arg1, ..., INT|STR: argN)` = MUST render each argument according to the language's `STR` conversion rules for `INT` and `STR`, concatenate the rendered arguments, append a trailing newline, write the result to the console output, record the corresponding I/O event in the execution log, and return `0`.
+- `INT: PRINT(~STR: arg1, ..., ~STR: argN)` = MUST convert each argument to `STR`, concatenate the rendered arguments, append a trailing newline, write the result to the console output, record the corresponding I/O event in the execution log, and return `0`.
 
 - `STR: INPUT()` or `STR: INPUT(STR: prompt)` = MUST read a single line of text from the console input and return it as a `STR`. If `prompt` is supplied, the interpreter MUST write it to the console before reading input. The resulting input event MUST be recorded in the execution log, and if a prompt was supplied the recorded event MUST include that prompt text.
 
-- `INT: WARN(INT|STR: arg1, ..., INT|STR: argN)` = MUST behave like `PRINT`, except that output MUST occur only when the interpreter was started with `-verbose`, the rendered line MUST be prefixed with `WARNING: `, and the operator MUST return `1` when output occurred and `0` otherwise. Arguments outside `INT` and `STR` MUST raise a runtime error.
+- `INT: WARN(~STR: arg1, ..., ~STR: argN)` = MUST behave like `PRINT`, except that output MUST occur only when the interpreter was started with `-verbose`, the rendered line MUST be prefixed with `WARNING: `, and the operator MUST return `1` when output occurred and `0` otherwise. Arguments outside `INT` and `STR` MUST raise a runtime error.
 
 - `INT: CL(STR: command)` = MUST execute `command` using the host command shell and return the resulting subprocess exit code as an `INT`. Failure to start the subprocess MUST raise a runtime error. The execution log MUST record the command text and resulting exit code.
 
