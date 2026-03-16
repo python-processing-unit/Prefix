@@ -251,31 +251,6 @@ The initial release of Prefix, meaning there are no changes to record.
 
   </script>
 
-  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-  <script>
-    document.addEventListener('DOMContentLoaded', function(){
-      const md = document.getElementById('md').textContent;
-      const rendered = marked.parse(md);
-      const container = document.getElementById('content');
-      container.innerHTML = rendered;
-
-      // Ensure predictable heading IDs so TOC fragment links work.
-      // Slug function: lowercase, remove punctuation except digits/letters/spaces/-,
-      // collapse spaces to hyphens.
-      function slugify(text) {
-        return text.trim().toLowerCase()
-          .replace(/<[^>]+>/g, '')
-          .replace(/[^a-z0-9\s-]/g, '')
-          .replace(/\s+/g, '-');
-      }
-
-      const headings = container.querySelectorAll('h1,h2,h3,h4,h5,h6');
-      headings.forEach(h => {
-        if (!h.id || h.id.trim() === '') {
-          h.id = slugify(h.textContent || h.innerText || '');
-        }
-      });
-    });
-  </script>
+  <script src="./render-md.js"></script>
 </body>
 </html>
