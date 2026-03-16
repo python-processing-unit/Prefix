@@ -1249,6 +1249,8 @@ PRINT("CONVERT: PASS\n")
 
 PRINT("Testing extensions...")
 
+EXTEND(EXTENSION: test_ext)
+
 ASSERT(EQ(test_ext.PING(), 0d0))
 ASSERT(EQ(test_ext.PING(0d1), 0d1))
 ASSERT(EQ(test_ext.IADD(0d1, 0d2, 0d3), 0d6))

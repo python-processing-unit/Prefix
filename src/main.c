@@ -34,8 +34,7 @@ static int is_extension_arg(const char* arg) {
     if (!arg) return 0;
     return ends_with_case_insensitive(arg, ".dll") ||
            ends_with_case_insensitive(arg, ".so") ||
-           ends_with_case_insensitive(arg, ".dylib") ||
-           ends_with_case_insensitive(arg, ".prex");
+           ends_with_case_insensitive(arg, ".dylib");
 }
 
 static char* path_dirname_dup(const char* path) {
@@ -54,43 +53,7 @@ static char* path_dirname_dup(const char* path) {
     return out;
 }
 
-static char* path_basename_no_ext_dup(const char* path) {
-    if (!path) return strdup("program");
-    const char* base = path;
-    for (const char* p = path; *p; p++) {
-        if (*p == '/' || *p == '\\') base = p + 1;
-    }
-    char* out = strdup(base);
-    if (!out) return NULL;
-    char* dot = strrchr(out, '.');
-    if (dot) *dot = '\0';
-    if (out[0] == '\0') {
-        free(out);
-        return strdup("program");
-    }
-    return out;
-}
-
-static char* path_join2(const char* a, const char* b) {
-    if (!a || a[0] == '\0') return b ? strdup(b) : NULL;
-    if (!b || b[0] == '\0') return strdup(a);
-    size_t la = strlen(a);
-    size_t lb = strlen(b);
-    int need_sep = (a[la - 1] != '/' && a[la - 1] != '\\');
-    char* out = malloc(la + (size_t)need_sep + lb + 1);
-    if (!out) return NULL;
-    memcpy(out, a, la);
-    size_t p = la;
-    if (need_sep) out[p++] = '/';
-    memcpy(out + p, b, lb);
-    out[p + lb] = '\0';
-    return out;
-}
-
 static int load_extension_input(const char* arg, char** err_out) {
-    if (ends_with_case_insensitive(arg, ".prex")) {
-        return extensions_load_prex_file(arg, err_out);
-    }
     return extensions_load_library(arg, NULL, err_out);
 }
 
@@ -283,7 +246,6 @@ int main(int argc, char** argv) {
     char* source_text = NULL;
     int verbose_flag = 0;
     int private_flag = 0;
-    int explicit_ext_count = 0;
 
     builtins_reset_dynamic();
     builtins_set_argv(argc, argv);
@@ -340,7 +302,6 @@ int main(int argc, char** argv) {
                 return PREFIX_ERROR_IO;
             }
             free(err);
-            explicit_ext_count++;
             continue;
         }
 
@@ -353,91 +314,6 @@ int main(int argc, char** argv) {
         extensions_shutdown();
         builtins_reset_dynamic();
         return PREFIX_ERROR_IO;
-    }
-
-    if (explicit_ext_count == 0) {
-        char* err = NULL;
-        int loaded_any = 0;
-
-        if (extensions_load_prex_if_exists(".prex", &loaded_any, &err) != 0) {
-            fprintf(stderr, "%s\n", err ? err : "Failed to load .prex");
-            free(err);
-            extensions_shutdown();
-            builtins_reset_dynamic();
-            return PREFIX_ERROR_IO;
-        }
-        free(err);
-
-        if (path && !source_mode) {
-            char* prog_dir = path_dirname_dup(path);
-            char* base = path_basename_no_ext_dup(path);
-            if (!prog_dir || !base) {
-                free(prog_dir);
-                free(base);
-                extensions_shutdown();
-                builtins_reset_dynamic();
-                fprintf(stderr, "Out of memory\n");
-                return PREFIX_ERROR_MEMORY;
-            }
-
-            size_t base_len = strlen(base);
-            char* base_prex_name = malloc(base_len + strlen(".prex") + 1);
-            if (!base_prex_name) {
-                free(prog_dir);
-                free(base);
-                extensions_shutdown();
-                builtins_reset_dynamic();
-                fprintf(stderr, "Out of memory\n");
-                return PREFIX_ERROR_MEMORY;
-            }
-            memcpy(base_prex_name, base, base_len);
-            memcpy(base_prex_name + base_len, ".prex", strlen(".prex") + 1);
-
-            char* prex_in_prog_dir = path_join2(prog_dir, ".prex");
-            char* base_prex = path_join2(prog_dir, base_prex_name);
-
-            if (prex_in_prog_dir) {
-                err = NULL;
-                loaded_any = 0;
-                if (extensions_load_prex_if_exists(prex_in_prog_dir, &loaded_any, &err) != 0) {
-                    fprintf(stderr, "%s\n", err ? err : "Failed to load program directory .prex");
-                    free(err);
-                    free(prog_dir);
-                    free(base);
-                    free(prex_in_prog_dir);
-                    free(base_prex_name);
-                    free(base_prex);
-                    extensions_shutdown();
-                    builtins_reset_dynamic();
-                    return PREFIX_ERROR_IO;
-                }
-                free(err);
-            }
-
-            if (base_prex) {
-                err = NULL;
-                loaded_any = 0;
-                if (extensions_load_prex_if_exists(base_prex, &loaded_any, &err) != 0) {
-                    fprintf(stderr, "%s\n", err ? err : "Failed to load program basename .prex");
-                    free(err);
-                    free(prog_dir);
-                    free(base);
-                    free(prex_in_prog_dir);
-                    free(base_prex_name);
-                    free(base_prex);
-                    extensions_shutdown();
-                    builtins_reset_dynamic();
-                    return PREFIX_ERROR_IO;
-                }
-                free(err);
-            }
-
-            free(prog_dir);
-            free(base);
-            free(prex_in_prog_dir);
-            free(base_prex_name);
-            free(base_prex);
-        }
     }
 
     if (!path && !source_mode) {

@@ -1000,6 +1000,10 @@ Value eval_expr(Interpreter* interp, Expr* expr, Env* env) {
                                 deferred_async_arg0 = true;
                                 continue;
                             }
+                            if (strcmp(func_name, "EXTEND") == 0 && i == 0 && arg_expr->type == EXPR_TYPED_IDENT) {
+                                // EXTEND(EXTENSION: name) passes the symbolic extension specifier.
+                                continue;
+                            }
                             if (((strcmp(func_name, "DEL") == 0 || strcmp(func_name, "EXIST") == 0 || strcmp(func_name, "IMPORT") == 0 || strcmp(func_name, "ASSIGN") == 0) && i == 0)
                                 || ((strcmp(func_name, "IMPORT") == 0 || strcmp(func_name, "IMPORT_PATH") == 0) && i == 1)) {
                                 // leave as null placeholder

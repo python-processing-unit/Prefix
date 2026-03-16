@@ -664,9 +664,9 @@ If no program argument and no `-source` text are supplied, the interpreter MUST 
 
 ---
 
-### 8.2 Extensions and pointer files
+### 8.2 Extensions and `EXTEND`
 
-The interpreter MAY accept zero or more extension arguments before the program argument. Extensions MUST be loaded before parsing so that extension-defined type names, operators, and hooks are available during parse and execution.
+The interpreter MAY accept zero or more compiled extension-library arguments before the program argument. Those libraries MUST be loaded before parsing so that extension-defined operators and hooks are available during parse and execution.
 
 A compiled extension MUST be a platform-specific dynamic library (`.dll` on Windows, `.so` on Unix-like systems, and `.dylib` on macOS) and MUST export a public initialization function named `prefix_extension_init`. The interpreter MUST call that function with the extension context defined in `prefix_extension.h`, which provides the API version constant together with registration callbacks for operators, custom types, event handlers, periodic hooks, and optional REPL replacement.
 
@@ -686,9 +686,11 @@ The extension context MUST provide registration surfaces equivalent to the follo
 
 - `register_repl_handler(repl_fn)` to replace or augment the default REPL implementation.
 
-A `.prex` pointer file MUST be treated as a text file containing one extension path per line. Blank lines MUST be ignored, and lines beginning with `!` MUST be treated as comments. Relative paths in a pointer file MUST be resolved relative to the pointer file's directory, with the current working directory and the interpreter's `ext/std/` and `ext/usr/` directories available as fallbacks when necessary. When both bundled and user extension directories are searched, `ext/std/` MUST be consulted before `ext/usr/`.
+The interpreter MUST NOT load `.prex` pointer files.
 
-If a `.prex` file is supplied as an argument, the interpreter MUST load all referenced extensions. If no explicit extension arguments are supplied, the interpreter MUST also search for an automatically-discovered pointer file named `.prex` in the current working directory, and when running a source file it MUST also search the program's directory and the companion `<program>.prex` file beside the source file.
+Runtime extension loading from Prefix source MUST use `EXTEND(EXTENSION: ext)`, defined in [9.1.8](#918-function-and-module-operators). The `ext` specifier MUST exclude the platform filename suffix (`.dll`, `.so`, `.dylib`) and MAY use package semantics with `..`. When `ext` names a package, the loader MUST attempt `ext..init`.
+
+`EXTEND` MUST resolve extension libraries using the same extension search roots used by compiled-library loading: the calling module directory when available, then current working directory, then interpreter `ext/std`, `ext/usr`, `lib/std`, and `lib/usr` roots with bundled roots consulted before user roots.
 
 ---
 
@@ -725,6 +727,8 @@ Built-in operators are pre-defined callable entities provided by the interpreter
 The subsections below use a type-annotation convention. A union notation such as `INT|FLT` restricts an argument to any one of the listed types. `ANY` denotes any runtime type (`INT`, `FLT`, `STR`, `TNS`, `MAP`, `FUNC`, or `THR`), including extension-defined types when extensions are active, unless the signature narrows the set explicitly. `SYMBOL` is a pseudo-type indicating that the argument MUST be a plain unquoted identifier; such operators receive the symbol name rather than its runtime value.
 
 `MODULE` is a pseudo-type indicating that the argument MUST be a plain unquoted module identifier or a package-qualified module name using the language's `..` separator. A slash-separated signature such as `ADD/SUB/MUL` denotes a family of distinct operators that share the same argument rules and differ only in the named operation.
+
+`EXTENSION` is a pseudo-type indicating that the argument MUST be a plain unquoted extension specifier used by `EXTEND`, excluding the platform filename suffix and optionally using package-style `..` separators.
 
 `INT` and `FLT` are not interoperable. Unless an operator explicitly permits or requires type mixing, all numeric operands MUST share the same numeric type; supplying mismatched types MUST raise a runtime error. The numeric base of an operation's result MUST be the highest base present among its numeric operands.
 
@@ -880,7 +884,11 @@ Built-in operator names MUST be matched case-sensitively and MUST be written in 
 
 - `INT: MAIN()` = MUST return `1` when the call site is in the primary program source and `0` when the call site is executing from imported module code. The result MUST depend on the source location of the call expression rather than on the dynamic caller stack.
 
-- `IMPORT(MODULE: name)` or `IMPORT(MODULE: name, SYMBOL: alias)` = MUST load the named module, execute it in its own top-level environment on first import, cache that environment, and expose its bindings under the module name or the supplied alias. The implementation MUST search the referring source directory first, then bundled library locations as described in [8.2](#82-extensions-and-pointer-files), [10](#10-standard-library), and the language's module-search rules. Re-importing an already loaded module MUST reuse the cached module namespace rather than re-executing the module.
+- `INT: EXTEND(EXTENSION: ext)` = MUST load the compiled extension designated by `ext`. The specifier `ext` MUST exclude the platform filename suffix and MAY use package-style `..` separators. If `ext` resolves to a package, the loader MUST attempt `ext..init`. Relative extension names MUST resolve using the calling module's source directory when available, then the current working directory, then the configured extension roots `ext/std`, `ext/usr`, `lib/std`, and `lib/usr` (with bundled roots searched before user roots). Repeating an `EXTEND` request for an already-loaded extension exposure MUST be idempotent.
+
+  Operators registered with module-qualified flags (for example `PREFIX_EXTENSION_ASMODULE`) MUST be exposed only under the extending module's namespace. Importing that module MUST expose the extension namespace qualifier under the importing module's qualified name. Extension side effects outside operator registration (for example process-global hooks or host-side state) remain global.
+
+- `IMPORT(MODULE: name)` or `IMPORT(MODULE: name, SYMBOL: alias)` = MUST load the named module, execute it in its own top-level environment on first import, cache that environment, and expose its bindings under the module name or the supplied alias. The implementation MUST search the referring source directory first, then bundled library locations as described in [8.2](#82-extensions-and-extend), [10](#10-standard-library), and the language's module-search rules. Re-importing an already loaded module MUST reuse the cached module namespace rather than re-executing the module.
 
   Prefix package namespaces MUST use `..` as the package separator. The canonical form is `package..subpackage..module`. When `IMPORT(pkg)` is used and a package directory named `pkg` exists, the interpreter MUST prefer package resolution and attempt to load `pkg/init.pre`. If that package directory exists but contains no `init.pre`, the import MUST raise a runtime error. When `IMPORT(pkg..mod)` is used, the interpreter MUST resolve to `pkg/mod.pre`. If both a package directory and a same-named module file exist in the same search location, the package MUST take precedence.
 
@@ -888,9 +896,9 @@ Built-in operator names MUST be matched case-sensitively and MUST be written in 
 
   On first import, the module source MUST execute in its own isolated top-level environment. Unqualified identifiers during that execution MUST resolve within the module's own namespace. After execution completes, that namespace MUST be cached and reused by subsequent imports in the same interpreter process. Multiple aliases for the same module MUST provide distinct qualified views into the same cached module instance.
 
-  When a module is imported, the interpreter MUST also attempt to load any associated runtime extensions. It MUST first look for a companion pointer file named `<module>.prex` beside the resolved module source. If no such pointer file is present, or as an additional fallback, it MUST also check the configured extension search locations for a same-named extension module. Any extensions loaded this way MUST become available before control returns from the import.
+  Module import MUST NOT implicitly load companion extension pointer files. Runtime extensions for module code MUST be loaded explicitly via `EXTEND` inside the module.
 
-- `IMPORT_PATH(STR: path)` or `IMPORT_PATH(STR: path, SYMBOL: alias)` = MUST load a module from an explicit filesystem path and expose it under `alias` or, if omitted, under a basename-derived module name. The argument MUST at minimum accept an absolute path to a `.pre` source file. The module's basename, excluding the `.pre` suffix, MUST be used as the default qualified module name when no alias is supplied. The loaded module MUST otherwise obey the same isolation, caching, and exposure rules as `IMPORT`, including companion extension loading from a sibling `<module>.prex` pointer file when present and same-named extension-module lookup in the configured extension search locations.
+- `IMPORT_PATH(STR: path)` or `IMPORT_PATH(STR: path, SYMBOL: alias)` = MUST load a module from an explicit filesystem path and expose it under `alias` or, if omitted, under a basename-derived module name. The argument MUST at minimum accept an absolute path to a `.pre` source file. The module's basename, excluding the `.pre` suffix, MUST be used as the default qualified module name when no alias is supplied. The loaded module MUST otherwise obey the same isolation, caching, and exposure rules as `IMPORT`. Runtime extensions for that module MUST be loaded explicitly via `EXTEND`.
 
 - `INT: EXPORT(SYMBOL: symbol, MODULE: module)` = MUST copy the caller's current binding for `symbol` into the namespace of the already imported module designated by `module`, making the exported binding available through that module's qualified namespace. `EXPORT` MUST return `0` on success and MUST raise a runtime error if `module` is not currently imported.
 
