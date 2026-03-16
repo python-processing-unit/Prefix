@@ -330,6 +330,42 @@ static char* canonicalize_existing_path(const char* path) {
     return strdup(path);
 }
 
+static char* module_source_dir_dup(Env* env) {
+    if (!env) return NULL;
+    EnvEntry* src_entry = env_get_entry(env, "__MODULE_SOURCE__");
+    if (!src_entry || !src_entry->initialized || src_entry->value.type != VAL_STR || !src_entry->value.as.s) {
+        return NULL;
+    }
+
+    const char* src = src_entry->value.as.s;
+    if (src[0] == '\0' || strcmp(src, "<string>") == 0 || strcmp(src, "<repl>") == 0) {
+        return NULL;
+    }
+
+    char* dir = strdup(src);
+    if (!dir) return NULL;
+
+    char* last_sep = NULL;
+    for (char* p = dir; *p; p++) {
+        if (*p == '/' || *p == '\\') last_sep = p;
+    }
+    if (last_sep) {
+        *last_sep = '\0';
+    } else {
+        strcpy(dir, ".");
+    }
+    return dir;
+}
+
+static const char* module_scope_name(Env* env) {
+    if (!env) return NULL;
+    EnvEntry* scope_entry = env_get_entry(env, "__MODULE_SCOPE__");
+    if (!scope_entry || !scope_entry->initialized || scope_entry->value.type != VAL_STR || !scope_entry->value.as.s) {
+        return NULL;
+    }
+    return scope_entry->value.as.s[0] != '\0' ? scope_entry->value.as.s : NULL;
+}
+
     // Global argv storage (set by main via builtins_set_argv)
     static int g_argc = 0;
     static char** g_argv = NULL;
@@ -4847,6 +4883,11 @@ static Value builtin_import_path(Interpreter* interp, Value* args, int argc, Exp
         (void)module_register_alias(interp, alias, mod_env);
     }
 
+    EnvEntry* scope_entry = env_get_entry(mod_env, "__MODULE_SCOPE__");
+    if (!scope_entry || !scope_entry->initialized || scope_entry->value.type != VAL_STR) {
+        env_assign(mod_env, "__MODULE_SCOPE__", value_str(alias), TYPE_STR, true);
+    }
+
     // If not already loaded, execute module source once.
     EnvEntry* marker = env_get_entry(mod_env, "__MODULE_LOADED__");
     if ((!marker || !marker->initialized) && found_path) {
@@ -6817,6 +6858,57 @@ static Value builtin_exit(Interpreter* interp, Value* args, int argc, Expr** arg
     (void)code; // exit does not return
 }
 
+static Value builtin_extend(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
+    if (argc < 1 || !arg_nodes || !arg_nodes[0]) {
+        RUNTIME_ERROR(interp, "EXTEND expects EXTENSION: name", line, col);
+    }
+
+    const char* spec = NULL;
+    Expr* spec_node = arg_nodes[0];
+
+    if (spec_node->type == EXPR_TYPED_IDENT) {
+        spec = spec_node->as.typed_ident.name;
+    } else if (spec_node->type == EXPR_IDENT) {
+        spec = spec_node->as.ident;
+    } else if (args && args[0].type == VAL_STR) {
+        spec = args[0].as.s;
+    }
+
+    if (!spec || spec[0] == '\0') {
+        RUNTIME_ERROR(interp, "EXTEND expects a non-empty extension specifier", line, col);
+    }
+
+    char* base_dir = module_source_dir_dup(env);
+    const char* scope_name = module_scope_name(env);
+
+    char* loaded_name = NULL;
+    char* ext_err = NULL;
+    int rc = extensions_load_named(spec, base_dir, scope_name, &loaded_name, &ext_err);
+    free(base_dir);
+
+    if (rc != 0) {
+        if (ext_err) {
+            interp->error = strdup(ext_err);
+            free(ext_err);
+        } else {
+            interp->error = strdup("EXTEND failed to load extension");
+        }
+        interp->error_line = line;
+        interp->error_col = col;
+        free(loaded_name);
+        return value_null();
+    }
+
+    // Expose the extension namespace symbol in the current module environment.
+    if (loaded_name && loaded_name[0] != '\0') {
+        (void)env_assign(env, loaded_name, value_str(""), TYPE_STR, true);
+    }
+
+    free(loaded_name);
+    free(ext_err);
+    return value_int(0);
+}
+
 // Stubs for operations requiring TNS/MAP/THD
 static Value builtin_import(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
     (void)args; (void)argc;
@@ -6974,40 +7066,6 @@ static Value builtin_import(Interpreter* interp, Value* args, int argc, Expr** a
         }
     }
 
-    /* Attempt to load a companion .prex pointer file next to the resolved
-       module file so that any extension libraries listed there are available
-    during module execution (e.g. lib/std/image/init.prex -> win32.dll). */
-    if (found_path) {
-        char noext[2048];
-        strncpy(noext, found_path, sizeof(noext)-1);
-        noext[sizeof(noext)-1] = '\0';
-        char* dot = strrchr(noext, '.');
-        if (dot) *dot = '\0';
-        size_t need = strlen(noext) + strlen(".prex") + 1;
-        char* companion_prex = malloc(need);
-        if (companion_prex) {
-            snprintf(companion_prex, need, "%s.prex", noext);
-            char* ext_err = NULL;
-            int loaded_any = 0;
-            if (extensions_load_prex_if_exists(companion_prex, &loaded_any, &ext_err) != 0) {
-                if (ext_err) {
-                    interp->error = strdup(ext_err);
-                    free(ext_err);
-                } else {
-                    interp->error = strdup("Failed to load companion .prex");
-                }
-                interp->error_line = line;
-                interp->error_col = col;
-                free(companion_prex);
-                free(found_path);
-                free(canonical_path);
-                return value_null();
-            }
-            free(ext_err);
-            free(companion_prex);
-        }
-    }
-
     Env* mod_env = module_env_lookup(interp, cache_key);
     if (!mod_env) mod_env = module_env_lookup(interp, modname);
     if (!mod_env) {
@@ -7029,6 +7087,11 @@ static Value builtin_import(Interpreter* interp, Value* args, int argc, Expr** a
     }
     if (found_path && strcmp(found_path, cache_key) != 0) {
         (void)module_register_alias(interp, found_path, mod_env);
+    }
+
+    EnvEntry* scope_entry = env_get_entry(mod_env, "__MODULE_SCOPE__");
+    if (!scope_entry || !scope_entry->initialized || scope_entry->value.type != VAL_STR) {
+        env_assign(mod_env, "__MODULE_SCOPE__", value_str(modname), TYPE_STR, true);
     }
 
     EnvEntry* marker = env_get_entry(mod_env, "__MODULE_LOADED__");
@@ -7863,6 +7926,7 @@ static BuiltinFunction builtins_table[] = {
     {"MAIN", 0, 0, builtin_main},
     {"OS", 0, 0, builtin_os},
     {"EXIT", 0, 1, builtin_exit},
+    {"EXTEND", 1, 1, builtin_extend},
     {"IMPORT", 1, 2, builtin_import},
     {"IMPORT_PATH", 1, 2, builtin_import_path},
     {"EXPORT", 2, 2, builtin_export},

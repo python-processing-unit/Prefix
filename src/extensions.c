@@ -20,10 +20,16 @@ typedef HMODULE DynLibHandle;
 typedef void* DynLibHandle;
 #endif
 
+typedef struct ExtensionExposure {
+    char* key;
+    struct ExtensionExposure* next;
+} ExtensionExposure;
+
 typedef struct LoadedExtension {
     char* canonical_path;
-    char* name;
     DynLibHandle handle;
+    prefix_extension_init_fn init_fn;
+    ExtensionExposure* exposures;
     struct LoadedExtension* next;
 } LoadedExtension;
 
@@ -31,6 +37,7 @@ static LoadedExtension* g_loaded = NULL;
 static char* g_interpreter_dir = NULL;
 static char* g_cwd_dir = NULL;
 static const char* g_loading_extension_name = NULL;
+static const char* g_loading_scope_name = NULL;
 
 static void set_error(char** error_out, const char* msg) {
     if (!error_out) return;
@@ -72,6 +79,36 @@ static int file_exists_regular(const char* path) {
     return (st.st_mode & S_IFMT) == S_IFREG;
 }
 
+static int ends_with_case_insensitive(const char* s, const char* suffix) {
+    if (!s || !suffix) return 0;
+    size_t ls = strlen(s);
+    size_t lf = strlen(suffix);
+    if (lf > ls) return 0;
+    const char* tail = s + (ls - lf);
+    for (size_t i = 0; i < lf; i++) {
+        unsigned char a = (unsigned char)tail[i];
+        unsigned char b = (unsigned char)suffix[i];
+        if ((unsigned char)tolower(a) != (unsigned char)tolower(b)) return 0;
+    }
+    return 1;
+}
+
+static const char* platform_dynlib_suffix(void) {
+#ifdef _WIN32
+    return ".dll";
+#elif defined(__APPLE__)
+    return ".dylib";
+#else
+    return ".so";
+#endif
+}
+
+static int has_dynlib_suffix(const char* path) {
+    return ends_with_case_insensitive(path, ".dll") ||
+           ends_with_case_insensitive(path, ".so") ||
+           ends_with_case_insensitive(path, ".dylib");
+}
+
 static char* path_join2(const char* a, const char* b) {
     if (!a || a[0] == '\0') return b ? strdup(b) : NULL;
     if (!b || b[0] == '\0') return strdup(a);
@@ -87,22 +124,6 @@ static char* path_join2(const char* a, const char* b) {
     if (need_sep) out[p++] = '/';
     memcpy(out + p, b, lb);
     out[p + lb] = '\0';
-    return out;
-}
-
-static char* path_dirname_dup(const char* path) {
-    if (!path || path[0] == '\0') return strdup(".");
-    const char* last = NULL;
-    for (const char* p = path; *p; p++) {
-        if (*p == '/' || *p == '\\') last = p;
-    }
-    if (!last) return strdup(".");
-    size_t n = (size_t)(last - path);
-    if (n == 0) n = 1;
-    char* out = malloc(n + 1);
-    if (!out) return NULL;
-    memcpy(out, path, n);
-    out[n] = '\0';
     return out;
 }
 
@@ -222,19 +243,161 @@ static char* resolve_extension_path(const char* input, const char* base_dir) {
     return NULL;
 }
 
+static char* normalize_extension_spec_path(const char* spec) {
+    if (!spec) return NULL;
+    size_t n = strlen(spec);
+    char* out = malloc(n + 2);
+    if (!out) return NULL;
+
+    size_t w = 0;
+    for (size_t i = 0; i < n; i++) {
+        if (spec[i] == '.' && spec[i + 1] == '.') {
+            out[w++] = '/';
+            i++;
+            continue;
+        }
+        out[w++] = spec[i];
+    }
+    out[w] = '\0';
+    return out;
+}
+
+static char* extension_name_from_spec(const char* spec) {
+    if (!spec || spec[0] == '\0') return strdup("extension");
+
+    char* norm = normalize_extension_spec_path(spec);
+    if (!norm) return NULL;
+
+    if (has_dynlib_suffix(norm)) {
+        char* dot = strrchr(norm, '.');
+        if (dot) *dot = '\0';
+    }
+
+    size_t len = strlen(norm);
+    if (len >= 5 && strcmp(norm + len - 5, "/init") == 0) {
+        norm[len - 5] = '\0';
+    }
+
+    char* name = path_basename_no_ext_dup(norm);
+    free(norm);
+    return name;
+}
+
+static char* resolve_extension_spec_path(const char* spec, const char* base_dir) {
+    if (!spec || spec[0] == '\0') return NULL;
+
+    if (has_dynlib_suffix(spec)) {
+        return resolve_extension_path(spec, base_dir);
+    }
+
+    char* norm = normalize_extension_spec_path(spec);
+    if (!norm) return NULL;
+
+    const char* suffix = platform_dynlib_suffix();
+    size_t len = strlen(norm);
+
+    size_t n1 = len + strlen(suffix) + 1;
+    char* c1 = malloc(n1);
+    if (!c1) {
+        free(norm);
+        return NULL;
+    }
+    snprintf(c1, n1, "%s%s", norm, suffix);
+    char* resolved = resolve_extension_path(c1, base_dir);
+    free(c1);
+    if (resolved) {
+        free(norm);
+        return resolved;
+    }
+
+    size_t n2 = len + strlen("/init") + strlen(suffix) + 1;
+    char* c2 = malloc(n2);
+    if (!c2) {
+        free(norm);
+        return NULL;
+    }
+    snprintf(c2, n2, "%s/init%s", norm, suffix);
+    resolved = resolve_extension_path(c2, base_dir);
+    free(c2);
+    free(norm);
+    return resolved;
+}
+
+static char* exposure_key_for(const char* scope_name, const char* ext_name) {
+    const char* scope = (scope_name && scope_name[0] != '\0') ? scope_name : "";
+    const char* ext = (ext_name && ext_name[0] != '\0') ? ext_name : "extension";
+    size_t n = strlen(scope) + 1 + strlen(ext) + 1;
+    char* out = malloc(n);
+    if (!out) return NULL;
+    snprintf(out, n, "%s|%s", scope, ext);
+    return out;
+}
+
+static int exposure_exists(LoadedExtension* le, const char* key) {
+    if (!le || !key) return 0;
+    for (ExtensionExposure* e = le->exposures; e; e = e->next) {
+        if (e->key && strcmp(e->key, key) == 0) return 1;
+    }
+    return 0;
+}
+
+static int exposure_add(LoadedExtension* le, const char* key) {
+    if (!le || !key) return -1;
+    ExtensionExposure* ex = calloc(1, sizeof(ExtensionExposure));
+    if (!ex) return -1;
+    ex->key = strdup(key);
+    if (!ex->key) {
+        free(ex);
+        return -1;
+    }
+    ex->next = le->exposures;
+    le->exposures = ex;
+    return 0;
+}
+
+static LoadedExtension* loaded_find_by_path(const char* canonical_path) {
+    if (!canonical_path) return NULL;
+    for (LoadedExtension* e = g_loaded; e; e = e->next) {
+        if (e->canonical_path && strcmp(e->canonical_path, canonical_path) == 0) {
+            return e;
+        }
+    }
+    return NULL;
+}
+
 static int ctx_register_operator(const char* name, prefix_operator_fn fn, int asmodule) {
     if (!name || name[0] == '\0' || !fn) return -1;
 
     char* final_name = NULL;
     if ((asmodule & PREFIX_EXTENSION_ASMODULE) != 0 && g_loading_extension_name && g_loading_extension_name[0] != '\0') {
-        size_t a = strlen(g_loading_extension_name);
+        const char* ext_name = g_loading_extension_name;
+        const char* scope_name = (g_loading_scope_name && g_loading_scope_name[0] != '\0') ? g_loading_scope_name : NULL;
+
+        int collapse_scope = 0;
+        if (scope_name && strcmp(scope_name, ext_name) == 0) {
+            collapse_scope = 1;
+        }
+
+        size_t a = strlen(ext_name);
+        size_t s = (scope_name && !collapse_scope) ? strlen(scope_name) : 0;
         size_t b = strlen(name);
-        final_name = malloc(a + 1 + b + 1);
+        size_t total = a + 1 + b + 1;
+        if (s > 0) total += s + 1;
+        final_name = malloc(total);
         if (!final_name) return -1;
-        memcpy(final_name, g_loading_extension_name, a);
-        final_name[a] = '.';
-        memcpy(final_name + a + 1, name, b);
-        final_name[a + 1 + b] = '\0';
+
+        size_t p = 0;
+        if (s > 0) {
+            memcpy(final_name + p, scope_name, s);
+            p += s;
+            final_name[p++] = '.';
+        }
+        memcpy(final_name + p, ext_name, a);
+        p += a;
+        final_name[p++] = '.';
+        memcpy(final_name + p, name, b);
+        p += b;
+        final_name[p] = '\0';
     }
 
     const char* reg_name = final_name ? final_name : name;
@@ -303,46 +466,24 @@ void extensions_set_runtime_dirs(const char* interpreter_dir, const char* cwd_di
     g_cwd_dir = cwd_dir ? strdup(cwd_dir) : NULL;
 }
 
-int extensions_load_library(const char* path, const char* base_dir, char** error_out) {
-    if (!path || path[0] == '\0') {
-        set_error(error_out, "Empty extension path");
+static int extension_register_exposure(LoadedExtension* le,
+                                       const char* ext_name,
+                                       const char* scope_name,
+                                       char** error_out) {
+    if (!le || !le->init_fn) {
+        set_error(error_out, "Internal extension loader error");
         return -1;
     }
 
-    char* resolved = resolve_extension_path(path, base_dir);
-    if (!resolved) {
-        set_errorf(error_out, "Extension not found: ", path);
-        return -1;
-    }
-
-    for (LoadedExtension* e = g_loaded; e; e = e->next) {
-        if (strcmp(e->canonical_path, resolved) == 0) {
-            free(resolved);
-            return 0;
-        }
-    }
-
-    DynLibHandle handle = dyn_open_library(resolved);
-    if (!handle) {
-        set_errorf(error_out, "Failed to load extension library: ", dyn_last_error());
-        free(resolved);
-        return -1;
-    }
-
-    prefix_extension_init_fn init_fn = (prefix_extension_init_fn)dyn_find_symbol(handle, "prefix_extension_init");
-    if (!init_fn) {
-        set_error(error_out, "Extension missing required symbol: prefix_extension_init");
-        dyn_close_library(handle);
-        free(resolved);
-        return -1;
-    }
-
-    char* ext_name = path_basename_no_ext_dup(resolved);
-    if (!ext_name) {
+    char* key = exposure_key_for(scope_name, ext_name);
+    if (!key) {
         set_error(error_out, "Out of memory");
-        dyn_close_library(handle);
-        free(resolved);
         return -1;
+    }
+
+    if (exposure_exists(le, key)) {
+        free(key);
+        return 0;
     }
 
     prefix_ext_context ctx;
@@ -355,116 +496,161 @@ int extensions_load_library(const char* path, const char* base_dir, char** error
     ctx.register_repl_handler = ctx_register_repl_handler;
 
     g_loading_extension_name = ext_name;
-    init_fn(&ctx);
+    g_loading_scope_name = (scope_name && scope_name[0] != '\0') ? scope_name : NULL;
+    le->init_fn(&ctx);
     g_loading_extension_name = NULL;
+    g_loading_scope_name = NULL;
+
+    if (exposure_add(le, key) != 0) {
+        free(key);
+        set_error(error_out, "Out of memory");
+        return -1;
+    }
+
+    free(key);
+    return 0;
+}
+
+static int extensions_load_resolved(const char* resolved,
+                                    const char* ext_name,
+                                    const char* scope_name,
+                                    char** error_out) {
+    if (!resolved || !ext_name || ext_name[0] == '\0') {
+        set_error(error_out, "Invalid extension load request");
+        return -1;
+    }
+
+    LoadedExtension* existing = loaded_find_by_path(resolved);
+    if (existing) {
+        return extension_register_exposure(existing, ext_name, scope_name, error_out);
+    }
+
+    DynLibHandle handle = dyn_open_library(resolved);
+    if (!handle) {
+        set_errorf(error_out, "Failed to load extension library: ", dyn_last_error());
+        return -1;
+    }
+
+    prefix_extension_init_fn init_fn = (prefix_extension_init_fn)dyn_find_symbol(handle, "prefix_extension_init");
+    if (!init_fn) {
+        set_error(error_out, "Extension missing required symbol: prefix_extension_init");
+        dyn_close_library(handle);
+        return -1;
+    }
 
     LoadedExtension* le = calloc(1, sizeof(LoadedExtension));
     if (!le) {
         set_error(error_out, "Out of memory");
         dyn_close_library(handle);
-        free(ext_name);
+        return -1;
+    }
+
+    le->canonical_path = strdup(resolved);
+    le->handle = handle;
+    le->init_fn = init_fn;
+    le->exposures = NULL;
+    le->next = g_loaded;
+    g_loaded = le;
+
+    if (!le->canonical_path) {
+        set_error(error_out, "Out of memory");
+        g_loaded = le->next;
+        dyn_close_library(handle);
+        free(le);
+        return -1;
+    }
+
+    if (extension_register_exposure(le, ext_name, scope_name, error_out) != 0) {
+        g_loaded = le->next;
+        dyn_close_library(handle);
+        free(le->canonical_path);
+        free(le);
+        return -1;
+    }
+
+    return 0;
+}
+
+int extensions_load_library(const char* path, const char* base_dir, char** error_out) {
+    if (!path || path[0] == '\0') {
+        set_error(error_out, "Empty extension path");
+        return -1;
+    }
+
+    char* resolved = resolve_extension_path(path, base_dir);
+    if (!resolved) {
+        set_errorf(error_out, "Extension not found: ", path);
+        return -1;
+    }
+
+    char* ext_name = path_basename_no_ext_dup(resolved);
+    if (!ext_name) {
+        set_error(error_out, "Out of memory");
         free(resolved);
         return -1;
     }
 
-    le->canonical_path = resolved;
-    le->name = ext_name;
-    le->handle = handle;
-    le->next = g_loaded;
-    g_loaded = le;
-
-    return 0;
+    int rc = extensions_load_resolved(resolved, ext_name, NULL, error_out);
+    free(ext_name);
+    free(resolved);
+    return rc;
 }
 
-static char* trim_in_place(char* s) {
-    if (!s) return s;
-    while (*s && isspace((unsigned char)*s)) s++;
-    char* end = s + strlen(s);
-    while (end > s && isspace((unsigned char)end[-1])) {
-        end--;
-        *end = '\0';
-    }
-    return s;
-}
+int extensions_load_named(const char* spec,
+                          const char* base_dir,
+                          const char* scope_name,
+                          char** loaded_name_out,
+                          char** error_out) {
+    if (loaded_name_out) *loaded_name_out = NULL;
 
-int extensions_load_prex_file(const char* prex_path, char** error_out) {
-    if (!prex_path || prex_path[0] == '\0') {
-        set_error(error_out, "Empty .prex path");
+    if (!spec || spec[0] == '\0') {
+        set_error(error_out, "EXTEND: empty extension specifier");
         return -1;
     }
 
-    FILE* f = fopen(prex_path, "rb");
-    if (!f) {
-        set_errorf(error_out, "Failed to open .prex file: ", prex_path);
+    char* ext_name = extension_name_from_spec(spec);
+    if (!ext_name || ext_name[0] == '\0') {
+        free(ext_name);
+        set_error(error_out, "EXTEND: invalid extension name");
         return -1;
     }
 
-    char* base_dir = path_dirname_dup(prex_path);
-    if (!base_dir) base_dir = strdup(".");
+    char* resolved = resolve_extension_spec_path(spec, base_dir);
+    if (!resolved) {
+        set_errorf(error_out, "Extension not found: ", spec);
+        free(ext_name);
+        return -1;
+    }
 
-    char line[4096];
-    int line_no = 0;
-    while (fgets(line, sizeof(line), f)) {
-        line_no++;
-        char* t = trim_in_place(line);
-        if (t[0] == '\0' || t[0] == '!') continue;
-
-        char* err = NULL;
-        int load_result = -1;
-        
-        size_t tl = strlen(t);
-        if (tl >= 5 && (strcmp(t + tl - 5, ".prex") == 0)) {
-            char* resolved_prex = resolve_extension_path(t, base_dir);
-            if (resolved_prex) {
-                load_result = extensions_load_prex_file(resolved_prex, &err);
-                free(resolved_prex);
-            } else {
-                set_errorf(&err, "Extension not found: ", t);
-                load_result = -1;
-            }
-        } else {
-            load_result = extensions_load_library(t, base_dir, &err);
-        }
-        
-        if (load_result != 0) {
-            if (err) {
-                size_t n = strlen(err) + 64;
-                char* out = malloc(n);
-                if (out) {
-                    snprintf(out, n, "%s (from %s:%d)", err, prex_path, line_no);
-                    set_error(error_out, out);
-                    free(out);
-                } else {
-                    set_error(error_out, err);
-                }
-                free(err);
-            }
-            free(base_dir);
-            fclose(f);
-            return -1;
+    int rc = extensions_load_resolved(resolved, ext_name, scope_name, error_out);
+    if (rc == 0 && loaded_name_out) {
+        *loaded_name_out = strdup(ext_name);
+        if (!*loaded_name_out) {
+            set_error(error_out, "Out of memory");
+            rc = -1;
         }
     }
 
-    free(base_dir);
-    fclose(f);
-    return 0;
-}
-
-int extensions_load_prex_if_exists(const char* prex_path, int* loaded_any, char** error_out) {
-    if (loaded_any) *loaded_any = 0;
-    if (!prex_path || prex_path[0] == '\0') return 0;
-    if (!file_exists_regular(prex_path)) return 0;
-    if (loaded_any) *loaded_any = 1;
-    return extensions_load_prex_file(prex_path, error_out);
+    free(resolved);
+    free(ext_name);
+    return rc;
 }
 
 void extensions_shutdown(void) {
     LoadedExtension* e = g_loaded;
     while (e) {
         LoadedExtension* next = e->next;
+
+        ExtensionExposure* ex = e->exposures;
+        while (ex) {
+            ExtensionExposure* ex_next = ex->next;
+            free(ex->key);
+            free(ex);
+            ex = ex_next;
+        }
+
         dyn_close_library(e->handle);
         free(e->canonical_path);
-        free(e->name);
         free(e);
         e = next;
     }
@@ -476,4 +662,5 @@ void extensions_shutdown(void) {
     g_cwd_dir = NULL;
 
     g_loading_extension_name = NULL;
+    g_loading_scope_name = NULL;
 }

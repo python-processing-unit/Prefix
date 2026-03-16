@@ -1,5 +1,7 @@
 ! `image`-interoperable GUI operations for Prefix
 
+EXTEND(EXTENSION: gui)
+
 FUNC INT: SCREEN_WIDTH(){
     RETURN(gui.SCREEN()[0d1])
 }
