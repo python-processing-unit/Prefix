@@ -24,13 +24,6 @@ Prefix is a statement-based, imperative language focused on explicit, readable c
 
   </script>
 
-  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-  <script>
-    document.addEventListener('DOMContentLoaded', function(){
-      const md = document.getElementById('md').textContent;
-      const rendered = marked.parse(md);
-      document.getElementById('content').innerHTML = rendered;
-    });
-  </script>
+  <script src="./render-md.js"></script>
 </body>
 </html>
