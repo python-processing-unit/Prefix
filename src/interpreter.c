@@ -1355,7 +1355,7 @@ Value eval_expr(Interpreter* interp, Expr* expr, Env* env) {
                         return value_null();
                     }
 
-                    if (env_set_alias(call_env, param->name, target_name, param->type, true)) {
+                    if (env_set_alias_cross(call_env, param->name, env, target_name, param->type, true)) {
                         if (arg_from_pos >= 0) {
                             value_free(pos_vals[arg_from_pos]);
                             pos_vals[arg_from_pos] = value_null();

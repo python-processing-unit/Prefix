@@ -3,3 +3,7 @@ INT: sym = 0b101
 FUNC INT: FUN(){
     RETURN(0b0)
 }
+
+FUNC INT: SET_ZERO(INT: target){
+    target = 0d0
+}
