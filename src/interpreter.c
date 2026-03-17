@@ -1250,6 +1250,7 @@ Value eval_expr(Interpreter* interp, Expr* expr, Env* env) {
                 Value arg_val = value_null();
                 int arg_from_pos = -1;
                 int arg_from_kw = -1;
+                Expr* source_node = NULL;
 
                 bool provided = false;
                 // positional provided?
@@ -1312,12 +1313,77 @@ Value eval_expr(Interpreter* interp, Expr* expr, Env* env) {
                     }
                 }
 
+                if (arg_from_pos >= 0) {
+                    source_node = expr->as.call.args.items[arg_from_pos];
+                } else if (arg_from_kw >= 0) {
+                    source_node = expr->as.call.kw_args.items[arg_from_kw];
+                }
+
                 if (!provided) {
                     char buf[128];
                     snprintf(buf, sizeof(buf), "Missing argument for parameter '%s'", param->name);
                     interp->error = strdup(buf);
                     interp->error_line = expr->line;
                     interp->error_col = expr->column;
+                    for (int t = 0; t < pos_argc; t++) value_free(pos_vals[t]);
+                    free(pos_vals);
+                    for (int t = 0; t < kwc; t++) value_free(kw_vals[t]);
+                    free(kw_vals);
+                    env_free(call_env);
+                    return value_null();
+                }
+
+                if (source_node && source_node->type == EXPR_PTR) {
+                    const char* target_name = source_node->as.ptr_name;
+                    if (!target_name) {
+                        interp->error = strdup("Invalid pointer target");
+                        interp->error_line = expr->line;
+                        interp->error_col = expr->column;
+                        if (arg_from_pos >= 0) {
+                            value_free(pos_vals[arg_from_pos]);
+                            pos_vals[arg_from_pos] = value_null();
+                        }
+                        if (arg_from_kw >= 0) {
+                            value_free(kw_vals[arg_from_kw]);
+                            kw_vals[arg_from_kw] = value_null();
+                        }
+                        for (int t = 0; t < pos_argc; t++) value_free(pos_vals[t]);
+                        free(pos_vals);
+                        for (int t = 0; t < kwc; t++) value_free(kw_vals[t]);
+                        free(kw_vals);
+                        env_free(call_env);
+                        return value_null();
+                    }
+
+                    if (env_set_alias(call_env, param->name, target_name, param->type, true)) {
+                        if (arg_from_pos >= 0) {
+                            value_free(pos_vals[arg_from_pos]);
+                            pos_vals[arg_from_pos] = value_null();
+                        }
+                        if (arg_from_kw >= 0) {
+                            value_free(kw_vals[arg_from_kw]);
+                            kw_vals[arg_from_kw] = value_null();
+                        }
+                        continue;
+                    }
+
+                    if (interp->error) {
+                        free(interp->error);
+                        interp->error = NULL;
+                    }
+                    char buf[256];
+                    snprintf(buf, sizeof(buf), "Cannot bind pointer argument to parameter '%s'", param->name);
+                    interp->error = strdup(buf);
+                    interp->error_line = expr->line;
+                    interp->error_col = expr->column;
+                    if (arg_from_pos >= 0) {
+                        value_free(pos_vals[arg_from_pos]);
+                        pos_vals[arg_from_pos] = value_null();
+                    }
+                    if (arg_from_kw >= 0) {
+                        value_free(kw_vals[arg_from_kw]);
+                        kw_vals[arg_from_kw] = value_null();
+                    }
                     for (int t = 0; t < pos_argc; t++) value_free(pos_vals[t]);
                     free(pos_vals);
                     for (int t = 0; t < kwc; t++) value_free(kw_vals[t]);

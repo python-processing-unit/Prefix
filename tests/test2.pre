@@ -258,6 +258,16 @@ DEL(x)
 DEL(y)
 PRINT("Pointers: PASS\n")
 
+PRINT("Testing pointer arguments...")
+INT: ptr_arg = 0d5
+FUNC INT: SET_ZERO(INT: target){
+    target = 0d0
+}
+SET_ZERO(@ptr_arg)
+ASSERT(EQ(ptr_arg, 0d0))
+DEL(ptr_arg)
+PRINT("Pointer arguments: PASS\n")
+
 PRINT("Testing ASSIGN inline operator...")
 ! typed first assignment should declare, assign, and return the value
 ASSERT(EQ(ASSIGN(STR: as_s, "foo"), "foo"))
