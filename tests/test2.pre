@@ -1063,6 +1063,13 @@ DEL(mod2.FUN)
 ASSERT(NOT(EXIST(mod2.FUN)))
 PRINT("IMPORT_PATH: PASS\n")
 
+PRINT("Testing pointer args with imported functions...")
+INT: x = 0d5
+mod.SET_ZERO(@x)
+ASSERT(EQ(x, 0d0))
+DEL(x)
+PRINT("Imported pointer args: PASS\n")
+
 PRINT("Testing EXPORT...")
 INT: ex_sym = 0d5
 ASSERT(EQ(EXPORT(ex_sym, mod), 0d0))

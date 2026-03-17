@@ -3,6 +3,9 @@
 
 #include "value.h"
 
+/* Forward-declare Env so EnvEntry can hold an Env* pointer. */
+typedef struct Env Env;
+
 typedef struct EnvEntry {
     char* name;
     DeclType decl_type;
@@ -12,6 +15,10 @@ typedef struct EnvEntry {
     bool permafrozen;
     // If non-NULL, this entry is an alias to another binding name in the environment
     char* alias_target;
+    // If non-NULL, indicates the Env where alias_target should be resolved.
+    // This allows aliasing to bindings that live in a different Env tree
+    // (for example, caller environments when binding pointer arguments).
+    Env* alias_target_env;
 } EnvEntry;
 
 typedef struct Env {
@@ -41,6 +48,10 @@ EnvEntry* env_get_entry(Env* env, const char* name);
 // Create or update an alias (pointer) binding: `name` will become an alias to `target_name`.
 // If declare_if_missing is true, `name` will be defined if absent. Returns true on success.
 bool env_set_alias(Env* env, const char* name, const char* target_name, DeclType type, bool declare_if_missing);
+// Create or update an alias where the alias target should be resolved in a
+// specific environment (target_env). This supports pointer args binding
+// where the pointed-to symbol is visible in the caller's environment.
+bool env_set_alias_cross(Env* env, const char* name, Env* target_env, const char* target_name, DeclType type, bool declare_if_missing);
 
 // Accessors for EnvEntry opaque use from other translation units
 // Returns true if the entry is initialized
