@@ -99,6 +99,36 @@ static bool writeback_first_ptr(Interpreter* interp, Expr** arg_nodes, Env* env,
     return true;
 }
 
+static bool writeback_ptr_node(Interpreter* interp, Expr* node, Env* env, Value result, const char* rule, int line, int col) {
+    if (!node || node->type != EXPR_PTR) return true;
+    const char* name = node->as.ptr_name;
+    if (!name) {
+        interp->error = strdup("Invalid pointer target");
+        interp->error_line = line;
+        interp->error_col = col;
+        return false;
+    }
+    if (!env_assign(env, name, result, TYPE_UNKNOWN, false)) {
+        char buf[128];
+        snprintf(buf, sizeof(buf), "%s writeback failed", rule);
+        interp->error = strdup(buf);
+        interp->error_line = line;
+        interp->error_col = col;
+        return false;
+    }
+    return true;
+}
+
+static bool writeback_ptr_range(Interpreter* interp, Expr** arg_nodes, Env* env, int start_index, int end_index, Value result, const char* rule, int line, int col) {
+    if (!arg_nodes) return true;
+    for (int i = start_index; i < end_index; ++i) {
+        if (!writeback_ptr_node(interp, arg_nodes[i], env, result, rule, line, col)) {
+            return false;
+        }
+    }
+    return true;
+}
+
 // --- Encoding helpers ---
 static char* dec_latin1_to_utf8(const unsigned char* buf, size_t sz) {
     size_t outcap = sz * 2 + 1;
@@ -2886,7 +2916,7 @@ static Value builtin_add(Interpreter* interp, Value* args, int argc, Expr** arg_
     } else {
         result = value_flt_base(args[0].as.f + args[1].as.f, out_base);
     }
-    if (!writeback_first_ptr(interp, arg_nodes, env, result, "ADD", line, col)) {
+    if (!writeback_ptr_range(interp, arg_nodes, env, 0, 2, result, "ADD", line, col)) {
         value_free(result);
         return value_null();
     }
@@ -2909,7 +2939,7 @@ static Value builtin_sub(Interpreter* interp, Value* args, int argc, Expr** arg_
     } else {
         result = value_flt_base(args[0].as.f - args[1].as.f, out_base);
     }
-    if (!writeback_first_ptr(interp, arg_nodes, env, result, "SUB", line, col)) {
+    if (!writeback_ptr_range(interp, arg_nodes, env, 0, 2, result, "SUB", line, col)) {
         value_free(result);
         return value_null();
     }
@@ -2927,9 +2957,19 @@ static Value builtin_mul(Interpreter* interp, Value* args, int argc, Expr** arg_
     
     int out_base = result_base_from_values(args[0], args[1]);
     if (args[0].type == VAL_INT) {
-        return value_int_base(args[0].as.i * args[1].as.i, out_base);
+        Value result = value_int_base(args[0].as.i * args[1].as.i, out_base);
+        if (!writeback_ptr_range(interp, arg_nodes, env, 0, 2, result, "MUL", line, col)) {
+            value_free(result);
+            return value_null();
+        }
+        return result;
     }
-    return value_flt_base(args[0].as.f * args[1].as.f, out_base);
+    Value result = value_flt_base(args[0].as.f * args[1].as.f, out_base);
+    if (!writeback_ptr_range(interp, arg_nodes, env, 0, 2, result, "MUL", line, col)) {
+        value_free(result);
+        return value_null();
+    }
+    return result;
 }
 
 static Value builtin_div(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
@@ -2946,12 +2986,22 @@ static Value builtin_div(Interpreter* interp, Value* args, int argc, Expr** arg_
         if (args[1].as.i == 0) {
             RUNTIME_ERROR(interp, "Division by zero", line, col);
         }
-        return value_int_base(args[0].as.i / args[1].as.i, out_base);
+        Value result = value_int_base(args[0].as.i / args[1].as.i, out_base);
+        if (!writeback_ptr_range(interp, arg_nodes, env, 0, 2, result, "DIV", line, col)) {
+            value_free(result);
+            return value_null();
+        }
+        return result;
     }
     if (args[1].as.f == 0.0) {
         RUNTIME_ERROR(interp, "Division by zero", line, col);
     }
-    return value_flt_base(args[0].as.f / args[1].as.f, out_base);
+    Value result = value_flt_base(args[0].as.f / args[1].as.f, out_base);
+    if (!writeback_ptr_range(interp, arg_nodes, env, 0, 2, result, "DIV", line, col)) {
+        value_free(result);
+        return value_null();
+    }
+    return result;
 }
 
 // CDIV: ceiling integer division (int-only semantics similar to Python's safe_cdiv)
@@ -2966,7 +3016,12 @@ static Value builtin_cdiv(Interpreter* interp, Value* args, int argc, Expr** arg
         RUNTIME_ERROR(interp, "Division by zero", line, col);
     }
     double res = ceil((double)a / (double)b);
-    return value_int((int64_t)res);
+    Value result = value_int((int64_t)res);
+    if (!writeback_ptr_range(interp, arg_nodes, env, 0, 2, result, "CDIV", line, col)) {
+        value_free(result);
+        return value_null();
+    }
+    return result;
 }
 
 static Value builtin_mod(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
@@ -2984,13 +3039,23 @@ static Value builtin_mod(Interpreter* interp, Value* args, int argc, Expr** arg_
             RUNTIME_ERROR(interp, "Division by zero", line, col);
         }
         int64_t b = args[1].as.i < 0 ? -args[1].as.i : args[1].as.i;
-        return value_int_base(args[0].as.i % b, out_base);
+        Value result = value_int_base(args[0].as.i % b, out_base);
+        if (!writeback_ptr_range(interp, arg_nodes, env, 0, 2, result, "MOD", line, col)) {
+            value_free(result);
+            return value_null();
+        }
+        return result;
     }
     if (args[1].as.f == 0.0) {
         RUNTIME_ERROR(interp, "Division by zero", line, col);
     }
     double b = args[1].as.f < 0 ? -args[1].as.f : args[1].as.f;
-    return value_flt_base(fmod(args[0].as.f, b), out_base);
+    Value result = value_flt_base(fmod(args[0].as.f, b), out_base);
+    if (!writeback_ptr_range(interp, arg_nodes, env, 0, 2, result, "MOD", line, col)) {
+        value_free(result);
+        return value_null();
+    }
+    return result;
 }
 
 static Value builtin_pow(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
@@ -3015,9 +3080,19 @@ static Value builtin_pow(Interpreter* interp, Value* args, int argc, Expr** arg_
             base *= base;
             exp >>= 1;
         }
-        return value_int_base(result, out_base);
+        Value out = value_int_base(result, out_base);
+        if (!writeback_ptr_range(interp, arg_nodes, env, 0, 2, out, "POW", line, col)) {
+            value_free(out);
+            return value_null();
+        }
+        return out;
     }
-    return value_flt_base(pow(args[0].as.f, args[1].as.f), out_base);
+    Value out = value_flt_base(pow(args[0].as.f, args[1].as.f), out_base);
+    if (!writeback_ptr_range(interp, arg_nodes, env, 0, 2, out, "POW", line, col)) {
+        value_free(out);
+        return value_null();
+    }
+    return out;
 }
 
 static Value builtin_neg(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
@@ -3025,9 +3100,19 @@ static Value builtin_neg(Interpreter* interp, Value* args, int argc, Expr** arg_
     EXPECT_NUM(args[0], "NEG", interp, line, col);
     
     if (args[0].type == VAL_INT) {
-        return value_int_base(-args[0].as.i, numeric_base_of(args[0]));
+        Value result = value_int_base(-args[0].as.i, numeric_base_of(args[0]));
+        if (!writeback_ptr_range(interp, arg_nodes, env, 0, 1, result, "NEG", line, col)) {
+            value_free(result);
+            return value_null();
+        }
+        return result;
     }
-    return value_flt_base(-args[0].as.f, numeric_base_of(args[0]));
+    Value result = value_flt_base(-args[0].as.f, numeric_base_of(args[0]));
+    if (!writeback_ptr_range(interp, arg_nodes, env, 0, 1, result, "NEG", line, col)) {
+        value_free(result);
+        return value_null();
+    }
+    return result;
 }
 
 static Value builtin_abs(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
@@ -3035,9 +3120,19 @@ static Value builtin_abs(Interpreter* interp, Value* args, int argc, Expr** arg_
     EXPECT_NUM(args[0], "ABS", interp, line, col);
     
     if (args[0].type == VAL_INT) {
-        return value_int_base(args[0].as.i < 0 ? -args[0].as.i : args[0].as.i, numeric_base_of(args[0]));
+        Value result = value_int_base(args[0].as.i < 0 ? -args[0].as.i : args[0].as.i, numeric_base_of(args[0]));
+        if (!writeback_ptr_range(interp, arg_nodes, env, 0, 1, result, "ABS", line, col)) {
+            value_free(result);
+            return value_null();
+        }
+        return result;
     }
-    return value_flt_base(args[0].as.f < 0 ? -args[0].as.f : args[0].as.f, numeric_base_of(args[0]));
+    Value result = value_flt_base(args[0].as.f < 0 ? -args[0].as.f : args[0].as.f, numeric_base_of(args[0]));
+    if (!writeback_ptr_range(interp, arg_nodes, env, 0, 1, result, "ABS", line, col)) {
+        value_free(result);
+        return value_null();
+    }
+    return result;
 }
 
 // Coercing variants
@@ -3048,7 +3143,12 @@ static Value builtin_iadd(Interpreter* interp, Value* args, int argc, Expr** arg
     
     int64_t a = args[0].type == VAL_INT ? args[0].as.i : (int64_t)args[0].as.f;
     int64_t b = args[1].type == VAL_INT ? args[1].as.i : (int64_t)args[1].as.f;
-    return value_int_base(a + b, result_base_from_values(args[0], args[1]));
+    Value result = value_int_base(a + b, result_base_from_values(args[0], args[1]));
+    if (!writeback_ptr_range(interp, arg_nodes, env, 0, 2, result, "IADD", line, col)) {
+        value_free(result);
+        return value_null();
+    }
+    return result;
 }
 
 static Value builtin_isub(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
@@ -3058,7 +3158,12 @@ static Value builtin_isub(Interpreter* interp, Value* args, int argc, Expr** arg
     
     int64_t a = args[0].type == VAL_INT ? args[0].as.i : (int64_t)args[0].as.f;
     int64_t b = args[1].type == VAL_INT ? args[1].as.i : (int64_t)args[1].as.f;
-    return value_int_base(a - b, result_base_from_values(args[0], args[1]));
+    Value result = value_int_base(a - b, result_base_from_values(args[0], args[1]));
+    if (!writeback_ptr_range(interp, arg_nodes, env, 0, 2, result, "ISUB", line, col)) {
+        value_free(result);
+        return value_null();
+    }
+    return result;
 }
 
 static Value builtin_imul(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
@@ -3068,7 +3173,12 @@ static Value builtin_imul(Interpreter* interp, Value* args, int argc, Expr** arg
     
     int64_t a = args[0].type == VAL_INT ? args[0].as.i : (int64_t)args[0].as.f;
     int64_t b = args[1].type == VAL_INT ? args[1].as.i : (int64_t)args[1].as.f;
-    return value_int_base(a * b, result_base_from_values(args[0], args[1]));
+    Value result = value_int_base(a * b, result_base_from_values(args[0], args[1]));
+    if (!writeback_ptr_range(interp, arg_nodes, env, 0, 2, result, "IMUL", line, col)) {
+        value_free(result);
+        return value_null();
+    }
+    return result;
 }
 
 static Value builtin_idiv(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
@@ -3081,7 +3191,12 @@ static Value builtin_idiv(Interpreter* interp, Value* args, int argc, Expr** arg
     if (b == 0) {
         RUNTIME_ERROR(interp, "Division by zero", line, col);
     }
-    return value_int_base(a / b, result_base_from_values(args[0], args[1]));
+    Value result = value_int_base(a / b, result_base_from_values(args[0], args[1]));
+    if (!writeback_ptr_range(interp, arg_nodes, env, 0, 2, result, "IDIV", line, col)) {
+        value_free(result);
+        return value_null();
+    }
+    return result;
 }
 
 static Value builtin_fadd(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
@@ -3092,7 +3207,7 @@ static Value builtin_fadd(Interpreter* interp, Value* args, int argc, Expr** arg
     double a = args[0].type == VAL_FLT ? args[0].as.f : (double)args[0].as.i;
     double b = args[1].type == VAL_FLT ? args[1].as.f : (double)args[1].as.i;
     Value result = value_flt_base(a + b, result_base_from_values(args[0], args[1]));
-    if (!writeback_first_ptr(interp, arg_nodes, env, result, "FADD", line, col)) {
+    if (!writeback_ptr_range(interp, arg_nodes, env, 0, 2, result, "FADD", line, col)) {
         value_free(result);
         return value_null();
     }
@@ -3106,7 +3221,12 @@ static Value builtin_fsub(Interpreter* interp, Value* args, int argc, Expr** arg
     
     double a = args[0].type == VAL_FLT ? args[0].as.f : (double)args[0].as.i;
     double b = args[1].type == VAL_FLT ? args[1].as.f : (double)args[1].as.i;
-    return value_flt_base(a - b, result_base_from_values(args[0], args[1]));
+    Value result = value_flt_base(a - b, result_base_from_values(args[0], args[1]));
+    if (!writeback_ptr_range(interp, arg_nodes, env, 0, 2, result, "FSUB", line, col)) {
+        value_free(result);
+        return value_null();
+    }
+    return result;
 }
 
 static Value builtin_fmul(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
@@ -3116,7 +3236,12 @@ static Value builtin_fmul(Interpreter* interp, Value* args, int argc, Expr** arg
     
     double a = args[0].type == VAL_FLT ? args[0].as.f : (double)args[0].as.i;
     double b = args[1].type == VAL_FLT ? args[1].as.f : (double)args[1].as.i;
-    return value_flt_base(a * b, result_base_from_values(args[0], args[1]));
+    Value result = value_flt_base(a * b, result_base_from_values(args[0], args[1]));
+    if (!writeback_ptr_range(interp, arg_nodes, env, 0, 2, result, "FMUL", line, col)) {
+        value_free(result);
+        return value_null();
+    }
+    return result;
 }
 
 static Value builtin_fdiv(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
@@ -3129,7 +3254,12 @@ static Value builtin_fdiv(Interpreter* interp, Value* args, int argc, Expr** arg
     if (b == 0.0) {
         RUNTIME_ERROR(interp, "Division by zero", line, col);
     }
-    return value_flt_base(a / b, result_base_from_values(args[0], args[1]));
+    Value result = value_flt_base(a / b, result_base_from_values(args[0], args[1]));
+    if (!writeback_ptr_range(interp, arg_nodes, env, 0, 2, result, "FDIV", line, col)) {
+        value_free(result);
+        return value_null();
+    }
+    return result;
 }
 
 static Value builtin_ipow(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
@@ -3148,7 +3278,12 @@ static Value builtin_ipow(Interpreter* interp, Value* args, int argc, Expr** arg
         base *= base;
         exp >>= 1;
     }
-    return value_int_base(result, result_base_from_values(args[0], args[1]));
+    Value out = value_int_base(result, result_base_from_values(args[0], args[1]));
+    if (!writeback_ptr_range(interp, arg_nodes, env, 0, 2, out, "IPOW", line, col)) {
+        value_free(out);
+        return value_null();
+    }
+    return out;
 }
 
 static Value builtin_fpow(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
@@ -3158,7 +3293,12 @@ static Value builtin_fpow(Interpreter* interp, Value* args, int argc, Expr** arg
     
     double a = args[0].type == VAL_FLT ? args[0].as.f : (double)args[0].as.i;
     double b = args[1].type == VAL_FLT ? args[1].as.f : (double)args[1].as.i;
-    return value_flt_base(pow(a, b), result_base_from_values(args[0], args[1]));
+    Value out = value_flt_base(pow(a, b), result_base_from_values(args[0], args[1]));
+    if (!writeback_ptr_range(interp, arg_nodes, env, 0, 2, out, "FPOW", line, col)) {
+        value_free(out);
+        return value_null();
+    }
+    return out;
 }
 
 // ============ Tensor elementwise operators ============
@@ -4580,7 +4720,8 @@ static Value builtin_join(Interpreter* interp, Value* args, int argc, Expr** arg
         // simply concatenate all string arguments in order.
         const char* first_s = args[0].as.s;
         size_t first_len = strlen(first_s);
-        if (first_len == 1 && argc >= 3) {
+        bool separator_mode = (first_len == 1 && argc >= 3);
+        if (separator_mode) {
             const char* sep = first_s;
             size_t sep_len = 1;
             // ensure following args are strings
@@ -4601,6 +4742,12 @@ static Value builtin_join(Interpreter* interp, Value* args, int argc, Expr** arg
             }
             Value v = value_str(out);
             free(out);
+            for (int i = 1; i < argc; ++i) {
+                if (!writeback_ptr_node(interp, arg_nodes ? arg_nodes[i] : NULL, env, v, "JOIN", line, col)) {
+                    value_free(v);
+                    return value_null();
+                }
+            }
             return v;
         } else {
             // Concatenate all string arguments in order
@@ -4623,6 +4770,12 @@ static Value builtin_join(Interpreter* interp, Value* args, int argc, Expr** arg
             out[pos] = '\0';
             Value v = value_str(out);
             free(out);
+            for (int i = 0; i < argc; ++i) {
+                if (!writeback_ptr_node(interp, arg_nodes ? arg_nodes[i] : NULL, env, v, "JOIN", line, col)) {
+                    value_free(v);
+                    return value_null();
+                }
+            }
             return v;
         }
     }
@@ -4684,7 +4837,14 @@ static Value builtin_join(Interpreter* interp, Value* args, int argc, Expr** arg
 
     int64_t result = (int64_t)outv;
     if (any_neg) result = -result;
-    return value_int(result);
+    Value v = value_int(result);
+    for (int i = 0; i < argc; ++i) {
+        if (!writeback_ptr_node(interp, arg_nodes ? arg_nodes[i] : NULL, env, v, "JOIN", line, col)) {
+            value_free(v);
+            return value_null();
+        }
+    }
+    return v;
 }
 
 static Value builtin_split(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {

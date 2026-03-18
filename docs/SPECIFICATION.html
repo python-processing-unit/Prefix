@@ -444,6 +444,8 @@ The language's pointer mechanism MUST create an alias to an existing visible bin
 
 Assigning through a symbol whose current binding is a pointer MUST update the pointed-to target rather than replace the pointer object. Pointer cycles, including direct self-reference, MUST be rejected as runtime errors.
 
+When a built-in operator produces a transformed value from one or more operand arguments, any operand argument that is a pointer literal MUST be written back through the alias for that operand. Arguments that act only as flags, modes, delimiters, bounds, or other control inputs MUST NOT be written back unless they are themselves part of the transformed output.
+
 Because `TNS` and `MAP` are atomic container types, ordinary assignment of those values MUST duplicate the container object by default. Shared mutable aliasing for containers therefore requires the explicit alias mechanism.
 
 Bindings MAY be frozen or permanently frozen by the runtime's symbol-state facilities. A frozen binding MUST reject reassignment and deletion. A permanently frozen binding MUST additionally reject re-enabling mutation. Creating a new pointer to a frozen binding MUST raise a runtime error, though an existing aliased binding MAY itself later become frozen.

@@ -253,6 +253,9 @@ INT: y = @x
 ADD(@x, 0d1)
 ASSERT(EQ(x, 0d2))
 ASSERT(EQ(y, 0d2))
+INT: z = 0d2
+ADD(0d1, @z)
+ASSERT(EQ(z, 0d3))
 ADD(@y, 0d1)
 ASSERT(EQ(x, 0d3))
 ASSERT(EQ(y, 0d3))
@@ -270,6 +273,7 @@ THAW(x)
 THAW(y)
 DEL(x)
 DEL(y)
+DEL(z)
 PRINT("Pointers: PASS\n")
 
 PRINT("Testing pointer arguments...")
@@ -915,6 +919,13 @@ DEL(arr)
 PRINT("Testing JOIN...")
 ASSERT(EQ(JOIN("Hello", " ", "World"), "Hello World"))
 ASSERT(EQ(JOIN(0b101, 0b1), 0b1011))
+STR: sep = " "
+STR: tail = "World"
+JOIN(@sep, "Hello", @tail)
+ASSERT(EQ(sep, " "))
+ASSERT(EQ(tail, "Hello World"))
+DEL(sep)
+DEL(tail)
 TRY{
     JOIN("Hello", 0d2)  ! mixed types should raise an error
     ASSERT(0d0)
