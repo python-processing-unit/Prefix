@@ -119,7 +119,7 @@ FUNC TNS: CROP(TNS: img, TNS: corners){
     RETURN(img[MIN(corners[*, 0d1])-MAX(corners[*, 0d1]), MIN(corners[*, 0d2])-MAX(corners[*, 0d2]), *])
 }
 
-FUNC INT: SHOW(TNS: img){
+FUNC BOOL: SHOW(TNS: img){
     ! Save the image to the provided path and open it with the system default
     ! viewer on Windows. `img_path` is treated as the target file path.
     STR: img_path = "C:/Windows/Temp/tmp_img.png"
@@ -128,5 +128,5 @@ FUNC INT: SHOW(TNS: img){
     ! Use NULL hwnd (0), operation "open", empty params and dir, showcmd=1
     win32.WIN_CALL("shell32", "ShellExecuteW", "PSSSSI", "P", 0d0, "open", img_path, "", "", 0d1)
     DEL(img_path)
-    RETURN(0d0)
+    RETURN(FALSE)
 }

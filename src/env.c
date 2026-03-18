@@ -213,6 +213,7 @@ static int env_permafrozen_raw(Env* env, const char* name) {
 
 static DeclType env_decl_type_from_value(Value value) {
     switch (value.type) {
+        case VAL_BOOL: return TYPE_BOOL;
         case VAL_INT: return TYPE_INT;
         case VAL_FLT: return TYPE_FLT;
         case VAL_STR: return TYPE_STR;

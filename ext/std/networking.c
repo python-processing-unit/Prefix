@@ -792,7 +792,7 @@ static Value op_tcp_close(Interpreter* interp, Value* args, int argc, Expr** arg
 		RUNTIME_ERROR(interp, "TCP_CLOSE: invalid handle", line, col);
 	}
 	closesocket(s);
-	return value_int(0);
+	return value_bool(false);
 }
 
 static Value op_udp_bind(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
@@ -951,7 +951,7 @@ static Value op_udp_close(Interpreter* interp, Value* args, int argc, Expr** arg
 		RUNTIME_ERROR(interp, "UDP_CLOSE: invalid handle", line, col);
 	}
 	closesocket(s);
-	return value_int(0);
+	return value_bool(false);
 }
 
 static Value op_http_get_text(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
@@ -1203,7 +1203,7 @@ static Value op_ftp_put_bytes(Interpreter* interp, Value* args, int argc, Expr**
 		RUNTIME_ERROR(interp, msg, line, col);
 	}
 	free(out);
-	return value_int(1);
+	return value_bool(true);
 }
 
 static Value op_smtp_send(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
@@ -1244,7 +1244,7 @@ static Value op_smtp_send(Interpreter* interp, Value* args, int argc, Expr** arg
 		RUNTIME_ERROR(interp, msg, line, col);
 	}
 	free(out);
-	return value_int(1);
+	return value_bool(true);
 }
 
 #ifdef _WIN32

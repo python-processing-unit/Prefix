@@ -92,7 +92,7 @@ static Value op_win_sleep(Interpreter* interp, Value* args, int argc, Expr** arg
 	long long ms = value_as_int(interp, args[0], "ms", line, col);
 	if (interp->error) return value_null();
 	Sleep((DWORD)ms);
-	return value_int(0);
+	return value_bool(false);
 }
 
 static Value op_win_last_error(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
@@ -147,7 +147,7 @@ static Value op_win_free_library(Interpreter* interp, Value* args, int argc, Exp
 		set_runtime_error(interp, em, line, col);
 		return value_null();
 	}
-	return value_int((int64_t)ok);
+	return value_bool(ok != 0);
 }
 
 static Value op_win_get_proc_address(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
@@ -255,7 +255,7 @@ static Value op_win_close_handle(Interpreter* interp, Value* args, int argc, Exp
 	long long handle = value_as_int(interp, args[0], "handle", line, col); if (interp->error) return value_null();
 	BOOL ok = CloseHandle((HANDLE)(intptr_t)handle);
 	if (!ok) { DWORD err = GetLastError(); char em[128]; snprintf(em, sizeof(em), "CloseHandle failed: %lu", (unsigned long)err); set_runtime_error(interp, em, line, col); return value_null(); }
-	return value_int((int64_t)ok);
+	return value_bool(ok != 0);
 }
 
 static Value op_win_virtual_alloc(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
@@ -279,7 +279,7 @@ static Value op_win_virtual_free(Interpreter* interp, Value* args, int argc, Exp
 	DWORD free_type = (DWORD)value_as_int(interp, args[2], "free_type", line, col); if (interp->error) return value_null();
 	BOOL ok = VirtualFree(addr, size, free_type);
 	if (!ok) { DWORD err = GetLastError(); char em[128]; snprintf(em, sizeof(em), "VirtualFree failed: %lu", (unsigned long)err); set_runtime_error(interp, em, line, col); return value_null(); }
-	return value_int((int64_t)ok);
+	return value_bool(ok != 0);
 }
 
 static Value op_win_format_message(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {

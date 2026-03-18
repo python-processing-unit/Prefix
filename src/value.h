@@ -9,6 +9,7 @@ struct Env; // forward declare Env
 
 typedef enum {
     VAL_NULL,
+    VAL_BOOL,
     VAL_INT,
     VAL_FLT,
     VAL_STR,
@@ -51,6 +52,7 @@ typedef struct Value {
     int num_base;      // 2..64 for numeric values, default 2
     int num_base_nan;  // 1 when FLT has NaN base (INF/NaN literals), else 0
     union {
+        bool boolean;
         int64_t i;
         double f;
         char* s;
@@ -103,6 +105,7 @@ Value* value_tns_get_ptr(Value t, const size_t* idxs, size_t nidxs);
 
 
 Value value_null(void);
+Value value_bool(bool v);
 Value value_int(int64_t v);
 Value value_flt(double v);
 Value value_int_base(int64_t v, int base);

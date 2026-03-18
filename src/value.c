@@ -13,6 +13,15 @@ Value value_null(void) {
     Value v; v.type = VAL_NULL; v.num_base = 2; v.num_base_nan = 0; return v;
 }
 
+Value value_bool(bool v) {
+    Value val;
+    val.type = VAL_BOOL;
+    val.as.boolean = v ? true : false;
+    val.num_base = 2;
+    val.num_base_nan = 0;
+    return val;
+}
+
 Value value_int(int64_t v) {
     Value val; val.type = VAL_INT; val.as.i = v; val.num_base = 2; val.num_base_nan = 0; return val;
 }
@@ -711,6 +720,7 @@ void value_free(Value v) {
 
 const char* value_type_name(Value v) {
     switch (v.type) {
+        case VAL_BOOL: return "BOOL";
         case VAL_INT: return "INT";
         case VAL_FLT: return "FLT";
         case VAL_MAP: return "MAP";

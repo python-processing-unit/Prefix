@@ -531,7 +531,7 @@ static Value op_show_image(Interpreter* interp, Value* args, int argc, Expr** ar
 	InvalidateRect(win->hwnd, NULL, TRUE);
 	UpdateWindow(win->hwnd);
 	gui_pump_messages();
-	return value_int(1);
+	return value_bool(true);
 }
 
 static Value op_close_window(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
@@ -550,7 +550,7 @@ static Value op_close_window(Interpreter* interp, Value* args, int argc, Expr** 
 	}
 	DestroyWindow(win->hwnd);
 	gui_pump_messages();
-	return value_int(1);
+	return value_bool(true);
 }
 
 static Value op_minimize(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
@@ -565,7 +565,7 @@ static Value op_minimize(Interpreter* interp, Value* args, int argc, Expr** arg_
 	if (!win || !IsWindow(win->hwnd)) return fail(interp, "GUI_MINIMIZE: invalid window handle", line, col);
 	ShowWindow(win->hwnd, SW_MINIMIZE);
 	gui_pump_messages();
-	return value_int(1);
+	return value_bool(true);
 }
 
 static Value op_maximize(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
@@ -580,7 +580,7 @@ static Value op_maximize(Interpreter* interp, Value* args, int argc, Expr** arg_
 	if (!win || !IsWindow(win->hwnd)) return fail(interp, "GUI_MAXIMIZE: invalid window handle", line, col);
 	ShowWindow(win->hwnd, SW_MAXIMIZE);
 	gui_pump_messages();
-	return value_int(1);
+	return value_bool(true);
 }
 
 static Value op_to_front(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
@@ -596,7 +596,7 @@ static Value op_to_front(Interpreter* interp, Value* args, int argc, Expr** arg_
 	SetWindowPos(win->hwnd, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
 	SetForegroundWindow(win->hwnd);
 	gui_pump_messages();
-	return value_int(1);
+	return value_bool(true);
 }
 
 static Value op_to_back(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
@@ -611,7 +611,7 @@ static Value op_to_back(Interpreter* interp, Value* args, int argc, Expr** arg_n
 	if (!win || !IsWindow(win->hwnd)) return fail(interp, "GUI_TO_BACK: invalid window handle", line, col);
 	SetWindowPos(win->hwnd, HWND_BOTTOM, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
 	gui_pump_messages();
-	return value_int(1);
+	return value_bool(true);
 }
 
 static Value op_screen(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {

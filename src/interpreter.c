@@ -682,6 +682,8 @@ Env* module_env_lookup(Interpreter* interp, const char* name) {
 
 int value_truthiness(Value v) {
     switch (v.type) {
+        case VAL_BOOL:
+            return v.as.boolean ? 1 : 0;
         case VAL_INT:
             return v.as.i != 0;
         case VAL_FLT:
@@ -698,6 +700,9 @@ int value_truthiness(Value v) {
             for (size_t i = 0; i < t->length; i++) {
                 Value e = t->data[i];
                 switch (e.type) {
+                    case VAL_BOOL:
+                        if (e.as.boolean) return 1;
+                        break;
                     case VAL_INT:
                         if (e.as.i != 0) return 1;
                         break;
@@ -744,6 +749,7 @@ int value_truthiness(Value v) {
 
 static DeclType value_type_to_decl(ValueType vt) {
     switch (vt) {
+        case VAL_BOOL: return TYPE_BOOL;
         case VAL_INT: return TYPE_INT;
         case VAL_FLT: return TYPE_FLT;
         case VAL_STR: return TYPE_STR;
@@ -757,6 +763,7 @@ static DeclType value_type_to_decl(ValueType vt) {
 
 static const char* decl_type_name(DeclType dt) {
     switch (dt) {
+        case TYPE_BOOL: return "BOOL";
         case TYPE_INT: return "INT";
         case TYPE_FLT: return "FLT";
         case TYPE_STR: return "STR";
@@ -770,6 +777,7 @@ static const char* decl_type_name(DeclType dt) {
 
 static ValueType decl_type_to_value(DeclType dt) {
     switch (dt) {
+        case TYPE_BOOL: return VAL_BOOL;
         case TYPE_INT: return VAL_INT;
         case TYPE_FLT: return VAL_FLT;
         case TYPE_STR: return VAL_STR;
@@ -798,6 +806,7 @@ static bool coerce_value_to_decl_type(Interpreter* interp,
 
     const char* builtin_name = NULL;
     switch (target) {
+        case TYPE_BOOL: builtin_name = "BOOL"; break;
         case TYPE_INT: builtin_name = "INT"; break;
         case TYPE_FLT: builtin_name = "FLT"; break;
         case TYPE_STR: builtin_name = "STR"; break;
@@ -931,6 +940,9 @@ Value eval_expr(Interpreter* interp, Expr* expr, Env* env) {
     if (!expr) return value_null();
     
     switch (expr->type) {
+        case EXPR_BOOL:
+            return value_bool(expr->as.bool_value);
+
         case EXPR_INT:
             return value_int_base(expr->as.int_value.value, expr->as.int_value.base);
             
@@ -1628,6 +1640,9 @@ Value eval_expr(Interpreter* interp, Expr* expr, Env* env) {
             
             // No explicit return - return default value
             switch (user_func->return_type) {
+                case TYPE_BOOL:
+                    trace_pop_frame(interp);
+                    return value_bool(false);
                 case TYPE_INT:
                     trace_pop_frame(interp);
                     return value_int(0);
@@ -2561,14 +2576,7 @@ static ExecResult exec_stmt(Interpreter* interp, Stmt* stmt, Env* env, LabelMap*
                 if (expected != actual) {
                     char buf[128];
                     snprintf(buf, sizeof(buf), "Type mismatch: expected %s but got %s",
-                             expected == TYPE_INT ? "INT" :
-                             expected == TYPE_FLT ? "FLT" :
-                             expected == TYPE_STR ? "STR" :
-                             expected == TYPE_TNS ? "TNS" :
-                             expected == TYPE_MAP ? "MAP" :
-                             expected == TYPE_FUNC ? "FUNC" :
-                             expected == TYPE_THR ? "THR" : "UNKNOWN",
-                             value_type_name(v));
+                             decl_type_name(expected), value_type_name(v));
                     value_free(v);
                     return make_error(buf, stmt->line, stmt->column);
                 }
