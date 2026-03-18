@@ -1,24 +1,24 @@
 ! Primality and factorization functions
 
-FUNC INT: IS_PRIME(INT: n){
+FUNC BOOL: IS_PRIME(INT: n){
     IF(LTE(n, 0d1)){
-        RETURN(0d0)
+        RETURN(FALSE)
     }
     IF(EQ(n, 0d2)){
-        RETURN(0d1)
+        RETURN(TRUE)
     }
     ! reject even numbers greater than 2
     IF(EQ(MOD(n, 0d2), 0d0)){
-        RETURN(0d0)
+        RETURN(FALSE)
     }
     INT: i = 0d3
     WHILE(LTE(MUL(i, i), n)){
         IF(EQ(MOD(n, i), 0d0)){
-            RETURN(0d0)
+            RETURN(FALSE)
         }
         ADD(@i, 0d2)
     }
-    RETURN(0d1)
+    RETURN(TRUE)
 }
 
 FUNC INT: NEXT_PRIME(INT: start){
@@ -42,16 +42,16 @@ FUNC INT: PREV_PRIME(INT: start){
     RETURN(0d0)
 }
 
-FUNC INT: IS_MERSENNE_PRIME(INT: p){
+FUNC BOOL: IS_MERSENNE_PRIME(INT: p){
     IF(IS_PRIME(p)){
         INT: exp = POW(0d2, p)
         INT: mersenne = SUB(exp, 0d1)
         IF(IS_PRIME(mersenne)){
-            RETURN(0d1)
+            RETURN(TRUE)
         }
-        RETURN(0d0)
+        RETURN(FALSE)
     }ELSE{
-        RETURN(0d0)
+        RETURN(FALSE)
     }
 }
 

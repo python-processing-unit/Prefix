@@ -597,14 +597,14 @@ static Value load_with_gdiplus(Interpreter* interp, const char* path, int line, 
 
 static Value save_with_gdiplus(Interpreter* interp, Value imgv, const char* path, const WCHAR* mime, int quality, int line, int col) {
 	ImageView iv;
-	if (!image_from_value(interp, imgv, "SAVE_*", line, col, &iv)) return value_int(0);
-	if (!ensure_gdiplus(interp, line, col)) return value_int(0);
+	if (!image_from_value(interp, imgv, "SAVE_*", line, col, &iv)) return value_null();
+	if (!ensure_gdiplus(interp, line, col)) return value_null();
 
 	int w = (int)iv.w;
 	int h = (int)iv.h;
 	int stride = w * 4;
 	uint8_t* bgra = (uint8_t*)malloc((size_t)stride * (size_t)h);
-	if (!bgra) { set_runtime_error(interp, "image: out of memory", line, col); return value_int(0); }
+	if (!bgra) { set_runtime_error(interp, "image: out of memory", line, col); return value_null(); }
 
 	for (int y = 0; y < h; y++) {
 		uint8_t* row = bgra + (size_t)y * (size_t)stride;
@@ -625,7 +625,7 @@ static Value save_with_gdiplus(Interpreter* interp, Value imgv, const char* path
 	if (pGdipCreateBitmapFromScan0(w, h, stride, PixelFormat32bppARGB_C, bgra, &bmp) != 0 || !bmp) {
 		free(bgra);
 		set_runtime_error(interp, "image: failed to create bitmap", line, col);
-		return value_int(0);
+		return value_null();
 	}
 
 	CLSID clsid;
@@ -633,7 +633,7 @@ static Value save_with_gdiplus(Interpreter* interp, Value imgv, const char* path
 		pGdipDisposeImage((GpImage_C*)bmp);
 		free(bgra);
 		set_runtime_error(interp, "image: encoder unavailable", line, col);
-		return value_int(0);
+		return value_null();
 	}
 
 	WCHAR* wpath = NULL;
@@ -642,7 +642,7 @@ static Value save_with_gdiplus(Interpreter* interp, Value imgv, const char* path
 		free(bgra);
 		free(wpath);
 		set_runtime_error(interp, "image: invalid UTF-8 path", line, col);
-		return value_int(0);
+		return value_null();
 	}
 
 	static const GUID EncoderQuality = {0x1d5be4b5, 0xfa4a, 0x452d, {0x9c, 0xdd, 0x5d, 0xb3, 0x51, 0x05, 0xe7, 0xeb}};
@@ -659,8 +659,8 @@ static Value save_with_gdiplus(Interpreter* interp, Value imgv, const char* path
 	pGdipDisposeImage((GpImage_C*)bmp);
 	free(bgra);
 
-	if (st != 0) { set_runtime_error(interp, "image: failed to save image", line, col); return value_int(0); }
-	return value_int(1);
+	if (st != 0) { set_runtime_error(interp, "image: failed to save image", line, col); return value_null(); }
+	return value_bool(true);
 }
 #endif
 
@@ -711,7 +711,7 @@ static Value op_save_png(Interpreter* interp, Value* args, int argc, Expr** arg_
 	(void)env;
 	if (!expect_argc_range(interp, argc, 2, 3, "SAVE_PNG", line, col)) return value_null();
 	const char* path = expect_str(interp, args[1], "SAVE_PNG", line, col);
-	if (interp->error) return value_int(0);
+	if (interp->error) return value_null();
 	int quality = 100;
 	if (argc >= 3) quality = (int)expect_int(interp, args[2], "SAVE_PNG", line, col);
 	if (interp->error) return value_null();
@@ -719,8 +719,7 @@ static Value op_save_png(Interpreter* interp, Value* args, int argc, Expr** arg_
 	return save_with_gdiplus(interp, args[0], path, L"image/png", quality, line, col);
 #else
 	(void)quality;
-	set_runtime_error(interp, "SAVE_PNG not supported on this platform", line, col);
-	return value_int(0);
+	return fail(interp, "SAVE_PNG not supported on this platform", line, col);
 #endif
 }
 
@@ -729,7 +728,7 @@ static Value op_save_jpeg(Interpreter* interp, Value* args, int argc, Expr** arg
 	(void)env;
 	if (!expect_argc_range(interp, argc, 2, 3, "SAVE_JPEG", line, col)) return value_null();
 	const char* path = expect_str(interp, args[1], "SAVE_JPEG", line, col);
-	if (interp->error) return value_int(0);
+	if (interp->error) return value_null();
 	int quality = 85;
 	if (argc >= 3) quality = (int)expect_int(interp, args[2], "SAVE_JPEG", line, col);
 	if (interp->error) return value_null();
@@ -737,8 +736,7 @@ static Value op_save_jpeg(Interpreter* interp, Value* args, int argc, Expr** arg
 	return save_with_gdiplus(interp, args[0], path, L"image/jpeg", quality, line, col);
 #else
 	(void)quality;
-	set_runtime_error(interp, "SAVE_JPEG not supported on this platform", line, col);
-	return value_int(0);
+	return fail(interp, "SAVE_JPEG not supported on this platform", line, col);
 #endif
 }
 
@@ -747,12 +745,11 @@ static Value op_save_bmp(Interpreter* interp, Value* args, int argc, Expr** arg_
 	(void)env;
 	if (!expect_argc_range(interp, argc, 2, 2, "SAVE_BMP", line, col)) return value_null();
 	const char* path = expect_str(interp, args[1], "SAVE_BMP", line, col);
-	if (interp->error) return value_int(0);
+	if (interp->error) return value_null();
 #ifdef _WIN32
 	return save_with_gdiplus(interp, args[0], path, L"image/bmp", 100, line, col);
 #else
-	set_runtime_error(interp, "SAVE_BMP not supported on this platform", line, col);
-	return value_int(0);
+	return fail(interp, "SAVE_BMP not supported on this platform", line, col);
 #endif
 }
 

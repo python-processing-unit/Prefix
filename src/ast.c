@@ -17,6 +17,15 @@ static void* ast_alloc(size_t size) {
     return ptr;
 }
 
+Expr* expr_bool(bool value, int line, int column) {
+    Expr* expr = ast_alloc(sizeof(Expr));
+    expr->type = EXPR_BOOL;
+    expr->line = line;
+    expr->column = column;
+    expr->as.bool_value = value;
+    return expr;
+}
+
 Expr* expr_int(int64_t value, int base, int line, int column) {
     Expr* expr = ast_alloc(sizeof(Expr));
     expr->type = EXPR_INT;
@@ -404,6 +413,8 @@ static void free_stmt_list(StmtList* list) {
 void free_expr(Expr* expr) {
     if (!expr) return;
     switch (expr->type) {
+        case EXPR_BOOL:
+            break;
         case EXPR_ASYNC:
             free_stmt(expr->as.async.block);
             break;

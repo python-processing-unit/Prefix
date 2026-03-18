@@ -77,6 +77,7 @@ static void skip_newlines(Parser* parser) {
 }
 
 static DeclType parse_type_name(const char* name) {
+    if (strcmp(name, "BOOL") == 0) return TYPE_BOOL;
     if (strcmp(name, "INT") == 0) return TYPE_INT;
     if (strcmp(name, "FLT") == 0) return TYPE_FLT;
     if (strcmp(name, "STR") == 0) return TYPE_STR;
@@ -298,6 +299,16 @@ static Expr* parse_primary(Parser* parser) {
     Token token = parser->current_token;
     // Recognize FLT literal names `INF` and `NaN` as primary expressions
     if (parser->current_token.type == TOKEN_IDENT) {
+        if (strcmp(parser->current_token.literal, "TRUE") == 0) {
+            Token t = parser->current_token;
+            advance(parser);
+            return expr_bool(true, t.line, t.column);
+        }
+        if (strcmp(parser->current_token.literal, "FALSE") == 0) {
+            Token t = parser->current_token;
+            advance(parser);
+            return expr_bool(false, t.line, t.column);
+        }
         if (strcmp(parser->current_token.literal, "INF") == 0) {
             Token t = parser->current_token;
             advance(parser);

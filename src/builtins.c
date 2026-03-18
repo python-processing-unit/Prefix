@@ -776,6 +776,7 @@ static void jb_append_json_string(JsonBuf* jb, const char* s) {
 
 static const char* decl_type_name(DeclType dt) {
     switch (dt) {
+        case TYPE_BOOL: return "BOOL";
         case TYPE_INT: return "INT";
         case TYPE_FLT: return "FLT";
         case TYPE_STR: return "STR";
@@ -789,6 +790,7 @@ static const char* decl_type_name(DeclType dt) {
 
 static DeclType decl_type_from_name(const char* name) {
     if (!name) return TYPE_UNKNOWN;
+    if (strcmp(name, "BOOL") == 0) return TYPE_BOOL;
     if (strcmp(name, "INT") == 0) return TYPE_INT;
     if (strcmp(name, "FLT") == 0) return TYPE_FLT;
     if (strcmp(name, "STR") == 0) return TYPE_STR;
@@ -1359,6 +1361,20 @@ static void ser_expr(JsonBuf* jb, SerCtx* ctx, Interpreter* interp, Expr* expr) 
         return;
     }
     switch (expr->type) {
+        case EXPR_BOOL: {
+            jb_append_char(jb, '{');
+            bool first = true;
+            json_obj_field(jb, &first, "n");
+            jb_append_json_string(jb, "Literal");
+            json_obj_field(jb, &first, "loc");
+            ser_loc(jb, expr->line, expr->column);
+            json_obj_field(jb, &first, "value");
+            jb_append_str(jb, expr->as.bool_value ? "true" : "false");
+            json_obj_field(jb, &first, "literal_type");
+            jb_append_json_string(jb, "BOOL");
+            jb_append_char(jb, '}');
+            return;
+        }
         case EXPR_INT: {
             jb_append_char(jb, '{');
             bool first = true;
@@ -1929,6 +1945,16 @@ static void ser_stmt(JsonBuf* jb, SerCtx* ctx, Interpreter* interp, Stmt* stmt) 
 
 static void ser_value(JsonBuf* jb, SerCtx* ctx, Interpreter* interp, Value v) {
     switch (v.type) {
+        case VAL_BOOL: {
+            jb_append_char(jb, '{');
+            bool first = true;
+            json_obj_field(jb, &first, "t");
+            jb_append_json_string(jb, "BOOL");
+            json_obj_field(jb, &first, "v");
+            jb_append_str(jb, v.as.boolean ? "true" : "false");
+            jb_append_char(jb, '}');
+            return;
+        }
         case VAL_INT: {
             char* s = int_to_base_prefixed_str(v.as.i, numeric_base_of(v));
             jb_append_char(jb, '{');
@@ -2259,6 +2285,7 @@ static Expr* deser_default_expr(JsonValue* raw, UnserCtx* ctx, Interpreter* inte
     }
     Value v = deser_val(raw, ctx, interp, err);
     if (*err) return NULL;
+    if (v.type == VAL_BOOL) return expr_bool(v.as.boolean, 1, 1);
     if (v.type == VAL_INT) return expr_int(v.as.i, v.num_base, 1, 1);
     if (v.type == VAL_FLT) return expr_flt(v.as.f, v.num_base, v.num_base_nan, 1, 1);
     if (v.type == VAL_STR) return expr_str(strdup(v.as.s ? v.as.s : ""), 1, 1);
@@ -2277,6 +2304,14 @@ static Expr* deser_expr(JsonValue* obj, UnserCtx* ctx, Interpreter* interp, cons
         JsonValue* lit_type = json_obj_get(obj, "literal_type");
         JsonValue* val = json_obj_get(obj, "value");
         const char* lt = (lit_type && lit_type->type == JSON_STR) ? lit_type->as.str : "INT";
+        if (strcmp(lt, "BOOL") == 0) {
+            if (val && val->type == JSON_BOOL) return expr_bool(val->as.boolean != 0, line, col);
+            if (val && val->type == JSON_STR) {
+                if (strcmp(val->as.str, "TRUE") == 0 || strcmp(val->as.str, "true") == 0) return expr_bool(true, line, col);
+                if (strcmp(val->as.str, "FALSE") == 0 || strcmp(val->as.str, "false") == 0) return expr_bool(false, line, col);
+            }
+            return expr_bool(false, line, col);
+        }
         if (strcmp(lt, "INT") == 0) {
             int64_t i = 0;
             if (val && val->type == JSON_NUM) i = (int64_t)val->as.num;
@@ -2669,6 +2704,15 @@ static Value deser_val(JsonValue* obj, UnserCtx* ctx, Interpreter* interp, const
         }
         return value_int_base(val, base);
     }
+    if (strcmp(tp, "BOOL") == 0) {
+        JsonValue* v = json_obj_get(obj, "v");
+        if (v && v->type == JSON_BOOL) return value_bool(v->as.boolean != 0);
+        if (v && v->type == JSON_STR) {
+            if (strcmp(v->as.str, "TRUE") == 0 || strcmp(v->as.str, "true") == 0) return value_bool(true);
+            if (strcmp(v->as.str, "FALSE") == 0 || strcmp(v->as.str, "false") == 0) return value_bool(false);
+        }
+        return value_bool(false);
+    }
     if (strcmp(tp, "FLT") == 0) {
         JsonValue* v = json_obj_get(obj, "v");
         const char* s = (v && v->type == JSON_STR) ? v->as.str : "0.0";
@@ -2710,7 +2754,8 @@ static Value deser_val(JsonValue* obj, UnserCtx* ctx, Interpreter* interp, const
             items[i] = deser_val(flat->as.arr.items[i], ctx, interp, err);
             if (*err) { free(shp); free(items); return value_null(); }
             DeclType dt = TYPE_UNKNOWN;
-            if (items[i].type == VAL_INT) dt = TYPE_INT;
+            if (items[i].type == VAL_BOOL) dt = TYPE_BOOL;
+            else if (items[i].type == VAL_INT) dt = TYPE_INT;
             else if (items[i].type == VAL_FLT) dt = TYPE_FLT;
             else if (items[i].type == VAL_STR) dt = TYPE_STR;
             else if (items[i].type == VAL_TNS) dt = TYPE_TNS;
@@ -4199,6 +4244,8 @@ static void eq_seen_add(EqSeenSet* seen, const void* a, const void* b, ValueType
 static int value_deep_eq_impl(Value a, Value b, EqSeenSet* seen) {
     if (a.type != b.type) return 0;
     switch (a.type) {
+        case VAL_BOOL:
+            return a.as.boolean == b.as.boolean ? 1 : 0;
         case VAL_INT:
             return a.as.i == b.as.i ? 1 : 0;
         case VAL_FLT:
@@ -4267,10 +4314,10 @@ static Value builtin_eq(Interpreter* interp, Value* args, int argc, Expr** arg_n
 
     // If types differ, not equal
     if (args[0].type != args[1].type) {
-        return value_int(0);
+        return value_bool(false);
     }
 
-    return value_int(value_deep_eq(args[0], args[1]) ? 1 : 0);
+    return value_bool(value_deep_eq(args[0], args[1]) != 0);
 }
 
 static Value builtin_neq(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
@@ -4278,10 +4325,10 @@ static Value builtin_neq(Interpreter* interp, Value* args, int argc, Expr** arg_
 
     /* If types differ, they are not equal -> NEQ should be true (1) */
     if (args[0].type != args[1].type) {
-        return value_int(1);
+        return value_bool(true);
     }
 
-    return value_int(value_deep_eq(args[0], args[1]) ? 0 : 1);
+    return value_bool(value_deep_eq(args[0], args[1]) == 0);
 }
 
 static Value builtin_gt(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
@@ -4294,9 +4341,9 @@ static Value builtin_gt(Interpreter* interp, Value* args, int argc, Expr** arg_n
     }
     
     if (args[0].type == VAL_INT) {
-        return value_int(args[0].as.i > args[1].as.i ? 1 : 0);
+        return value_bool(args[0].as.i > args[1].as.i);
     }
-    return value_int(args[0].as.f > args[1].as.f ? 1 : 0);
+    return value_bool(args[0].as.f > args[1].as.f);
 }
 
 static Value builtin_lt(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
@@ -4309,9 +4356,9 @@ static Value builtin_lt(Interpreter* interp, Value* args, int argc, Expr** arg_n
     }
     
     if (args[0].type == VAL_INT) {
-        return value_int(args[0].as.i < args[1].as.i ? 1 : 0);
+        return value_bool(args[0].as.i < args[1].as.i);
     }
-    return value_int(args[0].as.f < args[1].as.f ? 1 : 0);
+    return value_bool(args[0].as.f < args[1].as.f);
 }
 
 static Value builtin_gte(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
@@ -4324,9 +4371,9 @@ static Value builtin_gte(Interpreter* interp, Value* args, int argc, Expr** arg_
     }
     
     if (args[0].type == VAL_INT) {
-        return value_int(args[0].as.i >= args[1].as.i ? 1 : 0);
+        return value_bool(args[0].as.i >= args[1].as.i);
     }
-    return value_int(args[0].as.f >= args[1].as.f ? 1 : 0);
+    return value_bool(args[0].as.f >= args[1].as.f);
 }
 
 static Value builtin_lte(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
@@ -4339,38 +4386,38 @@ static Value builtin_lte(Interpreter* interp, Value* args, int argc, Expr** arg_
     }
     
     if (args[0].type == VAL_INT) {
-        return value_int(args[0].as.i <= args[1].as.i ? 1 : 0);
+        return value_bool(args[0].as.i <= args[1].as.i);
     }
-    return value_int(args[0].as.f <= args[1].as.f ? 1 : 0);
+    return value_bool(args[0].as.f <= args[1].as.f);
 }
 
 // ============ Logical operators ============
 
 static Value builtin_and(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
     (void)arg_nodes; (void)env; (void)interp; (void)line; (void)col;
-    return value_int(value_truthiness(args[0]) && value_truthiness(args[1]) ? 1 : 0);
+    return value_bool(value_truthiness(args[0]) && value_truthiness(args[1]));
 }
 
 static Value builtin_or(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
     (void)arg_nodes; (void)env; (void)interp; (void)line; (void)col;
-    return value_int(value_truthiness(args[0]) || value_truthiness(args[1]) ? 1 : 0);
+    return value_bool(value_truthiness(args[0]) || value_truthiness(args[1]));
 }
 
 static Value builtin_xor(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
     (void)arg_nodes; (void)env; (void)interp; (void)line; (void)col;
     int a = value_truthiness(args[0]) ? 1 : 0;
     int b = value_truthiness(args[1]) ? 1 : 0;
-    return value_int(a ^ b);
+    return value_bool((a ^ b) != 0);
 }
 
 static Value builtin_not(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
     (void)arg_nodes; (void)env; (void)interp; (void)line; (void)col;
-    return value_int(value_truthiness(args[0]) ? 0 : 1);
+    return value_bool(!value_truthiness(args[0]));
 }
 
 static Value builtin_bool(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
     (void)arg_nodes; (void)env; (void)interp; (void)line; (void)col;
-    return value_int(value_truthiness(args[0]) ? 1 : 0);
+    return value_bool(value_truthiness(args[0]));
 }
 
 // ============ Bitwise operators ============
@@ -4442,6 +4489,9 @@ static Value builtin_shr(Interpreter* interp, Value* args, int argc, Expr** arg_
 static Value builtin_int(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
     (void)arg_nodes; (void)env;
     
+    if (args[0].type == VAL_BOOL) {
+        return value_int_base(args[0].as.boolean ? 1 : 0, 2);
+    }
     if (args[0].type == VAL_INT) {
         return value_int_base(args[0].as.i, numeric_base_of(args[0]));
     }
@@ -4459,12 +4509,15 @@ static Value builtin_int(Interpreter* interp, Value* args, int argc, Expr** arg_
         }
         return value_int_base(val, base);
     }
-    RUNTIME_ERROR(interp, "INT expects INT, FLT, or STR argument", line, col);
+    RUNTIME_ERROR(interp, "INT expects BOOL, INT, FLT, or STR argument", line, col);
 }
 
 static Value builtin_flt(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
     (void)arg_nodes; (void)env;
     
+    if (args[0].type == VAL_BOOL) {
+        return value_flt_base(args[0].as.boolean ? 1.0 : 0.0, 2);
+    }
     if (args[0].type == VAL_FLT) {
         if (args[0].num_base_nan) return value_flt_nan_base(args[0].as.f);
         return value_flt_base(args[0].as.f, numeric_base_of(args[0]));
@@ -4483,7 +4536,7 @@ static Value builtin_flt(Interpreter* interp, Value* args, int argc, Expr** arg_
         if (base_is_nan) return value_flt_nan_base(fv);
         return value_flt_base(fv, base);
     }
-    RUNTIME_ERROR(interp, "FLT expects INT, FLT, or STR argument", line, col);
+    RUNTIME_ERROR(interp, "FLT expects BOOL, INT, FLT, or STR argument", line, col);
 }
 
 // CONVERT(num, base): change numeric base of a value (INT or FLT)
@@ -4526,6 +4579,9 @@ static Value builtin_str(Interpreter* interp, Value* args, int argc, Expr** arg_
     
     if (args[0].type == VAL_STR) {
         return value_str(args[0].as.s);
+    }
+    if (args[0].type == VAL_BOOL) {
+        return value_str(args[0].as.boolean ? "TRUE" : "FALSE");
     }
     if (args[0].type == VAL_INT) {
         char* s = int_to_base_prefixed_str(args[0].as.i, numeric_base_of(args[0]));
@@ -4932,16 +4988,16 @@ static Value builtin_in(Interpreter* interp, Value* args, int argc, Expr** arg_n
 
     // Container must be a tensor; otherwise membership is false
     if (args[1].type != VAL_TNS) {
-        return value_int(0);
+        return value_bool(false);
     }
 
     Tensor* t = args[1].as.tns;
-    if (!t || t->length == 0) return value_int(0);
+    if (!t || t->length == 0) return value_bool(false);
 
     for (size_t i = 0; i < t->length; i++) {
-        if (value_deep_eq(args[0], t->data[i])) return value_int(1);
+        if (value_deep_eq(args[0], t->data[i])) return value_bool(true);
     }
-    return value_int(0);
+    return value_bool(false);
 }
 
 // IMPORT_PATH: import a module by explicit filesystem path (string)
@@ -5143,7 +5199,7 @@ static Value builtin_import_path(Interpreter* interp, Value* args, int argc, Exp
     }
 
     if (alias_dup) free(alias_dup);
-    return value_int(0);
+    return value_bool(false);
 }
 static Value builtin_slice(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
     (void)arg_nodes; (void)env;
@@ -5342,12 +5398,12 @@ static Value builtin_print(Interpreter* interp, Value* args, int argc, Expr** ar
         }
     }
     if (forward) printf("\n");
-    return value_int(0);
+    return value_bool(false);
 }
 
 static Value builtin_warn(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
     (void)arg_nodes; (void)env; (void)line; (void)col;
-    if (!interp) return value_int(0);
+    if (!interp) return value_bool(false);
 
     int forward = (interp->verbose && !interp->shushed);
 
@@ -5380,7 +5436,7 @@ static Value builtin_warn(Interpreter* interp, Value* args, int argc, Expr** arg
         }
         printf("\n");
     }
-    return value_int(forward ? 1 : 0);
+    return value_bool(forward != 0);
 }
 
 static Value builtin_input(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
@@ -5403,20 +5459,20 @@ static Value builtin_input(Interpreter* interp, Value* args, int argc, Expr** ar
     return value_str("");
 }
 
-// SHUSH():INT - suppress forwarding of console output
+// SHUSH():BOOL - suppress forwarding of console output
 static Value builtin_shush(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
     (void)args; (void)argc; (void)arg_nodes; (void)env; (void)line; (void)col;
-    if (!interp) return value_int(0);
+    if (!interp) return value_bool(false);
     interp->shushed = 1;
-    return value_int(0);
+    return value_bool(false);
 }
 
-// UNSHUSH():INT - re-enable forwarding of console output
+// UNSHUSH():BOOL - re-enable forwarding of console output
 static Value builtin_unshush(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
     (void)args; (void)argc; (void)arg_nodes; (void)env; (void)line; (void)col;
-    if (!interp) return value_int(0);
+    if (!interp) return value_bool(false);
     interp->shushed = 0;
-    return value_int(0);
+    return value_bool(false);
 }
 
 // CL: execute a command string using the host shell and return exit code
@@ -5613,7 +5669,7 @@ static Value builtin_writefile(Interpreter* interp, Value* args, int argc, Expr*
         FILE* f = fopen(args[1].as.s, "wb");
         if (!f) {
             fprintf(stderr, "WRITEFILE: cannot open '%s' for writing: %s\n", args[1].as.s, strerror(errno));
-            return value_int(0);
+            return value_bool(false);
         }
         for (size_t i = 0; i < blen; i += 8) {
             unsigned char byte = 0;
@@ -5622,10 +5678,10 @@ static Value builtin_writefile(Interpreter* interp, Value* args, int argc, Expr*
                 if (c != '0' && c != '1') { fclose(f); RUNTIME_ERROR(interp, "WRITEFILE(binary) expects only 0/1 characters", line, col); }
                 byte = (byte << 1) | (unsigned char)(c - '0');
             }
-            if (fwrite(&byte, 1, 1, f) != 1) { fclose(f); return value_int(0); }
+            if (fwrite(&byte, 1, 1, f) != 1) { fclose(f); return value_bool(false); }
         }
         fclose(f);
-        return value_int(1);
+        return value_bool(true);
     }
 
     // hex
@@ -5635,7 +5691,7 @@ static Value builtin_writefile(Interpreter* interp, Value* args, int argc, Expr*
         FILE* f = fopen(args[1].as.s, "wb");
         if (!f) {
             fprintf(stderr, "WRITEFILE: cannot open '%s' for writing: %s\n", args[1].as.s, strerror(errno));
-            return value_int(0);
+            return value_bool(false);
         }
         for (size_t i = 0; i < blen; i += 2) {
             char a = blob[i]; char b = blob[i+1];
@@ -5643,10 +5699,10 @@ static Value builtin_writefile(Interpreter* interp, Value* args, int argc, Expr*
             int lo = (b >= '0' && b <= '9') ? b - '0' : (b >= 'a' && b <= 'f') ? b - 'a' + 10 : (b >= 'A' && b <= 'F') ? b - 'A' + 10 : -1;
             if (start < 0 || lo < 0) { fclose(f); RUNTIME_ERROR(interp, "WRITEFILE(hex) expects valid hex digits", line, col); }
             unsigned char byte = (unsigned char)((start << 4) | lo);
-            if (fwrite(&byte, 1, 1, f) != 1) { fclose(f); return value_int(0); }
+            if (fwrite(&byte, 1, 1, f) != 1) { fclose(f); return value_bool(false); }
         }
         fclose(f);
-        return value_int(1);
+        return value_bool(true);
     }
 
     // Text encodings: handle UTF-8, UTF-16, ANSI/Latin-1
@@ -5661,14 +5717,14 @@ static Value builtin_writefile(Interpreter* interp, Value* args, int argc, Expr*
         if (!f) {
             fprintf(stderr, "WRITEFILE: cannot open '%s' for writing: %s\n", args[1].as.s, strerror(errno));
             free(outbuf);
-            return value_int(0);
+            return value_bool(false);
         }
         if (outlen > 0) {
-            if (fwrite(outbuf, 1, outlen, f) != outlen) { fclose(f); free(outbuf); return value_int(0); }
+            if (fwrite(outbuf, 1, outlen, f) != outlen) { fclose(f); free(outbuf); return value_bool(false); }
         }
         fclose(f);
         free(outbuf);
-        return value_int(1);
+        return value_bool(true);
     }
 
     if (strcmp(codelb, "ansi") == 0) {
@@ -5685,14 +5741,14 @@ static Value builtin_writefile(Interpreter* interp, Value* args, int argc, Expr*
         if (!f) {
             fprintf(stderr, "WRITEFILE: cannot open '%s' for writing: %s\n", args[1].as.s, strerror(errno));
             free(outbuf);
-            return value_int(0);
+            return value_bool(false);
         }
         if (outlen > 0) {
-            if (fwrite(outbuf, 1, outlen, f) != outlen) { fclose(f); free(outbuf); return value_int(0); }
+            if (fwrite(outbuf, 1, outlen, f) != outlen) { fclose(f); free(outbuf); return value_bool(false); }
         }
         fclose(f);
         free(outbuf);
-        return value_int(1);
+        return value_bool(true);
     }
 
     // UTF-8 (with optional BOM)
@@ -5700,30 +5756,30 @@ static Value builtin_writefile(Interpreter* interp, Value* args, int argc, Expr*
         FILE* f = fopen(args[1].as.s, "wb");
         if (!f) {
             fprintf(stderr, "WRITEFILE: cannot open '%s' for writing: %s\n", args[1].as.s, strerror(errno));
-            return value_int(0);
+            return value_bool(false);
         }
         unsigned char bom[3] = {0xEF,0xBB,0xBF};
-        if (fwrite(bom, 1, 3, f) != 3) { fclose(f); return value_int(0); }
+        if (fwrite(bom, 1, 3, f) != 3) { fclose(f); return value_bool(false); }
         size_t towrite = strlen(blob);
         if (towrite > 0) {
-            if (fwrite(blob, 1, towrite, f) != towrite) { fclose(f); return value_int(0); }
+            if (fwrite(blob, 1, towrite, f) != towrite) { fclose(f); return value_bool(false); }
         }
         fclose(f);
-        return value_int(1);
+        return value_bool(true);
     }
 
     if (strcmp(codelb, "utf-8") == 0 || strcmp(codelb, "utf8") == 0) {
         FILE* f = fopen(args[1].as.s, "wb");
         if (!f) {
             fprintf(stderr, "WRITEFILE: cannot open '%s' for writing: %s\n", args[1].as.s, strerror(errno));
-            return value_int(0);
+            return value_bool(false);
         }
         size_t towrite = strlen(blob);
         if (towrite > 0) {
-            if (fwrite(blob, 1, towrite, f) != towrite) { fclose(f); return value_int(0); }
+            if (fwrite(blob, 1, towrite, f) != towrite) { fclose(f); return value_bool(false); }
         }
         fclose(f);
-        return value_int(1);
+        return value_bool(true);
     }
 
     RUNTIME_ERROR(interp, "WRITEFILE: unsupported coding", line, col);
@@ -5737,8 +5793,8 @@ static Value builtin_existfile(Interpreter* interp, Value* args, int argc, Expr*
     }
     EXPECT_STR(args[0], "EXISTFILE", interp, line, col);
     FILE* f = fopen(args[0].as.s, "rb");
-    if (f) { fclose(f); return value_int(1); }
-    return value_int(0);
+    if (f) { fclose(f); return value_bool(true); }
+    return value_bool(false);
 }
 
 // DELETEFILE(STR: path):INT
@@ -5751,7 +5807,7 @@ static Value builtin_deletefile(Interpreter* interp, Value* args, int argc, Expr
     if (remove(args[0].as.s) != 0) {
         RUNTIME_ERROR(interp, "DELETEFILE failed", line, col);
     }
-    return value_int(1);
+    return value_bool(true);
 }
 
 // ============ Control flow helpers ============
@@ -5762,7 +5818,7 @@ static Value builtin_assert(Interpreter* interp, Value* args, int argc, Expr** a
     if (!value_truthiness(args[0])) {
         RUNTIME_ERROR(interp, "Assertion failed", line, col);
     }
-    return value_int(1);
+    return value_bool(true);
 }
 
 static Value builtin_throw(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
@@ -5780,22 +5836,27 @@ static Value builtin_throw(Interpreter* interp, Value* args, int argc, Expr** ar
 
 static Value builtin_isint(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
     (void)arg_nodes; (void)env; (void)interp; (void)line; (void)col;
-    return value_int(args[0].type == VAL_INT ? 1 : 0);
+    return value_bool(args[0].type == VAL_INT);
+}
+
+static Value builtin_isbool(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
+    (void)arg_nodes; (void)env; (void)interp; (void)line; (void)col;
+    return value_bool(args[0].type == VAL_BOOL);
 }
 
 static Value builtin_isflt(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
     (void)arg_nodes; (void)env; (void)interp; (void)line; (void)col;
-    return value_int(args[0].type == VAL_FLT ? 1 : 0);
+    return value_bool(args[0].type == VAL_FLT);
 }
 
 static Value builtin_isstr(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
     (void)arg_nodes; (void)env; (void)interp; (void)line; (void)col;
-    return value_int(args[0].type == VAL_STR ? 1 : 0);
+    return value_bool(args[0].type == VAL_STR);
 }
 
 static Value builtin_istns(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
     (void)arg_nodes; (void)env; (void)interp; (void)line; (void)col;
-    return value_int(args[0].type == VAL_TNS ? 1 : 0);
+    return value_bool(args[0].type == VAL_TNS);
 }
 
 static Value builtin_type(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
@@ -5822,6 +5883,7 @@ static Value builtin_signature(Interpreter* interp, Value* args, int argc, Expr*
             buf[0] = '\0';
             const char* rname = "ANY";
             switch (f->return_type) {
+                case TYPE_BOOL: rname = "BOOL"; break;
                 case TYPE_INT: rname = "INT"; break;
                 case TYPE_FLT: rname = "FLT"; break;
                 case TYPE_STR: rname = "STR"; break;
@@ -5839,6 +5901,7 @@ static Value builtin_signature(Interpreter* interp, Value* args, int argc, Expr*
                 Param p = f->params.items[i];
                 const char* tname = "UNKNOWN";
                 switch (p.type) {
+                    case TYPE_BOOL: tname = "BOOL"; break;
                     case TYPE_INT: tname = "INT"; break;
                     case TYPE_FLT: tname = "FLT"; break;
                     case TYPE_STR: tname = "STR"; break;
@@ -5896,6 +5959,7 @@ static Value builtin_signature(Interpreter* interp, Value* args, int argc, Expr*
     }
     const char* tname = "UNKNOWN";
     switch (entry->decl_type) {
+        case TYPE_BOOL: tname = "BOOL"; break;
         case TYPE_INT: tname = "INT"; break;
         case TYPE_FLT: tname = "FLT"; break;
         case TYPE_STR: tname = "STR"; break;
@@ -5943,7 +6007,7 @@ static Value builtin_del(Interpreter* interp, Value* args, int argc, Expr** arg_
             snprintf(buf, sizeof(buf), "Cannot delete identifier '%s'", name);
             RUNTIME_ERROR(interp, buf, line, col);
         }
-        return value_int(0);
+        return value_bool(false);
     }
 
     /* Case 2: indexed expression – support deleting map entries like DEL(m<k>) or DEL(m<k1,k2>) */
@@ -6033,7 +6097,7 @@ static Value builtin_del(Interpreter* interp, Value* args, int argc, Expr** arg_
                     }
                     free(nodes);
                     value_free(base_val);
-                    return value_int(0);
+                    return value_bool(false);
                 }
 
                 /* descend into child slot without creating missing entries */
@@ -6043,7 +6107,7 @@ static Value builtin_del(Interpreter* interp, Value* args, int argc, Expr** arg_
                     /* intermediate missing -> nothing to delete (no-op) */
                     free(nodes);
                     value_free(base_val);
-                    return value_int(0);
+                    return value_bool(false);
                 }
                 if (slot->type != VAL_MAP) {
                     free(nodes);
@@ -6058,7 +6122,7 @@ static Value builtin_del(Interpreter* interp, Value* args, int argc, Expr** arg_
         /* unreachable, but keep cleanup */
         free(nodes);
         value_free(base_val);
-        return value_int(0);
+        return value_bool(false);
     }
 
     RUNTIME_ERROR(interp, "DEL expects an identifier", line, col);
@@ -6076,7 +6140,7 @@ static Value builtin_freeze(Interpreter* interp, Value* args, int argc, Expr** a
         snprintf(buf, sizeof(buf), "FREEZE: identifier '%s' not found", name);
         RUNTIME_ERROR(interp, buf, line, col);
     }
-    return value_int(0);
+    return value_bool(false);
 }
 
 static Value builtin_thaw(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
@@ -6096,7 +6160,7 @@ static Value builtin_thaw(Interpreter* interp, Value* args, int argc, Expr** arg
         snprintf(buf, sizeof(buf), "THAW: identifier '%s' is permanently frozen", name);
         RUNTIME_ERROR(interp, buf, line, col);
     }
-    return value_int(0);
+    return value_bool(false);
 }
 
 static Value builtin_permafreeze(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
@@ -6111,7 +6175,7 @@ static Value builtin_permafreeze(Interpreter* interp, Value* args, int argc, Exp
         snprintf(buf, sizeof(buf), "PERMAFREEZE: identifier '%s' not found", name);
         RUNTIME_ERROR(interp, buf, line, col);
     }
-    return value_int(0);
+    return value_bool(false);
 }
 
 static Value builtin_export(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
@@ -6154,7 +6218,7 @@ static Value builtin_export(Interpreter* interp, Value* args, int argc, Expr** a
     }
     free(qualified);
 
-    return value_int(0);
+    return value_bool(false);
 }
 
 static Value builtin_frozen(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
@@ -6164,7 +6228,7 @@ static Value builtin_frozen(Interpreter* interp, Value* args, int argc, Expr** a
     }
     const char* name = arg_nodes[0]->as.ident;
     int st = env_frozen_state(env, name);
-    return value_int(st);
+    return value_bool(st != 0);
 }
 
 static Value builtin_permafrozen(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
@@ -6174,18 +6238,18 @@ static Value builtin_permafrozen(Interpreter* interp, Value* args, int argc, Exp
     }
     const char* name = arg_nodes[0]->as.ident;
     int p = env_permafrozen(env, name);
-    return value_int(p);
+    return value_bool(p != 0);
 }
 
 static Value builtin_exist(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
     (void)args; (void)interp; (void)line; (void)col;
     
     if (argc != 1 || arg_nodes[0]->type != EXPR_IDENT) {
-        return value_int(0);
+        return value_bool(false);
     }
     
     const char* name = arg_nodes[0]->as.ident;
-    return value_int(env_exists(env, name) ? 1 : 0);
+    return value_bool(env_exists(env, name));
 }
 
 // ============ Variadic math ============
@@ -6450,18 +6514,18 @@ static Value builtin_any(Interpreter* interp, Value* args, int argc, Expr** arg_
     (void)arg_nodes; (void)env; (void)interp; (void)line; (void)col;
     
     for (int i = 0; i < argc; i++) {
-        if (value_truthiness(args[i])) return value_int(1);
+        if (value_truthiness(args[i])) return value_bool(true);
     }
-    return value_int(0);
+    return value_bool(false);
 }
 
 static Value builtin_all(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
     (void)arg_nodes; (void)env; (void)interp; (void)line; (void)col;
     
     for (int i = 0; i < argc; i++) {
-        if (!value_truthiness(args[i])) return value_int(0);
+        if (!value_truthiness(args[i])) return value_bool(false);
     }
-    return value_int(1);
+    return value_bool(true);
 }
 
 // Coercing sum/prod
@@ -6676,7 +6740,8 @@ static Value builtin_values(Interpreter* interp, Value* args, int argc, Expr** a
     // determine element DeclType from first value
     ValueType vt = m->items[0].value.type;
     DeclType dt = TYPE_UNKNOWN;
-    if (vt == VAL_INT) dt = TYPE_INT;
+    if (vt == VAL_BOOL) dt = TYPE_BOOL;
+    else if (vt == VAL_INT) dt = TYPE_INT;
     else if (vt == VAL_FLT) dt = TYPE_FLT;
     else if (vt == VAL_STR) dt = TYPE_STR;
     else if (vt == VAL_TNS) dt = TYPE_TNS;
@@ -6692,7 +6757,8 @@ static Value builtin_values(Interpreter* interp, Value* args, int argc, Expr** a
         // map all MAP values to TYPE_TNS element classification but keep actual Value
         ValueType cur = v.type;
         DeclType cur_dt = TYPE_UNKNOWN;
-        if (cur == VAL_INT) cur_dt = TYPE_INT;
+        if (cur == VAL_BOOL) cur_dt = TYPE_BOOL;
+        else if (cur == VAL_INT) cur_dt = TYPE_INT;
         else if (cur == VAL_FLT) cur_dt = TYPE_FLT;
         else if (cur == VAL_STR) cur_dt = TYPE_STR;
         else if (cur == VAL_TNS) cur_dt = TYPE_TNS;
@@ -6720,7 +6786,7 @@ static Value builtin_keyin(Interpreter* interp, Value* args, int argc, Expr** ar
     int found = 0;
     Value res = value_map_get(args[1], args[0], &found);
     if (found) value_free(res);
-    return value_int(found ? 1 : 0);
+    return value_bool(found != 0);
 }
 
 // VALUEIN(value, map):INT - returns 1 if any stored value equals the provided value
@@ -6728,11 +6794,11 @@ static Value builtin_valuein(Interpreter* interp, Value* args, int argc, Expr** 
     (void)arg_nodes; (void)env; (void)argc;
     if (args[1].type != VAL_MAP) RUNTIME_ERROR(interp, "VALUEIN expects MAP as second argument", line, col);
     Map* m = args[1].as.map;
-    if (!m) return value_int(0);
+    if (!m) return value_bool(false);
     for (size_t i = 0; i < m->count; i++) {
-        if (value_deep_eq(args[0], m->items[i].value)) return value_int(1);
+        if (value_deep_eq(args[0], m->items[i].value)) return value_bool(true);
     }
-    return value_int(0);
+    return value_bool(false);
 }
 
 // Helper: recursive match implementation
@@ -6784,7 +6850,7 @@ static Value builtin_match(Interpreter* interp, Value* args, int argc, Expr** ar
     Map* m = args[0].as.map;
     Map* tpl = args[1].as.map;
     int ok = match_map_internal(m, tpl, typing, recurse, shape);
-    return value_int(ok ? 1 : 0);
+    return value_bool(ok != 0);
 }
 
 // COPY (shallow copy for scalars)
@@ -6820,6 +6886,7 @@ static Value builtin_assign(Interpreter* interp, Value* args, int argc, Expr** a
         DeclType actual;
 
         switch (rhs.type) {
+            case VAL_BOOL: actual = TYPE_BOOL; break;
             case VAL_INT: actual = TYPE_INT; break;
             case VAL_FLT: actual = TYPE_FLT; break;
             case VAL_STR: actual = TYPE_STR; break;
@@ -6872,6 +6939,7 @@ static Value builtin_assign(Interpreter* interp, Value* args, int argc, Expr** a
         if (e->decl_type != TYPE_UNKNOWN) {
             DeclType actual;
             switch (rhs.type) {
+                case VAL_BOOL: actual = TYPE_BOOL; break;
                 case VAL_INT: actual = TYPE_INT; break;
                 case VAL_FLT: actual = TYPE_FLT; break;
                 case VAL_STR: actual = TYPE_STR; break;
@@ -6980,16 +7048,16 @@ static Value builtin_main(Interpreter* interp, Value* args, int argc, Expr** arg
     EnvEntry* primary_src = interp && interp->global_env ? env_get_entry(interp->global_env, "__MODULE_SOURCE__") : NULL;
     if (!primary_src || !primary_src->initialized) {
         // No recorded primary source -> treat as main
-        return value_int(1);
+        return value_bool(true);
     }
     if (!call_src || !call_src->initialized) {
         // Call site has no source recorded; treat as main if equal to primary (unlikely) else main
-        return value_int(1);
+        return value_bool(true);
     }
     if (call_src->value.type == VAL_STR && primary_src->value.type == VAL_STR && call_src->value.as.s && primary_src->value.as.s) {
-        return value_int(strcmp(call_src->value.as.s, primary_src->value.as.s) == 0 ? 1 : 0);
+        return value_bool(strcmp(call_src->value.as.s, primary_src->value.as.s) == 0);
     }
-    return value_int(1);
+    return value_bool(true);
 }
 
 static Value builtin_os(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
@@ -7066,7 +7134,7 @@ static Value builtin_extend(Interpreter* interp, Value* args, int argc, Expr** a
 
     free(loaded_name);
     free(ext_err);
-    return value_int(0);
+    return value_bool(false);
 }
 
 // Stubs for operations requiring TNS/MAP/THD
@@ -7342,7 +7410,7 @@ static Value builtin_import(Interpreter* interp, Value* args, int argc, Expr** a
         }
     }
 
-    return value_int(0);
+    return value_bool(false);
 }
 
 // TNS operator: two forms
@@ -7420,6 +7488,7 @@ static Value builtin_tns(Interpreter* interp, Value* args, int argc, Expr** arg_
         // Determine element DeclType
         DeclType elem_decl;
         switch (args[1].type) {
+            case VAL_BOOL: elem_decl = TYPE_BOOL; break;
             case VAL_INT: elem_decl = TYPE_INT; break;
             case VAL_FLT: elem_decl = TYPE_FLT; break;
             case VAL_STR: elem_decl = TYPE_STR; break;
@@ -7714,7 +7783,7 @@ static Value builtin_paused(Interpreter* interp, Value* args, int argc, Expr** a
     if (args[0].type != VAL_THR || !args[0].as.thr) {
         RUNTIME_ERROR(interp, "PAUSED expects THR argument", line, col);
     }
-    return value_int(value_thr_get_paused(args[0]) ? 1 : 0);
+    return value_bool(value_thr_get_paused(args[0]) != 0);
 }
 
 // STOP(THR: thread):THR — cooperatively stop a running thread and mark finished
@@ -7906,7 +7975,7 @@ static Value builtin_parallel(Interpreter* interp, Value* args, int argc, Expr**
         return value_null();
     }
 
-    return value_int(0);
+    return value_bool(false);
 }
 
 
@@ -8007,6 +8076,7 @@ static BuiltinFunction builtins_table[] = {
     {"UNSER", 1, 1, builtin_unser},
 
     // Type checking
+    {"ISBOOL", 1, 1, builtin_isbool},
     {"ISINT", 1, 1, builtin_isint},
     {"ISFLT", 1, 1, builtin_isflt},
     {"ISSTR", 1, 1, builtin_isstr},
