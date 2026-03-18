@@ -338,6 +338,8 @@ The literal `SELF` MAY be evaluated inside `MAP` literals. When used as a value 
 
 Intermediate nested maps MUST be created on-demand when assigning to deeper keys. Assigning a value of a different type to an existing key MUST raise a runtime error.
 
+When a `MAP` index expression is used in call position and the indexed value resolves to a `FUNC`, the interpreter MUST bind `SELF` for the duration of that call to the `MAP` value that supplied the function. If the `MAP` expression refers to a visible pointer alias to a `MAP` binding, `SELF` MUST alias the underlying binding so that mutations through `SELF` update the original map. Otherwise `SELF` MUST follow normal `MAP` value semantics, so calling through a non-pointer value mutates only the local copy.
+
 ---
 
 #### 4.5.3 Boolean representation

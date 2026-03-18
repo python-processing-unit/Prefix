@@ -114,6 +114,89 @@ static void trace_log_step(Interpreter* interp, Stmt* stmt, Env* env) {
     interp->trace_next_step_index++;
 }
 
+static bool bind_self_for_map_call(Interpreter* interp, Expr* target_expr, Env* caller_env, Env* call_env, int line, int col) {
+    if (!interp || !call_env || !target_expr) return true;
+
+    // SELF should mirror the immediate map target of the call site.
+    Expr* base_expr = target_expr;
+    if (!base_expr) return true;
+
+    if (base_expr->type == EXPR_IDENT && base_expr->as.ident) {
+        EnvEntry* raw_entry = env_get_entry(caller_env, base_expr->as.ident);
+        Value base_val = value_null();
+        bool initialized = false;
+
+        if (!env_get(caller_env, base_expr->as.ident, &base_val, NULL, &initialized) || !initialized) {
+            return true;
+        }
+
+        if (raw_entry && raw_entry->alias_target && base_val.type == VAL_MAP) {
+            env_define(call_env, "SELF", TYPE_MAP);
+            if (!env_set_alias_cross(call_env,
+                                     "SELF",
+                                     raw_entry->alias_target_env ? raw_entry->alias_target_env : caller_env,
+                                     raw_entry->alias_target,
+                                     TYPE_MAP,
+                                     true)) {
+                value_free(base_val);
+                if (interp->error) {
+                    free(interp->error);
+                    interp->error = NULL;
+                }
+                interp->error = strdup("Cannot bind SELF for map call");
+                interp->error_line = line;
+                interp->error_col = col;
+                return false;
+            }
+            value_free(base_val);
+            return true;
+        }
+
+        if (base_val.type != VAL_MAP) {
+            value_free(base_val);
+            return true;
+        }
+
+        env_define(call_env, "SELF", TYPE_MAP);
+        if (!env_assign(call_env, "SELF", base_val, TYPE_MAP, true)) {
+            value_free(base_val);
+            if (interp->error) {
+                free(interp->error);
+                interp->error = NULL;
+            }
+            interp->error = strdup("Cannot bind SELF for map call");
+            interp->error_line = line;
+            interp->error_col = col;
+            return false;
+        }
+        value_free(base_val);
+        return true;
+    }
+
+    Value base_val = eval_expr(interp, base_expr, caller_env);
+    if (interp->error) return false;
+    if (base_val.type != VAL_MAP) {
+        value_free(base_val);
+        return true;
+    }
+
+    env_define(call_env, "SELF", TYPE_MAP);
+    if (!env_assign(call_env, "SELF", base_val, TYPE_MAP, true)) {
+        value_free(base_val);
+        if (interp->error) {
+            free(interp->error);
+            interp->error = NULL;
+        }
+        interp->error = strdup("Cannot bind SELF for map call");
+        interp->error_line = line;
+        interp->error_col = col;
+        return false;
+    }
+
+    value_free(base_val);
+    return true;
+}
+
 static void trace_append(char** dst, size_t* len, size_t* cap, const char* text) {
     if (!dst || !len || !cap || !text) return;
     size_t add = strlen(text);
@@ -1480,6 +1563,18 @@ Value eval_expr(Interpreter* interp, Expr* expr, Env* env) {
             if (pos_vals) free(pos_vals);
             if (kw_vals) free(kw_vals);
             if (kw_used) free(kw_used);
+
+            if (expr->as.call.callee->type == EXPR_INDEX && expr->as.call.callee->as.index.is_map) {
+                if (!bind_self_for_map_call(interp,
+                                            expr->as.call.callee->as.index.target,
+                                            env,
+                                            call_env,
+                                            expr->line,
+                                            expr->column)) {
+                    env_free(call_env);
+                    return value_null();
+                }
+            }
             
             // Execute function body
             if (trace_push_frame(interp,
