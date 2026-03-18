@@ -21,6 +21,30 @@ The change log is a document recording what changed with every release of Prefix
 
 ---
 
+## 0.10.0
+
+### Major changes
+
+Add the first-class `BOOL` type with the `TRUE` and `FALSE` literals, and change the language's Boolean model to use `BOOL` rather than integer sentinel values.
+
+Change built-in and standard-library APIs that previously returned `INT` sentinel values to return `BOOL` instead, including logical, comparison, type-checking, import, filesystem, console, freeze, and deletion operators, along with helpers such as `prime.IS_PRIME`, `prime.IS_MERSENNE_PRIME`, and `image.SHOW`.
+
+### Minor changes
+
+Bind `SELF` when calling `FUNC` values stored in `MAP` objects, preserving aliasing when the map is accessed through a pointer.
+
+Update pointer semantics so transformed built-in results write back through pointer operands, and pointer arguments to user-defined functions bind as aliases.
+
+### Patches
+
+Allow `BOOL` values in conversions, truthiness, tensor elements, serialization, deserialization, printing, and default `FUNC` returns.
+
+Fix image save operators to report runtime failures correctly.
+
+Refactor the documentation site to use shared CSS and Markdown rendering, and generate the specification table of contents automatically.
+
+---
+
 ## 0.9.0
 
 ### Major changes
