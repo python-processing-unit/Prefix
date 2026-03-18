@@ -5374,6 +5374,10 @@ static Value builtin_print(Interpreter* interp, Value* args, int argc, Expr** ar
 
     for (int i = 0; i < argc; i++) {
         switch (args[i].type) {
+            case VAL_BOOL: {
+                if (forward) printf("%s", args[i].as.boolean ? "TRUE" : "FALSE");
+                break;
+            }
             case VAL_INT: {
                 char* s = int_to_base_prefixed_str(args[i].as.i, numeric_base_of(args[i]));
                 if (forward) printf("%s", s);
@@ -5411,6 +5415,10 @@ static Value builtin_warn(Interpreter* interp, Value* args, int argc, Expr** arg
         printf("WARNING: ");
         for (int i = 0; i < argc; i++) {
             switch (args[i].type) {
+                    case VAL_BOOL: {
+                        printf("%s", args[i].as.boolean ? "TRUE" : "FALSE");
+                        break;
+                    }
                 case VAL_INT: {
                     char* s = int_to_base_prefixed_str(args[i].as.i, numeric_base_of(args[i]));
                     printf("%s", s);
