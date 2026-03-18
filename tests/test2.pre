@@ -232,6 +232,20 @@ ASSERT(EQ(m3<"b">, 0d1))
 ASSERT(EQ(m3, m3<"c">))
 DEL(m3)
 
+! Regression test for GH-98: SELF in map-indexed calls
+MAP: method_map = <"n" = 0d1, "inc" = LAMBDA INT: (){ SELF<"n"> = ADD(SELF<"n">, 0d1); RETURN(SELF<"n">) }>
+MAP: method_copy = method_map
+MAP: method_alias = @method_map
+ASSERT(EQ(method_copy<"inc">(), 0d2))
+ASSERT(EQ(method_copy<"n">, 0d1))
+ASSERT(EQ(method_map<"n">, 0d1))
+ASSERT(EQ(method_alias<"inc">(), 0d2))
+ASSERT(EQ(method_map<"n">, 0d2))
+ASSERT(EQ(method_copy<"n">, 0d1))
+DEL(method_copy)
+DEL(method_alias)
+DEL(method_map)
+
 ! Pointer tests
 PRINT("Testing pointers...")
 INT: x = 0d1
