@@ -459,6 +459,24 @@ DEL(src_scat)
 DEL(ind_scat)
 PRINT("SCAT: PASS\n")
 
+! --- APPEND operator ---
+PRINT("Testing APPEND...")
+TNS: a_append = [0d1, 0d2]
+TNS: b_append = APPEND(0d3, a_append)
+ASSERT(EQ(b_append, [0d1, 0d2, 0d3]))
+DEL(a_append)
+DEL(b_append)
+
+TNS: t_append = [0d1, 0d2]
+APPEND(0d3, @t_append)
+ASSERT(EQ(t_append[0d3], 0d3))
+DEL(t_append)
+
+TNS: s_append = ["a", "b"]
+ASSERT(EQ(APPEND("c", s_append), ["a", "b", "c"]))
+DEL(s_append)
+PRINT("APPEND: PASS\n")
+
 ! --- Tensor-scalar arithmetic operators ---
 PRINT("Testing tensor-scalar arithmetic...")
 TNS: ta = [0b1, 0b10]
