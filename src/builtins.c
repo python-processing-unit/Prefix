@@ -3716,6 +3716,46 @@ static Value builtin_fill(Interpreter* interp, Value* args, int argc, Expr** arg
     return out;
 }
 
+// APPEND: append a single element to a 1-D tensor and return a new tensor
+static Value builtin_append(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
+    (void)arg_nodes; (void)env; (void)argc;
+    if (args[1].type != VAL_TNS) {
+        RUNTIME_ERROR(interp, "APPEND expects (ANY, TNS)", line, col);
+    }
+    Tensor* t = args[1].as.tns;
+    if (!t) {
+        RUNTIME_ERROR(interp, "Invalid target tensor", line, col);
+    }
+    if (t->ndim != 1) {
+        RUNTIME_ERROR(interp, "APPEND target must be 1-D TNS", line, col);
+    }
+
+    size_t old_len = t->shape[0];
+    size_t new_len = old_len + 1;
+    size_t shape[1] = { new_len };
+    Value out = value_tns_new(t->elem_type, 1, shape);
+    Tensor* ot = out.as.tns;
+
+    // copy existing elements
+    for (size_t i = 0; i < old_len; i++) {
+        ot->data[i] = value_copy(t->data[i]);
+    }
+
+    // append the provided element (deep-copy containers to avoid shared mutation)
+    if (args[0].type == VAL_TNS || args[0].type == VAL_MAP) {
+        ot->data[new_len - 1] = value_deep_copy(args[0]);
+    } else {
+        ot->data[new_len - 1] = value_copy(args[0]);
+    }
+
+    if (!writeback_ptr_node(interp, arg_nodes ? arg_nodes[1] : NULL, env, out, "APPEND", line, col)) {
+        value_free(out);
+        return value_null();
+    }
+
+    return out;
+}
+
 // SCAT: return a copy of dst with a rectangular slice replaced by src.
 // Args: SCAT(TNS: src, TNS: dst, TNS: ind)
 static Value builtin_scat(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
@@ -8043,6 +8083,7 @@ static BuiltinFunction builtins_table[] = {
     {"TLEN", 2, 2, builtin_tlen},
     {"TFLIP", 2, 2, builtin_tflip},
     {"SCAT", 3, 3, builtin_scat},
+    {"APPEND", 2, 2, builtin_append},
     {"MADD", 2, 2, builtin_madd},
     {"MSUB", 2, 2, builtin_msub},
     {"MMUL", 2, 2, builtin_mmul},
