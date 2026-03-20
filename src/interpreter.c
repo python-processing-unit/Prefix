@@ -1854,7 +1854,14 @@ tns_eval_fail:
                         int found = 0;
                         Value got = value_map_get(cur, ikv, &found);
                         value_free(ikv);
-                        if (!found) { value_free(cur); final_val = value_null(); break; }
+                        if (!found) {
+                            value_free(cur);
+                            interp->error = strdup("Map key not found");
+                            interp->error_line = ik->line;
+                            interp->error_col = ik->column;
+                            err = true;
+                            break;
+                        }
                         value_free(cur);
                         cur = got; // continue descending (got is a copy)
                         if (ii + 1 == idxs->count) final_val = value_copy(cur);
@@ -1925,8 +1932,13 @@ tns_eval_fail:
                     int found = 0;
                     Value got = value_map_get(cur, key, &found);
                     value_free(key);
-                    // If not found, return null (missing key)
-                    if (!found) { value_free(cur); return value_null(); }
+                    if (!found) {
+                        value_free(cur);
+                        interp->error = strdup("Map key not found");
+                        interp->error_line = it->line;
+                        interp->error_col = it->column;
+                        return value_null();
+                    }
                     // If this is last index, return the found value
                     if (i + 1 == nidx) {
                         // free original map container if it was a copy
