@@ -223,8 +223,14 @@ ASSERT(EQ(m<"foo">, 0d5))
 ASSERT(EQ(m<"bar">, 0d10))
 ASSERT(EQ(m<"nested", "a">, 0d1))
 ASSERT(EQ(m<"nested", "b">, 0d2))
-! Missing key should return null/false
-ASSERT(NOT(m<"nope">))
+! Missing key should raise an error
+INT: map_missing_err = 0d0
+TRY{
+    m<"nope">
+}CATCH{
+    map_missing_err = 0d1
+}
+ASSERT(EQ(map_missing_err, 0d1))
 PRINT("Maps: PASS\n")
 
 ! Regression test for GH-61: ensure DEL works on map index targets
@@ -232,10 +238,17 @@ PRINT("Testing DEL on map indexing (regression GH-61)...")
 MAP: reg = <"foo" = 0d1, "bar" = 0d2, "nested" = <"a" = 0d10>>
 ASSERT(EQ(reg<"foo">, 0d1))
 DEL(reg<"foo">)
-ASSERT(NOT(reg<"foo">))
+ASSERT(NOT(KEYIN("foo", reg)))
+INT: reg_missing_err = 0d0
+TRY{
+    reg<"foo">
+}CATCH{
+    reg_missing_err = 0d1
+}
+ASSERT(EQ(reg_missing_err, 0d1))
 ! Deleting nested key
 DEL(reg<"nested", "a">)
-ASSERT(NOT(reg<"nested", "a">))
+ASSERT(NOT(KEYIN("a", reg<"nested">)))
 DEL(reg)
 PRINT("DEL map-index: PASS\n")
 
