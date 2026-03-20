@@ -479,8 +479,8 @@ static const char* module_scope_name(Env* env) {
     }
 
     static char* flt_to_base_prefixed_str(double val, int base, int base_is_nan) {
-        if (base_is_nan || isnan(val)) return strdup("NaN");
         if (isinf(val)) return strdup(signbit(val) ? "-INF" : "INF");
+        if (base_is_nan || isnan(val)) return strdup("NaN");
         if (!is_valid_numeric_base(base)) base = 2;
         const char* alphabet = (base == 58) ? k_digits58 : k_digits64;
 
