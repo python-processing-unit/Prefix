@@ -32,6 +32,7 @@
 // Forward declarations for interpreter functions we need
 Value eval_expr(Interpreter* interp, Expr* expr, Env* env);
 int value_truthiness(Value v);
+static int module_export_bindings(Interpreter* interp, Env* caller_env, Env* mod_env, const char* alias, int line, int col, const char* fail_msg);
 
 // Helper macros
 #define RUNTIME_ERROR(interp, msg, line, col) \
@@ -5211,22 +5212,9 @@ static Value builtin_import_path(Interpreter* interp, Value* args, int argc, Exp
     free(found_path);
     free(canonical_path);
 
-    // Expose module symbols into caller env under alias prefix: alias.name -> value
-    size_t alias_len = strlen(alias);
-    for (size_t i = 0; i < mod_env->count; i++) {
-        EnvEntry* e = &mod_env->entries[i];
-        if (!e->initialized) continue;
-        if (e->name && e->name[0] == '_' && e->name[1] == '_') continue;
-        size_t qlen = alias_len + 1 + strlen(e->name) + 1;
-        char* qualified = malloc(qlen);
-        if (!qualified) { if (alias_dup) free(alias_dup); RUNTIME_ERROR(interp, "Out of memory", line, col); }
-        snprintf(qualified, qlen, "%s.%s", alias, e->name);
-        if (!env_assign(env, qualified, e->value, e->decl_type, true)) {
-            free(qualified);
-            if (alias_dup) free(alias_dup);
-            RUNTIME_ERROR(interp, "IMPORT_PATH failed to assign qualified name", line, col);
-        }
-        free(qualified);
+    if (module_export_bindings(interp, env, mod_env, alias, line, col, "IMPORT_PATH failed to assign qualified name") != 0) {
+        if (alias_dup) free(alias_dup);
+        return value_null();
     }
 
     // Ensure the module name itself exists in caller env
@@ -7178,11 +7166,144 @@ static Value builtin_extend(Interpreter* interp, Value* args, int argc, Expr** a
     // Expose the extension namespace symbol in the current module environment.
     if (loaded_name && loaded_name[0] != '\0') {
         (void)env_assign(env, loaded_name, value_str(""), TYPE_STR, true);
+
+        EnvEntry* namespaces_entry = env_get_entry(env, "__EXTEND_NAMES__");
+        const char* existing_namespaces = (namespaces_entry && namespaces_entry->initialized && namespaces_entry->value.type == VAL_STR && namespaces_entry->value.as.s)
+            ? namespaces_entry->value.as.s
+            : "";
+        size_t loaded_len = strlen(loaded_name);
+        int already_present = 0;
+        const char* cursor = existing_namespaces;
+        while (cursor && *cursor != '\0') {
+            while (*cursor == '|') cursor++;
+            if (*cursor == '\0') break;
+            const char* start = cursor;
+            while (*cursor != '\0' && *cursor != '|') cursor++;
+            size_t token_len = (size_t)(cursor - start);
+            if (token_len == loaded_len && strncmp(start, loaded_name, loaded_len) == 0) {
+                already_present = 1;
+                break;
+            }
+        }
+        if (!already_present) {
+            size_t existing_len = strlen(existing_namespaces);
+            size_t combined_len = existing_len + loaded_len + 2;
+            char* combined = malloc(combined_len + 1);
+            if (!combined) {
+                if (interp->error) free(interp->error);
+                interp->error = strdup("Out of memory");
+                interp->error_line = line;
+                interp->error_col = col;
+                free(loaded_name);
+                return value_null();
+            }
+            if (existing_len > 0) {
+                memcpy(combined, existing_namespaces, existing_len);
+                combined[existing_len] = '|';
+                memcpy(combined + existing_len + 1, loaded_name, loaded_len);
+                combined[existing_len + loaded_len + 1] = '|';
+                combined[existing_len + loaded_len + 2] = '\0';
+            } else {
+                combined[0] = '|';
+                memcpy(combined + 1, loaded_name, loaded_len);
+                combined[loaded_len + 1] = '|';
+                combined[loaded_len + 2] = '\0';
+            }
+            (void)env_assign(env, "__EXTEND_NAMES__", value_str(combined), TYPE_STR, true);
+            free(combined);
+        }
     }
 
     free(loaded_name);
     free(ext_err);
     return value_bool(false);
+}
+
+static int module_export_bindings(Interpreter* interp, Env* caller_env, Env* mod_env, const char* alias, int line, int col, const char* fail_msg) {
+    if (!interp || !caller_env || !mod_env || !alias || alias[0] == '\0') return -1;
+
+    size_t alias_len = strlen(alias);
+
+    for (size_t i = 0; i < mod_env->count; i++) {
+        EnvEntry* e = &mod_env->entries[i];
+        if (!e->initialized) continue;
+        if (e->name && e->name[0] == '_' && e->name[1] == '_') continue;
+        size_t qlen = alias_len + 1 + strlen(e->name) + 1;
+        char* qualified = malloc(qlen);
+        if (!qualified) return -1;
+        snprintf(qualified, qlen, "%s.%s", alias, e->name);
+        if (!env_assign(caller_env, qualified, e->value, e->decl_type, true)) {
+            free(qualified);
+            if (interp->error) free(interp->error);
+            interp->error = strdup(fail_msg);
+            interp->error_line = line;
+            interp->error_col = col;
+            return -1;
+        }
+        free(qualified);
+    }
+
+    EnvEntry* namespaces_entry = env_get_entry(mod_env, "__EXTEND_NAMES__");
+    if (namespaces_entry && namespaces_entry->initialized && namespaces_entry->value.type == VAL_STR && namespaces_entry->value.as.s && namespaces_entry->value.as.s[0] != '\0') {
+        const char* namespaces = namespaces_entry->value.as.s;
+        const char* cursor = namespaces;
+        while (cursor && *cursor != '\0') {
+            while (*cursor == '|') cursor++;
+            if (*cursor == '\0') break;
+
+            const char* start = cursor;
+            while (*cursor != '\0' && *cursor != '|') cursor++;
+            size_t ns_len = (size_t)(cursor - start);
+            if (ns_len == 0) continue;
+
+            char* ns = malloc(ns_len + 1);
+            if (!ns) return -1;
+            memcpy(ns, start, ns_len);
+            ns[ns_len] = '\0';
+
+            size_t ns_qual_len = alias_len + 1 + ns_len + 1;
+            char* ns_qualified = malloc(ns_qual_len);
+            if (!ns_qualified) { free(ns); return -1; }
+            snprintf(ns_qualified, ns_qual_len, "%s.%s", alias, ns);
+            if (!env_get_entry(caller_env, ns_qualified)) {
+                if (!env_assign(caller_env, ns_qualified, value_str(""), TYPE_STR, true)) {
+                    free(ns_qualified);
+                    free(ns);
+                    if (interp->error) free(interp->error);
+                    interp->error = strdup(fail_msg);
+                    interp->error_line = line;
+                    interp->error_col = col;
+                    return -1;
+                }
+            }
+
+            for (size_t j = 0; j < mod_env->count; j++) {
+                EnvEntry* e = &mod_env->entries[j];
+                if (!e->initialized) continue;
+                if (e->name && e->name[0] == '_' && e->name[1] == '_') continue;
+                size_t qlen = ns_qual_len + 1 + strlen(e->name) + 1;
+                char* qualified = malloc(qlen);
+                if (!qualified) { free(ns_qualified); free(ns); return -1; }
+                snprintf(qualified, qlen, "%s.%s", ns_qualified, e->name);
+                if (!env_assign(caller_env, qualified, e->value, e->decl_type, true)) {
+                    free(qualified);
+                    free(ns_qualified);
+                    free(ns);
+                    if (interp->error) free(interp->error);
+                    interp->error = strdup(fail_msg);
+                    interp->error_line = line;
+                    interp->error_col = col;
+                    return -1;
+                }
+                free(qualified);
+            }
+
+            free(ns_qualified);
+            free(ns);
+        }
+    }
+
+    return 0;
 }
 
 // Stubs for operations requiring TNS/MAP/THD
@@ -7432,22 +7553,8 @@ static Value builtin_import(Interpreter* interp, Value* args, int argc, Expr** a
     free(found_path);
     free(canonical_path);
 
-    // Expose module symbols into caller env under alias prefix: alias.name -> value
-    size_t alias_len = strlen(alias);
-
-    for (size_t i = 0; i < mod_env->count; i++) {
-        EnvEntry* e = &mod_env->entries[i];
-        if (!e->initialized) continue;
-        if (e->name && e->name[0] == '_' && e->name[1] == '_') continue; // skip magic
-        size_t qlen = alias_len + 1 + strlen(e->name) + 1;
-        char* qualified = malloc(qlen);
-        if (!qualified) { RUNTIME_ERROR(interp, "Out of memory", line, col); }
-        snprintf(qualified, qlen, "%s.%s", alias, e->name);
-        if (!env_assign(env, qualified, e->value, e->decl_type, true)) {
-            free(qualified);
-            RUNTIME_ERROR(interp, "IMPORT failed to assign qualified name", line, col);
-        }
-        free(qualified);
+    if (module_export_bindings(interp, env, mod_env, alias, line, col, "IMPORT failed to assign qualified name") != 0) {
+        return value_null();
     }
 
     // Ensure the module name itself exists in caller env (avoid undefined identifier errors)
