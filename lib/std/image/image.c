@@ -1305,25 +1305,25 @@ __declspec(dllexport)
 #endif
 void prefix_extension_init(prefix_ext_context* ctx) {
 	if (!ctx) return;
-	ctx->register_operator("LOAD_PNG", (prefix_operator_fn)op_load_png, PREFIX_EXTENSION_ASMODULE);
-	ctx->register_operator("LOAD_JPEG", (prefix_operator_fn)op_load_jpeg, PREFIX_EXTENSION_ASMODULE);
-	ctx->register_operator("LOAD_BMP", (prefix_operator_fn)op_load_bmp, PREFIX_EXTENSION_ASMODULE);
-	ctx->register_operator("SAVE_PNG", (prefix_operator_fn)op_save_png, PREFIX_EXTENSION_ASMODULE);
-	ctx->register_operator("SAVE_JPEG", (prefix_operator_fn)op_save_jpeg, PREFIX_EXTENSION_ASMODULE);
-	ctx->register_operator("SAVE_BMP", (prefix_operator_fn)op_save_bmp, PREFIX_EXTENSION_ASMODULE);
-	ctx->register_operator("POLYGON", (prefix_operator_fn)op_polygon, PREFIX_EXTENSION_ASMODULE);
-	ctx->register_operator("ELLIPSE", (prefix_operator_fn)op_ellipse, PREFIX_EXTENSION_ASMODULE);
-	ctx->register_operator("THRESHHOLD_A", (prefix_operator_fn)op_threshhold_a, PREFIX_EXTENSION_ASMODULE);
-	ctx->register_operator("THRESHHOLD_R", (prefix_operator_fn)op_threshhold_r, PREFIX_EXTENSION_ASMODULE);
-	ctx->register_operator("THRESHHOLD_G", (prefix_operator_fn)op_threshhold_g, PREFIX_EXTENSION_ASMODULE);
-	ctx->register_operator("THRESHHOLD_B", (prefix_operator_fn)op_threshhold_b, PREFIX_EXTENSION_ASMODULE);
-	ctx->register_operator("SCALE", (prefix_operator_fn)op_scale, PREFIX_EXTENSION_ASMODULE);
-	ctx->register_operator("RESIZE", (prefix_operator_fn)op_resize, PREFIX_EXTENSION_ASMODULE);
-	ctx->register_operator("ROTATE", (prefix_operator_fn)op_rotate, PREFIX_EXTENSION_ASMODULE);
-	ctx->register_operator("BLIT", (prefix_operator_fn)op_blit, PREFIX_EXTENSION_ASMODULE);
-	ctx->register_operator("GRAYSCALE", (prefix_operator_fn)op_grayscale, PREFIX_EXTENSION_ASMODULE);
-	ctx->register_operator("REPLACE_COLOR", (prefix_operator_fn)op_replace_color, PREFIX_EXTENSION_ASMODULE);
-	ctx->register_operator("BLUR", (prefix_operator_fn)op_blur, PREFIX_EXTENSION_ASMODULE);
-	ctx->register_operator("EDGE", (prefix_operator_fn)op_edge, PREFIX_EXTENSION_ASMODULE);
-	ctx->register_operator("CELLSHADE", (prefix_operator_fn)op_cellshade, PREFIX_EXTENSION_ASMODULE);
+	ctx->register_operator("LOAD_PNG", (prefix_operator_fn)op_load_png, 0);
+	ctx->register_operator("LOAD_JPEG", (prefix_operator_fn)op_load_jpeg, 0);
+	ctx->register_operator("LOAD_BMP", (prefix_operator_fn)op_load_bmp, 0);
+	ctx->register_operator("SAVE_PNG", (prefix_operator_fn)op_save_png, 0);
+	ctx->register_operator("SAVE_JPEG", (prefix_operator_fn)op_save_jpeg, 0);
+	ctx->register_operator("SAVE_BMP", (prefix_operator_fn)op_save_bmp, 0);
+	ctx->register_operator("POLYGON", (prefix_operator_fn)op_polygon, 0);
+	ctx->register_operator("ELLIPSE", (prefix_operator_fn)op_ellipse, 0);
+	ctx->register_operator("THRESHHOLD_A", (prefix_operator_fn)op_threshhold_a, 0);
+	ctx->register_operator("THRESHHOLD_R", (prefix_operator_fn)op_threshhold_r, 0);
+	ctx->register_operator("THRESHHOLD_G", (prefix_operator_fn)op_threshhold_g, 0);
+	ctx->register_operator("THRESHHOLD_B", (prefix_operator_fn)op_threshhold_b, 0);
+	ctx->register_operator("SCALE", (prefix_operator_fn)op_scale, 0);
+	ctx->register_operator("RESIZE", (prefix_operator_fn)op_resize, 0);
+	ctx->register_operator("ROTATE", (prefix_operator_fn)op_rotate, 0);
+	ctx->register_operator("BLIT", (prefix_operator_fn)op_blit, 0);
+	ctx->register_operator("GRAYSCALE", (prefix_operator_fn)op_grayscale, 0);
+	ctx->register_operator("REPLACE_COLOR", (prefix_operator_fn)op_replace_color, 0);
+	ctx->register_operator("BLUR", (prefix_operator_fn)op_blur, 0);
+	ctx->register_operator("EDGE", (prefix_operator_fn)op_edge, 0);
+	ctx->register_operator("CELLSHADE", (prefix_operator_fn)op_cellshade, 0);
 }
