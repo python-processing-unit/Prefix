@@ -9,6 +9,7 @@ extern "C" {
 
 #define PREFIX_EXTENSION_API_VERSION 1
 #define PREFIX_EXTENSION_ASMODULE 1
+#define PREFIX_EXTENSION_MODULE_RESTRICTED 2
 
 struct Interpreter;
 struct Env;
@@ -27,7 +28,7 @@ struct prefix_ext_context {
     int api_version;
     const char* extension_name;
 
-    int (*register_operator)(const char* name, prefix_operator_fn fn, int asmodule);
+    int (*register_operator)(const char* name, prefix_operator_fn fn, int flags);
     int (*register_periodic_hook)(int n, prefix_event_fn fn);
     int (*register_event_handler)(const char* event_name, prefix_event_fn fn);
     int (*register_repl_handler)(prefix_repl_fn repl_fn);

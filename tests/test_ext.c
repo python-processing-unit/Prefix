@@ -84,11 +84,12 @@ PREFIX_EXT_EXPORT void prefix_extension_init(prefix_ext_context* ctx) {
         return;
     }
 
-    (void)ctx->register_operator("PING", op_ping, PREFIX_EXTENSION_ASMODULE);
-    (void)ctx->register_operator("IADD", op_iadd, PREFIX_EXTENSION_ASMODULE);
-    (void)ctx->register_operator("GET_COUNTER", op_get_counter, PREFIX_EXTENSION_ASMODULE);
-    (void)ctx->register_operator("RESET_COUNTER", op_reset_counter, PREFIX_EXTENSION_ASMODULE);
-    /* Test global operator registration (asmodule=0) */
+    (void)ctx->register_operator("PING", op_ping, PREFIX_EXTENSION_ASMODULE | PREFIX_EXTENSION_MODULE_RESTRICTED);
+    (void)ctx->register_operator("IADD", op_iadd, PREFIX_EXTENSION_ASMODULE | PREFIX_EXTENSION_MODULE_RESTRICTED);
+    (void)ctx->register_operator("GET_COUNTER", op_get_counter, PREFIX_EXTENSION_ASMODULE | PREFIX_EXTENSION_MODULE_RESTRICTED);
+    (void)ctx->register_operator("RESET_COUNTER", op_reset_counter, PREFIX_EXTENSION_ASMODULE | PREFIX_EXTENSION_MODULE_RESTRICTED);
+    (void)ctx->register_operator("ASMODULE_ONLY_PING", op_ping, PREFIX_EXTENSION_ASMODULE);
+    /* Test global operator registration without module restriction. */
     (void)ctx->register_operator("GLOBAL_PING", op_ping, 0);
 
     /* Use a custom event that we can trigger manually or via tests if possible, 

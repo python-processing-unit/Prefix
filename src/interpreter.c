@@ -197,6 +197,50 @@ static bool bind_self_for_map_call(Interpreter* interp, Expr* target_expr, Env* 
     return true;
 }
 
+static BuiltinFunction* lookup_extended_builtin(Env* env, const char* func_name, char** resolved_name_out) {
+    if (resolved_name_out) *resolved_name_out = NULL;
+    if (!env || !func_name || func_name[0] == '\0' || strchr(func_name, '.')) return NULL;
+
+    EnvEntry* namespaces_entry = env_get_entry(env, "__EXTEND_NAMES__");
+    if (!namespaces_entry || !namespaces_entry->initialized || namespaces_entry->value.type != VAL_STR || !namespaces_entry->value.as.s) {
+        return NULL;
+    }
+
+    const char* cursor = namespaces_entry->value.as.s;
+    while (cursor && *cursor != '\0') {
+        while (*cursor == '|') cursor++;
+        if (*cursor == '\0') break;
+
+        const char* start = cursor;
+        while (*cursor != '\0' && *cursor != '|') cursor++;
+        size_t ns_len = (size_t)(cursor - start);
+        if (ns_len == 0) continue;
+
+        size_t qualified_len = ns_len + 1 + strlen(func_name) + 1;
+        char* qualified = malloc(qualified_len);
+        if (!qualified) return NULL;
+
+        memcpy(qualified, start, ns_len);
+        qualified[ns_len] = '.';
+        size_t fn_len = strlen(func_name);
+        memcpy(qualified + ns_len + 1, func_name, fn_len + 1);
+
+        BuiltinFunction* builtin = builtin_lookup(qualified);
+        if (builtin) {
+            if (resolved_name_out) {
+                *resolved_name_out = qualified;
+            } else {
+                free(qualified);
+            }
+            return builtin;
+        }
+
+        free(qualified);
+    }
+
+    return NULL;
+}
+
 static void trace_append(char** dst, size_t* len, size_t* cap, const char* text) {
     if (!dst || !len || !cap || !text) return;
     size_t add = strlen(text);
@@ -615,9 +659,10 @@ static void label_map_add(LabelMap* map, Value key, int index) {
 
 static int label_map_find(LabelMap* map, Value key) {
     for (size_t i = 0; i < map->count; i++) {
-        if (map->items[i].key.type == key.type) {
-            if (key.type == VAL_INT && map->items[i].key.as.i == key.as.i) return map->items[i].index;
-            if (key.type == VAL_STR && strcmp(map->items[i].key.as.s, key.as.s) == 0) return map->items[i].index;
+            if (map->items[i].key.type == key.type) {
+                if (key.type == VAL_INT && map->items[i].key.as.i == key.as.i) return map->items[i].index;
+                if (key.type == VAL_STR && strcmp(map->items[i].key.as.s, key.as.s) == 0) return map->items[i].index;
+                if (key.type == VAL_FLT && map->items[i].key.as.f == key.as.f) return map->items[i].index;
         }
     }
     return -1;
@@ -1029,12 +1074,16 @@ Value eval_expr(Interpreter* interp, Expr* expr, Env* env) {
             // Get the callee
             const char* func_name = NULL;
             Func* user_func = NULL;
+            char* resolved_builtin_name = NULL;
             
             if (expr->as.call.callee->type == EXPR_IDENT) {
                 func_name = expr->as.call.callee->as.ident;
                 
                 // Check builtins first
                 BuiltinFunction* builtin = builtin_lookup(func_name);
+                if (!builtin) {
+                    builtin = lookup_extended_builtin(env, func_name, &resolved_builtin_name);
+                }
                 if (builtin) {
                     int pos_argc = (int)expr->as.call.args.count;
                     int kwc = (int)expr->as.call.kw_count;
@@ -1047,6 +1096,7 @@ Value eval_expr(Interpreter* interp, Expr* expr, Env* env) {
                         interp->error = strdup("Keyword arguments not supported for builtin function");
                         interp->error_line = expr->line;
                         interp->error_col = expr->column;
+                        free(resolved_builtin_name);
                         return value_null();
                     }
 
@@ -1058,6 +1108,7 @@ Value eval_expr(Interpreter* interp, Expr* expr, Env* env) {
                                     interp->error = strdup("Duplicate keyword argument");
                                     interp->error_line = expr->line;
                                     interp->error_col = expr->column;
+                                    free(resolved_builtin_name);
                                     return value_null();
                                 }
                             }
@@ -1074,6 +1125,7 @@ Value eval_expr(Interpreter* interp, Expr* expr, Env* env) {
                                 interp->error = strdup("Unknown keyword argument");
                                 interp->error_line = expr->line;
                                 interp->error_col = expr->column;
+                                free(resolved_builtin_name);
                                 return value_null();
                             }
                             if (idx + 1 > max_slot) max_slot = idx + 1;
@@ -1109,6 +1161,7 @@ Value eval_expr(Interpreter* interp, Expr* expr, Env* env) {
                                 for (int j = 0; j <= i; j++) value_free(args[j]);
                                 free(args);
                                 free(arg_nodes);
+                                free(resolved_builtin_name);
                                 return value_null();
                             }
                         }
@@ -1125,6 +1178,7 @@ Value eval_expr(Interpreter* interp, Expr* expr, Env* env) {
                                 for (int j = 0; j < max_slot; j++) value_free(args[j]);
                                 free(args);
                                 free(arg_nodes);
+                                free(resolved_builtin_name);
                                 return value_null();
                             }
                             // Duplicate positional/keyword or duplicate keyword->slot
@@ -1135,6 +1189,7 @@ Value eval_expr(Interpreter* interp, Expr* expr, Env* env) {
                                 for (int j = 0; j < max_slot; j++) value_free(args[j]);
                                 free(args);
                                 free(arg_nodes);
+                                free(resolved_builtin_name);
                                 return value_null();
                             }
                             // Evaluate kw expr in caller env (left-to-right preserved)
@@ -1148,6 +1203,7 @@ Value eval_expr(Interpreter* interp, Expr* expr, Env* env) {
                                     for (int j = 0; j < max_slot; j++) value_free(args[j]);
                                     free(args);
                                     free(arg_nodes);
+                                    free(resolved_builtin_name);
                                     return value_null();
                                 }
                             }
@@ -1161,6 +1217,7 @@ Value eval_expr(Interpreter* interp, Expr* expr, Env* env) {
                                 interp->error = strdup("Internal error mapping keyword arg");
                                 interp->error_line = expr->line;
                                 interp->error_col = expr->column;
+                                free(resolved_builtin_name);
                                 return value_null();
                             }
                             // free placeholder null
@@ -1188,6 +1245,7 @@ Value eval_expr(Interpreter* interp, Expr* expr, Env* env) {
                             free(args);
                             free(arg_nodes);
                         }
+                        free(resolved_builtin_name);
                         return value_null();
                     }
                     if (builtin->max_args >= 0 && effective_argc > builtin->max_args) {
@@ -1201,6 +1259,7 @@ Value eval_expr(Interpreter* interp, Expr* expr, Env* env) {
                             free(args);
                             free(arg_nodes);
                         }
+                        free(resolved_builtin_name);
                         return value_null();
                     }
 
@@ -1214,6 +1273,7 @@ Value eval_expr(Interpreter* interp, Expr* expr, Env* env) {
                             for (int i = 0; i < max_slot; i++) value_free(args[i]);
                             free(args);
                             free(arg_nodes);
+                            free(resolved_builtin_name);
                             return value_null();
                         }
                     }
@@ -1225,6 +1285,7 @@ Value eval_expr(Interpreter* interp, Expr* expr, Env* env) {
                         free(arg_nodes);
                     }
 
+                    free(resolved_builtin_name);
                     return result;
                 }
                 
@@ -1252,6 +1313,8 @@ Value eval_expr(Interpreter* interp, Expr* expr, Env* env) {
                 }
                 user_func = callee_val.as.func;
             }
+
+            free(resolved_builtin_name);
             
             if (!user_func) {
                 char buf[128];
