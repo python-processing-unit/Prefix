@@ -323,14 +323,9 @@ static char* resolve_extension_spec_path(const char* spec, const char* base_dir)
     return resolved;
 }
 
-static char* exposure_key_for(const char* scope_name, const char* ext_name) {
-    const char* scope = (scope_name && scope_name[0] != '\0') ? scope_name : "";
+static char* exposure_key_for(const char* ext_name) {
     const char* ext = (ext_name && ext_name[0] != '\0') ? ext_name : "extension";
-    size_t n = strlen(scope) + 1 + strlen(ext) + 1;
-    char* out = malloc(n);
-    if (!out) return NULL;
-    snprintf(out, n, "%s|%s", scope, ext);
-    return out;
+    return strdup(ext);
 }
 
 static int exposure_exists(LoadedExtension* le, const char* key) {
@@ -371,27 +366,14 @@ static int ctx_register_operator(const char* name, prefix_operator_fn fn, int as
     char* final_name = NULL;
     if ((asmodule & PREFIX_EXTENSION_ASMODULE) != 0 && g_loading_extension_name && g_loading_extension_name[0] != '\0') {
         const char* ext_name = g_loading_extension_name;
-        const char* scope_name = (g_loading_scope_name && g_loading_scope_name[0] != '\0') ? g_loading_scope_name : NULL;
-
-        int collapse_scope = 0;
-        if (scope_name && strcmp(scope_name, ext_name) == 0) {
-            collapse_scope = 1;
-        }
 
         size_t a = strlen(ext_name);
-        size_t s = (scope_name && !collapse_scope) ? strlen(scope_name) : 0;
         size_t b = strlen(name);
         size_t total = a + 1 + b + 1;
-        if (s > 0) total += s + 1;
         final_name = malloc(total);
         if (!final_name) return -1;
 
         size_t p = 0;
-        if (s > 0) {
-            memcpy(final_name + p, scope_name, s);
-            p += s;
-            final_name[p++] = '.';
-        }
         memcpy(final_name + p, ext_name, a);
         p += a;
         final_name[p++] = '.';
@@ -475,7 +457,9 @@ static int extension_register_exposure(LoadedExtension* le,
         return -1;
     }
 
-    char* key = exposure_key_for(scope_name, ext_name);
+    (void)scope_name;
+
+    char* key = exposure_key_for(ext_name);
     if (!key) {
         set_error(error_out, "Out of memory");
         return -1;

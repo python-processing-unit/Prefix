@@ -1,0 +1,5 @@
+EXTEND(EXTENSION: test_ext)
+
+FUNC INT: CALL_PING(){
+    RETURN(test_ext.PING())
+}

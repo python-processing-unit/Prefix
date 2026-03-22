@@ -1391,4 +1391,10 @@ ASSERT(EQ(test_ext.GET_COUNTER(), 0d0))
 
 PRINT("Extensions: PASS\n")
 
+PRINT("Testing imported EXTEND module...")
+IMPORT(ext_import)
+ASSERT(EQ(ext_import.CALL_PING(), 0d0))
+ASSERT(EQ(ext_import.test_ext.CALL_PING(), 0d0))
+PRINT("Imported EXTEND module: PASS\n")
+
 PRINT("=== Built-in tests passed. ===")
