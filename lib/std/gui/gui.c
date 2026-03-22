@@ -750,16 +750,16 @@ __declspec(dllexport)
 #endif
 void prefix_extension_init(prefix_ext_context* ctx) {
 	if (!ctx) return;
-	ctx->register_operator("CREATE_WINDOW", (prefix_operator_fn)op_create_window, PREFIX_EXTENSION_ASMODULE);
-	ctx->register_operator("SHOW_IMAGE", (prefix_operator_fn)op_show_image, PREFIX_EXTENSION_ASMODULE);
-	ctx->register_operator("CLOSE_WINDOW", (prefix_operator_fn)op_close_window, PREFIX_EXTENSION_ASMODULE);
-	ctx->register_operator("SCREEN", (prefix_operator_fn)op_screen, PREFIX_EXTENSION_ASMODULE);
-	ctx->register_operator("WINDOW", (prefix_operator_fn)op_window, PREFIX_EXTENSION_ASMODULE);
-	ctx->register_operator("SCREENSHOT", (prefix_operator_fn)op_screenshot, PREFIX_EXTENSION_ASMODULE);
-	ctx->register_operator("MINIMIZE", (prefix_operator_fn)op_minimize, PREFIX_EXTENSION_ASMODULE);
-	ctx->register_operator("MAXIMIZE", (prefix_operator_fn)op_maximize, PREFIX_EXTENSION_ASMODULE);
-	ctx->register_operator("TO_FRONT", (prefix_operator_fn)op_to_front, PREFIX_EXTENSION_ASMODULE);
-	ctx->register_operator("TO_BACK", (prefix_operator_fn)op_to_back, PREFIX_EXTENSION_ASMODULE);
+	ctx->register_operator("CREATE_WINDOW", (prefix_operator_fn)op_create_window, 0);
+	ctx->register_operator("SHOW_IMAGE", (prefix_operator_fn)op_show_image, 0);
+	ctx->register_operator("CLOSE_WINDOW", (prefix_operator_fn)op_close_window, 0);
+	ctx->register_operator("SCREEN", (prefix_operator_fn)op_screen, 0);
+	ctx->register_operator("WINDOW", (prefix_operator_fn)op_window, 0);
+	ctx->register_operator("SCREENSHOT", (prefix_operator_fn)op_screenshot, 0);
+	ctx->register_operator("MINIMIZE", (prefix_operator_fn)op_minimize, 0);
+	ctx->register_operator("MAXIMIZE", (prefix_operator_fn)op_maximize, 0);
+	ctx->register_operator("TO_FRONT", (prefix_operator_fn)op_to_front, 0);
+	ctx->register_operator("TO_BACK", (prefix_operator_fn)op_to_back, 0);
 }
 
 #else
