@@ -2188,6 +2188,8 @@ ExecResult assign_index_chain(Interpreter* interp, Env* env, Expr* idx_expr, Val
         return make_error("Out of memory", stmt_line, stmt_col);
     }
 
+    bool rhs_applied_directly = false;
+
     walker = idx_expr;
     for (size_t i = 0; i < chain_len; i++) {
         nodes[i] = walker;
@@ -2393,6 +2395,7 @@ ExecResult assign_index_chain(Interpreter* interp, Env* env, Expr* idx_expr, Val
             free(starts); free(ends); free(orig_to_out);
             // After slice assignment, set cur to base (no further chaining into this node)
             cur = &base_val;
+            rhs_applied_directly = true;
             continue;
         }
 
@@ -2457,14 +2460,16 @@ ExecResult assign_index_chain(Interpreter* interp, Env* env, Expr* idx_expr, Val
     }
 
     // If we get here, the chain ended after resolving to a tensor element (e.g. a<1> = rhs)
-    if (cur->type != VAL_NULL && value_type_to_decl(cur->type) != value_type_to_decl(rhs.type)) {
-        out = make_error("Element type mismatch", stmt_line, stmt_col);
-        goto cleanup;
+    if (!rhs_applied_directly) {
+        if (cur->type != VAL_NULL && value_type_to_decl(cur->type) != value_type_to_decl(rhs.type)) {
+            out = make_error("Element type mismatch", stmt_line, stmt_col);
+            goto cleanup;
+        }
+        mtx_lock(&g_tns_lock);
+        value_free(*cur);
+        *cur = value_copy(rhs);
+        mtx_unlock(&g_tns_lock);
     }
-    mtx_lock(&g_tns_lock);
-    value_free(*cur);
-    *cur = value_copy(rhs);
-    mtx_unlock(&g_tns_lock);
 
     out = make_ok(value_null());
 
