@@ -1394,6 +1394,16 @@ ASSERT(EQ(test_ext.IADD(0d1, "x"), -0d1))
 PRINT("Testing GLOBAL_PING (global operator)...")
 ASSERT(EQ(GLOBAL_PING(0d5), 0d1))
 
+PRINT("Testing ASMODULE-only registration...")
+ASSERT(EQ(ASMODULE_ONLY_PING(0d7), 0d1))
+BOOL: asmodule_only_namespaced = FALSE
+TRY{
+    test_ext.ASMODULE_ONLY_PING()
+} CATCH {
+    asmodule_only_namespaced = TRUE
+}
+ASSERT(asmodule_only_namespaced)
+
 ! Test extension state operators (runtime-visible smoke test)
 PRINT("Testing extension state operators...")
 test_ext.RESET_COUNTER()
@@ -1407,6 +1417,14 @@ PRINT("Testing imported EXTEND module...")
 IMPORT(ext_import)
 ASSERT(EQ(ext_import.CALL_PING(), 0d0))
 ASSERT(EQ(ext_import.test_ext.CALL_PING(), 0d0))
+ASSERT(EQ(ext_import.CALL_ASMODULE_ONLY_PING(), 0d0))
+BOOL: imported_asmodule_only_namespaced = FALSE
+TRY{
+    ext_import.test_ext.ASMODULE_ONLY_PING()
+} CATCH {
+    imported_asmodule_only_namespaced = TRUE
+}
+ASSERT(imported_asmodule_only_namespaced)
 PRINT("Imported EXTEND module: PASS\n")
 
 PRINT("=== Built-in tests passed. ===")

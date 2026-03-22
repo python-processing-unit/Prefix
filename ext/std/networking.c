@@ -1253,27 +1253,27 @@ __declspec(dllexport)
 void prefix_extension_init(prefix_ext_context* ctx) {
 	if (!ctx) return;
 	ensure_socket_runtime();
-	ctx->register_operator("TCP_CONNECT", op_tcp_connect, PREFIX_EXTENSION_ASMODULE);
-	ctx->register_operator("TCP_SEND", op_tcp_send, PREFIX_EXTENSION_ASMODULE);
-	ctx->register_operator("TCP_RECV_TEXT", op_tcp_recv_text, PREFIX_EXTENSION_ASMODULE);
-	ctx->register_operator("TCP_RECV_BYTES", op_tcp_recv_bytes, PREFIX_EXTENSION_ASMODULE);
-	ctx->register_operator("TCP_CLOSE", op_tcp_close, PREFIX_EXTENSION_ASMODULE);
+	ctx->register_operator("TCP_CONNECT", op_tcp_connect, PREFIX_EXTENSION_ASMODULE | PREFIX_EXTENSION_MODULE_RESTRICTED);
+	ctx->register_operator("TCP_SEND", op_tcp_send, PREFIX_EXTENSION_ASMODULE | PREFIX_EXTENSION_MODULE_RESTRICTED);
+	ctx->register_operator("TCP_RECV_TEXT", op_tcp_recv_text, PREFIX_EXTENSION_ASMODULE | PREFIX_EXTENSION_MODULE_RESTRICTED);
+	ctx->register_operator("TCP_RECV_BYTES", op_tcp_recv_bytes, PREFIX_EXTENSION_ASMODULE | PREFIX_EXTENSION_MODULE_RESTRICTED);
+	ctx->register_operator("TCP_CLOSE", op_tcp_close, PREFIX_EXTENSION_ASMODULE | PREFIX_EXTENSION_MODULE_RESTRICTED);
 
-	ctx->register_operator("UDP_BIND", op_udp_bind, PREFIX_EXTENSION_ASMODULE);
-	ctx->register_operator("UDP_SEND", op_udp_send, PREFIX_EXTENSION_ASMODULE);
-	ctx->register_operator("UDP_RECV_TEXT", op_udp_recv_text, PREFIX_EXTENSION_ASMODULE);
-	ctx->register_operator("UDP_RECV_BYTES", op_udp_recv_bytes, PREFIX_EXTENSION_ASMODULE);
-	ctx->register_operator("UDP_CLOSE", op_udp_close, PREFIX_EXTENSION_ASMODULE);
+	ctx->register_operator("UDP_BIND", op_udp_bind, PREFIX_EXTENSION_ASMODULE | PREFIX_EXTENSION_MODULE_RESTRICTED);
+	ctx->register_operator("UDP_SEND", op_udp_send, PREFIX_EXTENSION_ASMODULE | PREFIX_EXTENSION_MODULE_RESTRICTED);
+	ctx->register_operator("UDP_RECV_TEXT", op_udp_recv_text, PREFIX_EXTENSION_ASMODULE | PREFIX_EXTENSION_MODULE_RESTRICTED);
+	ctx->register_operator("UDP_RECV_BYTES", op_udp_recv_bytes, PREFIX_EXTENSION_ASMODULE | PREFIX_EXTENSION_MODULE_RESTRICTED);
+	ctx->register_operator("UDP_CLOSE", op_udp_close, PREFIX_EXTENSION_ASMODULE | PREFIX_EXTENSION_MODULE_RESTRICTED);
 
-	ctx->register_operator("HTTP_GET_TEXT", op_http_get_text, PREFIX_EXTENSION_ASMODULE);
-	ctx->register_operator("HTTP_GET_BYTES", op_http_get_bytes, PREFIX_EXTENSION_ASMODULE);
-	ctx->register_operator("HTTP_GET_STATUS", op_http_get_status, PREFIX_EXTENSION_ASMODULE);
-	ctx->register_operator("HTTP_POST_TEXT", op_http_post_text, PREFIX_EXTENSION_ASMODULE);
+	ctx->register_operator("HTTP_GET_TEXT", op_http_get_text, PREFIX_EXTENSION_ASMODULE | PREFIX_EXTENSION_MODULE_RESTRICTED);
+	ctx->register_operator("HTTP_GET_BYTES", op_http_get_bytes, PREFIX_EXTENSION_ASMODULE | PREFIX_EXTENSION_MODULE_RESTRICTED);
+	ctx->register_operator("HTTP_GET_STATUS", op_http_get_status, PREFIX_EXTENSION_ASMODULE | PREFIX_EXTENSION_MODULE_RESTRICTED);
+	ctx->register_operator("HTTP_POST_TEXT", op_http_post_text, PREFIX_EXTENSION_ASMODULE | PREFIX_EXTENSION_MODULE_RESTRICTED);
 
-	ctx->register_operator("FTP_LIST", op_ftp_list, PREFIX_EXTENSION_ASMODULE);
-	ctx->register_operator("FTP_GET_BYTES", op_ftp_get_bytes, PREFIX_EXTENSION_ASMODULE);
-	ctx->register_operator("FTP_PUT_BYTES", op_ftp_put_bytes, PREFIX_EXTENSION_ASMODULE);
+	ctx->register_operator("FTP_LIST", op_ftp_list, PREFIX_EXTENSION_ASMODULE | PREFIX_EXTENSION_MODULE_RESTRICTED);
+	ctx->register_operator("FTP_GET_BYTES", op_ftp_get_bytes, PREFIX_EXTENSION_ASMODULE | PREFIX_EXTENSION_MODULE_RESTRICTED);
+	ctx->register_operator("FTP_PUT_BYTES", op_ftp_put_bytes, PREFIX_EXTENSION_ASMODULE | PREFIX_EXTENSION_MODULE_RESTRICTED);
 
-	ctx->register_operator("SMTP_SEND", op_smtp_send, PREFIX_EXTENSION_ASMODULE);
-	ctx->register_operator("MTP_SEND", op_smtp_send, PREFIX_EXTENSION_ASMODULE);
+	ctx->register_operator("SMTP_SEND", op_smtp_send, PREFIX_EXTENSION_ASMODULE | PREFIX_EXTENSION_MODULE_RESTRICTED);
+	ctx->register_operator("MTP_SEND", op_smtp_send, PREFIX_EXTENSION_ASMODULE | PREFIX_EXTENSION_MODULE_RESTRICTED);
 }

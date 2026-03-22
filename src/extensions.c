@@ -360,11 +360,11 @@ static LoadedExtension* loaded_find_by_path(const char* canonical_path) {
     return NULL;
 }
 
-static int ctx_register_operator(const char* name, prefix_operator_fn fn, int asmodule) {
+static int ctx_register_operator(const char* name, prefix_operator_fn fn, int flags) {
     if (!name || name[0] == '\0' || !fn) return -1;
 
     char* final_name = NULL;
-    if ((asmodule & PREFIX_EXTENSION_ASMODULE) != 0 && g_loading_extension_name && g_loading_extension_name[0] != '\0') {
+    if ((flags & PREFIX_EXTENSION_MODULE_RESTRICTED) != 0 && g_loading_extension_name && g_loading_extension_name[0] != '\0') {
         const char* ext_name = g_loading_extension_name;
 
         size_t a = strlen(ext_name);

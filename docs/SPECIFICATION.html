@@ -633,11 +633,11 @@ Compiled extensions MUST be built against the public extension API declared in `
 
 At load time, the interpreter MUST use the host platform's dynamic-library facilities to load the extension, locate the exported `prefix_extension_init` symbol, invoke it with the extension context, and record all registered operators and hooks. On Windows this SHOULD use `LoadLibraryEx`; on Unix-like systems this SHOULD use `dlopen` or an equivalent facility.
 
-Extensions that opt into module-qualified registration MUST expose their operators under the extension name as a dotted prefix rather than injecting those operators into the global built-in namespace. Event-handler registration MUST support the runtime lifecycle hooks defined by the interpreter, including program start and end, error reporting, statement boundaries, and call boundaries.
+Extensions that opt into module-qualified registration MUST do so with a dedicated operator-registration flag. Only operators registered with that flag MAY be exposed under the extension name as a dotted prefix rather than injected into the global built-in namespace. `PREFIX_EXTENSION_ASMODULE` by itself MUST NOT imply module-qualified exposure. Event-handler registration MUST support the runtime lifecycle hooks defined by the interpreter, including program start and end, error reporting, statement boundaries, and call boundaries.
 
 The extension context MUST provide registration surfaces equivalent to the following:
 
-- `register_operator(name, handler_fn, flags)` to add new callable operators. The `flags` parameter MUST include a module-qualification option equivalent to `PREFIX_EXTENSION_ASMODULE`, which exposes an operator under the extension name as a dotted prefix such as `mymod.FOO`.
+- `register_operator(name, handler_fn, flags)` to add new callable operators. The `flags` parameter MUST include `PREFIX_EXTENSION_ASMODULE` together with a separate module-restriction option equivalent to `PREFIX_EXTENSION_MODULE_RESTRICTED`. An operator MUST be exposed under the extension name as a dotted prefix such as `mymod.FOO` only when that module-restriction flag is present.
 
 - `register_periodic_hook(N, handler_fn)` to request execution after rewrite steps whose `step_index % N == 0`.
 
@@ -847,7 +847,7 @@ Built-in operator names MUST be matched case-sensitively and MUST be written in 
 
 - `BOOL: EXTEND(EXTENSION: ext)` = MUST load the compiled extension designated by `ext`. The specifier `ext` MUST exclude the platform filename suffix and MAY use package-style `..` separators. If `ext` resolves to a package, the loader MUST attempt `ext..init`. Relative extension names MUST resolve using the calling module's source directory when available, then the current working directory, then the configured extension roots `ext/std`, `ext/usr`, `lib/std`, and `lib/usr` (with bundled roots searched before user roots). Repeating an `EXTEND` request for an already-loaded extension exposure MUST be idempotent. On success, `EXTEND` MUST return `FALSE`.
 
-  Operators registered with module-qualified flags (for example `PREFIX_EXTENSION_ASMODULE`) MUST be exposed only under the extending module's namespace. Importing that module MUST expose the extension namespace qualifier under the importing module's qualified name. Extension side effects outside operator registration (for example process-global hooks or host-side state) remain global.
+  Operators registered with the module-restriction flag (for example `PREFIX_EXTENSION_MODULE_RESTRICTED`) MUST be exposed only under the extending module's namespace. Importing that module MUST expose the extension namespace qualifier under the importing module's qualified name. `PREFIX_EXTENSION_ASMODULE` by itself MUST NOT restrict an operator to the extending module's namespace or cause that qualified exposure. Extension side effects outside operator registration (for example process-global hooks or host-side state) remain global.
 
 - `BOOL: IMPORT(MODULE: name)` or `BOOL: IMPORT(MODULE: name, SYMBOL: alias)` = MUST load the named module, execute it in its own top-level environment on first import, cache that environment, and expose its bindings under the module name or the supplied alias. The implementation MUST search the referring source directory first, then bundled library locations as described in [8.2](#82-extensions-and-extend), [10](#10-standard-library), and the language's module-search rules. Re-importing an already loaded module MUST reuse the cached module namespace rather than re-executing the module.
 

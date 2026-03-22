@@ -15,8 +15,8 @@ int extensions_load_library(const char* path, const char* base_dir, char** error
 
 // Load an extension by logical name/specifier used by EXTEND.
 // spec excludes platform filename extension and may use package semantics via "..".
-// scope_name is retained for loader bookkeeping; PREFIX_EXTENSION_ASMODULE exposure
-// uses the extension name only.
+// scope_name is retained for loader bookkeeping; module-restricted exposure uses
+// the extension name only.
 // If loaded_name_out is non-NULL, it receives the extension namespace name (heap-allocated).
 // Returns 0 on success, -1 on failure. On failure, *error_out is heap-allocated.
 int extensions_load_named(const char* spec,

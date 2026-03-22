@@ -398,18 +398,18 @@ __declspec(dllexport)
 // Register operators
 void prefix_extension_init(prefix_ext_context* ctx) {
 	if (!ctx) return;
-	ctx->register_operator("WIN_CALL", (prefix_operator_fn)op_win_call, PREFIX_EXTENSION_ASMODULE);
-	ctx->register_operator("WIN_MESSAGE_BOX", (prefix_operator_fn)op_win_message_box, PREFIX_EXTENSION_ASMODULE);
-	ctx->register_operator("WIN_SLEEP", (prefix_operator_fn)op_win_sleep, PREFIX_EXTENSION_ASMODULE);
-	ctx->register_operator("WIN_LAST_ERROR", (prefix_operator_fn)op_win_last_error, PREFIX_EXTENSION_ASMODULE);
-	ctx->register_operator("WIN_LOAD_LIBRARY", (prefix_operator_fn)op_win_load_library, PREFIX_EXTENSION_ASMODULE);
-	ctx->register_operator("WIN_FREE_LIBRARY", (prefix_operator_fn)op_win_free_library, PREFIX_EXTENSION_ASMODULE);
-	ctx->register_operator("WIN_GET_PROC_ADDRESS", (prefix_operator_fn)op_win_get_proc_address, PREFIX_EXTENSION_ASMODULE);
-	ctx->register_operator("WIN_CREATE_FILE", (prefix_operator_fn)op_win_create_file, PREFIX_EXTENSION_ASMODULE);
-	ctx->register_operator("WIN_READ_FILE", (prefix_operator_fn)op_win_read_file, PREFIX_EXTENSION_ASMODULE);
-	ctx->register_operator("WIN_WRITE_FILE", (prefix_operator_fn)op_win_write_file, PREFIX_EXTENSION_ASMODULE);
-	ctx->register_operator("WIN_CLOSE_HANDLE", (prefix_operator_fn)op_win_close_handle, PREFIX_EXTENSION_ASMODULE);
-	ctx->register_operator("WIN_VIRTUAL_ALLOC", (prefix_operator_fn)op_win_virtual_alloc, PREFIX_EXTENSION_ASMODULE);
-	ctx->register_operator("WIN_VIRTUAL_FREE", (prefix_operator_fn)op_win_virtual_free, PREFIX_EXTENSION_ASMODULE);
-	ctx->register_operator("WIN_FORMAT_MESSAGE", (prefix_operator_fn)op_win_format_message, PREFIX_EXTENSION_ASMODULE);
+	ctx->register_operator("WIN_CALL", (prefix_operator_fn)op_win_call, PREFIX_EXTENSION_ASMODULE | PREFIX_EXTENSION_MODULE_RESTRICTED);
+	ctx->register_operator("WIN_MESSAGE_BOX", (prefix_operator_fn)op_win_message_box, PREFIX_EXTENSION_ASMODULE | PREFIX_EXTENSION_MODULE_RESTRICTED);
+	ctx->register_operator("WIN_SLEEP", (prefix_operator_fn)op_win_sleep, PREFIX_EXTENSION_ASMODULE | PREFIX_EXTENSION_MODULE_RESTRICTED);
+	ctx->register_operator("WIN_LAST_ERROR", (prefix_operator_fn)op_win_last_error, PREFIX_EXTENSION_ASMODULE | PREFIX_EXTENSION_MODULE_RESTRICTED);
+	ctx->register_operator("WIN_LOAD_LIBRARY", (prefix_operator_fn)op_win_load_library, PREFIX_EXTENSION_ASMODULE | PREFIX_EXTENSION_MODULE_RESTRICTED);
+	ctx->register_operator("WIN_FREE_LIBRARY", (prefix_operator_fn)op_win_free_library, PREFIX_EXTENSION_ASMODULE | PREFIX_EXTENSION_MODULE_RESTRICTED);
+	ctx->register_operator("WIN_GET_PROC_ADDRESS", (prefix_operator_fn)op_win_get_proc_address, PREFIX_EXTENSION_ASMODULE | PREFIX_EXTENSION_MODULE_RESTRICTED);
+	ctx->register_operator("WIN_CREATE_FILE", (prefix_operator_fn)op_win_create_file, PREFIX_EXTENSION_ASMODULE | PREFIX_EXTENSION_MODULE_RESTRICTED);
+	ctx->register_operator("WIN_READ_FILE", (prefix_operator_fn)op_win_read_file, PREFIX_EXTENSION_ASMODULE | PREFIX_EXTENSION_MODULE_RESTRICTED);
+	ctx->register_operator("WIN_WRITE_FILE", (prefix_operator_fn)op_win_write_file, PREFIX_EXTENSION_ASMODULE | PREFIX_EXTENSION_MODULE_RESTRICTED);
+	ctx->register_operator("WIN_CLOSE_HANDLE", (prefix_operator_fn)op_win_close_handle, PREFIX_EXTENSION_ASMODULE | PREFIX_EXTENSION_MODULE_RESTRICTED);
+	ctx->register_operator("WIN_VIRTUAL_ALLOC", (prefix_operator_fn)op_win_virtual_alloc, PREFIX_EXTENSION_ASMODULE | PREFIX_EXTENSION_MODULE_RESTRICTED);
+	ctx->register_operator("WIN_VIRTUAL_FREE", (prefix_operator_fn)op_win_virtual_free, PREFIX_EXTENSION_ASMODULE | PREFIX_EXTENSION_MODULE_RESTRICTED);
+	ctx->register_operator("WIN_FORMAT_MESSAGE", (prefix_operator_fn)op_win_format_message, PREFIX_EXTENSION_ASMODULE | PREFIX_EXTENSION_MODULE_RESTRICTED);
 }
