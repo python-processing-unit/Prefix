@@ -1,8 +1,8 @@
 <#
 build.ps1
-Compiles the interpreter in a temporary directory and copies the resulting EXE
-back into this repo. Also discovers extension C sources under ext/ and lib/
-and compiles each one into a dynamic library next to its source file.
+Compiles the Prefix runtime into a shared DLL, links the interpreter EXE
+against that DLL's import library, and compiles each discovered extension
+against the same shared runtime.
 
 Requires: run from a Developer Command Prompt for Visual Studio where cl.exe is on PATH.
 Usage (from Prefix-C folder):
@@ -11,6 +11,13 @@ Usage (from Prefix-C folder):
 
 $script = Split-Path -Parent $MyInvocation.MyCommand.Definition
 $src = Join-Path $script "src"
+$runtimeDef = Join-Path $src "prefix_runtime.def"
+$runtimeDllName = "prefix_runtime.dll"
+$runtimeLibName = "prefix_runtime.lib"
+$runtimePdbName = "prefix_runtime.pdb"
+$runtimeDllDest = Join-Path $script $runtimeDllName
+$runtimeLibDest = Join-Path $script $runtimeLibName
+$runtimePdbDest = Join-Path $script $runtimePdbName
 $extRoots = @(
     (Join-Path $script "ext"),
     (Join-Path $script "lib"),
@@ -37,6 +44,26 @@ if ($cFiles.Count -eq 0) {
     exit 1
 }
 
+if (-not (Test-Path $runtimeDef)) {
+    Write-Error "Runtime export definition not found: $runtimeDef"
+    Remove-Item -Recurse -Force $buildDir -ErrorAction SilentlyContinue
+    exit 1
+}
+
+$mainSource = Join-Path $src "main.c"
+if (-not (Test-Path $mainSource)) {
+    Write-Error "Main source not found: $mainSource"
+    Remove-Item -Recurse -Force $buildDir -ErrorAction SilentlyContinue
+    exit 1
+}
+
+$runtimeSources = @($cFiles | Where-Object { $_ -ne $mainSource })
+if ($runtimeSources.Count -eq 0) {
+    Write-Error "No runtime sources found after excluding '$mainSource'"
+    Remove-Item -Recurse -Force $buildDir -ErrorAction SilentlyContinue
+    exit 1
+}
+
 $platform = [System.Runtime.InteropServices.RuntimeInformation]
 $extSuffix = ".dll"
 if ($platform::IsOSPlatform([System.Runtime.InteropServices.OSPlatform]::Linux)) {
@@ -47,11 +74,50 @@ if ($platform::IsOSPlatform([System.Runtime.InteropServices.OSPlatform]::Linux))
 
 Push-Location $buildDir
 try {
+    $runtimeArgs = @(
+        "/std:c17", "/Gd", "/O2", "/Gy", "/GF", "/GL", "/W4", "/WX", "/MP", "/nologo",
+        "/LD", "/I$src",
+        "/Fe:$runtimeDllName"
+    )
+    $runtimeArgs += $runtimeSources
+    $runtimeArgs += @(
+        "/link",
+        "/DEF:$runtimeDef",
+        "/IMPLIB:$runtimeLibName"
+    )
+
+    Write-Host "Invoking: cl.exe $($runtimeArgs -join ' ')"
+    & cl.exe @runtimeArgs
+    if ($LASTEXITCODE -ne 0) {
+        throw "cl.exe returned exit code $LASTEXITCODE while building shared runtime"
+    }
+
+    $runtimeDllPath = Join-Path $buildDir $runtimeDllName
+    $runtimeLibPath = Join-Path $buildDir $runtimeLibName
+    $runtimePdbPath = Join-Path $buildDir $runtimePdbName
+
+    if (-not (Test-Path $runtimeDllPath)) {
+        throw "Expected runtime DLL not found: $runtimeDllPath"
+    }
+    if (-not (Test-Path $runtimeLibPath)) {
+        throw "Expected runtime import library not found: $runtimeLibPath"
+    }
+
+    Copy-Item -Path $runtimeDllPath -Destination $runtimeDllDest -Force
+    Copy-Item -Path $runtimeLibPath -Destination $runtimeLibDest -Force
+    if (Test-Path $runtimePdbPath) {
+        Copy-Item -Path $runtimePdbPath -Destination $runtimePdbDest -Force
+    }
+    Write-Host "Copied runtime DLL to: $runtimeDllDest"
+    Write-Host "Copied runtime import library to: $runtimeLibDest"
+
     $exeArgs = @(
         "/std:c17", "/Gd", "/O2", "/Gy", "/GF", "/GL", "/W4", "/WX", "/MP", "/nologo",
-        "/Fe:prefix.exe"
+        "/I$src",
+        "/Fe:prefix.exe",
+        $mainSource,
+        $runtimeLibPath
     )
-    $exeArgs += $cFiles
 
     Write-Host "Invoking: cl.exe $($exeArgs -join ' ')"
     & cl.exe @exeArgs
@@ -95,15 +161,9 @@ try {
                 "/std:c17", "/Gd", "/O2", "/W4", "/WX", "/nologo", "/LD", "/LTCG",
                 "/I$src",
                 "/Fe:$extOutName",
-                $extSourcePath
+                $extSourcePath,
+                $runtimeLibPath
             )
-
-            # Link the object files produced when building the main interpreter
-            # so extensions can resolve internal runtime symbols (value_* helpers).
-            $objFiles = Get-ChildItem -Path $buildDir -Filter *.obj -File -Recurse | ForEach-Object { $_.FullName }
-            if ($objFiles.Count -gt 0) {
-                $extArgs += $objFiles
-            }
 
             Write-Host "Invoking: cl.exe $($extArgs -join ' ')"
             & cl.exe @extArgs
@@ -132,5 +192,5 @@ try {
     Remove-Item -Recurse -Force $buildDir -ErrorAction SilentlyContinue
 }
 
-Write-Host "Build succeeded and exe copied to: $(Join-Path $script 'prefix.exe')"
+Write-Host "Build succeeded and artifacts copied to: $(Join-Path $script 'prefix.exe'), $runtimeDllDest, $runtimeLibDest"
 exit 0
