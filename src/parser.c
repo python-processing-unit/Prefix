@@ -188,6 +188,22 @@ static Expr* parse_expression(Parser* parser);
 static Stmt* parse_statement(Parser* parser);
 static Stmt* parse_block(Parser* parser);
 
+static void append_parse_error_throw_stmt(Parser* parser, Stmt* block) {
+    if (!parser || !block || !parser->error_msg) return;
+
+    char* msg_dup = strdup(parser->error_msg);
+    Expr* callee = expr_ident(strdup("THROW"), parser->error_line, parser->error_col);
+    Expr* call = expr_call(callee, parser->error_line, parser->error_col);
+    Expr* arg = expr_str(msg_dup, parser->error_line, parser->error_col);
+    expr_list_add(&call->as.call.args, arg);
+    Stmt* err_stmt = stmt_expr(call, parser->error_line, parser->error_col);
+    stmt_list_add(&block->as.block, err_stmt);
+    free(parser->error_msg);
+    parser->error_msg = NULL;
+    parser->had_error = false;
+    parser->panic_mode = false;
+}
+
 static bool is_type_token(PTokenType type) {
     return type == TOKEN_IDENT || type == TOKEN_FUNC || type == TOKEN_THR;
 }
@@ -606,6 +622,20 @@ static Stmt* parse_block(Parser* parser) {
             stmt_set_src(stmt, line_text);
             free(line_text);
             stmt_list_add(&block->as.block, stmt);
+            skip_newlines(parser);
+            continue;
+        }
+
+        if (!parser->error_msg) {
+            break;
+        }
+
+        append_parse_error_throw_stmt(parser, block);
+
+        while (parser->current_token.type != TOKEN_EOF &&
+               parser->current_token.type != TOKEN_NEWLINE &&
+               parser->current_token.type != TOKEN_RBRACE) {
+            advance(parser);
         }
         skip_newlines(parser);
     }
@@ -693,7 +723,14 @@ static Stmt* parse_try(Parser* parser) {
     Token tok = parser->current_token;
     consume(parser, TOKEN_TRY, "Expected 'TRY'");
     Stmt* try_block = parse_block(parser);
-    consume(parser, TOKEN_CATCH, "Expected 'CATCH' after TRY");
+    if (parser->current_token.type != TOKEN_CATCH) {
+        report_error(parser, "Expected 'CATCH' after TRY");
+        while (parser->current_token.type != TOKEN_EOF && parser->current_token.type != TOKEN_RBRACE) {
+            advance(parser);
+        }
+        return NULL;
+    }
+    advance(parser);
     char* catch_name = NULL;
     if (match(parser, TOKEN_LPAREN)) {
         if (parser->current_token.type == TOKEN_IDENT) {
@@ -1015,17 +1052,7 @@ Stmt* parser_parse(Parser* parser) {
            state so callers (e.g. RUN/IMPORT) don't treat it as a fatal
            top-level parse failure. */
         if (parser->error_msg) {
-            char* msg_dup = strdup(parser->error_msg);
-            Expr* callee = expr_ident(strdup("THROW"), parser->error_line, parser->error_col);
-            Expr* call = expr_call(callee, parser->error_line, parser->error_col);
-            Expr* arg = expr_str(msg_dup, parser->error_line, parser->error_col);
-            expr_list_add(&call->as.call.args, arg);
-            Stmt* err_stmt = stmt_expr(call, parser->error_line, parser->error_col);
-            stmt_list_add(&program->as.block, err_stmt);
-            free(parser->error_msg);
-            parser->error_msg = NULL;
-            parser->had_error = false;
-            parser->panic_mode = false;
+            append_parse_error_throw_stmt(parser, program);
         }
 
         /* Synchronize after an error: advance to next newline or EOF so the
