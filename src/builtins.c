@@ -4952,6 +4952,9 @@ static Value builtin_split(Interpreter* interp, Value* args, int argc, Expr** ar
     if (argc >= 2) {
         EXPECT_STR(args[1], "SPLIT", interp, line, col);
         sep = args[1].as.s;
+        if (sep[0] == '\0') {
+            RUNTIME_ERROR(interp, "SPLIT expects a non-empty delimiter", line, col);
+        }
     }
     const char* s = args[0].as.s;
     // simple separator: if sep==NULL split on whitespace, else split on sep exactly
@@ -4984,16 +4987,15 @@ static Value builtin_split(Interpreter* interp, Value* args, int argc, Expr** ar
             free(piece);
             cur = found + seplen;
         }
-        // last piece
-        if (*cur != '\0') {
-            if (count + 1 > cap) { cap *= 2; items = realloc(items, sizeof(Value) * cap); }
-            items[count++] = value_str(cur);
-        }
+        // last piece, including empty trailing fields
+        size_t len = strlen(cur);
+        char* piece = malloc(len + 1);
+        memcpy(piece, cur, len);
+        piece[len] = '\0';
+        if (count + 1 > cap) { cap *= 2; items = realloc(items, sizeof(Value) * cap); }
+        items[count++] = value_str(piece);
+        free(piece);
         free(copy);
-        if (count == 0) {
-            free(items);
-            return value_tns_new(TYPE_STR, 1, (const size_t[]){0});
-        }
         size_t shape[1] = { count };
         Value out = value_tns_from_values(TYPE_STR, 1, shape, items, count);
         for (size_t i = 0; i < count; i++) value_free(items[i]);
