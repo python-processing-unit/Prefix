@@ -1,0 +1,36 @@
+BOOL: frozen_value = TRUE
+
+ASSERT(NOT(FREEZE(frozen_value)))
+ASSERT(FROZEN(frozen_value))
+ASSERT(NOT(PERMAFROZEN(frozen_value)))
+
+BOOL: freeze_undefined_failed = FALSE
+TRY{
+    FREEZE(not_declared)
+} CATCH {
+    freeze_undefined_failed = TRUE
+}
+ASSERT(freeze_undefined_failed)
+
+BOOL: reassignment_failed = FALSE
+TRY{
+    frozen_value = FALSE
+} CATCH {
+    reassignment_failed = TRUE
+}
+ASSERT(reassignment_failed)
+ASSERT(EQ(frozen_value, TRUE))
+
+BOOL: deletion_failed = FALSE
+TRY{
+    DEL(frozen_value)
+} CATCH {
+    deletion_failed = TRUE
+}
+ASSERT(deletion_failed)
+ASSERT(EXIST(frozen_value))
+
+ASSERT(NOT(THAW(frozen_value)))
+ASSERT(NOT(FROZEN(frozen_value)))
+frozen_value = FALSE
+ASSERT(EQ(frozen_value, FALSE))

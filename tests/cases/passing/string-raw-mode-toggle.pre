@@ -1,0 +1,3 @@
+ASSERT(EQ("\R\q", '\\q'))
+ASSERT(EQ("\R\\\R", '\\\\'))
+ASSERT(EQ("\R\n\R\t", '\\n\t'))

@@ -1,0 +1,3 @@
+ASSERT(EQ(TYPE(FLIP("prefix")), "STR"))
+ASSERT(EQ(FLIP("prefix"), "xiferp"))
+ASSERT(EQ(FLIP(""), ""))

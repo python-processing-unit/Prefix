@@ -1,0 +1,3 @@
+MAP: fill_map = <"n" = 0d1>
+TNS: filled_map = TNS([0d2], fill_map)
+ASSERT(EQ(filled_map, [fill_map, fill_map]))

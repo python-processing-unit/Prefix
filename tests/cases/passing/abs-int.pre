@@ -1,0 +1,13 @@
+INT: pos_dec = 0d5
+INT: neg_dec = -0d5
+INT: neg_hex = -0xA
+INT: hex_val = 0xA
+INT: bin_neg = -0b1010
+INT: zero = 0d0
+
+ASSERT(EQ(ABS(pos_dec), pos_dec))
+ASSERT(EQ(ABS(neg_dec), 0d5))
+ASSERT(EQ(ABS(neg_hex), 0xA))
+ASSERT(EQ(BASE(ABS(neg_hex)), BASE(hex_val)))
+ASSERT(EQ(ABS(bin_neg), 0b1010))
+ASSERT(EQ(ABS(zero), 0d0))

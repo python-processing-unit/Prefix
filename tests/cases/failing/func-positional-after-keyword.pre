@@ -1,0 +1,5 @@
+FUNC INT: sample(INT: left, INT: right = 0d0){
+    RETURN(ADD(left, right))
+}
+
+sample(left = 0d1, 0d2)

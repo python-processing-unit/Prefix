@@ -1,0 +1,11 @@
+BOOL: normal_value = TRUE
+ASSERT(NOT(FROZEN(normal_value)))
+
+ASSERT(NOT(FREEZE(normal_value)))
+ASSERT(FROZEN(normal_value))
+ASSERT(NOT(THAW(normal_value)))
+ASSERT(NOT(FROZEN(normal_value)))
+
+ASSERT(NOT(PERMAFREEZE(normal_value)))
+ASSERT(FROZEN(normal_value))
+ASSERT(PERMAFROZEN(normal_value))

@@ -1,0 +1,2 @@
+! Mixing INT and FLT in arguments must raise a runtime error per specification
+INT: _ = MAX(0d1, 0d2.0)

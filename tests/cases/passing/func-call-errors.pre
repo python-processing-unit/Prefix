@@ -1,0 +1,45 @@
+INT: runtime_errors = 0d0
+
+FUNC INT: accept_int(INT: value){
+    RETURN(value)
+}
+
+FUNC INT: coerce_int(~INT: value){
+    RETURN(value)
+}
+
+FUNC INT: keyword_only(INT: left, INT: right = 0d0){
+    RETURN(ADD(left, right))
+}
+
+TRY{
+    accept_int("0d1")
+} CATCH(err){
+    runtime_errors = ADD(runtime_errors, 0d1)
+}
+
+TRY{
+    coerce_int("not-an-int")
+} CATCH(err){
+    runtime_errors = ADD(runtime_errors, 0d1)
+}
+
+TRY{
+    keyword_only("0d1", "0d2", "0d3")
+} CATCH(err){
+    runtime_errors = ADD(runtime_errors, 0d1)
+}
+
+TRY{
+    keyword_only("0d1", suffix = "!")
+} CATCH(err){
+    runtime_errors = ADD(runtime_errors, 0d1)
+}
+
+TRY{
+    keyword_only("0d1", right = "0d2", right = "0d3")
+} CATCH(err){
+    runtime_errors = ADD(runtime_errors, 0d1)
+}
+
+ASSERT(EQ(runtime_errors, 0d5))

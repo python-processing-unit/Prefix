@@ -1,0 +1,8 @@
+! FDIV(0d1.0, 0d0.0) performing IEEE 754 division by zero DOES NOT return an error, it returns INF
+INT: a = IADD(0d1, 0d1.0)
+FLT: b = FDIV(0d1.0, 0d0.0)
+FLT: x = 0d1.0
+FLT: y = 0d0.0
+FLT: result_div_inf = FDIV(x, y)
+ASSERT(EQ(result_div_inf, INF))
+FLT: c = FPOW(-0d1.0, 0d0.5)

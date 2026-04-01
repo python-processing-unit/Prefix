@@ -1,0 +1,40 @@
+INT: order_trace = 0d0
+
+FUNC INT: mark(INT: step){
+    order_trace = ADD(MUL(order_trace, 0d10), step)
+    RETURN(step)
+}
+
+FUNC INT: place(INT: first, INT: second = 0d0){
+    RETURN(ADD(MUL(first, 0d10), second))
+}
+
+order_trace = 0d0
+ASSERT(EQ(place(mark(0d1), second = mark(0d2)), 0d12))
+ASSERT(EQ(order_trace, 0d12))
+
+INT: outer_bonus = 0d1
+FUNC INT: add_bonus(INT: value, INT: bonus = outer_bonus){
+    RETURN(ADD(value, bonus))
+}
+
+ASSERT(EQ(add_bonus(0d2), 0d3))
+outer_bonus = 0d4
+ASSERT(EQ(add_bonus(0d2), 0d6))
+
+FUNC INT: double_self(INT: value, INT: second = value){
+    RETURN(ADD(value, second))
+}
+
+ASSERT(EQ(double_self(0d3), 0d6))
+ASSERT(EQ(double_self(0d3, second = 0d1), 0d4))
+
+FUNC INT: accept_int(INT: value){
+    RETURN(value)
+}
+
+FUNC INT: coerce_int(~INT: value){
+    RETURN(value)
+}
+
+ASSERT(EQ(coerce_int("0d11"), 0d11))

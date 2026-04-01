@@ -1,0 +1,23 @@
+MAP: top = <"keep" = 0d1, "drop" = 0d2>
+ASSERT(NOT(DEL(top<"drop">)))
+ASSERT(EQ(top, <"keep" = 0d1>))
+
+BOOL: top_missing = FALSE
+TRY{
+    top<"drop">
+} CATCH {
+    top_missing = TRUE
+}
+ASSERT(top_missing)
+
+MAP: nested = <"outer" = <"keep" = 0d1, "drop" = 0d2>>
+ASSERT(NOT(DEL(nested<"outer", "drop">)))
+ASSERT(EQ(nested, <"outer" = <"keep" = 0d1>>))
+
+MAP: missing_intermediate = <"outer" = <"keep" = 0d1>>
+ASSERT(NOT(DEL(missing_intermediate<"absent", "drop">)))
+ASSERT(EQ(missing_intermediate, <"outer" = <"keep" = 0d1>>))
+
+MAP: missing_final = <"outer" = <"keep" = 0d1>>
+ASSERT(NOT(DEL(missing_final<"outer", "drop">)))
+ASSERT(EQ(missing_final, <"outer" = <"keep" = 0d1>>))

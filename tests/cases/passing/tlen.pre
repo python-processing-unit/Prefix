@@ -1,0 +1,6 @@
+TNS: tensor = [[[0d1, 0d2, 0d3]], [[0d4, 0d5, 0d6]]]
+
+ASSERT(EQ(TLEN(tensor, 0b1), 0d2))
+ASSERT(EQ(TLEN(tensor, 0b10), 0d1))
+ASSERT(EQ(TLEN(tensor, 0b11), 0d3))
+ASSERT(EQ(BASE(TLEN(tensor, 0b11)), 0d2))

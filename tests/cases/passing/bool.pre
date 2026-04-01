@@ -1,0 +1,5 @@
+BOOL: truthy = TRUE
+BOOL: falsy = FALSE
+
+ASSERT(truthy)
+ASSERT(NOT(falsy))

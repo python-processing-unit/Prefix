@@ -1,0 +1,6 @@
+TRY{
+    ASSERT(FALSE)
+} CATCH(err) {
+    ASSERT(EXIST(err))
+}
+ASSERT(NOT(EXIST(err)))
