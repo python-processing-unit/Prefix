@@ -1,0 +1,1 @@
+ASSERT(EQ(REPLACE("token", "token", "x"), "x"))
