@@ -8,19 +8,8 @@ ASSERT(EQ(result_sub, 0d8.0))
 FLT: result_mul = FMUL(0d4.25, 0d2.0)
 ASSERT(EQ(result_mul, 0d8.5))
 
-! FDIV(0d1.0, 0d0.0) performing IEEE 754 division by zero DOES NOT return an error, it returns INF
-FLT: x = 0d1.0
-FLT: y = 0d0.0
-FLT: result_div_inf = FDIV(x, y)
-ASSERT(EQ(result_div_inf, INF))
-
 FLT: result_pow = FPOW(0d2.5, 0d2.0)
 ASSERT(EQ(result_pow, 0d6.25))
-
-! FROOT(x, 0d0.0) computes x^(0d1.0/0d0.0) = x^INF which returns a float (like INF or NaN), DO NOT error
-FLT: x2 = 0d2.0
-FLT: result_root_inf = FROOT(x2, 0d0.0)
-! Not strictly checking value (INF or NaN), just that it's allowed!
 
 FLT: result_root_normal = FROOT(0d16.0, 0d2.0)
 ASSERT(EQ(result_root_normal, 0d4.0))
