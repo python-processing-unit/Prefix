@@ -1,0 +1,5 @@
+MAP: m = <"k" = 0d1>
+TNS: nested = [0d5, 0d6]
+
+ASSERT(EQ(APPEND(m, [0d1]), [0d1, m]))
+ASSERT(EQ(APPEND(nested, [0d1]), [0d1, nested]))

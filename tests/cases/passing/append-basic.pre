@@ -1,0 +1,5 @@
+TNS: base = [0d1, 0d2]
+TNS: out = APPEND(0d3, base)
+
+ASSERT(EQ(TYPE(out), "TNS"))
+ASSERT(EQ(out, [0d1, 0d2, 0d3]))
