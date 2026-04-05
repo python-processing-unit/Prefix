@@ -1,0 +1,1 @@
+ASSERT(EQ(TYPE(IN(0d1, [0d1])), "BOOL"))
