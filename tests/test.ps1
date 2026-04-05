@@ -68,7 +68,6 @@ foreach ($case in $passingCases) {
   Write-Host "==> $($case): " -NoNewline
   if ($result.ExitCode -ne 0) {
     Write-Host 'fail' -ForegroundColor Red
-    Write-Host $result.Output -ForegroundColor Red
     $failures += [pscustomobject]@{
       Path = $case
       Type = 'UnexpectedFailure'
