@@ -1,0 +1,11 @@
+BOOL: caught = FALSE
+
+TRY{
+    THROW("left=", 0d42, ",right=", -0b10)
+} CATCH(err) {
+    caught = TRUE
+    PRINT(err) ! debug
+    ASSERT(EQ(err, "left=0d42,right=-0b10"))
+}
+
+ASSERT(caught)

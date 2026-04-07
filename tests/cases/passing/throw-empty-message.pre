@@ -1,0 +1,11 @@
+BOOL: caught = FALSE
+
+TRY{
+    THROW('')
+} CATCH(err) {
+    caught = TRUE
+    ASSERT(EQ(err, ''))
+    ASSERT(EQ(SLEN(err), 0d0))
+}
+
+ASSERT(caught)

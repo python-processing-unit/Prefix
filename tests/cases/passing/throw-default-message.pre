@@ -1,0 +1,10 @@
+BOOL: caught = FALSE
+
+TRY{
+    THROW()
+} CATCH(err) {
+    caught = TRUE
+    ASSERT(EQ(err, 'Exception thrown'))
+}
+
+ASSERT(caught)
