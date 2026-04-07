@@ -1,0 +1,7 @@
+INT: counter = 0d2
+
+RUN("ASSERT(EQ(counter, 0d2)); counter = ADD(counter, 0d3)")
+ASSERT(EQ(counter, 0d5))
+
+RUN("INT: created = SUB(counter, 0d1)")
+ASSERT(EQ(created, 0d4))
