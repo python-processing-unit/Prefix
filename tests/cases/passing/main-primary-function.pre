@@ -1,0 +1,5 @@
+FUNC BOOL: from_primary_function(){
+    RETURN(MAIN())
+}
+
+ASSERT(from_primary_function())
