@@ -1,0 +1,17 @@
+BOOL: reached_end = FALSE
+
+THR(worker){
+    FOR(i, 0d1000000){
+    }
+    reached_end = TRUE
+}
+
+ASSERT(BOOL(worker))
+
+THR: stopped = STOP(worker)
+
+ASSERT(EQ(TYPE(stopped), "THR"))
+ASSERT(EQ(stopped, worker))
+ASSERT(NOT(BOOL(worker)))
+ASSERT(NOT(BOOL(stopped)))
+ASSERT(EQ(reached_end, FALSE))
