@@ -1,0 +1,2 @@
+THR(worker){}
+AWAIT(worker, worker)
