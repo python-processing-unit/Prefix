@@ -1,0 +1,6 @@
+IMPORT(path)
+
+STR: p = path.TEMPFILE("prefix-writefile-ansi.txt")
+
+ASSERT(WRITEFILE("Prefix", p, coding = "ANSI"))
+ASSERT(EQ(READFILE(p, coding = "ANSI"), "Prefix"))

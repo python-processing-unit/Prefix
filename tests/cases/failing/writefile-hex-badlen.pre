@@ -1,0 +1,5 @@
+IMPORT(path)
+
+STR: p = path.TEMPFILE("prefix-writefile-bad-hex.txt")
+
+WRITEFILE("abc", p, coding = "hex")
