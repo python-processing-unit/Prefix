@@ -44,6 +44,7 @@ function Invoke-PrefixProgramWithInput {
     [string]$ProgramPath,
 
     [Parameter(Mandatory = $true)]
+    [AllowEmptyString()]
     [string]$InputText
   )
 

@@ -1,0 +1,2 @@
+ASSERT(EQ(TYPE(IMPORT(path)), "BOOL"))
+ASSERT(NOT(IMPORT(path)))
