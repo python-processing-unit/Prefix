@@ -1,0 +1,3 @@
+FUNC STR: identify(){
+    RETURN("basic")
+}
