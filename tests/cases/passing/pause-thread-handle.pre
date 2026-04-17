@@ -1,0 +1,23 @@
+BOOL: released = FALSE
+
+THR(worker){
+    WHILE(NOT(released)){}
+}
+
+ASSERT(BOOL(worker))
+
+THR: paused = PAUSE(worker)
+
+ASSERT(EQ(TYPE(paused), "THR"))
+ASSERT(EQ(paused, worker))
+ASSERT(BOOL(worker))
+ASSERT(PAUSED(worker))
+
+released = TRUE
+
+ASSERT(PAUSED(worker))
+
+AWAIT(RESUME(worker))
+
+ASSERT(NOT(BOOL(worker)))
+ASSERT(NOT(PAUSED(worker)))

@@ -1,0 +1,7 @@
+THR(worker){
+    WHILE(TRUE){}
+}
+
+PAUSE(worker)
+PAUSE(worker)
+STOP(worker)
