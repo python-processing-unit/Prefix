@@ -1,0 +1,2 @@
+INT: value = 0d1
+EXPORT(value, 0d1.0)
