@@ -1,0 +1,5 @@
+MAP: m
+
+ASSERT(EQ(ASSIGN(m<"a", "b">, 0d5), 0d5))
+ASSERT(EQ(m<"a", "b">, 0d5))
+ASSERT(EQ(m, <"a" = <"b" = 0d5>>))
