@@ -1,0 +1,2 @@
+TNS: vec = [0d1, 0d2]
+ASSIGN(vec<"a">, 0d1)

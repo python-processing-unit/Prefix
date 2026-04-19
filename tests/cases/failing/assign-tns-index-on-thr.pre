@@ -1,0 +1,2 @@
+THR: t = ASYNC{}
+ASSIGN(t[0d1], 0d1)

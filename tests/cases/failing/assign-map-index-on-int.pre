@@ -1,0 +1,2 @@
+INT: i = 0d1
+ASSIGN(i<0d1>, 0d1)
