@@ -1,0 +1,7 @@
+MAP: ordered = <"alpha" = 0d1, 0d2 = "two", 0d3.5 = TRUE>
+
+ASSERT(EQ(SER(ordered), '\R{"t":"MAP","v":[{"k":{"t":"STR","v":"alpha"},"v":{"t":"INT","v":"0d1"}},{"k":{"t":"INT","v":"0d2"},"v":{"t":"STR","v":"two"}},{"k":{"t":"FLT","v":"0d3.5"},"v":{"t":"BOOL","v":true}}]}'))
+
+MAP: nested = <"outer" = <"inner" = [0d1, 0d2]>>
+ASSERT(EQ(UNSER(SER(nested)), nested))
+ASSERT(EQ(KEYS(UNSER(SER(ordered))), ["alpha", 0d2, 0d3.5]))
