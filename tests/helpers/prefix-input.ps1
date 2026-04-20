@@ -51,9 +51,10 @@ function New-PrefixTempDir {
 
 function ConvertTo-PrefixArgumentString {
   param(
-    [Parameter(Mandatory = $true)]
-    [string[]]$Arguments
+    [Parameter(Mandatory = $false)]
+    [string[]]$Arguments = @()
   )
+  if (-not $Arguments) { return '' }
 
   $escaped = foreach ($argument in $Arguments) {
     if ($null -eq $argument) {
@@ -69,8 +70,8 @@ function ConvertTo-PrefixArgumentString {
 
 function Start-PrefixProcessWithArguments {
   param(
-    [Parameter(Mandatory = $true)]
-    [string[]]$Arguments,
+    [Parameter(Mandatory = $false)]
+    [string[]]$Arguments = @(),
 
     [string]$WorkingDirectory,
 
@@ -118,8 +119,8 @@ function Start-PrefixProcess {
 
 function Invoke-PrefixWithArguments {
   param(
-    [Parameter(Mandatory = $true)]
-    [string[]]$Arguments,
+    [Parameter(Mandatory = $false)]
+    [string[]]$Arguments = @(),
 
     [AllowEmptyString()]
     [string]$InputText = '',

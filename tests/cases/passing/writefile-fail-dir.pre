@@ -1,0 +1,11 @@
+IMPORT(path)
+
+STR: d = path.TEMPFILE("prefix-writefile-fail-dir")
+
+IF(EQ(OS(),"win")){
+    ASSERT(EQ(CL(JOIN("md ", WINPATH(d))), 0d0))
+} ELSE {
+    ASSERT(EQ(CL(JOIN("mkdir -p ", d)), 0d0))
+}
+
+ASSERT(NOT(WRITEFILE("x", d)))
