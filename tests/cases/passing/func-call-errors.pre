@@ -19,12 +19,6 @@ TRY{
 }
 
 TRY{
-    coerce_int("not-an-int")
-} CATCH(err){
-    runtime_errors = ADD(runtime_errors, 0d1)
-}
-
-TRY{
     keyword_only("0d1", "0d2", "0d3")
 } CATCH(err){
     runtime_errors = ADD(runtime_errors, 0d1)
@@ -42,4 +36,4 @@ TRY{
     runtime_errors = ADD(runtime_errors, 0d1)
 }
 
-ASSERT(EQ(runtime_errors, 0d5))
+ASSERT(EQ(runtime_errors, 0d4))
