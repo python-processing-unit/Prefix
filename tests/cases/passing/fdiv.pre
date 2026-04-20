@@ -1,4 +1,3 @@
-! FDIV(0d1.0, 0d0.0) performing IEEE 754 division by zero DOES NOT return an error, it returns INF
 INT: a = IADD(0d1, 0d1.0)
 FLT: b = FDIV(0d1.0, 0d0.0)
 FLT: x = 0d1.0
