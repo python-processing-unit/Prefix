@@ -1,0 +1,9 @@
+THR: finished = UNSER('\R{"t":"THR","id":"t1","state":"finished","paused":false,"finished":true,"stop":false,"env":null,"block":null}')
+
+ASSERT(EQ(TYPE(finished), "THR"))
+ASSERT(NOT(BOOL(finished)))
+ASSERT(EQ(AWAIT(finished), finished))
+
+THR: paused = UNSER('\R{"t":"THR","id":"t2","state":"paused","paused":true,"finished":false,"stop":false,"env":null,"block":null}')
+ASSERT(PAUSED(paused))
+ASSERT(BOOL(paused))

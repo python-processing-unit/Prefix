@@ -1,0 +1,13 @@
+INT: shared = 0d0
+
+THR(worker){
+    FOR(i, 0d256){
+    }
+    shared = 0d1
+}
+
+THR: awaited = AWAIT(worker)
+
+ASSERT(EQ(awaited, worker))
+ASSERT(EQ(shared, 0d1))
+ASSERT(NOT(BOOL(worker)))

@@ -1,0 +1,5 @@
+FUNC BOOL: explode(){
+    THROW("boom")
+}
+
+PARALLEL(explode)

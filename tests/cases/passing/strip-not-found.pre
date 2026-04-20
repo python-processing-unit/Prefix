@@ -1,0 +1,1 @@
+ASSERT(EQ(STRIP("prefix", "zzz"), "prefix"))

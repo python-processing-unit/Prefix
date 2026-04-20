@@ -1,0 +1,7 @@
+TNS: src = [0d9, 0d8]
+TNS: dst = [0d1, 0d2, 0d3, 0d4]
+TNS: out = SCAT(src, dst, [[0d2, 0d3]])
+
+ASSERT(EQ(TYPE(out), "TNS"))
+ASSERT(EQ(out, [0d1, 0d9, 0d8, 0d4]))
+ASSERT(EQ(dst, [0d1, 0d2, 0d3, 0d4]))

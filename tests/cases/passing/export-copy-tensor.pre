@@ -1,0 +1,16 @@
+IMPORT(path)
+
+STR: tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
+STR: helper_path = JOIN(tests_dir, "/helpers/export_target.pre")
+
+ASSERT(NOT(IMPORT_PATH(helper_path, helper)))
+
+TNS: tensor = [0d5, 0d6]
+ASSERT(NOT(EXPORT(tensor, helper)))
+
+tensor[0d1] = 0d8
+
+ASSERT(EQ(helper.read_tensor_first(), 0d5))
+ASSERT(NOT(helper.set_tensor_first(0d9)))
+ASSERT(EQ(tensor[0d1], 0d8))
+ASSERT(EQ(helper.read_tensor_first(), 0d9))

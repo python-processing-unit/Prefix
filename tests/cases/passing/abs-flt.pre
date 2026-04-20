@@ -1,0 +1,10 @@
+FLT: pos_oct = 0o1.4
+FLT: neg_oct = -0o1.4
+FLT: hex_val = 0x1.8
+FLT: zero = 0o0.0
+FLT: neg_zero = -0o0.0
+
+ASSERT(EQ(ABS(pos_oct), pos_oct))
+ASSERT(EQ(ABS(neg_oct), 0o1.4))
+ASSERT(EQ(ABS(neg_zero), 0o0.0))
+ASSERT(EQ(BASE(ABS(hex_val)), BASE(hex_val)))

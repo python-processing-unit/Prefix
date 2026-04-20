@@ -1,0 +1,27 @@
+BOOL: frozen_symbol = TRUE
+ASSERT(NOT(FREEZE(frozen_symbol)))
+
+BOOL: frozen_delete_failed = FALSE
+TRY{
+    DEL(frozen_symbol)
+} CATCH {
+    frozen_delete_failed = TRUE
+}
+ASSERT(frozen_delete_failed)
+ASSERT(EXIST(frozen_symbol))
+
+ASSERT(NOT(THAW(frozen_symbol)))
+ASSERT(NOT(DEL(frozen_symbol)))
+ASSERT(NOT(EXIST(frozen_symbol)))
+
+BOOL: permafrozen_symbol = TRUE
+ASSERT(NOT(PERMAFREEZE(permafrozen_symbol)))
+
+BOOL: permafrozen_delete_failed = FALSE
+TRY{
+    DEL(permafrozen_symbol)
+} CATCH {
+    permafrozen_delete_failed = TRUE
+}
+ASSERT(permafrozen_delete_failed)
+ASSERT(EXIST(permafrozen_symbol))

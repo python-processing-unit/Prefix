@@ -1,0 +1,9 @@
+BOOL: branch_taken = FALSE
+
+IF(MAIN()){
+    branch_taken = TRUE
+} ELSE {
+    ASSERT(FALSE)
+}
+
+ASSERT(branch_taken)

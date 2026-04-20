@@ -1,0 +1,7 @@
+TNS: x = [0d1, 0d2, 0d3]
+TNS: k = [0d1, 0d1, 0d1]
+TNS: out = CONV(x, k)
+
+ASSERT(EQ(TYPE(out), "TNS"))
+ASSERT(EQ(SHAPE(out), [0d3]))
+ASSERT(EQ(out, [0d4, 0d6, 0d8]))

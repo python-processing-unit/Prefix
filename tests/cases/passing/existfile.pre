@@ -1,0 +1,4 @@
+IMPORT(path)
+
+ASSERT(EXISTFILE(JOIN(path.script_dir, "/plain.txt")))
+ASSERT(NOT(EXISTFILE(JOIN(path.script_dir, "/nonexistent.txt"))))

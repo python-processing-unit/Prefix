@@ -5,7 +5,7 @@ against that DLL's import library, and compiles each discovered extension
 against the same shared runtime.
 
 Requires: run from a Developer Command Prompt for Visual Studio where cl.exe is on PATH.
-Usage (from Prefix-C folder):
+Usage (from Prefix folder):
     powershell -ExecutionPolicy Bypass -File .\build.ps1
 #>
 

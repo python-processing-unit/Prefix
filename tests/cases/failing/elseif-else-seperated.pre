@@ -1,0 +1,9 @@
+IF(FALSE){
+    ASSERT(TRUE)
+} ELSEIF(FALSE){
+    ASSERT(TRUE)
+}
+
+ELSE {
+    ASSERT(TRUE)
+}

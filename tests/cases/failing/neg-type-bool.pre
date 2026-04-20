@@ -1,0 +1,2 @@
+BOOL: b = TRUE
+NEG(b)

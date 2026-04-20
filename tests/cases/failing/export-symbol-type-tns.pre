@@ -1,0 +1,7 @@
+IMPORT(path)
+
+STR: tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
+STR: helper_path = JOIN(tests_dir, "/helpers/export_target.pre")
+
+ASSERT(NOT(IMPORT_PATH(helper_path, helper)))
+EXPORT([0d1], helper)

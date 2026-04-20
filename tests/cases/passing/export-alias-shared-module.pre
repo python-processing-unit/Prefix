@@ -1,0 +1,15 @@
+IMPORT(path)
+
+STR: tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
+STR: helper_path = JOIN(tests_dir, "/helpers/export_target.pre")
+
+IMPORT_PATH(helper_path)
+IMPORT_PATH(helper_path, again)
+
+INT: via_name = 0d7
+ASSERT(NOT(EXPORT(via_name, export_target)))
+ASSERT(EQ(again.via_name, 0d7))
+
+INT: via_alias = 0d8
+ASSERT(NOT(EXPORT(via_alias, again)))
+ASSERT(EQ(export_target.via_alias, 0d8))

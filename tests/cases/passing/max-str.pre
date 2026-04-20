@@ -1,0 +1,3 @@
+! MAX returns the longest string
+STR: result = MAX("a", "", "prefix", "bb")
+ASSERT(EQ(result, "prefix"))

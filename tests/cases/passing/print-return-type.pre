@@ -1,0 +1,1 @@
+ASSERT(EQ(PRINT("value"), FALSE))

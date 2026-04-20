@@ -1,0 +1,2 @@
+BOOL: first_result = EXTEND(extend_core)
+BOOL: second_result = EXTEND(extend_core)

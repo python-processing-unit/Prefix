@@ -1,0 +1,8 @@
+PARFOR(i, 0d3){
+    IF(EQ(i, 0d2)){
+        INT: merged = 0d7
+    }
+}
+ASSERT(EXIST(merged))
+ASSERT(EQ(merged, 0d7))
+ASSERT(NOT(EXIST(i)))

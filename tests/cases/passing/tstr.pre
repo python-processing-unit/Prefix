@@ -1,0 +1,4 @@
+TNS: source = [[TRUE, FALSE, 0b101, -0d7, 0d1.5, -0d1.5], ["prefix", "", INF, -INF, NaN, 0x1A]]
+TNS: converted = TSTR(source)
+ASSERT(EQ(TYPE(converted), "TNS"))
+ASSERT(EQ(converted, [["TRUE", "FALSE", "0b101", "-0d7", "0d1.5", "-0d1.5"], ["prefix", "", "INF", "-INF", "NaN", "0x1A"]]))

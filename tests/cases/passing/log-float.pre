@@ -1,0 +1,2 @@
+ASSERT(EQ(LOG(0d3.5), 0d1))
+ASSERT(EQ(LOG(0d16.0), 0d4))

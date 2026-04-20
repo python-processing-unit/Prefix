@@ -1,0 +1,5 @@
+THR(worker){}
+
+THR: thread_copy = COPY(worker)
+
+ASSERT(EQ(thread_copy, worker))

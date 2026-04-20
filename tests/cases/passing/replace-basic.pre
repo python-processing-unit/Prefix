@@ -1,0 +1,2 @@
+ASSERT(EQ(TYPE(REPLACE("prefix", "fix", "lude")), "STR"))
+ASSERT(EQ(REPLACE("prefix", "fix", "lude"), "prelude"))

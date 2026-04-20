@@ -1,0 +1,10 @@
+BOOL: caught = FALSE
+
+TRY{
+    THROW('prefix')
+} CATCH(err) {
+    caught = TRUE
+    ASSERT(EQ(err, 'prefix'))
+}
+
+ASSERT(caught)

@@ -1,0 +1,7 @@
+IF(FALSE){
+    ASSERT(TRUE)
+}
+
+ELSEIF(TRUE){
+    ASSERT(FALSE)
+}

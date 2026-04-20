@@ -1,0 +1,2 @@
+FLT: f = 0d1.5
+ASSIGN(f<0d1>, 0d1)

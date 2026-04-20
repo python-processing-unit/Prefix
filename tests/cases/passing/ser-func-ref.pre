@@ -1,0 +1,23 @@
+FUNC BOOL: contains(STR: haystack, STR: needle){
+    RETURN(GT(TLEN(SPLIT(haystack, needle), 0d1), 0d1))
+}
+
+FUNC INT: occurrences(STR: haystack, STR: needle){
+    RETURN(SUB(TLEN(SPLIT(haystack, needle), 0d1), 0d1))
+}
+
+FUNC INT: identity(INT: value){
+    RETURN(value)
+}
+
+MAP: shared = <"first" = identity, "second" = identity>
+STR: json = SER(shared)
+
+ASSERT(contains(json, '\R"t":"FUNC"'))
+ASSERT(contains(json, '\R"name":"identity"'))
+ASSERT(GT(occurrences(json, '\R"def":{'), 0d0))
+ASSERT(contains(json, '\R"ref":true'))
+
+MAP: roundtrip = UNSER(SER(shared))
+ASSERT(EQ(roundtrip<"first">(0d4), 0d4))
+ASSERT(EQ(roundtrip<"second">(0d5), 0d5))

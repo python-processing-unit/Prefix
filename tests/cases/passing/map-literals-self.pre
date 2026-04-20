@@ -1,0 +1,13 @@
+MAP: self_alias = <"value" = 0d1, "self" = SELF>
+MAP: self_lookup = <"value" = 0d7, "copy" = SELF<"value">, "nested" = <"n" = 0d9>, "copy_nested" = SELF<"nested", "n">>
+MAP: inner_self = <"inner" = <"value" = 0d4, "self" = SELF, "copy" = SELF<"value">>>
+
+ASSERT(EQ(self_alias<"self", "value">, 0d1))
+self_alias<"value"> = 0d2
+ASSERT(EQ(self_alias<"self", "value">, 0d2))
+
+ASSERT(EQ(self_lookup<"copy">, 0d7))
+ASSERT(EQ(self_lookup<"copy_nested">, 0d9))
+
+ASSERT(EQ(inner_self<"inner", "self", "value">, 0d4))
+ASSERT(EQ(inner_self<"inner", "copy">, 0d4))

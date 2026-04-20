@@ -1,0 +1,9 @@
+FLT: left_oct = 0o1.4
+FLT: right_hex = 0x0.8
+FLT: left_oct_one = 0o1.0
+
+ASSERT(EQ(SUB(left_oct_one, right_hex), 0x0.8))
+ASSERT(EQ(BASE(SUB(left_oct_one, right_hex)), 0d16))
+
+ASSERT(EQ(SUB(left_oct, right_hex), 0x1.0))
+ASSERT(EQ(BASE(SUB(left_oct, right_hex)), 0d16))

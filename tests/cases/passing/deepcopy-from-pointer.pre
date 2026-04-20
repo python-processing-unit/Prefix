@@ -1,0 +1,8 @@
+MAP: source = <"plain" = 0d2, "nested" = <"value" = 0d3>>
+MAP: copied = DEEPCOPY(@source)
+
+copied<"plain"> = 0d9
+copied<"nested", "value"> = 0d8
+
+ASSERT(EQ(source<"plain">, 0d2))
+ASSERT(EQ(source<"nested", "value">, 0d3))

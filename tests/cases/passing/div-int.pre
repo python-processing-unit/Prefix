@@ -1,0 +1,8 @@
+INT: left_dec = 0d2
+INT: wide_hex = 0x10
+
+ASSERT(EQ(DIV(0d6, left_dec), 0d3))
+ASSERT(EQ(BASE(DIV(0d6, left_dec)), 0d10))
+
+ASSERT(EQ(DIV(wide_hex, left_dec), 0d8))
+ASSERT(EQ(BASE(DIV(wide_hex, left_dec)), 0d16))

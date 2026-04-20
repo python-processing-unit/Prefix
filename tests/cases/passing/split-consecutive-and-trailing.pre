@@ -1,0 +1,2 @@
+ASSERT(EQ(SPLIT("a,,b,,,c", ","), ["a", "", "b", "", "", "c"]))
+ASSERT(EQ(SPLIT("tail,,", ","), ["tail", "", ""]))

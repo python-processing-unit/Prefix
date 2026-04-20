@@ -1,0 +1,19 @@
+IMPORT(path)
+
+STR: tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
+STR: helper_path = JOIN(tests_dir, "/helpers/import_path_cache_target.pre")
+STR: marker_path = path.TEMPFILE("prefix-import-path-cache-target.txt")
+
+IF(EXISTFILE(marker_path)){
+    ASSERT(DELETEFILE(marker_path))
+}
+
+ASSERT(NOT(IMPORT_PATH(helper_path)))
+ASSERT(NOT(IMPORT_PATH(helper_path, again)))
+
+STR: default_view = import_path_cache_target.marker_text()
+STR: alias_view = again.marker_text()
+
+ASSERT(DELETEFILE(marker_path))
+ASSERT(EQ(default_view, "loaded"))
+ASSERT(EQ(alias_view, "loaded"))

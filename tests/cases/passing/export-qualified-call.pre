@@ -1,0 +1,8 @@
+IMPORT(path, helper)
+
+FUNC STR: describe(){
+    RETURN("exported")
+}
+
+ASSERT(NOT(EXPORT(describe, helper)))
+ASSERT(EQ(helper.describe(), "exported"))
