@@ -1,0 +1,7 @@
+FLT: flt_value = 0d1.5
+
+ASSERT(EQ(CONVERT(flt_value, 0b10), 0b1.1))
+ASSERT(EQ(BASE(CONVERT(flt_value, 0b10)), 0d2))
+ASSERT(EQ(CONVERT(flt_value, 0x10), 0x1.8))
+ASSERT(EQ(BASE(CONVERT(flt_value, 0x10)), 0d16))
+ASSERT(EQ(BASE(CONVERT(flt_value, 0d64)), 0d64))

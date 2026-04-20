@@ -1,0 +1,3 @@
+IMPORT(path)
+
+EXISTFILE(path.script_dir, "/plain.txt")

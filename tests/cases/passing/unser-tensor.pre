@@ -1,0 +1,7 @@
+TNS: tensor = UNSER('\R{"t":"TNS","shape":[2,2],"v":[{"t":"INT","v":"0d1"},{"t":"INT","v":"0d2"},{"t":"INT","v":"0d3"},{"t":"INT","v":"0d4"}]}')
+
+ASSERT(EQ(tensor, [[0d1, 0d2], [0d3, 0d4]]))
+ASSERT(EQ(SHAPE(tensor), [0d2, 0d2]))
+
+TNS: mixed = UNSER('\R{"t":"TNS","shape":[3],"v":[{"t":"BOOL","v":true},{"t":"STR","v":"two"},{"t":"FLT","v":"0d3.5"}]}')
+ASSERT(EQ(mixed, [TRUE, "two", 0d3.5]))

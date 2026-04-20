@@ -1,0 +1,4 @@
+TNS: out = MDIV([[0d9, 0d8], [0d6, 0d4]], [[0d3, 0d2], [0d3, 0d2]])
+
+ASSERT(EQ(out, [[0d3, 0d4], [0d2, 0d2]]))
+ASSERT(EQ(SHAPE(out), [0d2, 0d2]))

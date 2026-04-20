@@ -1,0 +1,5 @@
+FUNC INT: identity(INT: value){
+    RETURN(value)
+}
+
+UNSER(identity)

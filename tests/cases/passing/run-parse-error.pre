@@ -1,0 +1,12 @@
+INT: step = 0d0
+BOOL: caught = FALSE
+
+TRY{
+    RUN("step = 0d1; IF(TRUE){")
+    ASSERT(FALSE)
+} CATCH {
+    caught = TRUE
+}
+
+ASSERT(caught)
+ASSERT(EQ(step, 0d0))

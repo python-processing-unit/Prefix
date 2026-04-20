@@ -1,0 +1,23 @@
+IF(""){
+    ASSERT(FALSE)
+} ELSE {
+    ASSERT(TRUE)
+}
+
+IF(''){
+    ASSERT(FALSE)
+} ELSE {
+    ASSERT(TRUE)
+}
+
+IF("x"){
+    ASSERT(TRUE)
+} ELSE {
+    ASSERT(FALSE)
+}
+
+IF('x'){
+    ASSERT(TRUE)
+} ELSE {
+    ASSERT(FALSE)
+}

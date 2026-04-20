@@ -1,0 +1,19 @@
+INT: sample_value = 0d5
+
+FUNC INT: plain(INT: left, STR: right = "def"){
+    RETURN(left)
+}
+
+FUNC INT: coerced(~INT: value, STR: suffix = "x"){
+    RETURN(value)
+}
+
+FUNC STR: local_signature(){
+    INT: inner_value = 0d1
+    RETURN(SIGNATURE(inner_value))
+}
+
+ASSERT(EQ(SIGNATURE(sample_value), 'INT: sample_value'))
+ASSERT(EQ(SIGNATURE(plain), 'INT: plain(INT: left, STR: right = "def")'))
+ASSERT(EQ(SIGNATURE(coerced), 'INT: coerced(~INT: value, STR: suffix = "x")'))
+ASSERT(EQ(local_signature(), 'INT: inner_value'))

@@ -1,0 +1,27 @@
+INT: errors = 0d0
+
+TRY{
+    UNSER('\R{"t":"TNS","shape":[0],"v":[]}')
+} CATCH(err){
+    ADD(@errors, 0d1)
+}
+
+TRY{
+    UNSER('\R{"t":"TNS","shape":[2,2],"v":[{"t":"INT","v":"0d1"},{"t":"INT","v":"0d2"},{"t":"INT","v":"0d3"}]}')
+} CATCH(err){
+    ADD(@errors, 0d1)
+}
+
+TRY{
+    UNSER('\R{"t":"MAP","v":[{"k":{"t":"TNS","shape":[1],"v":[{"t":"INT","v":"0d1"}]},"v":{"t":"INT","v":"0d2"}}]}')
+} CATCH(err){
+    ADD(@errors, 0d1)
+}
+
+TRY{
+    UNSER('\R{"t":"MAP","v":[{"k":{"t":"STR","v":"x"}}]}')
+} CATCH(err){
+    ADD(@errors, 0d1)
+}
+
+ASSERT(EQ(errors, 0d4))

@@ -1,0 +1,22 @@
+TNS: seen = [FALSE, FALSE, FALSE]
+
+FUNC BOOL: first(){
+    FOR(i, 0d500){
+    }
+    seen[0d1] = TRUE
+}
+
+FUNC BOOL: second(){
+    FOR(i, 0d500){
+    }
+    seen[0d2] = TRUE
+}
+
+FUNC BOOL: third(){
+    FOR(i, 0d500){
+    }
+    seen[0d3] = TRUE
+}
+
+ASSERT(EQ(PARALLEL(first, second, third), FALSE))
+ASSERT(EQ(seen, [TRUE, TRUE, TRUE]))

@@ -1,0 +1,3 @@
+TNS: tensor = [[0d1, 0d2], [0d3, 0d4]]
+
+TLEN(tensor, 0d0)

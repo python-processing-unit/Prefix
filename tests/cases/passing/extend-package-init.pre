@@ -1,0 +1,8 @@
+IMPORT(path)
+
+STR: tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
+STR: helper_path = JOIN(tests_dir, "/helpers/extend_package_loader.pre")
+
+ASSERT(NOT(IMPORT_PATH(helper_path, helper)))
+ASSERT(NOT(helper.extend_result))
+ASSERT(EQ(TST_EXT_PACKAGE_INIT(), "package-init"))

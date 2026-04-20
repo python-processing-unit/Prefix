@@ -1,0 +1,7 @@
+IMPORT(path)
+
+STR: p = path.TEMPFILE("prefix-writefile-bin.bin")
+
+ASSERT(WRITEFILE("0100000101111010", p, coding = "bin"))
+ASSERT(EQ(READFILE(p, coding = "bin"), "0100000101111010"))
+ASSERT(EQ(READFILE(p), "Az"))

@@ -1,0 +1,30 @@
+FUNC INT: GET_FIVE(){
+    RETURN(0d5)
+}
+
+MAP: empty = <>
+MAP: ordered = <"alpha" = 0d1, "beta" = 0d2, "gamma" = 0d3>
+MAP: duplicate = <"x" = 0d1, "y" = 0d2, "x" = 0d3>
+
+ASSERT(EQ(empty, <>))
+
+IF(empty){
+    ASSERT(FALSE)
+} ELSE {
+    ASSERT(TRUE)
+}
+
+IF(<"false_value" = FALSE>){
+    ASSERT(TRUE)
+} ELSE {
+    ASSERT(FALSE)
+}
+
+ASSERT(EQ(ordered, <"alpha" = 0d1, "beta" = 0d2, "gamma" = 0d3>))
+ASSERT(EQ(KEYS(ordered), ["alpha", "beta", "gamma"]))
+ASSERT(EQ(VALUES(ordered), [0d1, 0d2, 0d3]))
+
+ASSERT(EQ(duplicate<"x">, 0d3))
+ASSERT(EQ(duplicate<"y">, 0d2))
+ASSERT(EQ(KEYS(duplicate), ["x", "y"]))
+ASSERT(EQ(VALUES(duplicate), [0d3, 0d2]))

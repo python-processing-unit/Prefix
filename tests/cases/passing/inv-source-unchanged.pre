@@ -1,0 +1,5 @@
+MAP: src = <"left" = "x", "right" = "y">
+
+INV(src)
+
+ASSERT(EQ(src, <"left" = "x", "right" = "y">))

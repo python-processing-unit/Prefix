@@ -1,0 +1,2 @@
+INT: value = 0d1
+DEL(value<"key">)

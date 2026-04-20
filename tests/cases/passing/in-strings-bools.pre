@@ -1,0 +1,2 @@
+ASSERT(IN("beta", ["alpha", "beta", "gamma"]))
+ASSERT(IN(FALSE, [TRUE, FALSE]))

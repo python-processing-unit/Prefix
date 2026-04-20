@@ -1,0 +1,3 @@
+! FSUM preserves INF under float arithmetic
+FLT: result = FSUM(INF, 0d1.0)
+ASSERT(EQ(result, INF))

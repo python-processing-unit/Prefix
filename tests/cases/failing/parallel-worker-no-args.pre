@@ -1,0 +1,5 @@
+FUNC BOOL: requires_arg(INT: value){
+    RETURN(TRUE)
+}
+
+PARALLEL(requires_arg)

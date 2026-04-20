@@ -1,0 +1,9 @@
+TNS: seen = [0d0, 0d0, 0d0, 0d0]
+PARFOR(i, 0d4){
+    IF(EQ(i, 0d2)){
+        CONTINUE()
+    }
+    seen[i] = i
+}
+ASSERT(EQ(seen, [0d1, 0d0, 0d3, 0d4]))
+ASSERT(NOT(EXIST(i)))

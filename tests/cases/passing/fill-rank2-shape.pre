@@ -1,0 +1,5 @@
+TNS: src = [[0d1, 0d2], [0d3, 0d4]]
+TNS: out = FILL(src, 0d0)
+
+ASSERT(EQ(out, [[0d0, 0d0], [0d0, 0d0]]))
+ASSERT(EQ(SHAPE(out), [0d2, 0d2]))

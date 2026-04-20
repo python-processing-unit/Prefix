@@ -1,0 +1,27 @@
+BOOL: caught = FALSE
+
+TRY{
+    THR: worker = ASYNC{
+        FREEZE(not_declared)
+    }
+} CATCH {
+    caught = TRUE
+}
+
+ASSERT(NOT(caught))
+
+
+! Also ensure awaiting the failed thread does not synchronously raise
+BOOL: caught_await = FALSE
+
+THR: worker2 = ASYNC{
+    FREEZE(not_declared)
+}
+
+TRY{
+    AWAIT(worker2)
+} CATCH {
+    caught_await = TRUE
+}
+
+ASSERT(NOT(caught_await))

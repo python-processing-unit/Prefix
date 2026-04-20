@@ -1,0 +1,2 @@
+ASSERT(EQ(FLT(0d7), 0d7.0))
+ASSERT(EQ(FLT(-0d7), -0d7.0))

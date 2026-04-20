@@ -1,0 +1,6 @@
+TNS: x = [[[0d3]]]
+TNS: kernel = [[[[0d2, 0d3]]]]
+TNS: out = CONV(x, kernel, bias = [0d10, 0d20])
+
+ASSERT(EQ(SHAPE(out), [0d1, 0d1, 0d2]))
+ASSERT(EQ(out, [[[0d16, 0d29]]]))

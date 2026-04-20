@@ -1,0 +1,1 @@
+PRINT(LAMBDA BOOL: (){})

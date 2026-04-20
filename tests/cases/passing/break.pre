@@ -1,0 +1,7 @@
+INT: c = 0d0
+WHILE(TRUE){
+    ADD(@c, 0d1)
+    BREAK(0d1)
+    ASSERT(FALSE)
+}
+ASSERT(EQ(c, 0d1))

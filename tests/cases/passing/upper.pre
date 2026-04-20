@@ -1,0 +1,4 @@
+ASSERT(EQ(TYPE(UPPER("prefix")), "STR"))
+ASSERT(EQ(UPPER("prefix"), "PREFIX"))
+ASSERT(EQ(UPPER("Prefix 123!"), "PREFIX 123!"))
+ASSERT(EQ(UPPER(""), ""))

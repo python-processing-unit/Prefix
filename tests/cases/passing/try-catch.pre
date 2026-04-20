@@ -1,0 +1,10 @@
+TRY{
+    ASSERT(TRUE)
+} CATCH {
+    ASSERT(FALSE)
+}
+TRY{
+    ASSERT(FALSE)
+} CATCH {
+    ASSERT(TRUE)
+}

@@ -1,0 +1,6 @@
+TNS: x = [[[0d2.0]]]
+TNS: kernel = [[[[0d1.5]]]]
+TNS: out = CONV(x, kernel, stride_w = 0d1)
+
+ASSERT(EQ(out, [[[0d3.0]]]))
+ASSERT(EQ(TYPE(out[0d1, 0d1, 0d1]), "FLT"))

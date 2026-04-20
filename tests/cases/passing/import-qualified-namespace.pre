@@ -1,0 +1,3 @@
+IMPORT(path)
+
+ASSERT(EQ(TYPE(path.TEMPFILE("import-qualified-namespace.txt")), "STR"))

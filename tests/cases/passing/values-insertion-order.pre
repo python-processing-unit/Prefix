@@ -1,0 +1,3 @@
+MAP: m = <"alpha" = "first", "beta" = "second", "gamma" = "third">
+
+ASSERT(EQ(VALUES(m), ["first", "second", "third"]))

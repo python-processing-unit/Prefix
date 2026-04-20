@@ -1,0 +1,1 @@
+ASSERT(EQ(DEEPCOPY(0xA), 0xA))

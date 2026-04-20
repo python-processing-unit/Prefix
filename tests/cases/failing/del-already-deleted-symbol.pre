@@ -1,0 +1,3 @@
+BOOL: x = TRUE
+DEL(x)
+DEL(x)

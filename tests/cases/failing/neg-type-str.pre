@@ -1,0 +1,2 @@
+STR: s = 'not-a-number'
+NEG(s)

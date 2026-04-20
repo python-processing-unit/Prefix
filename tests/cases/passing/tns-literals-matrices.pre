@@ -1,0 +1,7 @@
+TNS: matrix = [[0d1, 0d2], [0d3, 0d4]]
+TNS: cube = [[[0d1], [0d2]], [[0d3], [0d4]]]
+
+ASSERT(EQ(matrix, [[0d1, 0d2], [0d3, 0d4]]))
+ASSERT(EQ(matrix[0d1, 0d2], 0d2))
+ASSERT(EQ(matrix[0d2], [0d3, 0d4]))
+ASSERT(EQ(cube[0d2, 0d1, 0d1], 0d3))

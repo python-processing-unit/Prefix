@@ -1,0 +1,13 @@
+INT: outer = 0d0
+
+FOR(j, 0d3){
+    ADD(@outer, 0d1)
+    PARFOR(i, 0d5){
+        BREAK(0d2)
+    }
+    ASSERT(FALSE)
+}
+
+ASSERT(EQ(outer, 0d1))
+ASSERT(NOT(EXIST(i)))
+ASSERT(NOT(EXIST(j)))

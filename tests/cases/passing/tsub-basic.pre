@@ -1,0 +1,4 @@
+TNS: out = TSUB([0d9, 0d7, 0d5], 0d2)
+
+ASSERT(EQ(TYPE(out), "TNS"))
+ASSERT(EQ(out, [0d7, 0d5, 0d3]))

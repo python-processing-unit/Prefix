@@ -1,0 +1,15 @@
+MAP: mixed_keys = <0d1 = "int", 0d2.5 = "flt", "three" = "str", ADD(0d2, 0d2) = "expr">
+MAP: nested = <"outer" = <"inner" = 0d9>, "empty_inner" = <>>
+
+ASSERT(EQ(mixed_keys<0d1>, "int"))
+ASSERT(EQ(mixed_keys<0d2.5>, "flt"))
+ASSERT(EQ(mixed_keys<"three">, "str"))
+ASSERT(EQ(mixed_keys<0d4>, "expr"))
+
+ASSERT(EQ(nested<"outer", "inner">, 0d9))
+ASSERT(EQ(nested<"empty_inner">, <>))
+IF(nested<"empty_inner">){
+    ASSERT(FALSE)
+} ELSE {
+    ASSERT(TRUE)
+}

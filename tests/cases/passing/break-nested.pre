@@ -1,0 +1,15 @@
+INT: outer = 0d0
+INT: inner = 0d0
+FOR(i, 0d3){
+    ADD(@outer, 0d1)
+    FOR(j, 0d3){
+        ADD(@inner, 0d1)
+        BREAK(0d2)
+        ASSERT(FALSE)
+    }
+    ASSERT(FALSE)
+}
+ASSERT(EQ(outer, 0d1))
+ASSERT(EQ(inner, 0d1))
+ASSERT(NOT(EXIST(i)))
+ASSERT(NOT(EXIST(j)))

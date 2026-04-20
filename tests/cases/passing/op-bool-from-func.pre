@@ -1,0 +1,5 @@
+FUNC BOOL: sample_func(){
+    RETURN(TRUE)
+}
+
+ASSERT(BOOL(sample_func))

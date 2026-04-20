@@ -1,0 +1,27 @@
+! ROUND coverage based on the specification
+
+FLT: r_half = 0b0.101
+ASSERT(EQ(ROUND(r_half), 0b0.0))
+ASSERT(EQ(ROUND(r_half, mode = "floor", ndigits = 0b10), 0b0.10))
+ASSERT(EQ(ROUND(r_half, ndigits = 0b10), 0b0.10))
+ASSERT(EQ(ROUND(r_half, mode = "ceiling", ndigits = 0b10), 0b0.11))
+ASSERT(EQ(ROUND(r_half, mode = "ceil", ndigits = 0b10), 0b0.11))
+ASSERT(EQ(ROUND(r_half, mode = "zero", ndigits = 0b10), 0b0.10))
+ASSERT(EQ(ROUND(r_half, mode = "logical", ndigits = 0b10), 0b0.11))
+ASSERT(EQ(ROUND(r_half, mode = "half-up", ndigits = 0b10), 0b0.11))
+ASSERT(EQ(ROUND(0b0.101, 0b10), 0b0.10))
+
+FLT: rn_half = -0b0.101
+ASSERT(EQ(ROUND(rn_half, ndigits = 0b10), -0b0.11))
+ASSERT(EQ(ROUND(rn_half, mode = "zero", ndigits = 0b10), -0b0.10))
+ASSERT(EQ(ROUND(rn_half, mode = "logical", ndigits = 0b10), -0b0.11))
+
+FLT: three = 0b11.0
+ASSERT(EQ(ROUND(three, ndigits = -0b1), 0b10.0))
+ASSERT(EQ(ROUND(three, mode = "logical", ndigits = -0b1), 0b100.0))
+ASSERT(EQ(ROUND(three, -0b1), 0b10.0))
+
+FLT: neg_three = -0b11.0
+ASSERT(EQ(ROUND(neg_three, ndigits = -0b1), -0b100.0))
+ASSERT(EQ(ROUND(neg_three, mode = "zero", ndigits = -0b1), -0b10.0))
+ASSERT(EQ(ROUND(neg_three, mode = "logical", ndigits = -0b1), -0b100.0))

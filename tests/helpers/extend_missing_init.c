@@ -1,0 +1,3 @@
+int extend_missing_init_dummy(void) {
+    return 7;
+}

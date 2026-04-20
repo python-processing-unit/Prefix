@@ -1,0 +1,3 @@
+MAP: m = <0d1 = 0d10, 0d2 = 0d20, 0d3 = 0d30>
+
+ASSERT(EQ(VALUES(m), [0d10, 0d20, 0d30]))

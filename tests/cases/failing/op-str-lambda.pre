@@ -1,0 +1,1 @@
+STR(LAMBDA BOOL: (){ RETURN(TRUE) })

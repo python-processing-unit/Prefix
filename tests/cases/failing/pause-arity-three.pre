@@ -1,0 +1,2 @@
+THR(worker){}
+PAUSE(worker, 0d0.0, 0d0.0)

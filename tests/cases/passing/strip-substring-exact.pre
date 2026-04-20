@@ -1,0 +1,2 @@
+ASSERT(EQ(STRIP("abc", "ac"), "abc"))
+ASSERT(EQ(STRIP("a  b  c", "  "), "abc"))

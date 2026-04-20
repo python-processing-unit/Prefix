@@ -1,0 +1,9 @@
+INT: two = 0d2
+INT: three = 0b11
+INT: four_hex = 0x4
+
+ASSERT(EQ(POW(two, three), 0d8))
+ASSERT(EQ(BASE(POW(two, three)), 0d10))
+
+ASSERT(EQ(POW(four_hex, 0d2), 0x10))
+ASSERT(EQ(BASE(POW(four_hex, 0d2)), 0d16))

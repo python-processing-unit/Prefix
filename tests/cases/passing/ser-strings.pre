@@ -1,0 +1,10 @@
+ASSERT(EQ(SER("Prefix"), '{"t":"STR","v":"Prefix"}'))
+
+STR: escaped = "\"\\\b\f\n\r\t"
+ASSERT(EQ(SER(escaped), '\R{"t":"STR","v":"\"\\\b\f\n\r\t"}'))
+
+ASSERT(EQ(SER("\x01"), '\R{"t":"STR","v":"\u0001"}'))
+
+STR: unicode_json = SER("\u00E9")
+ASSERT(OR(EQ(unicode_json, '\R{"t":"STR","v":"\u00E9"}'), EQ(unicode_json, '\R{"t":"STR","v":"\u00e9"}')))
+ASSERT(EQ(UNSER(unicode_json), "\u00E9"))

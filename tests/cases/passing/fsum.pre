@@ -1,0 +1,3 @@
+! FSUM coerces mixed numeric inputs to FLT
+FLT: result = FSUM(0d1, 0d2.5, 0d3)
+ASSERT(EQ(result, 0d6.5))

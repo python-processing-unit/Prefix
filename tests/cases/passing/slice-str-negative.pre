@@ -1,0 +1,2 @@
+ASSERT(EQ(SLICE("abcdef", -0d2, -0d1), "ef"))
+ASSERT(EQ(SLICE("abcdef", 0d1, -0d1), "abcdef"))

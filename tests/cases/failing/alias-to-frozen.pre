@@ -1,0 +1,4 @@
+INT: t = 0d1
+FREEZE(t)
+
+INT: p = @t

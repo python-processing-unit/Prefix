@@ -1,0 +1,2 @@
+TNS: inner = [0d1]
+MSUB([inner], [inner])

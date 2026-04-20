@@ -1,0 +1,5 @@
+MAP: m = <"a" = 0d1, "b" = 0d2>
+
+ASSERT(KEYIN("a", m))
+ASSERT(NOT(KEYIN("missing", m)))
+ASSERT(EQ(TYPE(KEYIN("a", m)), "BOOL"))

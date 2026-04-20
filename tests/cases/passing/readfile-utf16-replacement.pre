@@ -1,0 +1,6 @@
+IMPORT(path)
+
+STR: p = path.TEMPFILE("prefix-readfile-utf16-replacement.bin")
+
+ASSERT(WRITEFILE("00D8", p, coding = "hex"))
+ASSERT(EQ(READFILE(p, coding = "UTF-16 LE"), "\uFFFD"))

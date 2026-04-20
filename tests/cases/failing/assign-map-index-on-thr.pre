@@ -1,0 +1,2 @@
+THR: t = ASYNC{}
+ASSIGN(t<"k">, 0d1)

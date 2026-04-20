@@ -1,0 +1,2 @@
+FUNC: fn = GET_FIVE
+ASSIGN(fn<"k">, 0d1)

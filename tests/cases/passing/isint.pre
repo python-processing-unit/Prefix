@@ -1,0 +1,21 @@
+BOOL: sample_bool_true = TRUE
+INT: sample_int = -0d7
+FLT: sample_flt = 0d3.5
+STR: sample_str = "prefix"
+TNS: sample_tns = [0d1, 0d2]
+MAP: sample_map = <"n" = 0d1>
+
+FUNC INT: sample_func(INT: value){
+    RETURN(value)
+}
+
+THR(sample_thr){}
+
+ASSERT(NOT(ISINT(sample_bool_true)))
+ASSERT(ISINT(sample_int))
+ASSERT(NOT(ISINT(sample_flt)))
+ASSERT(NOT(ISINT(sample_str)))
+ASSERT(NOT(ISINT(sample_tns)))
+ASSERT(NOT(ISINT(sample_map)))
+ASSERT(NOT(ISINT(sample_func)))
+ASSERT(NOT(ISINT(sample_thr)))

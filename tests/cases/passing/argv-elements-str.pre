@@ -1,0 +1,5 @@
+TNS: args = ARGV()
+
+FOR(i, TLEN(args, 0d1)){
+    ASSERT(ISSTR(args[i]))
+}

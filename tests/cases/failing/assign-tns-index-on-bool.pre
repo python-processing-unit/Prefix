@@ -1,0 +1,2 @@
+BOOL: b = TRUE
+ASSIGN(b[0d1], 0d1)

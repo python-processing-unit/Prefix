@@ -1,0 +1,3 @@
+THR(worker){}
+
+STOP(worker, worker)

@@ -1,0 +1,6 @@
+IMPORT(path)
+
+STR: p = JOIN(path.script_dir, "/plain.txt")
+
+ASSERT(EQ(READFILE(p), "Prefix"))
+ASSERT(EQ(READFILE(p, coding = "uTf-8"), "Prefix"))

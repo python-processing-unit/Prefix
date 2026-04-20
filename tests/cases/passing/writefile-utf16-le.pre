@@ -1,0 +1,6 @@
+IMPORT(path)
+
+STR: p = path.TEMPFILE("prefix-writefile-utf16-le.txt")
+
+ASSERT(WRITEFILE("Prefix", p, coding = "UTF-16 LE"))
+ASSERT(EQ(READFILE(p, coding = "UTF-16 LE"), "Prefix"))

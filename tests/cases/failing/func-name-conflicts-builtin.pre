@@ -1,0 +1,3 @@
+FUNC INT: ASSERT(){
+    RETURN(0d0)
+}

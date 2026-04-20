@@ -1,0 +1,1 @@
+ASSERT(EQ(CL("exit 0"), 0d0))

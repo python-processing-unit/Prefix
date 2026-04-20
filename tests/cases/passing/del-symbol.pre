@@ -1,0 +1,18 @@
+BOOL: symbol = TRUE
+ASSERT(EXIST(symbol))
+ASSERT(NOT(DEL(symbol)))
+ASSERT(NOT(EXIST(symbol)))
+
+BOOL: deleted_read_failed = FALSE
+TRY{
+	symbol
+} CATCH {
+	deleted_read_failed = TRUE
+}
+ASSERT(deleted_read_failed)
+
+INT: count = 0d1
+ASSERT(NOT(DEL(count)))
+count = 0d2
+ASSERT(EQ(count, 0d2))
+ASSERT(EXIST(count))
