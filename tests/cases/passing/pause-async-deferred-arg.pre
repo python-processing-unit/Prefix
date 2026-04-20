@@ -1,0 +1,16 @@
+BOOL: released = FALSE
+
+THR: paused = PAUSE(ASYNC{
+    WHILE(NOT(released)){}
+}, seconds = 0d0.05)
+
+ASSERT(EQ(TYPE(paused), "THR"))
+ASSERT(BOOL(paused))
+ASSERT(PAUSED(paused))
+
+released = TRUE
+
+AWAIT(paused)
+
+ASSERT(NOT(BOOL(paused)))
+ASSERT(NOT(PAUSED(paused)))
