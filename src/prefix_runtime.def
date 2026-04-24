@@ -145,3 +145,6 @@ EXPORTS
     value_deep_copy
     value_free
     value_type_name
+    extensions_fire_event
+    extensions_run_periodic_hooks
+    extensions_call_repl_handler

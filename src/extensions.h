@@ -2,6 +2,7 @@
 #define EXTENSIONS_H
 
 #include "common.h"
+#include "interpreter.h"
 
 // Configure directories used for extension-path fallback resolution.
 // interpreter_dir should be the directory containing the interpreter executable.
@@ -27,5 +28,18 @@ int extensions_load_named(const char* spec,
 
 // Unload all loaded extension libraries.
 void extensions_shutdown(void);
+
+// Fire a named event to all registered event handlers. Returns number of
+// handlers invoked (may be 0).
+int extensions_fire_event(Interpreter* interp, const char* event_name);
+
+// Evaluate and invoke any periodic hooks that are due at the interpreter's
+// current rewrite step. Safe to call after a step has been logged.
+void extensions_run_periodic_hooks(Interpreter* interp);
+
+// If a REPL replacement handler has been registered by an extension, call
+// it and return its integer return-code. Returns -1 if no repl handler is
+// registered.
+int extensions_call_repl_handler(void);
 
 #endif // EXTENSIONS_H
