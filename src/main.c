@@ -317,7 +317,13 @@ int main(int argc, char** argv) {
     }
 
     if (!path && !source_mode) {
-        int repl_rc = run_repl(verbose_flag, private_flag);
+        int repl_rc = extensions_call_repl_handler();
+        if (repl_rc >= 0) {
+            extensions_shutdown();
+            builtins_reset_dynamic();
+            return repl_rc;
+        }
+        repl_rc = run_repl(verbose_flag, private_flag);
         extensions_shutdown();
         builtins_reset_dynamic();
         return repl_rc;

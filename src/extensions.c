@@ -39,6 +39,26 @@ static char* g_cwd_dir = NULL;
 static const char* g_loading_extension_name = NULL;
 static const char* g_loading_scope_name = NULL;
 
+// Registered event handlers and periodic hooks
+typedef struct EventHandler {
+    char* event_name;
+    prefix_event_fn fn;
+    char* owner;
+    struct EventHandler* next;
+} EventHandler;
+
+typedef struct PeriodicHook {
+    int n;
+    prefix_event_fn fn;
+    char* owner;
+    struct PeriodicHook* next;
+} PeriodicHook;
+
+static EventHandler* g_event_handlers = NULL;
+static PeriodicHook* g_periodic_hooks = NULL;
+static prefix_repl_fn g_repl_handler = NULL;
+static char* g_repl_owner = NULL;
+
 static void set_error(char** error_out, const char* msg) {
     if (!error_out) return;
     free(*error_out);
@@ -389,19 +409,41 @@ static int ctx_register_operator(const char* name, prefix_operator_fn fn, int fl
 }
 
 static int ctx_register_periodic_hook(int n, prefix_event_fn fn) {
-    (void)n;
-    (void)fn;
+    if (n <= 0 || !fn) return -1;
+    PeriodicHook* h = calloc(1, sizeof(PeriodicHook));
+    if (!h) return -1;
+    h->n = n;
+    h->fn = fn;
+    h->owner = g_loading_extension_name ? strdup(g_loading_extension_name) : strdup("extension");
+    if (!h->owner) { free(h); return -1; }
+    h->next = g_periodic_hooks;
+    g_periodic_hooks = h;
     return 0;
 }
 
 static int ctx_register_event_handler(const char* event_name, prefix_event_fn fn) {
-    (void)event_name;
-    (void)fn;
+    if (!event_name || !fn) return -1;
+    EventHandler* h = calloc(1, sizeof(EventHandler));
+    if (!h) return -1;
+    h->event_name = strdup(event_name);
+    if (!h->event_name) { free(h); return -1; }
+    h->fn = fn;
+    h->owner = g_loading_extension_name ? strdup(g_loading_extension_name) : strdup("extension");
+    if (!h->owner) { free(h->event_name); free(h); return -1; }
+    h->next = g_event_handlers;
+    g_event_handlers = h;
     return 0;
 }
 
 static int ctx_register_repl_handler(prefix_repl_fn repl_fn) {
-    (void)repl_fn;
+    if (!repl_fn) return -1;
+    g_repl_handler = repl_fn;
+    free(g_repl_owner);
+    g_repl_owner = g_loading_extension_name ? strdup(g_loading_extension_name) : strdup("extension");
+    if (!g_repl_owner) {
+        // keep handler but owner strdup failed; set to NULL
+        g_repl_owner = NULL;
+    }
     return 0;
 }
 
@@ -446,6 +488,35 @@ void extensions_set_runtime_dirs(const char* interpreter_dir, const char* cwd_di
     g_interpreter_dir = interpreter_dir ? strdup(interpreter_dir) : NULL;
     free(g_cwd_dir);
     g_cwd_dir = cwd_dir ? strdup(cwd_dir) : NULL;
+}
+
+int extensions_fire_event(Interpreter* interp, const char* event_name) {
+    if (!event_name) return 0;
+    int invoked = 0;
+    for (EventHandler* h = g_event_handlers; h; h = h->next) {
+        if (h->event_name && strcmp(h->event_name, event_name) == 0) {
+            if (h->fn) h->fn(interp, event_name);
+            invoked++;
+        }
+    }
+    return invoked;
+}
+
+void extensions_run_periodic_hooks(Interpreter* interp) {
+    if (!interp) return;
+    if (!g_periodic_hooks) return;
+    int step_index = interp->trace_next_step_index - 1;
+    if (step_index < 0) return;
+    for (PeriodicHook* p = g_periodic_hooks; p; p = p->next) {
+        if (p->n > 0 && (step_index % p->n) == 0) {
+            if (p->fn) p->fn(interp, "periodic");
+        }
+    }
+}
+
+int extensions_call_repl_handler(void) {
+    if (!g_repl_handler) return -1;
+    return g_repl_handler();
 }
 
 static int extension_register_exposure(LoadedExtension* le,
@@ -647,4 +718,30 @@ void extensions_shutdown(void) {
 
     g_loading_extension_name = NULL;
     g_loading_scope_name = NULL;
+
+    // Free registered event handlers
+    EventHandler* eh = g_event_handlers;
+    while (eh) {
+        EventHandler* en = eh->next;
+        free(eh->event_name);
+        free(eh->owner);
+        free(eh);
+        eh = en;
+    }
+    g_event_handlers = NULL;
+
+    // Free periodic hooks
+    PeriodicHook* ph = g_periodic_hooks;
+    while (ph) {
+        PeriodicHook* pn = ph->next;
+        free(ph->owner);
+        free(ph);
+        ph = pn;
+    }
+    g_periodic_hooks = NULL;
+
+    // Repl handler owner
+    free(g_repl_owner);
+    g_repl_owner = NULL;
+    g_repl_handler = NULL;
 }

@@ -1,6 +1,7 @@
 #include "interpreter.h"
 #include "builtins.h"
 #include "ns_buffer.h"
+#include "extensions.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -1666,7 +1667,10 @@ Value eval_expr(Interpreter* interp, Expr* expr, Env* env) {
             }
 
             LabelMap local_labels = {0};
+            // Notify extensions about call boundaries
+            extensions_fire_event(interp, "before_call");
             ExecResult res = exec_stmt(interp, user_func->body, call_env, &local_labels);
+            extensions_fire_event(interp, "after_call");
             
             // Clean up labels
             for (size_t i = 0; i < local_labels.count; i++) value_free(local_labels.items[i].key);
@@ -2552,6 +2556,11 @@ cleanup:
 static ExecResult exec_stmt(Interpreter* interp, Stmt* stmt, Env* env, LabelMap* labels) {
     if (!stmt) return make_ok(value_null());
     trace_log_step(interp, stmt, env);
+
+    // Run any periodic hooks that are due for this rewrite step and notify
+    // extensions that a statement is about to execute.
+    extensions_run_periodic_hooks(interp);
+    extensions_fire_event(interp, "before_statement");
 
     // If running in a background thread and a STOP has been requested for
     // this thread, terminate execution cooperatively by returning early.
@@ -3555,6 +3564,8 @@ static ExecResult exec_stmt_list(Interpreter* interp, StmtList* list, Env* env, 
     while (i < list->count) {
         wait_if_paused(interp);
         ExecResult res = exec_stmt(interp, list->items[i], env, labels);
+        // Notify extensions that a statement has completed (regardless of outcome)
+        extensions_fire_event(interp, "after_statement");
         
         if (res.status == EXEC_ERROR || res.status == EXEC_RETURN || 
             res.status == EXEC_BREAK || res.status == EXEC_CONTINUE) {
@@ -3667,12 +3678,16 @@ ExecResult exec_program(Stmt* program, const char* source_path) {
     interpreter_init(&interp, source_path, false, false);
     
     LabelMap labels = {0};
+    extensions_fire_event(&interp, "program_start");
     ExecResult res = exec_stmt_list(&interp, &program->as.block, interp.global_env, &labels);
 
     if (res.status == EXEC_ERROR) {
+        extensions_fire_event(&interp, "on_error");
         char* tb = interpreter_format_traceback(&interp, res.error, res.error_line, res.error_column);
         free(res.error);
         res.error = tb;
+    } else {
+        extensions_fire_event(&interp, "program_end");
     }
     
     // Clean up
@@ -3745,12 +3760,19 @@ ExecResult exec_program_in_env(Interpreter* interp, Stmt* program, Env* env) {
     }
 
     LabelMap labels = {0};
+    // Notify extensions program is starting
+    extensions_fire_event(interp, "program_start");
     ExecResult res = exec_stmt_list(interp, &program->as.block, env, &labels);
 
     if (res.status == EXEC_ERROR) {
+        // Notify extensions about the error
+        extensions_fire_event(interp, "on_error");
         char* tb = interpreter_format_traceback(interp, res.error, res.error_line, res.error_column);
         free(res.error);
         res.error = tb;
+    } else {
+        // Notify extensions program ended normally
+        extensions_fire_event(interp, "program_end");
     }
 
     for (size_t i = 0; i < labels.count; i++) value_free(labels.items[i].key);
