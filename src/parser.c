@@ -258,11 +258,17 @@ static Expr* parse_typed_ident_expr(Parser* parser) {
 
 static Expr* parse_extension_spec_expr(Parser* parser) {
     Token type_tok = parser->current_token;
-    advance(parser);
-    consume(parser, TOKEN_COLON, "Expected ':' after EXTENSION");
 
-    if (parser->current_token.type != TOKEN_IDENT) {
-        report_error(parser, "Expected extension specifier after EXTENSION:");
+    if (type_tok.type == TOKEN_IDENT && type_tok.literal && strcmp(type_tok.literal, "EXTENSION") == 0 && parser->next_token.type == TOKEN_COLON) {
+        advance(parser);
+        consume(parser, TOKEN_COLON, "Expected ':' after EXTENSION");
+
+        if (parser->current_token.type != TOKEN_IDENT) {
+            report_error(parser, "Expected extension specifier after EXTENSION:");
+            return NULL;
+        }
+    } else if (parser->current_token.type != TOKEN_IDENT) {
+        report_error(parser, "Expected extension specifier");
         return NULL;
     }
 
@@ -503,9 +509,7 @@ static Expr* parse_call(Parser* parser) {
                         call->as.call.args.count == 0 &&
                         call->as.call.kw_count == 0 &&
                         parser->current_token.type == TOKEN_IDENT &&
-                        parser->current_token.literal != NULL &&
-                        strcmp(parser->current_token.literal, "EXTENSION") == 0 &&
-                        parser->next_token.type == TOKEN_COLON;
+                        parser->next_token.type != TOKEN_EQUALS;
 
                     if (is_typed_assign_target || is_extend_specifier) {
                         Expr* arg = is_extend_specifier ? parse_extension_spec_expr(parser)
