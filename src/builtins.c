@@ -3545,14 +3545,140 @@ static Value builtin_shape(Interpreter* interp, Value* args, int argc, Expr** ar
 // CONV: N-D discrete convolution (two-argument backward-compatible form)
 // Usage: CONV(TNS: x, TNS: kernel) -> TNS (same shape as x)
 static Value builtin_conv(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
-    (void)arg_nodes; (void)env; (void)argc;
+    (void)arg_nodes; (void)env;
     if (args[0].type != VAL_TNS || args[1].type != VAL_TNS) {
         RUNTIME_ERROR(interp, "CONV expects (TNS, TNS)", line, col);
     }
     Tensor* x = args[0].as.tns;
     Tensor* k = args[1].as.tns;
 
-    // kernel must have same rank
+    // Extended 2-D multi-output form triggered when more than two arguments provided
+    if (argc > 2) {
+        if (x->ndim != 3) {
+            RUNTIME_ERROR(interp, "CONV extended form requires input rank 3", line, col);
+        }
+        if (k->ndim != 4) {
+            RUNTIME_ERROR(interp, "CONV extended form requires kernel rank 4", line, col);
+        }
+
+        size_t in_w = x->shape[0];
+        size_t in_h = x->shape[1];
+        size_t in_c = x->shape[2];
+        size_t kw = k->shape[0];
+        size_t kh = k->shape[1];
+        size_t k_in_c = k->shape[2];
+        size_t out_c = k->shape[3];
+
+        if (k_in_c != in_c) {
+            RUNTIME_ERROR(interp, "CONV kernel input channels must match x channels", line, col);
+        }
+
+        // Element types must be numeric
+        if (!((x->elem_type == TYPE_INT || x->elem_type == TYPE_FLT) && (k->elem_type == TYPE_INT || k->elem_type == TYPE_FLT))) {
+            RUNTIME_ERROR(interp, "CONV only supports INT or FLT element types", line, col);
+        }
+
+        // Parse optional args: stride_w, stride_h, pad_w, pad_h, bias
+        int64_t stride_w = 1, stride_h = 1, pad_w = 0, pad_h = 0;
+        if (argc > 2 && args[2].type != VAL_NULL) { EXPECT_INT(args[2], "CONV", interp, line, col); stride_w = args[2].as.i; }
+        if (argc > 3 && args[3].type != VAL_NULL) { EXPECT_INT(args[3], "CONV", interp, line, col); stride_h = args[3].as.i; }
+        if (argc > 4 && args[4].type != VAL_NULL) { EXPECT_INT(args[4], "CONV", interp, line, col); pad_w = args[4].as.i; }
+        if (argc > 5 && args[5].type != VAL_NULL) { EXPECT_INT(args[5], "CONV", interp, line, col); pad_h = args[5].as.i; }
+
+        if (stride_w <= 0 || stride_h <= 0 || pad_w < 0 || pad_h < 0) {
+            RUNTIME_ERROR(interp, "CONV invalid stride/pad", line, col);
+        }
+
+        bool bias_present = false;
+        Tensor* bias_t = NULL;
+        if (argc > 6 && args[6].type != VAL_NULL) {
+            if (args[6].type != VAL_TNS) {
+                RUNTIME_ERROR(interp, "CONV bias must be TNS", line, col);
+            }
+            bias_present = true;
+            bias_t = args[6].as.tns;
+            if ((bias_t->ndim != 1 && bias_t->length != 0) || (bias_t->length != 0 && bias_t->shape[0] != out_c)) {
+                RUNTIME_ERROR(interp, "CONV bias size mismatch", line, col);
+            }
+        }
+
+        // Output typing
+        DeclType out_decl = (x->elem_type == TYPE_INT && k->elem_type == TYPE_INT) ? TYPE_INT : TYPE_FLT;
+
+        // Compute output shape
+        int64_t out_w_i = ((int64_t)in_w + 2 * pad_w - (int64_t)kw) / stride_w + 1;
+        int64_t out_h_i = ((int64_t)in_h + 2 * pad_h - (int64_t)kh) / stride_h + 1;
+        if (out_w_i <= 0 || out_h_i <= 0) {
+            size_t out_shape_zero[3] = {0, 0, out_c};
+            return value_tns_new(out_decl, 3, out_shape_zero);
+        }
+        size_t out_w = (size_t)out_w_i;
+        size_t out_h = (size_t)out_h_i;
+
+        size_t out_shape[3]; out_shape[0] = out_w; out_shape[1] = out_h; out_shape[2] = out_c;
+        Value out = value_tns_new(out_decl, 3, out_shape);
+        Tensor* ot = out.as.tns;
+
+        // Perform convolution: output indices order [w,h,oc]
+        for (size_t ow = 0; ow < out_w; ow++) {
+            for (size_t oh = 0; oh < out_h; oh++) {
+                for (size_t oc = 0; oc < out_c; oc++) {
+                    if (out_decl == TYPE_INT) {
+                        int64_t acc = 0;
+                        for (size_t kx = 0; kx < kw; kx++) {
+                            for (size_t ky = 0; ky < kh; ky++) {
+                                for (size_t ic = 0; ic < in_c; ic++) {
+                                    int64_t in_x = (int64_t)ow * stride_w + (int64_t)kx - pad_w;
+                                    int64_t in_y = (int64_t)oh * stride_h + (int64_t)ky - pad_h;
+                                    if (in_x < 0 || in_y < 0 || (size_t)in_x >= in_w || (size_t)in_y >= in_h) continue; // zero pad
+                                    size_t in_off = (size_t)in_x * x->strides[0] + (size_t)in_y * x->strides[1] + ic * x->strides[2];
+                                    size_t k_off = kx * k->strides[0] + ky * k->strides[1] + ic * k->strides[2] + oc * k->strides[3];
+                                    Value vx = x->data[in_off];
+                                    Value vk = k->data[k_off];
+                                    if (vx.type != VAL_INT || vk.type != VAL_INT) { value_free(out); RUNTIME_ERROR(interp, "CONV integer-mode requires INT elements", line, col); }
+                                    acc += vx.as.i * vk.as.i;
+                                }
+                            }
+                        }
+                        if (bias_present && bias_t->length > 0) {
+                            Value bv = bias_t->data[oc];
+                            if (bv.type == VAL_INT) acc += bv.as.i;
+                            else if (bv.type == VAL_FLT) acc += (int64_t)bv.as.f;
+                            else { value_free(out); RUNTIME_ERROR(interp, "CONV bias must be numeric", line, col); }
+                        }
+                        ot->data[ow * ot->strides[0] + oh * ot->strides[1] + oc * ot->strides[2]] = value_int(acc);
+                    } else {
+                        double acc = 0.0;
+                        for (size_t kx = 0; kx < kw; kx++) {
+                            for (size_t ky = 0; ky < kh; ky++) {
+                                for (size_t ic = 0; ic < in_c; ic++) {
+                                    int64_t in_x = (int64_t)ow * stride_w + (int64_t)kx - pad_w;
+                                    int64_t in_y = (int64_t)oh * stride_h + (int64_t)ky - pad_h;
+                                    if (in_x < 0 || in_y < 0 || (size_t)in_x >= in_w || (size_t)in_y >= in_h) continue;
+                                    size_t in_off = (size_t)in_x * x->strides[0] + (size_t)in_y * x->strides[1] + ic * x->strides[2];
+                                    size_t k_off = kx * k->strides[0] + ky * k->strides[1] + ic * k->strides[2] + oc * k->strides[3];
+                                    Value vx = x->data[in_off];
+                                    Value vk = k->data[k_off];
+                                    double aval = (vx.type == VAL_FLT) ? vx.as.f : (double)vx.as.i;
+                                    double kval = (vk.type == VAL_FLT) ? vk.as.f : (double)vk.as.i;
+                                    acc += aval * kval;
+                                }
+                            }
+                        }
+                        if (bias_present && bias_t->length > 0) {
+                            Value bv = bias_t->data[oc];
+                            double bval = (bv.type == VAL_FLT) ? bv.as.f : (double)bv.as.i;
+                            acc += bval;
+                        }
+                        ot->data[ow * ot->strides[0] + oh * ot->strides[1] + oc * ot->strides[2]] = value_flt(acc);
+                    }
+                }
+            }
+        }
+        return out;
+    }
+
+    // Legacy two-argument N-D convolution (backward-compatible)
     if (x->ndim != k->ndim) {
         RUNTIME_ERROR(interp, "CONV kernel must have same rank as input", line, col);
     }
@@ -8166,6 +8292,7 @@ static const char* builtin_params_match[] = {"value", "template", "typing", "rec
 static const char* builtin_params_readfile[] = {"path", "coding"};
 static const char* builtin_params_writefile[] = {"data", "path", "coding"};
 static const char* builtin_params_pause[] = {"thr", "seconds"};
+static const char* builtin_params_conv[] = {"x", "kernel", "stride_w", "stride_h", "pad_w", "pad_h", "bias"};
 
 static BuiltinFunction builtins_table[] = {
     // Arithmetic
@@ -8204,7 +8331,7 @@ static BuiltinFunction builtins_table[] = {
     {"TINT", 1, 1, builtin_tint},
     {"TFLT", 1, 1, builtin_tflt},
     {"TSTR", 1, 1, builtin_tstr},
-    {"CONV", 2, 2, builtin_conv},
+    {"CONV", 2, 7, builtin_conv, builtin_params_conv, 7},
     {"FILL", 2, 2, builtin_fill},
     {"TADD", 2, 2, builtin_tadd},
     {"TSUB", 2, 2, builtin_tsub},
