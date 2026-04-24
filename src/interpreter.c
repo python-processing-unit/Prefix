@@ -724,6 +724,37 @@ Env* module_env_lookup(Interpreter* interp, const char* name) {
     return NULL;
 }
 
+char** module_list_aliases(Interpreter* interp, Env* env, size_t* out_count) {
+    if (out_count) *out_count = 0;
+    if (!interp || !env) return NULL;
+    size_t count = 0;
+    ModuleEntry* e = interp->modules;
+    while (e) {
+        if (e->env == env) count++;
+        e = e->next;
+    }
+    if (count == 0) return NULL;
+    char** arr = malloc(sizeof(char*) * count);
+    if (!arr) return NULL;
+    e = interp->modules;
+    size_t idx = 0;
+    while (e) {
+        if (e->env == env) {
+            arr[idx] = strdup(e->name);
+            if (!arr[idx]) {
+                for (size_t j = 0; j < idx; j++) free(arr[j]);
+                free(arr);
+                if (out_count) *out_count = 0;
+                return NULL;
+            }
+            idx++;
+        }
+        e = e->next;
+    }
+    if (out_count) *out_count = idx;
+    return arr;
+}
+
 // ============ Value truthiness ============
 
 int value_truthiness(Value v) {

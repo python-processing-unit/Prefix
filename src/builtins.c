@@ -6245,16 +6245,33 @@ static Value builtin_export(Interpreter* interp, Value* args, int argc, Expr** a
         RUNTIME_ERROR(interp, "EXPORT failed to assign into module", line, col);
     }
 
-    // Also create qualified name in caller env: module.symbol
-    size_t len = strlen(module) + 1 + strlen(sym) + 1;
-    char* qualified = malloc(len);
-    if (!qualified) RUNTIME_ERROR(interp, "Out of memory", line, col);
-    snprintf(qualified, len, "%s.%s", module, sym);
-    if (!env_assign(env, qualified, entry->value, entry->decl_type, true)) {
+    /* Materialize qualified bindings for every registered alias that
+       references the same module environment. This ensures EXPORT updates
+       sibling aliases that point at the same module (per spec). */
+    size_t alias_count = 0;
+    char** aliases = module_list_aliases(interp, mod_env, &alias_count);
+    if (aliases) {
+        for (size_t ai = 0; ai < alias_count; ai++) {
+            if (module_export_bindings(interp, env, mod_env, aliases[ai], line, col, "EXPORT failed to assign qualified name") != 0) {
+                for (size_t j = 0; j < alias_count; j++) free(aliases[j]);
+                free(aliases);
+                RUNTIME_ERROR(interp, "EXPORT failed to assign qualified name", line, col);
+            }
+            free(aliases[ai]);
+        }
+        free(aliases);
+    } else {
+        /* Fallback to previous behavior if alias enumeration fails */
+        size_t len = strlen(module) + 1 + strlen(sym) + 1;
+        char* qualified = malloc(len);
+        if (!qualified) RUNTIME_ERROR(interp, "Out of memory", line, col);
+        snprintf(qualified, len, "%s.%s", module, sym);
+        if (!env_assign(env, qualified, entry->value, entry->decl_type, true)) {
+            free(qualified);
+            RUNTIME_ERROR(interp, "EXPORT failed to assign qualified name", line, col);
+        }
         free(qualified);
-        RUNTIME_ERROR(interp, "EXPORT failed to assign qualified name", line, col);
     }
-    free(qualified);
 
     return value_bool(false);
 }
@@ -7486,6 +7503,12 @@ static Value builtin_import(Interpreter* interp, Value* args, int argc, Expr** a
     }
     if (found_path && strcmp(found_path, cache_key) != 0) {
         (void)module_register_alias(interp, found_path, mod_env);
+    }
+    /* Also register the caller-provided alias (if different) so callers can
+       refer to the module by that identifier. IMPORT_PATH does this earlier;
+       ensure builtin IMPORT behaves the same. */
+    if (alias && strcmp(alias, cache_key) != 0) {
+        (void)module_register_alias(interp, alias, mod_env);
     }
 
     EnvEntry* scope_entry = env_get_entry(mod_env, "__MODULE_SCOPE__");
