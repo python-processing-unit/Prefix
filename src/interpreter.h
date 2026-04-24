@@ -150,5 +150,9 @@ int module_register(Interpreter* interp, const char* name);
 int module_register_alias(Interpreter* interp, const char* name, Env* env);
 // Lookup a module's Env by name; returns NULL if not found.
 Env* module_env_lookup(Interpreter* interp, const char* name);
+// Return a newly-allocated array of alias names (caller must free each string
+// and the returned array) for the given module Env. `out_count` receives the
+// number of aliases. Returns NULL when there are no aliases or on error.
+char** module_list_aliases(Interpreter* interp, Env* env, size_t* out_count);
 
 #endif // INTERPRETER_H
