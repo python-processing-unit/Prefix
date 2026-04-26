@@ -4186,6 +4186,8 @@ static Value builtin_root(Interpreter* interp, Value* args, int argc, Expr** arg
     if (args[0].type != args[1].type) {
         RUNTIME_ERROR(interp, "ROOT cannot mix INT and FLT", line, col);
     }
+
+    int out_base = result_base_from_values(args[0], args[1]);
     
     if (args[0].type == VAL_INT) {
         int64_t x = args[0].as.i;
@@ -4200,9 +4202,9 @@ static Value builtin_root(Interpreter* interp, Value* args, int argc, Expr** arg
             if (x != 1 && x != -1) {
                 RUNTIME_ERROR(interp, "Negative ROOT exponent yields non-integer result", line, col);
             }
-            return value_int(x);
+            return value_int_base(x, out_base);
         }
-        if (n == 1) return value_int(x);
+        if (n == 1) return value_int_base(x, out_base);
         if (x >= 0) {
             // Binary search for floor of nth root
             int64_t lo = 0, hi = 1;
@@ -4219,7 +4221,7 @@ static Value builtin_root(Interpreter* interp, Value* args, int argc, Expr** arg
                 if (pw <= x) lo = mid;
                 else hi = mid;
             }
-            return value_int(lo);
+            return value_int_base(lo, out_base);
         } else {
             if (n % 2 == 0) {
                 RUNTIME_ERROR(interp, "Even root of negative integer", line, col);
@@ -4239,7 +4241,7 @@ static Value builtin_root(Interpreter* interp, Value* args, int argc, Expr** arg
                 if (pw <= ax) lo = mid;
                 else hi = mid;
             }
-            return value_int(-lo);
+            return value_int_base(-lo, out_base);
         }
     }
     
@@ -4256,9 +4258,18 @@ static Value builtin_root(Interpreter* interp, Value* args, int argc, Expr** arg
         if (floor(abs_n) != abs_n || ((int64_t)abs_n) % 2 == 0) {
             RUNTIME_ERROR(interp, "ROOT of negative float requires odd integer root", line, col);
         }
-        return value_flt(-pow(-x, 1.0 / n));
+        double res = -pow(-x, 1.0 / n);
+        double rintv = round(res);
+        double tol = 1e-12 * (fabs(rintv) + 1.0);
+        if (fabs(res - rintv) <= tol) res = rintv;
+        return value_flt_base(res, out_base);
     }
-    return value_flt(pow(x, 1.0 / n));
+
+    double res = pow(x, 1.0 / n);
+    double rintv = round(res);
+    double tol = 1e-12 * (fabs(rintv) + 1.0);
+    if (fabs(res - rintv) <= tol) res = rintv;
+    return value_flt_base(res, out_base);
 }
 
 // IROOT: integer-specific root (coerces/expects integers)
