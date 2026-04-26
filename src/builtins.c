@@ -4367,17 +4367,18 @@ static Value builtin_lcm(Interpreter* interp, Value* args, int argc, Expr** arg_
     if (args[0].type != args[1].type) {
         RUNTIME_ERROR(interp, "LCM cannot mix INT and FLT", line, col);
     }
-    
+    int out_base = result_base_from_values(args[0], args[1]);
+
     if (args[0].type == VAL_INT) {
         int64_t a = args[0].as.i;
         int64_t b = args[1].as.i;
-        if (a == 0 || b == 0) return value_int(0);
+        if (a == 0 || b == 0) return value_int_base(0, out_base);
         int64_t g = gcd_int(a, b);
         if (a < 0) a = -a;
         if (b < 0) b = -b;
-        return value_int((a / g) * b);
+        return value_int_base((a / g) * b, out_base);
     }
-    
+
     double a = args[0].as.f;
     double b = args[1].as.f;
     if (floor(a) != a || floor(b) != b) {
@@ -4385,11 +4386,11 @@ static Value builtin_lcm(Interpreter* interp, Value* args, int argc, Expr** arg_
     }
     int64_t ai = (int64_t)a;
     int64_t bi = (int64_t)b;
-    if (ai == 0 || bi == 0) return value_flt(0.0);
+    if (ai == 0 || bi == 0) return value_flt_base(0.0, out_base);
     int64_t g = gcd_int(ai, bi);
     if (ai < 0) ai = -ai;
     if (bi < 0) bi = -bi;
-    return value_flt((double)((ai / g) * bi));
+    return value_flt_base((double)((ai / g) * bi), out_base);
 }
 
 // ============ Comparison operators ============
