@@ -6798,11 +6798,14 @@ static Value builtin_fprod(Interpreter* interp, Value* args, int argc, Expr** ar
     }
     
     double prod = 1.0;
+    int out_base = numeric_base_of(args[0]);
     for (int i = 0; i < argc; i++) {
         EXPECT_NUM(args[i], "FPROD", interp, line, col);
         prod *= args[i].type == VAL_FLT ? args[i].as.f : (double)args[i].as.i;
+        int bi = numeric_base_of(args[i]);
+        if (bi > out_base) out_base = bi;
     }
-    return value_flt(prod);
+    return value_flt_base(prod, out_base);
 }
 
 // ROUND
