@@ -4323,16 +4323,18 @@ static Value builtin_gcd(Interpreter* interp, Value* args, int argc, Expr** arg_
         RUNTIME_ERROR(interp, "GCD cannot mix INT and FLT", line, col);
     }
     
+    int out_base = result_base_from_values(args[0], args[1]);
+
     if (args[0].type == VAL_INT) {
-        return value_int(gcd_int(args[0].as.i, args[1].as.i));
+        return value_int_base(gcd_int(args[0].as.i, args[1].as.i), out_base);
     }
-    
+
     double a = args[0].as.f;
     double b = args[1].as.f;
     if (floor(a) != a || floor(b) != b) {
         RUNTIME_ERROR(interp, "GCD expects integer-valued floats", line, col);
     }
-    return value_flt((double)gcd_int((int64_t)a, (int64_t)b));
+    return value_flt_base((double)gcd_int((int64_t)a, (int64_t)b), out_base);
 }
 
 // LCM
