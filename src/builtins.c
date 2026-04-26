@@ -7201,24 +7201,24 @@ static Value builtin_ilen(Interpreter* interp, Value* args, int argc, Expr** arg
     return value_int(len);
 }
 
-// LEN (length - for now just strings)
+// LEN: per specification, returns the number of supplied INT or STR arguments.
+// Passing TNS or any other unsupported type is a runtime error.
 static Value builtin_len(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
     (void)arg_nodes; (void)env;
-    
-    if (argc == 0) {
-        RUNTIME_ERROR(interp, "LEN requires at least one argument", line, col);
+
+    int out_base = 10; // default to decimal when no INT args present
+    for (int i = 0; i < argc; ++i) {
+        if (args[i].type == VAL_INT) {
+            int bi = numeric_base_of(args[i]);
+            if (bi > out_base) out_base = bi;
+        } else if (args[i].type == VAL_STR) {
+            /* allowed */
+        } else {
+            RUNTIME_ERROR(interp, "LEN expects INT or STR arguments", line, col);
+        }
     }
-    
-    if (args[0].type == VAL_STR) {
-        return value_int((int64_t)strlen(args[0].as.s));
-    }
-    if (args[0].type == VAL_TNS) {
-        Tensor* t = args[0].as.tns;
-        if (!t) return value_int(0);
-        if (t->ndim == 0) return value_int(0);
-        return value_int((int64_t)t->shape[0]);
-    }
-    RUNTIME_ERROR(interp, "LEN expects STR or TNS", line, col);
+
+    return value_int_base((int64_t)argc, out_base);
 }
 
 // Main, OS
