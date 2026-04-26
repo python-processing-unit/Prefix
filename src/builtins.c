@@ -7226,17 +7226,18 @@ static Value builtin_assign(Interpreter* interp, Value* args, int argc, Expr** a
 static Value builtin_ilen(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
     (void)arg_nodes; (void)env;
     EXPECT_INT(args[0], "ILEN", interp, line, col);
-    
+    int out_base = numeric_base_of(args[0]);
+
     int64_t v = args[0].as.i;
     if (v < 0) v = -v;
-    if (v == 0) return value_int(1);
-    
+    if (v == 0) return value_int_base(1, out_base);
+
     int64_t len = 0;
     while (v > 0) {
         len++;
         v >>= 1;
     }
-    return value_int(len);
+    return value_int_base(len, out_base);
 }
 
 // LEN: per specification, returns the number of supplied INT or STR arguments.
