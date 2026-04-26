@@ -3050,24 +3050,45 @@ static Value builtin_div(Interpreter* interp, Value* args, int argc, Expr** arg_
     return result;
 }
 
-// CDIV: ceiling integer division (int-only semantics similar to Python's safe_cdiv)
+// CDIV: ceiling division (supports INT and FLT; returns same numeric type)
 static Value builtin_cdiv(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
     (void)arg_nodes; (void)env;
-    EXPECT_INT(args[0], "CDIV", interp, line, col);
-    EXPECT_INT(args[1], "CDIV", interp, line, col);
+    EXPECT_NUM(args[0], "CDIV", interp, line, col);
+    EXPECT_NUM(args[1], "CDIV", interp, line, col);
 
-    int64_t a = args[0].as.i;
-    int64_t b = args[1].as.i;
-    if (b == 0) {
-        RUNTIME_ERROR(interp, "Division by zero", line, col);
+    if (args[0].type != args[1].type) {
+        RUNTIME_ERROR(interp, "CDIV cannot mix INT and FLT", line, col);
     }
-    double res = ceil((double)a / (double)b);
-    Value result = value_int((int64_t)res);
-    if (!writeback_ptr_range(interp, arg_nodes, env, 0, 2, result, "CDIV", line, col)) {
-        value_free(result);
-        return value_null();
+
+    int out_base = result_base_from_values(args[0], args[1]);
+
+    if (args[0].type == VAL_INT) {
+        int64_t a = args[0].as.i;
+        int64_t b = args[1].as.i;
+        if (b == 0) {
+            RUNTIME_ERROR(interp, "Division by zero", line, col);
+        }
+        int64_t q = a / b;
+        int64_t r = a % b;
+        if (r != 0 && ((a > 0) == (b > 0))) q += 1;
+        Value result = value_int_base(q, out_base);
+        if (!writeback_ptr_range(interp, arg_nodes, env, 0, 2, result, "CDIV", line, col)) {
+            value_free(result);
+            return value_null();
+        }
+        return result;
+    } else {
+        if (args[1].as.f == 0.0) {
+            RUNTIME_ERROR(interp, "Division by zero", line, col);
+        }
+        double res = ceil(args[0].as.f / args[1].as.f);
+        Value result = value_flt_base(res, out_base);
+        if (!writeback_ptr_range(interp, arg_nodes, env, 0, 2, result, "CDIV", line, col)) {
+            value_free(result);
+            return value_null();
+        }
+        return result;
     }
-    return result;
 }
 
 static Value builtin_mod(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
