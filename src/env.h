@@ -86,4 +86,11 @@ int  env_freeze_direct(Env* env, const char* name);
 int  env_thaw_direct(Env* env, const char* name);
 int  env_permafreeze_direct(Env* env, const char* name);
 
+// Restore or overwrite a local entry's declared type and value. This will
+// update the local entry (creating it if absent) to have `type` and, if
+// `initialized` is true, set its value to a copy of `value` and mark it
+// initialized; otherwise leave it uninitialized. Returns true on success.
+bool env_restore_local(Env* env, const char* name, Value value, DeclType type, bool initialized);
+bool env_restore_local_direct(Env* env, const char* name, Value value, DeclType type, bool initialized);
+
 #endif // ENV_H

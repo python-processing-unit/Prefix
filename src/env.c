@@ -452,6 +452,53 @@ bool env_set_alias_cross(Env* env, const char* name, Env* target_env, const char
     return true;
 }
 
+bool env_restore_local_direct(Env* env, const char* name, Value value, DeclType type, bool initialized) {
+    if (!env || !name) return false;
+
+    EnvEntry* entry = env_find_local(env, name);
+    if (!entry) {
+        if (!env_define_direct(env, name, type)) return false;
+        entry = env_find_local(env, name);
+        if (!entry) return false;
+    }
+
+    /* Respect frozen/permafrozen state */
+    if (entry->frozen || entry->permafrozen) return false;
+
+    /* Overwrite declared type */
+    entry->decl_type = type;
+
+    /* Remove any aliasing */
+    if (entry->alias_target) {
+        free(entry->alias_target);
+        entry->alias_target = NULL;
+        entry->alias_target_env = NULL;
+    }
+
+    /* Replace stored value if present */
+    if (entry->initialized) {
+        value_free(entry->value);
+        entry->initialized = false;
+        entry->value = value_null();
+    }
+
+    if (initialized) {
+        entry->value = value_copy(value);
+        entry->initialized = true;
+    } else {
+        entry->initialized = false;
+        entry->value = value_null();
+    }
+
+    return true;
+}
+
+bool env_restore_local(Env* env, const char* name, Value value, DeclType type, bool initialized) {
+    if (ns_buffer_active() && !ns_buffer_is_prepare_thread())
+        return ns_buffer_restore_local(env, name, value, type, initialized);
+    return env_restore_local_direct(env, name, value, type, initialized);
+}
+
 int env_freeze_direct(Env* env, const char* name) {
     EnvEntry* entry = env_get_entry_raw(env, name);
     if (!entry) return -1;
