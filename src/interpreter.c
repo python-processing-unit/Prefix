@@ -3232,6 +3232,30 @@ static ExecResult exec_stmt(Interpreter* interp, Stmt* stmt, Env* env, LabelMap*
             bool prev_initialized = false;
             env_get(env, stmt->as.for_stmt.counter, &prev_val, &prev_type, &prev_initialized);
 
+            /* Track whether the counter name exists in any parent env.
+               Loop-local binding must shadow the global symbol and restore it
+               after the loop, regardless of where it was originally defined.
+               We cannot rely on `env_get` alone because it doesn't distinguish
+               between current-env and parent-env bindings. */
+            bool had_global = false;
+            Value global_prev_val = value_null();
+            DeclType global_prev_type = TYPE_UNKNOWN;
+            bool global_prev_initialized = false;
+            for (Env* cursor = env; cursor && cursor->parent; cursor = cursor->parent) {
+                Env* parent = cursor->parent;
+                if (!parent) break;
+                Value tmp_val = value_null();
+                DeclType tmp_type = TYPE_UNKNOWN;
+                bool tmp_initialized = false;
+                if (env_get(parent, stmt->as.for_stmt.counter, &tmp_val, &tmp_type, &tmp_initialized)) {
+                    had_global = true;
+                    global_prev_val = tmp_val;
+                    global_prev_type = tmp_type;
+                    global_prev_initialized = tmp_initialized;
+                    break;
+                }
+            }
+
             /* Detect whether a local binding already exists (trial define) */
             bool local_existed = true;
             if (env_define(env, stmt->as.for_stmt.counter, TYPE_INT)) {
@@ -3275,8 +3299,7 @@ static ExecResult exec_stmt(Interpreter* interp, Stmt* stmt, Env* env, LabelMap*
                     env_delete(env, stmt->as.for_stmt.counter);
                     env_delete(env, temp_name);
                     if (local_existed) {
-                        env_define(env, stmt->as.for_stmt.counter, prev_type);
-                        if (prev_initialized) env_assign(env, stmt->as.for_stmt.counter, prev_val, prev_type, false);
+                        env_restore_local(env, stmt->as.for_stmt.counter, prev_val, prev_type, prev_initialized);
                     }
                     value_free(prev_val);
                     interp->loop_depth--;
@@ -3291,8 +3314,7 @@ static ExecResult exec_stmt(Interpreter* interp, Stmt* stmt, Env* env, LabelMap*
                     env_delete(env, stmt->as.for_stmt.counter);
                     env_delete(env, temp_name);
                     if (local_existed) {
-                        env_define(env, stmt->as.for_stmt.counter, prev_type);
-                        if (prev_initialized) env_assign(env, stmt->as.for_stmt.counter, prev_val, prev_type, false);
+                        env_restore_local(env, stmt->as.for_stmt.counter, prev_val, prev_type, prev_initialized);
                     }
                     value_free(prev_val);
                     interp->loop_depth--;
@@ -3306,8 +3328,7 @@ static ExecResult exec_stmt(Interpreter* interp, Stmt* stmt, Env* env, LabelMap*
                     env_delete(env, stmt->as.for_stmt.counter);
                     env_delete(env, temp_name);
                     if (local_existed) {
-                        env_define(env, stmt->as.for_stmt.counter, prev_type);
-                        if (prev_initialized) env_assign(env, stmt->as.for_stmt.counter, prev_val, prev_type, false);
+                        env_restore_local(env, stmt->as.for_stmt.counter, prev_val, prev_type, prev_initialized);
                     }
                     value_free(prev_val);
                     interp->loop_depth--;
@@ -3321,8 +3342,7 @@ static ExecResult exec_stmt(Interpreter* interp, Stmt* stmt, Env* env, LabelMap*
                         env_delete(env, stmt->as.for_stmt.counter);
                         env_delete(env, temp_name);
                         if (local_existed) {
-                            env_define(env, stmt->as.for_stmt.counter, prev_type);
-                            if (prev_initialized) env_assign(env, stmt->as.for_stmt.counter, prev_val, prev_type, false);
+                            env_restore_local(env, stmt->as.for_stmt.counter, prev_val, prev_type, prev_initialized);
                         }
                         value_free(prev_val);
                         interp->loop_depth--;
@@ -3338,8 +3358,14 @@ static ExecResult exec_stmt(Interpreter* interp, Stmt* stmt, Env* env, LabelMap*
             env_delete(env, stmt->as.for_stmt.counter);
             env_delete(env, temp_name);
             if (local_existed) {
-                env_define(env, stmt->as.for_stmt.counter, prev_type);
-                if (prev_initialized) env_assign(env, stmt->as.for_stmt.counter, prev_val, prev_type, false);
+                env_restore_local(env, stmt->as.for_stmt.counter, prev_val, prev_type, prev_initialized);
+            }
+
+            /* Restore global binding if the aliasing process shadowed a
+               non-local (global/parent) symbol with a non-INT type. */
+            if (had_global) {
+                env_assign(env, stmt->as.for_stmt.counter, global_prev_val, global_prev_type, false);
+                value_free(global_prev_val);
             }
             value_free(prev_val);
 

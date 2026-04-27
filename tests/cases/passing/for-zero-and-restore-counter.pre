@@ -1,7 +1,3 @@
-BOOL: i = TRUE
-INT: runs = 0d0
-FOR(i, 0d0){
-    ADD(@runs, 0d1)
-}
-ASSERT(EQ(runs, 0d0))
-ASSERT(i)
+STR: i = "foo"
+FOR(i, 0d10){}
+ASSERT(EQ(i, "foo"))

@@ -14,6 +14,7 @@ typedef enum {
     NS_OP_INDEX_ASSIGN,
     NS_OP_DELETE,
     NS_OP_ALIAS,
+    NS_OP_RESTORE,
     NS_OP_FREEZE,
     NS_OP_THAW,
     NS_OP_PERMAFREEZE
@@ -124,6 +125,7 @@ bool ns_buffer_delete(struct Env* env, const char* name);
 bool ns_buffer_set_alias(struct Env* env, const char* name,
                          const char* target_name, DeclType type,
                          bool declare_if_missing);
+bool ns_buffer_restore_local(struct Env* env, const char* name, Value value, DeclType type, bool initialized);
 int  ns_buffer_freeze(struct Env* env, const char* name);
 int  ns_buffer_thaw(struct Env* env, const char* name);
 int  ns_buffer_permafreeze(struct Env* env, const char* name);

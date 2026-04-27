@@ -118,6 +118,9 @@ static void execute_op(NsOp* op) {
                                              op->target_name, op->decl_type,
                                              op->declare_if_missing);
         break;
+    case NS_OP_RESTORE:
+        op->result_ok = env_restore_local_direct(op->env, op->name, op->value, op->decl_type, op->declare_if_missing);
+        break;
     case NS_OP_FREEZE:
         op->result_int = env_freeze_direct(op->env, op->name);
         break;
@@ -457,6 +460,19 @@ bool ns_buffer_set_alias(struct Env* env, const char* name,
     enqueue_op(op);
     wait_op(op);
     bool r = op->result_ok;
+    free_op(op);
+    return r;
+}
+
+bool ns_buffer_restore_local(struct Env* env, const char* name, Value value, DeclType type, bool initialized) {
+    NsOp* op = make_op(NS_OP_RESTORE, env, name);
+    op->value = value_copy(value);
+    op->decl_type = type;
+    op->declare_if_missing = initialized;
+    enqueue_op(op);
+    wait_op(op);
+    bool r = op->result_ok;
+    value_free(op->value);
     free_op(op);
     return r;
 }
