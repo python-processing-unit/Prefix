@@ -6895,20 +6895,7 @@ static Value builtin_inv(Interpreter* interp, Value* args, int argc, Expr** arg_
         return out;
     }
 
-    // numeric inverse behavior preserved
-    EXPECT_NUM(args[0], "INV", interp, line, col);
-    if (args[0].type == VAL_INT) {
-        if (args[0].as.i == 0) {
-            RUNTIME_ERROR(interp, "Division by zero", line, col);
-        }
-        if (args[0].as.i == 1) return value_int(1);
-        if (args[0].as.i == -1) return value_int(-1);
-        return value_int(0);
-    }
-    if (args[0].as.f == 0.0) {
-        RUNTIME_ERROR(interp, "Division by zero", line, col);
-    }
-    return value_flt(1.0 / args[0].as.f);
+    RUNTIME_ERROR(interp, "INV expects MAP argument", line, col);
 }
 
 // KEYS(map):TNS - return 1-D tensor of keys in insertion order
