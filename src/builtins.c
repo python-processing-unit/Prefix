@@ -6908,26 +6908,29 @@ static Value builtin_keys(Interpreter* interp, Value* args, int argc, Expr** arg
         size_t shape[1] = {0};
         return value_tns_new(TYPE_INT, 1, shape);
     }
-    // determine key type
-    ValueType kt = m->items[0].key.type;
-    DeclType dt = TYPE_UNKNOWN;
-    if (kt == VAL_INT) dt = TYPE_INT;
-    else if (kt == VAL_FLT) dt = TYPE_FLT;
-    else if (kt == VAL_STR) dt = TYPE_STR;
-    else RUNTIME_ERROR(interp, "KEYS: unsupported key type", line, col);
-
+    // determine element DeclType for keys; allow mixed types (use TYPE_UNKNOWN)
     Value* items = malloc(sizeof(Value) * count);
     if (!items) RUNTIME_ERROR(interp, "Out of memory", line, col);
+
+    DeclType elem_type = TYPE_UNKNOWN;
     for (size_t i = 0; i < count; i++) {
-        if (m->items[i].key.type != kt) {
+        ValueType kt = m->items[i].key.type;
+        DeclType cur_dt = TYPE_UNKNOWN;
+        if (kt == VAL_INT) cur_dt = TYPE_INT;
+        else if (kt == VAL_FLT) cur_dt = TYPE_FLT;
+        else if (kt == VAL_STR) cur_dt = TYPE_STR;
+        else {
             for (size_t j = 0; j < i; j++) value_free(items[j]);
             free(items);
-            RUNTIME_ERROR(interp, "KEYS: mixed key types in map", line, col);
+            RUNTIME_ERROR(interp, "KEYS: unsupported key type", line, col);
         }
         items[i] = value_copy(m->items[i].key);
+        if (i == 0) elem_type = cur_dt;
+        else if (elem_type != cur_dt) elem_type = TYPE_UNKNOWN;
     }
+
     size_t shape[1] = { count };
-    Value out = value_tns_from_values(dt, 1, shape, items, count);
+    Value out = value_tns_from_values(elem_type, 1, shape, items, count);
     for (size_t i = 0; i < count; i++) value_free(items[i]);
     free(items);
     return out;
