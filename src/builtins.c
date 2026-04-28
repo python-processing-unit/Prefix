@@ -3881,7 +3881,29 @@ static Value builtin_append(Interpreter* interp, Value* args, int argc, Expr** a
     size_t old_len = t->shape[0];
     size_t new_len = old_len + 1;
     size_t shape[1] = { new_len };
-    Value out = value_tns_new(t->elem_type, 1, shape);
+    /* Determine resulting element DeclType. If the target tensor's
+       static element type differs from the appended element's DeclType,
+       the result must be TYPE_UNKNOWN (heterogeneous). If the target
+       is unknown but empty, adopt the appended element's DeclType. */
+    DeclType appended_decl;
+    switch (args[0].type) {
+        case VAL_BOOL: appended_decl = TYPE_BOOL; break;
+        case VAL_INT: appended_decl = TYPE_INT; break;
+        case VAL_FLT: appended_decl = TYPE_FLT; break;
+        case VAL_STR: appended_decl = TYPE_STR; break;
+        case VAL_TNS: appended_decl = TYPE_TNS; break;
+        case VAL_FUNC: appended_decl = TYPE_FUNC; break;
+        default: appended_decl = TYPE_UNKNOWN; break;
+    }
+
+    DeclType out_elem_type = t->elem_type;
+    if (out_elem_type == TYPE_UNKNOWN) {
+        if (old_len == 0) out_elem_type = appended_decl;
+    } else {
+        if (appended_decl != out_elem_type) out_elem_type = TYPE_UNKNOWN;
+    }
+
+    Value out = value_tns_new(out_elem_type, 1, shape);
     Tensor* ot = out.as.tns;
 
     // copy existing elements
