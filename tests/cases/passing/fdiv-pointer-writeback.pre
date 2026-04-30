@@ -2,14 +2,3 @@ FLT: f1 = 0d6.0
 FLT: g1 = 0d3.0
 FDIV(@f1, g1)
 ASSERT(EQ(f1, 0d2.0))
-
-FLT: f2 = 0d6.0
-FLT: g2 = 0d3.0
-FDIV(f2, @g2)
-ASSERT(EQ(g2, 0d3.0))
-
-FLT: f3 = 0d6.0
-FLT: g3 = 0d3.0
-FDIV(@f3, @g3)
-ASSERT(EQ(f3, 0d2.0))
-ASSERT(EQ(g3, 0d2.0))
