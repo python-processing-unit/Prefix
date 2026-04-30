@@ -6885,9 +6885,9 @@ static Value builtin_round(Interpreter* interp, Value* args, int argc, Expr** ar
     return value_flt(rs / factor);
 }
 
-// INV (1/x)
+// INV (map inversion)
 static Value builtin_inv(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
-    (void)arg_nodes; (void)env;
+    (void)argc;
     (void)interp; (void)line; (void)col;
     if (args[0].type == VAL_MAP) {
         // Map inversion: values become keys, keys become values
@@ -6913,6 +6913,10 @@ static Value builtin_inv(Interpreter* interp, Value* args, int argc, Expr** arg_
             if (found == 0) value_free(existing);
             // Insert inverted pair: new_key = value, new_value = key
             value_map_set(&out, val, key);
+        }
+        if (!writeback_ptr_range(interp, arg_nodes, env, 0, 1, out, "INV", line, col)) {
+            value_free(out);
+            return value_null();
         }
         return out;
     }
