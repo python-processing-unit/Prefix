@@ -1,0 +1,15 @@
+INT: a1 = 0d4
+INT: b1 = 0d3
+IMUL(@a1, b1)
+ASSERT(EQ(a1, 0d12))
+
+INT: a2 = 0d4
+INT: b2 = 0d3
+IMUL(a2, @b2)
+ASSERT(EQ(b2, 0d12))
+
+INT: a3 = 0d4
+INT: b3 = 0d3
+IMUL(@a3, @b3)
+ASSERT(EQ(a3, 0d12))
+ASSERT(EQ(b3, 0d12))

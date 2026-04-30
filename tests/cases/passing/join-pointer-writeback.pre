@@ -1,0 +1,20 @@
+STR: s1 = "foo"
+STR: s2 = "bar"
+JOIN(@s1, s2)
+ASSERT(EQ(s1, "foobar"))
+ASSERT(EQ(s2, "foobar"))
+
+// separator-mode: first arg is single-char separator, writeback for args 1..n-1 only
+STR: sep = ","
+STR: a1 = "one"
+STR: b1 = "two"
+JOIN(sep, @a1, b1)
+ASSERT(EQ(a1, "one,two"))
+ASSERT(EQ(b1, "one,two"))
+
+// integer join mode (joins integer string representations)
+INT: i1 = 0d10
+INT: i2 = 0d5
+JOIN(@i1, i2)
+ASSERT(EQ(i1, 0d105))
+ASSERT(EQ(i2, 0d105))

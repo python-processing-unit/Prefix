@@ -1,0 +1,31 @@
+INT: a1 = 0d2
+INT: b1 = 0d3
+ADD(@a1, b1)
+ASSERT(EQ(a1, 0d5))
+
+INT: a2 = 0d2
+INT: b2 = 0d3
+ADD(a2, @b2)
+ASSERT(EQ(b2, 0d5))
+
+INT: a3 = 0d2
+INT: b3 = 0d3
+ADD(@a3, @b3)
+ASSERT(EQ(a3, 0d5))
+ASSERT(EQ(b3, 0d5))
+
+FLT: f1 = 0d1.5
+FLT: g1 = 0d2.25
+ADD(@f1, g1)
+ASSERT(EQ(f1, 0d3.75))
+
+FLT: f2 = 0d1.5
+FLT: g2 = 0d2.25
+ADD(f2, @g2)
+ASSERT(EQ(g2, 0d3.75))
+
+FLT: f3 = 0d1.5
+FLT: g3 = 0d2.25
+ADD(@f3, @g3)
+ASSERT(EQ(f3, 0d3.75))
+ASSERT(EQ(g3, 0d3.75))
