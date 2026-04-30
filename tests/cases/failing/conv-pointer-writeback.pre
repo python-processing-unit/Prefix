@@ -1,0 +1,16 @@
+// CONV should write back to pointer operands when passed.
+TNS: x1 = [0d1, 0d2, 0d3]
+TNS: k1 = [0d1, 0d0, 0d1]
+CONV(@x1, k1)
+ASSERT(EQ(x1, [0d3, 0d4, 0d5]))
+
+TNS: x2 = [0d1, 0d2, 0d3]
+TNS: k2 = [0d1, 0d0, 0d1]
+CONV(x2, @k2)
+ASSERT(EQ(k2, [0d3, 0d4, 0d5]))
+
+TNS: x3 = [0d1, 0d2, 0d3]
+TNS: k3 = [0d1, 0d0, 0d1]
+CONV(@x3, @k3)
+ASSERT(EQ(x3, [0d3, 0d4, 0d5]))
+ASSERT(EQ(k3, [0d3, 0d4, 0d5]))

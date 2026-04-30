@@ -1,0 +1,15 @@
+INT: a1 = 0d10
+INT: b1 = 0d5
+ISUB(@a1, b1)
+ASSERT(EQ(a1, 0d5))
+
+INT: a2 = 0d10
+INT: b2 = 0d5
+ISUB(a2, @b2)
+ASSERT(EQ(b2, -0d5))
+
+INT: a3 = 0d10
+INT: b3 = 0d5
+ISUB(@a3, @b3)
+ASSERT(EQ(a3, 0d5))
+ASSERT(EQ(b3, -0d5))
