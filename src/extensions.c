@@ -25,10 +25,18 @@ typedef struct ExtensionExposure {
     struct ExtensionExposure* next;
 } ExtensionExposure;
 
+typedef struct RegisteredOperator {
+    char* name;
+    prefix_operator_fn fn;
+    int flags;
+    struct RegisteredOperator* next;
+} RegisteredOperator;
+
 typedef struct LoadedExtension {
     char* canonical_path;
     DynLibHandle handle;
     prefix_extension_init_fn init_fn;
+    RegisteredOperator* ops;
     ExtensionExposure* exposures;
     struct LoadedExtension* next;
 } LoadedExtension;
@@ -38,6 +46,7 @@ static char* g_interpreter_dir = NULL;
 static char* g_cwd_dir = NULL;
 static const char* g_loading_extension_name = NULL;
 static const char* g_loading_scope_name = NULL;
+static LoadedExtension* g_current_loading_extension = NULL;
 
 // Registered event handlers and periodic hooks
 typedef struct EventHandler {
@@ -383,6 +392,24 @@ static LoadedExtension* loaded_find_by_path(const char* canonical_path) {
 static int ctx_register_operator(const char* name, prefix_operator_fn fn, int flags) {
     if (!name || name[0] == '\0' || !fn) return -1;
 
+    /* Record the operator for the currently-loading extension so we can
+       expose aliases later when the same extension is imported into other
+       module scopes without reinitializing the library. */
+    if (g_current_loading_extension) {
+        RegisteredOperator* ro = calloc(1, sizeof(RegisteredOperator));
+        if (ro) {
+            ro->name = strdup(name);
+            if (ro->name) {
+                ro->fn = fn;
+                ro->flags = flags;
+                ro->next = g_current_loading_extension->ops;
+                g_current_loading_extension->ops = ro;
+            } else {
+                free(ro);
+            }
+        }
+    }
+
     char* final_name = NULL;
     if ((flags & PREFIX_EXTENSION_MODULE_RESTRICTED) != 0 && g_loading_extension_name && g_loading_extension_name[0] != '\0') {
         const char* ext_name = g_loading_extension_name;
@@ -528,16 +555,30 @@ static int extension_register_exposure(LoadedExtension* le,
         return -1;
     }
 
-    (void)scope_name;
-
-    char* key = exposure_key_for(ext_name);
-    if (!key) {
+    char* base_key = exposure_key_for(ext_name);
+    if (!base_key) {
         set_error(error_out, "Out of memory");
         return -1;
     }
 
-    if (exposure_exists(le, key)) {
-        free(key);
+    char* scope_key = NULL;
+    if (scope_name && scope_name[0] != '\0') {
+        size_t s = strlen(scope_name);
+        size_t e = strlen(ext_name);
+        /* use ':' as an internal separator to form a unique exposure key */
+        scope_key = malloc(s + 1 + e + 1);
+        if (!scope_key) { free(base_key); set_error(error_out, "Out of memory"); return -1; }
+        memcpy(scope_key, scope_name, s);
+        scope_key[s] = ':';
+        memcpy(scope_key + s + 1, ext_name, e);
+        scope_key[s + 1 + e] = '\0';
+    }
+
+    int base_exists = exposure_exists(le, base_key);
+    int scope_exists = scope_key ? exposure_exists(le, scope_key) : 0;
+    if (base_exists && (!scope_key || scope_exists)) {
+        free(base_key);
+        free(scope_key);
         return 0;
     }
 
@@ -550,19 +591,58 @@ static int extension_register_exposure(LoadedExtension* le,
     ctx.register_event_handler = ctx_register_event_handler;
     ctx.register_repl_handler = ctx_register_repl_handler;
 
-    g_loading_extension_name = ext_name;
-    g_loading_scope_name = (scope_name && scope_name[0] != '\0') ? scope_name : NULL;
-    le->init_fn(&ctx);
-    g_loading_extension_name = NULL;
-    g_loading_scope_name = NULL;
+    /* If this is the first time the extension is exposed (base), run its
+       init function so it can register operators. Otherwise, the operators
+       should already be recorded in le->ops and we only need to create
+       scope-qualified aliases. */
+    if (!base_exists) {
+        g_current_loading_extension = le;
+        g_loading_extension_name = ext_name;
+        g_loading_scope_name = (scope_name && scope_name[0] != '\0') ? scope_name : NULL;
+        le->init_fn(&ctx);
+        g_current_loading_extension = NULL;
+        g_loading_extension_name = NULL;
+        g_loading_scope_name = NULL;
 
-    if (exposure_add(le, key) != 0) {
-        free(key);
-        set_error(error_out, "Out of memory");
-        return -1;
+        if (exposure_add(le, base_key) != 0) {
+            free(base_key);
+            free(scope_key);
+            set_error(error_out, "Out of memory");
+            return -1;
+        }
     }
 
-    free(key);
+    /* If a scope was provided and we haven't yet exposed the extension under
+       that scope, create aliases for module-restricted operators. */
+    if (scope_key && !scope_exists) {
+        for (RegisteredOperator* ro = le->ops; ro; ro = ro->next) {
+            if ((ro->flags & PREFIX_EXTENSION_MODULE_RESTRICTED) != 0) {
+                size_t s = strlen(scope_name);
+                size_t e = strlen(ext_name);
+                size_t n = strlen(ro->name);
+                size_t total = s + 1 + e + 1 + n + 1;
+                char* alias = malloc(total);
+                if (!alias) continue;
+                size_t p = 0;
+                memcpy(alias + p, scope_name, s); p += s; alias[p++] = '.';
+                memcpy(alias + p, ext_name, e); p += e; alias[p++] = '.';
+                memcpy(alias + p, ro->name, n); p += n; alias[p] = '\0';
+                /* ignore registration errors for aliases */
+                builtins_register_operator(alias, (BuiltinImplFn)ro->fn, 0, -1, NULL, 0);
+                free(alias);
+            }
+        }
+
+        if (exposure_add(le, scope_key) != 0) {
+            free(base_key);
+            free(scope_key);
+            set_error(error_out, "Out of memory");
+            return -1;
+        }
+    }
+
+    free(base_key);
+    free(scope_key);
     return 0;
 }
 
@@ -702,6 +782,14 @@ void extensions_shutdown(void) {
             free(ex->key);
             free(ex);
             ex = ex_next;
+        }
+
+        RegisteredOperator* ro = e->ops;
+        while (ro) {
+            RegisteredOperator* rn = ro->next;
+            free(ro->name);
+            free(ro);
+            ro = rn;
         }
 
         dyn_close_library(e->handle);
