@@ -743,6 +743,11 @@ int extensions_load_named(const char* spec,
         return -1;
     }
 
+    if (has_dynlib_suffix(spec)) {
+        set_errorf(error_out, "EXTEND: explicit extension suffix rejected: ", spec);
+        return -1;
+    }
+
     char* ext_name = extension_name_from_spec(spec);
     if (!ext_name || ext_name[0] == '\0') {
         free(ext_name);
