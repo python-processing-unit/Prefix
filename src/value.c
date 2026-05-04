@@ -531,16 +531,11 @@ Value* value_tns_get_ptr(Value v, const size_t* idxs, size_t nidxs) {
 
 // Shallow copy semantics: increment refcount for MAP/TNS and return aliasing Value.
 Value value_copy(Value v) {
-    // New semantics: value_copy produces an atomic (de-referenced) copy for
-    // container types (TNS and MAP): the container object is duplicated so
-    // mutations to the returned value won't affect the original. Element
-    // values inside the container remain as aliases (not deep-copied).
     Value out = v;
     if (v.type == VAL_STR && v.as.s) {
         out.as.s = strdup(v.as.s);
     } else if (v.type == VAL_TNS && v.as.tns) {
         Tensor* t = v.as.tns;
-        // allocate new tensor structure and copy shape/strides
         Tensor* t2 = malloc(sizeof(Tensor));
         if (!t2) { fprintf(stderr, "Out of memory\n"); exit(1); }
         t2->elem_type = t->elem_type;
@@ -551,8 +546,6 @@ Value value_copy(Value v) {
         t2->length = t->length;
         t2->data = malloc(sizeof(Value) * t2->length);
         for (size_t i = 0; i < t2->length; i++) {
-            // keep element references (shallow): use value_alias to preserve
-            // previous element-sharing semantics for nested containers
             extern Value value_alias(Value v);
             t2->data[i] = value_alias(t->data[i]);
         }
@@ -566,20 +559,29 @@ Value value_copy(Value v) {
         m2->count = m->count;
         m2->capacity = m->count;
         m2->items = malloc(sizeof(MapEntry) * (m2->capacity ? m2->capacity : 1));
+        m2->buckets = NULL;
+        m2->bucket_count = 0;
+        m2->refcount = 1;
+        mtx_init(&m2->lock, 0);
         for (size_t i = 0; i < m->count; i++) {
             extern Value value_alias(Value v);
             m2->items[i].key = value_alias(m->items[i].key);
-            m2->items[i].value = value_alias(m->items[i].value);
+            Value orig_val = m->items[i].value;
+            if (orig_val.type == VAL_MAP && orig_val.as.map == m) {
+                Value tmp;
+                tmp.type = VAL_MAP;
+                tmp.num_base = 2;
+                tmp.num_base_nan = 0;
+                tmp.as.map = m2;
+                m2->items[i].value = value_alias(tmp);
+            } else {
+                m2->items[i].value = value_alias(m->items[i].value);
+            }
             m2->items[i].next_hash = -1;
         }
-        m2->buckets = NULL;
-        m2->bucket_count = 0;
         if (m2->count > 0) map_rehash(m2, map_recommended_bucket_count(m2->count));
-        m2->refcount = 1;
-        mtx_init(&m2->lock, 0);
         out.as.map = m2;
     } else if (v.type == VAL_THR && v.as.thr) {
-        // threads remain shared handles
         Thr* th = v.as.thr;
         mtx_lock(&th->state_lock);
         th->refcount++;
