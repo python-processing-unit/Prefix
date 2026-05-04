@@ -776,6 +776,22 @@ int extensions_load_named(const char* spec,
     return rc;
 }
 
+int extensions_expose_named(const char* ext_name, const char* scope_name, char** error_out) {
+    if (!ext_name || ext_name[0] == '\0') {
+        set_error(error_out, "extensions_expose_named: empty extension name");
+        return -1;
+    }
+
+    for (LoadedExtension* le = g_loaded; le; le = le->next) {
+        if (exposure_exists(le, ext_name)) {
+            return extension_register_exposure(le, ext_name, scope_name, error_out);
+        }
+    }
+
+    set_errorf(error_out, "Extension not loaded: ", ext_name);
+    return -1;
+}
+
 void extensions_shutdown(void) {
     LoadedExtension* e = g_loaded;
     while (e) {

@@ -26,6 +26,12 @@ int extensions_load_named(const char* spec,
                           char** loaded_name_out,
                           char** error_out);
 
+// Ensure a previously-loaded extension is exposed under the provided
+// scope_name (module alias). This creates scope-qualified aliases for any
+// operators registered with the module-restriction flag. Returns 0 on
+// success, -1 on failure; on failure *error_out is heap-allocated.
+int extensions_expose_named(const char* ext_name, const char* scope_name, char** error_out);
+
 // Unload all loaded extension libraries.
 void extensions_shutdown(void);
 

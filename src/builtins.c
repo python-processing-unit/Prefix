@@ -7456,10 +7456,17 @@ static int module_export_bindings(Interpreter* interp, Env* caller_env, Env* mod
             size_t ns_len = (size_t)(cursor - start);
             if (ns_len == 0) continue;
 
-            char* ns = malloc(ns_len + 1);
-            if (!ns) return -1;
-            memcpy(ns, start, ns_len);
-            ns[ns_len] = '\0';
+                char* ns = malloc(ns_len + 1);
+                if (!ns) return -1;
+                memcpy(ns, start, ns_len);
+                ns[ns_len] = '\0';
+
+                /* Ensure any module-restricted extension operators registered
+                    by the loaded extension are exposed under the importing
+                    module's alias so callers can call alias.ext.NAME. */
+                char* ext_err = NULL;
+                (void)extensions_expose_named(ns, alias, &ext_err);
+                if (ext_err) { free(ext_err); ext_err = NULL; }
 
             size_t ns_qual_len = alias_len + 1 + ns_len + 1;
             char* ns_qualified = malloc(ns_qual_len);
