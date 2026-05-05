@@ -3092,14 +3092,14 @@ static Value builtin_cdiv(Interpreter* interp, Value* args, int argc, Expr** arg
 }
 
 static Value builtin_mod(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
-    (void)arg_nodes; (void)env;
+    (void)env;
     EXPECT_NUM(args[0], "MOD", interp, line, col);
     EXPECT_NUM(args[1], "MOD", interp, line, col);
-    
+
     if (args[0].type != args[1].type) {
         RUNTIME_ERROR(interp, "MOD cannot mix INT and FLT", line, col);
     }
-    
+
     int out_base = result_base_from_values(args[0], args[1]);
     if (args[0].type == VAL_INT) {
         if (args[1].as.i == 0) {
@@ -3107,18 +3107,40 @@ static Value builtin_mod(Interpreter* interp, Value* args, int argc, Expr** arg_
         }
         int64_t b = args[1].as.i < 0 ? -args[1].as.i : args[1].as.i;
         Value result = value_int_base(args[0].as.i % b, out_base);
-        if (!writeback_ptr_range(interp, arg_nodes, env, 0, 2, result, "MOD", line, col)) {
+
+        bool ok = true;
+        if (arg_nodes && arg_nodes[0] && arg_nodes[0]->type == EXPR_PTR) {
+            if (!writeback_ptr_node(interp, arg_nodes[0], env, result, "MOD", line, col)) ok = false;
+        }
+        /* Only write back into the divisor (arg_nodes[1]) when the dividend
+           (arg_nodes[0]) is also a pointer literal — matching the spec and
+           tests that expect MOD(a2, @b2) to NOT overwrite b2. */
+        if (ok && arg_nodes && arg_nodes[1] && arg_nodes[1]->type == EXPR_PTR && arg_nodes[0] && arg_nodes[0]->type == EXPR_PTR) {
+            if (!writeback_ptr_node(interp, arg_nodes[1], env, result, "MOD", line, col)) ok = false;
+        }
+
+        if (!ok) {
             value_free(result);
             return value_null();
         }
         return result;
     }
+
     if (args[1].as.f == 0.0) {
         RUNTIME_ERROR(interp, "Division by zero", line, col);
     }
     double b = args[1].as.f < 0 ? -args[1].as.f : args[1].as.f;
     Value result = value_flt_base(fmod(args[0].as.f, b), out_base);
-    if (!writeback_ptr_range(interp, arg_nodes, env, 0, 2, result, "MOD", line, col)) {
+
+    bool ok = true;
+    if (arg_nodes && arg_nodes[0] && arg_nodes[0]->type == EXPR_PTR) {
+        if (!writeback_ptr_node(interp, arg_nodes[0], env, result, "MOD", line, col)) ok = false;
+    }
+    if (ok && arg_nodes && arg_nodes[1] && arg_nodes[1]->type == EXPR_PTR && arg_nodes[0] && arg_nodes[0]->type == EXPR_PTR) {
+        if (!writeback_ptr_node(interp, arg_nodes[1], env, result, "MOD", line, col)) ok = false;
+    }
+
+    if (!ok) {
         value_free(result);
         return value_null();
     }
