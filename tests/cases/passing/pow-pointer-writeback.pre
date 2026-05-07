@@ -12,7 +12,7 @@ INT: a3 = 0d2
 INT: b3 = 0d3
 POW(@a3, @b3)
 ASSERT(EQ(a3, 0d8))
-ASSERT(EQ(b3, 0d8))
+ASSERT(EQ(b3, 0d3))
 
 FLT: f1 = 0d1.5
 FLT: g1 = 0d2.0
@@ -28,4 +28,4 @@ FLT: f3 = 0d1.5
 FLT: g3 = 0d2.0
 POW(@f3, @g3)
 ASSERT(EQ(f3, 0d2.25))
-ASSERT(EQ(g3, 0d2.25))
+ASSERT(EQ(g3, 0d2.0))

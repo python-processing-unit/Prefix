@@ -3226,14 +3226,14 @@ static Value builtin_pow(Interpreter* interp, Value* args, int argc, Expr** arg_
             exp >>= 1;
         }
         Value out = value_int_base(result, out_base);
-        if (!writeback_ptr_range(interp, arg_nodes, env, 0, 2, out, "POW", line, col)) {
+        if (!writeback_first_ptr(interp, arg_nodes, env, out, "POW", line, col)) {
             value_free(out);
             return value_null();
         }
         return out;
     }
     Value out = value_flt_base(pow(args[0].as.f, args[1].as.f), out_base);
-    if (!writeback_ptr_range(interp, arg_nodes, env, 0, 2, out, "POW", line, col)) {
+    if (!writeback_first_ptr(interp, arg_nodes, env, out, "POW", line, col)) {
         value_free(out);
         return value_null();
     }
@@ -3424,7 +3424,7 @@ static Value builtin_ipow(Interpreter* interp, Value* args, int argc, Expr** arg
         exp >>= 1;
     }
     Value out = value_int_base(result, result_base_from_values(args[0], args[1]));
-    if (!writeback_ptr_range(interp, arg_nodes, env, 0, 2, out, "IPOW", line, col)) {
+    if (!writeback_first_ptr(interp, arg_nodes, env, out, "IPOW", line, col)) {
         value_free(out);
         return value_null();
     }
@@ -3439,7 +3439,7 @@ static Value builtin_fpow(Interpreter* interp, Value* args, int argc, Expr** arg
     double a = args[0].type == VAL_FLT ? args[0].as.f : (double)args[0].as.i;
     double b = args[1].type == VAL_FLT ? args[1].as.f : (double)args[1].as.i;
     Value out = value_flt_base(pow(a, b), result_base_from_values(args[0], args[1]));
-    if (!writeback_ptr_range(interp, arg_nodes, env, 0, 2, out, "FPOW", line, col)) {
+    if (!writeback_first_ptr(interp, arg_nodes, env, out, "FPOW", line, col)) {
         value_free(out);
         return value_null();
     }
