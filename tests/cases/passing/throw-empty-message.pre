@@ -4,8 +4,8 @@ TRY{
     THROW('')
 } CATCH(err) {
     caught = TRUE
-    ASSERT(EQ(err, ''))
-    ASSERT(EQ(SLEN(err), 0d0))
+    ASSERT(EQ(err, 'Exception thrown'))
+    ASSERT(EQ(SLEN(err), 0d16))
 }
 
 ASSERT(caught)

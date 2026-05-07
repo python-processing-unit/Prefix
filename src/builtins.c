@@ -6226,12 +6226,56 @@ static Value builtin_assert(Interpreter* interp, Value* args, int argc, Expr** a
 static Value builtin_throw(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
     (void)arg_nodes; (void)env;
     
-    if (argc >= 1) {
-        if (args[0].type == VAL_STR) {
-            RUNTIME_ERROR(interp, args[0].as.s, line, col);
+    if (argc == 0) {
+        RUNTIME_ERROR(interp, "Exception thrown", line, col);
+    }
+
+    /* Build error message by concatenating rendered args (same rules as PRINT),
+     * but do not append a trailing newline. Ownership of the resulting buffer
+     * is transferred to interp->error (it will be freed by interpreter cleanup).
+     */
+    JsonBuf jb;
+    jb_init(&jb);
+
+    for (int i = 0; i < argc; i++) {
+        switch (args[i].type) {
+            case VAL_BOOL:
+                jb_append_str(&jb, args[i].as.boolean ? "TRUE" : "FALSE");
+                break;
+            case VAL_INT: {
+                char* s = int_to_base_prefixed_str(args[i].as.i, numeric_base_of(args[i]));
+                jb_append_str(&jb, s);
+                free(s);
+                break;
+            }
+            case VAL_FLT: {
+                char* s = flt_to_base_prefixed_str(args[i].as.f, numeric_base_of(args[i]), args[i].num_base_nan);
+                jb_append_str(&jb, s);
+                free(s);
+                break;
+            }
+            case VAL_STR:
+                jb_append_str(&jb, args[i].as.s ? args[i].as.s : "");
+                break;
+            case VAL_FUNC:
+                jb_append_fmt(&jb, "<func %p>", (void*)args[i].as.func);
+                break;
+            default:
+                jb_append_str(&jb, "<null>");
+                break;
         }
     }
-    RUNTIME_ERROR(interp, "Exception thrown", line, col);
+
+    if (jb.data && jb.len > 0) {
+        /* Transfer ownership of jb.data to interp->error */
+        interp->error = jb.data;
+    } else {
+        if (jb.data) free(jb.data);
+        interp->error = strdup("Exception thrown");
+    }
+    interp->error_line = line;
+    interp->error_col = col;
+    return value_null();
 }
 
 // ============ Type checking ============
