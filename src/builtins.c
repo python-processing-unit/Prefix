@@ -809,23 +809,72 @@ static void jb_free(JsonBuf* jb) {
 static void jb_append_json_string(JsonBuf* jb, const char* s) {
     jb_append_char(jb, '"');
     if (!s) s = "";
-    for (const unsigned char* p = (const unsigned char*)s; *p; p++) {
+    const unsigned char* p = (const unsigned char*)s;
+    while (*p) {
         unsigned char c = *p;
-        switch (c) {
-            case '"': jb_append_str(jb, "\\\""); break;
-            case '\\': jb_append_str(jb, "\\\\"); break;
-            case '\b': jb_append_str(jb, "\\b"); break;
-            case '\f': jb_append_str(jb, "\\f"); break;
-            case '\n': jb_append_str(jb, "\\n"); break;
-            case '\r': jb_append_str(jb, "\\r"); break;
-            case '\t': jb_append_str(jb, "\\t"); break;
-            default:
-                if (c < 0x20 || c >= 0x7f) {
-                    jb_append_fmt(jb, "\\u%04x", (unsigned int)c);
-                } else {
-                    jb_append_char(jb, (unsigned char)c);
-                }
-                break;
+        /* Common single-byte escapes */
+        if (c == '"') { jb_append_str(jb, "\\\""); p++; continue; }
+        if (c == '\\') { jb_append_str(jb, "\\\\"); p++; continue; }
+        if (c == '\b') { jb_append_str(jb, "\\b"); p++; continue; }
+        if (c == '\f') { jb_append_str(jb, "\\f"); p++; continue; }
+        if (c == '\n') { jb_append_str(jb, "\\n"); p++; continue; }
+        if (c == '\r') { jb_append_str(jb, "\\r"); p++; continue; }
+        if (c == '\t') { jb_append_str(jb, "\\t"); p++; continue; }
+
+        /* Control characters must be escaped as \u00xx */
+        if (c < 0x20) {
+            jb_append_fmt(jb, "\\u%04x", (unsigned int)c);
+            p++;
+            continue;
+        }
+
+        /* Decode UTF-8 sequence into a Unicode code point. On invalid
+         * sequences emit U+FFFD. For BMP code points emit \uHHHH, for
+         * beyond-BMP emit \UHHHHHHHH per the specification. */
+        uint32_t codepoint = 0;
+        size_t seq_len = 0;
+        if (c < 0x80) {
+            codepoint = c;
+            seq_len = 1;
+        } else if ((c & 0xE0) == 0xC0) {
+            if (p[1] != '\0' && (p[1] & 0xC0) == 0x80) {
+                codepoint = ((uint32_t)(c & 0x1F) << 6) | (uint32_t)(p[1] & 0x3F);
+                seq_len = 2;
+                if (codepoint < 0x80) seq_len = 0; /* overlong */
+            }
+        } else if ((c & 0xF0) == 0xE0) {
+            if (p[1] != '\0' && p[2] != '\0' && (p[1] & 0xC0) == 0x80 && (p[2] & 0xC0) == 0x80) {
+                codepoint = ((uint32_t)(c & 0x0F) << 12) | ((uint32_t)(p[1] & 0x3F) << 6) | (uint32_t)(p[2] & 0x3F);
+                seq_len = 3;
+                if (codepoint < 0x800) seq_len = 0; /* overlong */
+            }
+        } else if ((c & 0xF8) == 0xF0) {
+            if (p[1] != '\0' && p[2] != '\0' && p[3] != '\0' && (p[1] & 0xC0) == 0x80 && (p[2] & 0xC0) == 0x80 && (p[3] & 0xC0) == 0x80) {
+                codepoint = ((uint32_t)(c & 0x07) << 18) | ((uint32_t)(p[1] & 0x3F) << 12) | ((uint32_t)(p[2] & 0x3F) << 6) | (uint32_t)(p[3] & 0x3F);
+                seq_len = 4;
+                if (codepoint < 0x10000 || codepoint > 0x10FFFF) seq_len = 0; /* overlong or out of range */
+            }
+        }
+
+        if (seq_len == 0) {
+            /* invalid UTF-8 -> replacement character */
+            codepoint = 0xFFFD;
+            p++;
+        } else {
+            /* reject surrogate halves */
+            if (codepoint >= 0xD800 && codepoint <= 0xDFFF) {
+                codepoint = 0xFFFD;
+            } else {
+                p += seq_len;
+            }
+        }
+
+        if (codepoint < 0x80) {
+            jb_append_char(jb, (char)codepoint);
+        } else if (codepoint <= 0xFFFF) {
+            jb_append_fmt(jb, "\\u%04x", (unsigned int)codepoint);
+        } else {
+            jb_append_fmt(jb, "\\U%08x", (unsigned int)codepoint);
         }
     }
     jb_append_char(jb, '"');
