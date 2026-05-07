@@ -89,6 +89,36 @@ static bool writeback_first_ptr(Interpreter* interp, Expr** arg_nodes, Env* env,
         interp->error_col = col;
         return false;
     }
+    /*
+     * If this interpreter is running with isolated env writes (PARFOR
+     * worker), ensure we create a local binding in the per-iteration
+     * environment so writeback does not mutate parent bindings directly.
+     */
+    if (interp && interp->isolate_env_writes && env && env->parent) {
+        /* create a local declaration if absent (use inferred decl type) */
+        bool local_found = false;
+        if (env->entries) {
+            for (size_t __i = 0; __i < env->count; __i++) {
+                EnvEntry* __e = &env->entries[__i];
+                if (__e->name && strcmp(__e->name, name) == 0) { local_found = true; break; }
+            }
+        }
+        if (!local_found) {
+            /* best-effort: create a local (implicit) declaration to shadow parent.
+             * Use TYPE_UNKNOWN for implicit builtins-created bindings so the PARFOR
+             * merge step can distinguish explicit declarations (non-UNKNOWN)
+             * from these ephemeral locals and skip merging them back.
+             */
+            if (!env_define(env, name, TYPE_UNKNOWN)) {
+                char buf[128];
+                snprintf(buf, sizeof(buf), "%s writeback failed", rule);
+                interp->error = strdup(buf);
+                interp->error_line = line;
+                interp->error_col = col;
+                return false;
+            }
+        }
+    }
     if (!env_assign(env, name, result, TYPE_UNKNOWN, false)) {
         char buf[128];
         snprintf(buf, sizeof(buf), "%s writeback failed", rule);
@@ -108,6 +138,32 @@ static bool writeback_ptr_node(Interpreter* interp, Expr* node, Env* env, Value 
         interp->error_line = line;
         interp->error_col = col;
         return false;
+    }
+    /* See comment in writeback_first_ptr: create a local binding for
+     * isolated-per-iteration environments so parent bindings are not
+     * modified directly by concurrent iterations.
+     */
+    if (interp && interp->isolate_env_writes && env && env->parent) {
+        bool local_found = false;
+        if (env->entries) {
+            for (size_t __i = 0; __i < env->count; __i++) {
+                EnvEntry* __e = &env->entries[__i];
+                if (__e->name && strcmp(__e->name, name) == 0) { local_found = true; break; }
+            }
+        }
+        if (!local_found) {
+            /* Create an implicit local entry (TYPE_UNKNOWN) so iterations
+             * can write to a per-iteration copy without affecting parent.
+             */
+            if (!env_define(env, name, TYPE_UNKNOWN)) {
+                char buf[128];
+                snprintf(buf, sizeof(buf), "%s writeback failed", rule);
+                interp->error = strdup(buf);
+                interp->error_line = line;
+                interp->error_col = col;
+                return false;
+            }
+        }
     }
     if (!env_assign(env, name, result, TYPE_UNKNOWN, false)) {
         char buf[128];
