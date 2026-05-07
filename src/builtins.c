@@ -7883,7 +7883,9 @@ static Value builtin_tns(Interpreter* interp, Value* args, int argc, Expr** arg_
             case VAL_FLT: elem_decl = TYPE_FLT; break;
             case VAL_STR: elem_decl = TYPE_STR; break;
             case VAL_TNS: elem_decl = TYPE_TNS; break;
+            case VAL_MAP: elem_decl = TYPE_MAP; break;
             case VAL_FUNC: elem_decl = TYPE_FUNC; break;
+            case VAL_THR: elem_decl = TYPE_THR; break;
             default: elem_decl = TYPE_UNKNOWN; break;
         }
 
