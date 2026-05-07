@@ -360,6 +360,60 @@ static unsigned char* enc_utf8_to_utf16(const char* s, size_t* out_sz, int littl
     return out;
 }
 
+/* Count Unicode code points in a UTF-8 string. Returns the number of
+ * Unicode code points (characters) represented by the UTF-8 sequence.
+ * Invalid sequences are treated as a single replacement character.
+ */
+static size_t utf8_codepoint_count(const char* s) {
+    if (!s) return 0;
+    const unsigned char* p = (const unsigned char*)s;
+    size_t count = 0;
+
+    while (*p) {
+        unsigned char c = *p;
+        uint32_t codepoint = 0;
+        size_t seq_len = 0;
+
+        if (c < 0x80) {
+            codepoint = c; seq_len = 1;
+        } else if ((c & 0xE0) == 0xC0) {
+            if (p[1] != '\0' && (p[1] & 0xC0) == 0x80) {
+                codepoint = ((uint32_t)(c & 0x1F) << 6) | (uint32_t)(p[1] & 0x3F);
+                seq_len = 2;
+                if (codepoint < 0x80) seq_len = 0; /* overlong */
+            }
+        } else if ((c & 0xF0) == 0xE0) {
+            if (p[1] != '\0' && p[2] != '\0' && (p[1] & 0xC0) == 0x80 && (p[2] & 0xC0) == 0x80) {
+                codepoint = ((uint32_t)(c & 0x0F) << 12) | ((uint32_t)(p[1] & 0x3F) << 6) | (uint32_t)(p[2] & 0x3F);
+                seq_len = 3;
+                if (codepoint < 0x800) seq_len = 0; /* overlong */
+            }
+        } else if ((c & 0xF8) == 0xF0) {
+            if (p[1] != '\0' && p[2] != '\0' && p[3] != '\0' && (p[1] & 0xC0) == 0x80 && (p[2] & 0xC0) == 0x80 && (p[3] & 0xC0) == 0x80) {
+                codepoint = ((uint32_t)(c & 0x07) << 18) | ((uint32_t)(p[1] & 0x3F) << 12) | ((uint32_t)(p[2] & 0x3F) << 6) | (uint32_t)(p[3] & 0x3F);
+                seq_len = 4;
+                if (codepoint < 0x10000 || codepoint > 0x10FFFF) seq_len = 0; /* overlong or out of range */
+            }
+        }
+
+        if (seq_len == 0) {
+            /* invalid sequence -> advance one byte (counts as one character) */
+            p++;
+        } else {
+            /* reject surrogate halves as invalid */
+            if (codepoint >= 0xD800 && codepoint <= 0xDFFF) {
+                p++;
+            } else {
+                p += seq_len;
+            }
+        }
+
+        count++;
+    }
+
+    return count;
+}
+
 static unsigned char* enc_utf8_to_cp1252(const char* s, size_t* out_sz, int is_windows) {
     size_t slen = s ? strlen(s) : 0;
     size_t outcap = slen + 16;
@@ -5016,7 +5070,7 @@ static Value builtin_bytes(Interpreter* interp, Value* args, int argc, Expr** ar
 static Value builtin_slen(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
     (void)arg_nodes; (void)env;
     EXPECT_STR(args[0], "SLEN", interp, line, col);
-    return value_int((int64_t)strlen(args[0].as.s));
+    return value_int((int64_t)utf8_codepoint_count(args[0].as.s));
 }
 
 static Value builtin_upper(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
