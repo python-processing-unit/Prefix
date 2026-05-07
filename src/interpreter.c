@@ -414,6 +414,14 @@ static int parfor_merge_iteration_env(ParforStart* start, char** merge_error) {
             continue;
         }
 
+        /* Skip implicit locals created by builtins during iteration (they
+         * are declared with TYPE_UNKNOWN). Only explicitly-declared symbols
+         * in the iteration body (non-UNKNOWN decl_type) are merged back.
+         */
+        if (entry->decl_type == TYPE_UNKNOWN) {
+            continue;
+        }
+
         if (!env_get_entry(parent_env, entry->name)) {
             env_define(parent_env, entry->name, entry->decl_type);
         }
