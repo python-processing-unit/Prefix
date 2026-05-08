@@ -1282,6 +1282,7 @@ typedef struct {
     int next_func_id;
     Thr** thrs;
     char** thr_ids;
+    int* thr_state; // 0 = none, 1 = in_progress, 2 = done
     size_t thr_count;
     size_t thr_cap;
     int next_thr_id;
@@ -1303,6 +1304,7 @@ static void ser_ctx_free(SerCtx* ctx) {
     free(ctx->func_state);
     free(ctx->thrs);
     free(ctx->thr_ids);
+    free(ctx->thr_state);
 }
 
 static const char* ser_env_id(SerCtx* ctx, Env* env, int* state) {
@@ -1357,9 +1359,10 @@ static const char* ser_func_id(SerCtx* ctx, Func* func, int* state) {
     return ctx->func_ids[ctx->func_count - 1];
 }
 
-static const char* ser_thr_id(SerCtx* ctx, Thr* thr) {
+static const char* ser_thr_id(SerCtx* ctx, Thr* thr, int* state) {
     for (size_t i = 0; i < ctx->thr_count; i++) {
         if (ctx->thrs[i] == thr) {
+            if (state) *state = ctx->thr_state[i];
             return ctx->thr_ids[i];
         }
     }
@@ -1367,7 +1370,8 @@ static const char* ser_thr_id(SerCtx* ctx, Thr* thr) {
         size_t new_cap = ctx->thr_cap == 0 ? 4 : ctx->thr_cap * 2;
         ctx->thrs = realloc(ctx->thrs, new_cap * sizeof(Thr*));
         ctx->thr_ids = realloc(ctx->thr_ids, new_cap * sizeof(char*));
-        if (!ctx->thrs || !ctx->thr_ids) { fprintf(stderr, "Out of memory\n"); exit(1); }
+        ctx->thr_state = realloc(ctx->thr_state, new_cap * sizeof(int));
+        if (!ctx->thrs || !ctx->thr_ids || !ctx->thr_state) { fprintf(stderr, "Out of memory\n"); exit(1); }
         ctx->thr_cap = new_cap;
     }
     ctx->next_thr_id++;
@@ -1375,6 +1379,8 @@ static const char* ser_thr_id(SerCtx* ctx, Thr* thr) {
     snprintf(buf, sizeof(buf), "t%d", ctx->next_thr_id);
     ctx->thrs[ctx->thr_count] = thr;
     ctx->thr_ids[ctx->thr_count] = strdup(buf);
+    ctx->thr_state[ctx->thr_count] = 0;
+    if (state) *state = 0;
     ctx->thr_count++;
     return ctx->thr_ids[ctx->thr_count - 1];
 }
@@ -1384,6 +1390,78 @@ static void json_obj_field(JsonBuf* jb, bool* first, const char* key) {
     *first = false;
     jb_append_json_string(jb, key);
     jb_append_char(jb, ':');
+}
+
+typedef struct {
+    Thr* target;
+    Map** seen_maps;
+    size_t seen_map_count;
+    size_t seen_map_cap;
+    Tensor** seen_tensors;
+    size_t seen_tensor_count;
+    size_t seen_tensor_cap;
+} ThrContainCtx;
+
+static int thr_contain_seen_map(ThrContainCtx* ctx, Map* map) {
+    for (size_t i = 0; i < ctx->seen_map_count; i++) {
+        if (ctx->seen_maps[i] == map) return 1;
+    }
+    if (ctx->seen_map_count + 1 > ctx->seen_map_cap) {
+        size_t new_cap = ctx->seen_map_cap == 0 ? 4 : ctx->seen_map_cap * 2;
+        ctx->seen_maps = realloc(ctx->seen_maps, new_cap * sizeof(Map*));
+        if (!ctx->seen_maps) { fprintf(stderr, "Out of memory\n"); exit(1); }
+        ctx->seen_map_cap = new_cap;
+    }
+    ctx->seen_maps[ctx->seen_map_count++] = map;
+    return 0;
+}
+
+static int thr_contain_seen_tensor(ThrContainCtx* ctx, Tensor* tns) {
+    for (size_t i = 0; i < ctx->seen_tensor_count; i++) {
+        if (ctx->seen_tensors[i] == tns) return 1;
+    }
+    if (ctx->seen_tensor_count + 1 > ctx->seen_tensor_cap) {
+        size_t new_cap = ctx->seen_tensor_cap == 0 ? 4 : ctx->seen_tensor_cap * 2;
+        ctx->seen_tensors = realloc(ctx->seen_tensors, new_cap * sizeof(Tensor*));
+        if (!ctx->seen_tensors) { fprintf(stderr, "Out of memory\n"); exit(1); }
+        ctx->seen_tensor_cap = new_cap;
+    }
+    ctx->seen_tensors[ctx->seen_tensor_count++] = tns;
+    return 0;
+}
+
+static int value_contains_thr_rec(ThrContainCtx* ctx, Value v) {
+    if (!ctx || !ctx->target) return 0;
+    switch (v.type) {
+        case VAL_THR:
+            return v.as.thr == ctx->target;
+        case VAL_MAP:
+            if (!v.as.map) return 0;
+            if (thr_contain_seen_map(ctx, v.as.map)) return 0;
+            for (size_t i = 0; i < v.as.map->count; i++) {
+                if (value_contains_thr_rec(ctx, v.as.map->items[i].key)) return 1;
+                if (value_contains_thr_rec(ctx, v.as.map->items[i].value)) return 1;
+            }
+            return 0;
+        case VAL_TNS:
+            if (!v.as.tns) return 0;
+            if (thr_contain_seen_tensor(ctx, v.as.tns)) return 0;
+            for (size_t i = 0; i < v.as.tns->length; i++) {
+                if (value_contains_thr_rec(ctx, v.as.tns->data[i])) return 1;
+            }
+            return 0;
+        default:
+            return 0;
+    }
+}
+
+static int value_contains_thr(Value v, Thr* target) {
+    ThrContainCtx ctx = {0};
+    ctx.target = target;
+    int found = value_contains_thr_rec(&ctx, v);
+    free(ctx.seen_maps);
+    free(ctx.seen_tensors);
+    return found;
 }
 
 static void ser_loc(JsonBuf* jb, int line, int col) {
@@ -1404,7 +1482,7 @@ static void ser_expr(JsonBuf* jb, SerCtx* ctx, Interpreter* interp, Expr* expr);
 static void ser_stmt(JsonBuf* jb, SerCtx* ctx, Interpreter* interp, Stmt* stmt);
 static void ser_value(JsonBuf* jb, SerCtx* ctx, Interpreter* interp, Value v);
 
-static void ser_env(JsonBuf* jb, SerCtx* ctx, Interpreter* interp, Env* env) {
+static void ser_env(JsonBuf* jb, SerCtx* ctx, Interpreter* interp, Env* env, Thr* omit_thr) {
     if (!env) {
         jb_append_str(jb, "null");
         return;
@@ -1445,6 +1523,9 @@ static void ser_env(JsonBuf* jb, SerCtx* ctx, Interpreter* interp, Env* env) {
     for (size_t i = 0; i < env->count; i++) {
         EnvEntry* entry = &env->entries[i];
         if (!entry->initialized && !entry->alias_target) continue;
+        if (omit_thr && entry->initialized && !entry->alias_target && value_contains_thr(entry->value, omit_thr)) {
+            continue;
+        }
         if (!val_first) jb_append_char(jb, ',');
         val_first = false;
         jb_append_json_string(jb, entry->name);
@@ -1458,7 +1539,7 @@ static void ser_env(JsonBuf* jb, SerCtx* ctx, Interpreter* interp, Env* env) {
             jb_append_json_string(jb, entry->alias_target);
             json_obj_field(jb, &pf, "env");
             Env* owner = env_find_owner(env, entry->alias_target);
-            ser_env(jb, ctx, interp, owner ? owner : env);
+            ser_env(jb, ctx, interp, owner ? owner : env, omit_thr);
             json_obj_field(jb, &pf, "value_type");
             jb_append_json_string(jb, decl_type_name(entry->decl_type));
             jb_append_char(jb, '}');
@@ -1505,7 +1586,7 @@ static void ser_env(JsonBuf* jb, SerCtx* ctx, Interpreter* interp, Env* env) {
     jb_append_char(jb, ']');
 
     json_obj_field(jb, &def_first, "parent");
-    ser_env(jb, ctx, interp, env->parent);
+    ser_env(jb, ctx, interp, env->parent, omit_thr);
 
     jb_append_char(jb, '}');
     jb_append_char(jb, '}');
@@ -2271,7 +2352,7 @@ static void ser_value(JsonBuf* jb, SerCtx* ctx, Interpreter* interp, Value v) {
             json_obj_field(jb, &df, "body");
             ser_stmt(jb, ctx, interp, fn->body);
             json_obj_field(jb, &df, "closure");
-            ser_env(jb, ctx, interp, fn->closure);
+            ser_env(jb, ctx, interp, fn->closure, NULL);
             jb_append_char(jb, '}');
             jb_append_char(jb, '}');
             for (size_t i = 0; i < ctx->func_count; i++) {
@@ -2284,7 +2365,9 @@ static void ser_value(JsonBuf* jb, SerCtx* ctx, Interpreter* interp, Value v) {
             Value thv = value_null();
             thv.type = VAL_THR;
             thv.as.thr = th;
-            const char* id = ser_thr_id(ctx, th);
+            int state = 0;
+            const char* id = ser_thr_id(ctx, th, &state);
+            (void)state;
             jb_append_char(jb, '{');
             bool first = true;
             json_obj_field(jb, &first, "t");
@@ -2300,9 +2383,9 @@ static void ser_value(JsonBuf* jb, SerCtx* ctx, Interpreter* interp, Value v) {
             json_obj_field(jb, &first, "finished");
             jb_append_str(jb, value_thr_get_finished(thv) ? "true" : "false");
             json_obj_field(jb, &first, "stop");
-            jb_append_str(jb, value_thr_get_finished(thv) ? "true" : "false");
+            jb_append_str(jb, value_thr_get_stop_requested(thv) ? "true" : "false");
             json_obj_field(jb, &first, "env");
-            ser_env(jb, ctx, interp, th->env);
+            ser_env(jb, ctx, interp, th->env, th);
             json_obj_field(jb, &first, "block");
             if (th->body) ser_stmt(jb, ctx, interp, th->body);
             else jb_append_str(jb, "null");
@@ -2465,12 +2548,14 @@ static Expr* deser_expr(JsonValue* obj, UnserCtx* ctx, Interpreter* interp, cons
         JsonValue* val = json_obj_get(obj, "value");
         const char* lt = (lit_type && lit_type->type == JSON_STR) ? lit_type->as.str : "INT";
         if (strcmp(lt, "BOOL") == 0) {
-            if (val && val->type == JSON_BOOL) return expr_bool(val->as.boolean != 0, line, col);
-            if (val && val->type == JSON_STR) {
-                if (strcmp(val->as.str, "TRUE") == 0 || strcmp(val->as.str, "true") == 0) return expr_bool(true, line, col);
-                if (strcmp(val->as.str, "FALSE") == 0 || strcmp(val->as.str, "false") == 0) return expr_bool(false, line, col);
-            }
-            return expr_bool(false, line, col);
+                if (!val) { *err = "UNSER: invalid BOOL value"; return NULL; }
+                if (val->type == JSON_BOOL) return expr_bool(val->as.boolean != 0, line, col);
+                if (val->type == JSON_STR) {
+                    if (strcmp(val->as.str, "TRUE") == 0 || strcmp(val->as.str, "true") == 0) return expr_bool(true, line, col);
+                    if (strcmp(val->as.str, "FALSE") == 0 || strcmp(val->as.str, "false") == 0) return expr_bool(false, line, col);
+                }
+                *err = "UNSER: invalid BOOL value";
+                return NULL;
         }
         if (strcmp(lt, "INT") == 0) {
             int64_t i = 0;
@@ -2866,12 +2951,14 @@ static Value deser_val(JsonValue* obj, UnserCtx* ctx, Interpreter* interp, const
     }
     if (strcmp(tp, "BOOL") == 0) {
         JsonValue* v = json_obj_get(obj, "v");
-        if (v && v->type == JSON_BOOL) return value_bool(v->as.boolean != 0);
-        if (v && v->type == JSON_STR) {
+        if (!v) { *err = "UNSER: invalid BOOL value"; return value_null(); }
+        if (v->type == JSON_BOOL) return value_bool(v->as.boolean != 0);
+        if (v->type == JSON_STR) {
             if (strcmp(v->as.str, "TRUE") == 0 || strcmp(v->as.str, "true") == 0) return value_bool(true);
             if (strcmp(v->as.str, "FALSE") == 0 || strcmp(v->as.str, "false") == 0) return value_bool(false);
         }
-        return value_bool(false);
+        *err = "UNSER: invalid BOOL value";
+        return value_null();
     }
     if (strcmp(tp, "FLT") == 0) {
         JsonValue* v = json_obj_get(obj, "v");
@@ -2899,14 +2986,22 @@ static Value deser_val(JsonValue* obj, UnserCtx* ctx, Interpreter* interp, const
             return value_null();
         }
         size_t ndim = shape->as.arr.count;
-        size_t* shp = malloc(sizeof(size_t) * (ndim > 0 ? ndim : 1));
-        if (!shp) { *err = "Out of memory"; return value_null(); }
+        if (ndim == 0) { *err = "UNSER: invalid TNS shape"; return value_null(); }
+        // Compute expected element count and validate dims
+        size_t expected_total = 1;
         for (size_t i = 0; i < ndim; i++) {
             JsonValue* it = shape->as.arr.items[i];
-            size_t sv = (size_t)((it && it->type == JSON_NUM) ? it->as.num : 0);
-            shp[i] = sv;
+            if (!it || it->type != JSON_NUM) { *err = "UNSER: invalid TNS shape"; return value_null(); }
+            size_t sv = (size_t)it->as.num;
+            if (sv == 0) { *err = "UNSER: invalid TNS shape"; return value_null(); }
+            if (expected_total > 0 && sv > 0 && expected_total > (SIZE_MAX / sv)) { *err = "UNSER: TNS size overflow"; return value_null(); }
+            expected_total *= sv;
         }
         size_t total = flat->as.arr.count;
+        if (expected_total != total) { *err = "UNSER: invalid TNS element count"; return value_null(); }
+        size_t* shp = malloc(sizeof(size_t) * ndim);
+        if (!shp) { *err = "Out of memory"; return value_null(); }
+        for (size_t i = 0; i < ndim; i++) shp[i] = (size_t)shape->as.arr.items[i]->as.num;
         Value* items = malloc(sizeof(Value) * (total > 0 ? total : 1));
         if (!items) { free(shp); *err = "Out of memory"; return value_null(); }
         DeclType elem_type = TYPE_UNKNOWN;
@@ -3046,16 +3141,24 @@ static Value deser_val(JsonValue* obj, UnserCtx* ctx, Interpreter* interp, const
             }
         }
         Value thr = value_thr_new();
-        value_thr_set_finished(thr, 1);
-        value_thr_set_paused(thr, json_obj_get(obj, "paused") && json_obj_get(obj, "paused")->type == JSON_BOOL ? json_obj_get(obj, "paused")->as.boolean : 0);
+        // Set lifecycle flags from serialized form. Default to not finished/not stopped/not started.
+        JsonValue* finished_j = json_obj_get(obj, "finished");
+        JsonValue* stop_j = json_obj_get(obj, "stop");
+        JsonValue* paused_j = json_obj_get(obj, "paused");
+        int finished_flag = (finished_j && finished_j->type == JSON_BOOL) ? finished_j->as.boolean : 0;
+        int stop_flag = (stop_j && stop_j->type == JSON_BOOL) ? stop_j->as.boolean : 0;
+        int paused_flag = (paused_j && paused_j->type == JSON_BOOL) ? paused_j->as.boolean : 0;
+        value_thr_set_finished(thr, finished_flag);
+        value_thr_set_stop_requested(thr, stop_flag);
+        value_thr_set_paused(thr, paused_flag);
         value_thr_set_started(thr, 0);
         thr.as.thr->body = NULL;
         thr.as.thr->env = NULL;
+        if (id) unser_thr_set(ctx, id, thr.as.thr);
         JsonValue* blk = json_obj_get(obj, "block");
         JsonValue* envv = json_obj_get(obj, "env");
         if (blk && blk->type == JSON_OBJ) thr.as.thr->body = deser_stmt(blk, ctx, interp, err);
         if (envv && envv->type == JSON_OBJ) thr.as.thr->env = deser_env(envv, ctx, interp, err);
-        if (id) unser_thr_set(ctx, id, thr.as.thr);
         return thr;
     }
 

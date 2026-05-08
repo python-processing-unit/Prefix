@@ -55,6 +55,7 @@ Value value_thr_new(void) {
     if (!t) { fprintf(stderr, "Out of memory\n"); exit(1); }
     t->finished = 0;
     t->paused = 0;
+    t->stop_requested = 0;
     t->refcount = 1;
     t->started = 0;
     t->body = NULL;
@@ -66,11 +67,27 @@ Value value_thr_new(void) {
 
 int value_thr_is_running(Value v) {
     if (v.type != VAL_THR || !v.as.thr) return 0;
-    int finished = 0;
+    int finished_or_stopping = 0;
     mtx_lock(&v.as.thr->state_lock);
-    finished = v.as.thr->finished;
+    finished_or_stopping = v.as.thr->finished || v.as.thr->stop_requested;
     mtx_unlock(&v.as.thr->state_lock);
-    return finished ? 0 : 1;
+    return finished_or_stopping ? 0 : 1;
+}
+
+void value_thr_set_stop_requested(Value v, int stop_requested) {
+    if (v.type != VAL_THR || !v.as.thr) return;
+    mtx_lock(&v.as.thr->state_lock);
+    v.as.thr->stop_requested = stop_requested ? 1 : 0;
+    mtx_unlock(&v.as.thr->state_lock);
+}
+
+int value_thr_get_stop_requested(Value v) {
+    if (v.type != VAL_THR || !v.as.thr) return 0;
+    int stop = 0;
+    mtx_lock(&v.as.thr->state_lock);
+    stop = v.as.thr->stop_requested;
+    mtx_unlock(&v.as.thr->state_lock);
+    return stop;
 }
 
 void value_thr_set_finished(Value v, int finished) {
