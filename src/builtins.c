@@ -7285,6 +7285,9 @@ static Value builtin_values(Interpreter* interp, Value* args, int argc, Expr** a
 // KEYIN(key, map):INT - returns 1 if map contains key (type+value)
 static Value builtin_keyin(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
     (void)arg_nodes; (void)env; (void)argc;
+    if (args[0].type != VAL_INT && args[0].type != VAL_FLT && args[0].type != VAL_STR) {
+        RUNTIME_ERROR(interp, "KEYIN expects INT, FLT or STR as first argument", line, col);
+    }
     if (args[1].type != VAL_MAP) RUNTIME_ERROR(interp, "KEYIN expects MAP as second argument", line, col);
     int found = 0;
     Value res = value_map_get(args[1], args[0], &found);
