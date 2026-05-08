@@ -5392,9 +5392,9 @@ static Value builtin_in(Interpreter* interp, Value* args, int argc, Expr** arg_n
         RUNTIME_ERROR(interp, "IN requires two arguments", line, col);
     }
 
-    // Container must be a tensor; otherwise membership is false
+    // Container must be a tensor; otherwise this is a runtime error per spec
     if (args[1].type != VAL_TNS) {
-        return value_bool(false);
+        RUNTIME_ERROR(interp, "IN expects TNS as second argument", line, col);
     }
 
     Tensor* t = args[1].as.tns;
