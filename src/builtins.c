@@ -7350,9 +7350,9 @@ static Value builtin_match(Interpreter* interp, Value* args, int argc, Expr** ar
     (void)arg_nodes; (void)env; (void)argc;
     if (args[0].type != VAL_MAP || args[1].type != VAL_MAP) RUNTIME_ERROR(interp, "MATCH expects two MAP arguments", line, col);
     int typing = 0, recurse = 0, shape = 0;
-    if (argc >= 3) { EXPECT_INT(args[2], "MATCH", interp, line, col); typing = args[2].as.i ? 1 : 0; }
-    if (argc >= 4) { EXPECT_INT(args[3], "MATCH", interp, line, col); recurse = args[3].as.i ? 1 : 0; }
-    if (argc >= 5) { EXPECT_INT(args[4], "MATCH", interp, line, col); shape = args[4].as.i ? 1 : 0; }
+    if (argc >= 3 && args[2].type != VAL_NULL) { EXPECT_INT(args[2], "MATCH", interp, line, col); typing = args[2].as.i ? 1 : 0; }
+    if (argc >= 4 && args[3].type != VAL_NULL) { EXPECT_INT(args[3], "MATCH", interp, line, col); recurse = args[3].as.i ? 1 : 0; }
+    if (argc >= 5 && args[4].type != VAL_NULL) { EXPECT_INT(args[4], "MATCH", interp, line, col); shape = args[4].as.i ? 1 : 0; }
     Map* m = args[0].as.map;
     Map* tpl = args[1].as.map;
     int ok = match_map_internal(m, tpl, typing, recurse, shape);
