@@ -5779,6 +5779,10 @@ static Value builtin_strip(Interpreter* interp, Value* args, int argc, Expr** ar
 static Value builtin_print(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
     (void)arg_nodes; (void)env; (void)line; (void)col;
 
+    if (argc == 0) {
+        RUNTIME_ERROR(interp, "PRINT expects at least one argument", line, col);
+    }
+
     int forward = !(interp && interp->shushed);
 
     for (int i = 0; i < argc; i++) {
