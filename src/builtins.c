@@ -5733,27 +5733,43 @@ static Value builtin_strip(Interpreter* interp, Value* args, int argc, Expr** ar
     EXPECT_STR(args[0], "STRIP", interp, line, col);
     EXPECT_STR(args[1], "STRIP", interp, line, col);
     
-    const char* s = args[0].as.s;
-    const char* chars = args[1].as.s;
-    size_t len = strlen(s);
-    
-    // Find start
-    size_t start = 0;
-    while (start < len && strchr(chars, s[start]) != NULL) {
-        start++;
+    const char* haystack = args[0].as.s;
+    const char* needle = args[1].as.s;
+
+    size_t needle_len = strlen(needle);
+    size_t haystack_len = strlen(haystack);
+
+    if (needle_len == 0) {
+        return value_str(haystack);
     }
-    
-    // Find end
-    size_t end = len;
-    while (end > start && strchr(chars, s[end - 1]) != NULL) {
-        end--;
+
+    // Count non-overlapping occurrences of needle
+    size_t count = 0;
+    const char* p = haystack;
+    while ((p = strstr(p, needle)) != NULL) {
+        count++;
+        p += needle_len;
     }
-    
-    size_t result_len = end - start;
+
+    if (count == 0) {
+        return value_str(haystack);
+    }
+
+    // New length after removing all occurrences (replacement = "")
+    size_t result_len = haystack_len - count * needle_len;
     char* result = malloc(result_len + 1);
-    memcpy(result, s + start, result_len);
-    result[result_len] = '\0';
-    
+    char* dst = result;
+    p = haystack;
+    const char* prev = haystack;
+
+    while ((p = strstr(prev, needle)) != NULL) {
+        size_t before = (size_t)(p - prev);
+        memcpy(dst, prev, before);
+        dst += before;
+        prev = p + needle_len;
+    }
+    strcpy(dst, prev);
+
     Value v = value_str(result);
     free(result);
     return v;
