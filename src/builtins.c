@@ -5818,6 +5818,9 @@ static Value builtin_print(Interpreter* interp, Value* args, int argc, Expr** ar
 static Value builtin_warn(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
     (void)arg_nodes; (void)env; (void)line; (void)col;
     if (!interp) return value_bool(false);
+    if (argc < 1) {
+        RUNTIME_ERROR(interp, "WARN expects 1 argument", line, col);
+    }
 
     int forward = (interp->verbose && !interp->shushed);
 
