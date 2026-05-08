@@ -4860,7 +4860,10 @@ static Value builtin_bxor(Interpreter* interp, Value* args, int argc, Expr** arg
 static Value builtin_bnot(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
     (void)arg_nodes; (void)env;
     EXPECT_INT(args[0], "BNOT", interp, line, col);
-    return value_int(~args[0].as.i);
+    if (numeric_base_of(args[0]) != 2) {
+        RUNTIME_ERROR(interp, "BNOT requires binary INT operands", line, col);
+    }
+    return value_int_base(~args[0].as.i, 2);
 }
 
 static Value builtin_shl(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
