@@ -1042,6 +1042,24 @@ Stmt* parser_parse(Parser* parser) {
     while (parser->current_token.type != TOKEN_EOF) {
         Stmt* stmt = parse_statement(parser);
         if (stmt) {
+            /* Enforce specification: top-level expression statements and
+             * assignments must occupy their own logical line. If we parsed
+             * such a statement but the next token is not a logical newline
+             * (TOKEN_NEWLINE) or EOF, report a parse error and synthesize
+             * a THROW so runtime TRY/CATCH can observe it. Then
+             * synchronize to the next logical newline. */
+            if ((stmt->type == STMT_EXPR || stmt->type == STMT_ASSIGN) &&
+                parser->current_token.type != TOKEN_NEWLINE &&
+                parser->current_token.type != TOKEN_EOF) {
+                report_error(parser, "Expression statement or assignment must occupy its own logical line");
+                append_parse_error_throw_stmt(parser, program);
+                while (parser->current_token.type != TOKEN_EOF && parser->current_token.type != TOKEN_NEWLINE) {
+                    advance(parser);
+                }
+                skip_newlines(parser);
+                continue;
+            }
+
             char* line_text = lexer_get_line(parser->lexer, stmt->line);
             stmt_set_src(stmt, line_text);
             free(line_text);
