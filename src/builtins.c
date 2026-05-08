@@ -5739,7 +5739,7 @@ static Value builtin_strip(Interpreter* interp, Value* args, int argc, Expr** ar
     size_t haystack_len = strlen(haystack);
 
     if (needle_len == 0) {
-        return value_str(haystack);
+        RUNTIME_ERROR(interp, "STRIP expects non-empty remove substring", line, col);
     }
 
     // Count non-overlapping occurrences of needle
