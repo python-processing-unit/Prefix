@@ -5691,7 +5691,7 @@ static Value builtin_replace(Interpreter* interp, Value* args, int argc, Expr** 
     size_t haystack_len = strlen(haystack);
     
     if (needle_len == 0) {
-        return value_str(haystack);
+        RUNTIME_ERROR(interp, "REPLACE expects non-empty old substring", line, col);
     }
     
     // Count occurrences
