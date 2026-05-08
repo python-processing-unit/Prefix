@@ -4983,8 +4983,8 @@ static Value builtin_base(Interpreter* interp, Value* args, int argc, Expr** arg
 }
 
 static Value builtin_str(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
-    (void)arg_nodes; (void)env; (void)interp; (void)line; (void)col;
-    
+    (void)arg_nodes; (void)env;
+
     if (args[0].type == VAL_STR) {
         return value_str(args[0].as.s);
     }
@@ -5003,13 +5003,9 @@ static Value builtin_str(Interpreter* interp, Value* args, int argc, Expr** arg_
         free(s);
         return v;
     }
-    
-    if (args[0].type == VAL_FUNC) {
-        char buf[64];
-        snprintf(buf, sizeof(buf), "<func %p>", (void*)args[0].as.func);
-        return value_str(buf);
-    }
-    return value_str("");
+
+    /* Per SPEC section 9.1.2, STR conversion only accepts BOOL, STR, INT, FLT. */
+    RUNTIME_ERROR(interp, "STR expects BOOL, STR, INT, or FLT", line, col);
 }
 
 // BYTES(INT: n, endian = "big"):TNS
