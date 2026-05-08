@@ -5824,39 +5824,63 @@ static Value builtin_warn(Interpreter* interp, Value* args, int argc, Expr** arg
 
     int forward = (interp->verbose && !interp->shushed);
 
-    if (forward) {
-        printf("WARNING: ");
-        for (int i = 0; i < argc; i++) {
-            switch (args[i].type) {
-                    case VAL_BOOL: {
-                        printf("%s", args[i].as.boolean ? "TRUE" : "FALSE");
-                        break;
-                    }
-                case VAL_INT: {
-                    char* s = int_to_base_prefixed_str(args[i].as.i, numeric_base_of(args[i]));
-                    printf("%s", s);
-                    free(s);
-                    break;
-                }
-                case VAL_FLT: {
-                    char* s = flt_to_base_prefixed_str(args[i].as.f, numeric_base_of(args[i]), args[i].num_base_nan);
-                    printf("%s", s);
-                    free(s);
-                    break;
-                }
-                case VAL_STR:
-                    printf("%s", args[i].as.s);
-                    break;
-                case VAL_FUNC:
-                    printf("<func %p>", (void*)args[i].as.func);
-                    break;
-                default:
-                    printf("<null>");
-                    break;
+    /* Build concatenated warning message for validation even when not forwarded. */
+    size_t cap = 256;
+    char* out = malloc(cap);
+    if (!out) RUNTIME_ERROR(interp, "Out of memory", line, col);
+    size_t out_len = 0;
+    out[0] = '\0';
+
+    for (int i = 0; i < argc; i++) {
+        char* tmp = NULL;
+        const char* piece = NULL;
+
+        switch (args[i].type) {
+            case VAL_BOOL:
+                piece = args[i].as.boolean ? "TRUE" : "FALSE";
+                break;
+            case VAL_INT:
+                tmp = int_to_base_prefixed_str(args[i].as.i, numeric_base_of(args[i]));
+                piece = tmp;
+                break;
+            case VAL_FLT:
+                tmp = flt_to_base_prefixed_str(args[i].as.f, numeric_base_of(args[i]), args[i].num_base_nan);
+                piece = tmp;
+                break;
+            case VAL_STR:
+                piece = args[i].as.s ? args[i].as.s : "";
+                break;
+            default: {
+                char buf[128];
+                snprintf(buf, sizeof(buf), "WARN expects BOOL, INT, FLT, or STR argument, got %s", value_type_name(args[i]));
+                free(out);
+                RUNTIME_ERROR(interp, buf, line, col);
+                break;
             }
         }
-        printf("\n");
+
+        size_t piece_len = strlen(piece);
+        if (out_len + piece_len + 1 > cap) {
+            size_t newcap = cap;
+            while (out_len + piece_len + 1 > newcap) newcap *= 2;
+            char* nout = realloc(out, newcap);
+            if (!nout) {
+                if (tmp) free(tmp);
+                free(out);
+                RUNTIME_ERROR(interp, "Out of memory", line, col);
+            }
+            out = nout;
+            cap = newcap;
+        }
+        memcpy(out + out_len, piece, piece_len);
+        out_len += piece_len;
+        out[out_len] = '\0';
+
+        if (tmp) { free(tmp); tmp = NULL; }
     }
+
+    if (forward) printf("WARNING: %s\n", out);
+    free(out);
     return value_bool(forward != 0);
 }
 
