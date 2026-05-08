@@ -5802,11 +5802,8 @@ static Value builtin_print(Interpreter* interp, Value* args, int argc, Expr** ar
             case VAL_STR:
                 if (forward) printf("%s", args[i].as.s);
                 break;
-            case VAL_FUNC:
-                if (forward) printf("<func %p>", (void*)args[i].as.func);
-                break;
             default:
-                if (forward) printf("<null>");
+                RUNTIME_ERROR(interp, "PRINT expects BOOL, INT, FLT, or STR argument", line, col);
                 break;
         }
     }
