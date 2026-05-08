@@ -26,6 +26,7 @@ struct Value; // forward declare Value for Tensor.data
 typedef struct Thr {
     int finished; // 0 = running, 1 = finished/stopped
     int paused;
+    int stop_requested;
     int refcount;
 #if 1
     int started;
@@ -119,6 +120,8 @@ void value_thr_set_finished(Value v, int finished);
 int value_thr_get_finished(Value v);
 void value_thr_set_paused(Value v, int paused);
 int value_thr_get_paused(Value v);
+void value_thr_set_stop_requested(Value v, int stop_requested);
+int value_thr_get_stop_requested(Value v);
 void value_thr_set_started(Value v, int started);
 int value_thr_get_started(Value v);
 // Note: pointer semantics are implemented at the EnvEntry (alias) level; no PTR Value type.
