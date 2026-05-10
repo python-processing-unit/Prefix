@@ -8475,8 +8475,6 @@ static Value builtin_pause(Interpreter* interp, Value* args, int argc, Expr** ar
     if (argc == 2) {
         if (args[1].type == VAL_FLT) {
             seconds = args[1].as.f;
-        } else if (args[1].type == VAL_INT) {
-            seconds = (double)args[1].as.i;
         } else {
             RUNTIME_ERROR(interp, "PAUSE expects FLT seconds", line, col);
         }
