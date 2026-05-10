@@ -6,5 +6,5 @@ THR: stopped = STOP(ASYNC{
 })
 
 ASSERT(EQ(TYPE(stopped), "THR"))
-ASSERT(NOT(BOOL(stopped)))
+REFUTE(BOOL(stopped))
 ASSERT(EQ(reached_end, FALSE))

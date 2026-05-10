@@ -3,14 +3,14 @@ IMPORT(path)
 STR: tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
 STR: helper_path = JOIN(tests_dir, "/helpers/export_target.pre")
 
-ASSERT(NOT(IMPORT_PATH(helper_path, helper)))
+REFUTE(IMPORT_PATH(helper_path, helper))
 
 MAP: box = <"value" = 0d5>
-ASSERT(NOT(EXPORT(box, helper)))
+REFUTE(EXPORT(box, helper))
 
 box<"value"> = 0d6
 
 ASSERT(EQ(helper.read_box_value(), 0d5))
-ASSERT(NOT(helper.set_box_value(0d7)))
+REFUTE(helper.set_box_value(0d7))
 ASSERT(EQ(box<"value">, 0d6))
 ASSERT(EQ(helper.read_box_value(), 0d7))

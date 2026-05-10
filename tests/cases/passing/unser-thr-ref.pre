@@ -10,4 +10,4 @@ STR: json = JOIN( ^
 
 MAP: threads = UNSER(json)
 ASSERT(EQ(threads<"first">, threads<"second">))
-ASSERT(NOT(BOOL(threads<"first">)))
+REFUTE(BOOL(threads<"first">))

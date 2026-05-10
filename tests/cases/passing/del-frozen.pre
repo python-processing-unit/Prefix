@@ -1,5 +1,5 @@
 BOOL: frozen_symbol = TRUE
-ASSERT(NOT(FREEZE(frozen_symbol)))
+REFUTE(FREEZE(frozen_symbol))
 
 BOOL: frozen_delete_failed = FALSE
 TRY{
@@ -10,12 +10,12 @@ TRY{
 ASSERT(frozen_delete_failed)
 ASSERT(EXIST(frozen_symbol))
 
-ASSERT(NOT(THAW(frozen_symbol)))
-ASSERT(NOT(DEL(frozen_symbol)))
-ASSERT(NOT(EXIST(frozen_symbol)))
+REFUTE(THAW(frozen_symbol))
+REFUTE(DEL(frozen_symbol))
+REFUTE(EXIST(frozen_symbol))
 
 BOOL: permafrozen_symbol = TRUE
-ASSERT(NOT(PERMAFREEZE(permafrozen_symbol)))
+REFUTE(PERMAFREEZE(permafrozen_symbol))
 
 BOOL: permafrozen_delete_failed = FALSE
 TRY{

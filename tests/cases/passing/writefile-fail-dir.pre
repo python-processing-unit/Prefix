@@ -8,4 +8,4 @@ IF(EQ(OS(),"win")){
     ASSERT(EQ(CL(JOIN("mkdir -p ", d)), 0d0))
 }
 
-ASSERT(NOT(WRITEFILE("x", d)))
+REFUTE(WRITEFILE("x", d))

@@ -3,4 +3,4 @@ THR(worker){}
 AWAIT(worker)
 
 ASSERT(EQ(AWAIT(worker), worker))
-ASSERT(NOT(BOOL(worker)))
+REFUTE(BOOL(worker))

@@ -1,2 +1,2 @@
-ASSERT(NOT(BOOL(<>)))
+REFUTE(BOOL(<>))
 ASSERT(BOOL(<"n" = 0d0>))

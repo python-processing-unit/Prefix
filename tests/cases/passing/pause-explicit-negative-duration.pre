@@ -15,5 +15,5 @@ ASSERT(PAUSED(worker))
 
 AWAIT(RESUME(worker))
 
-ASSERT(NOT(BOOL(worker)))
-ASSERT(NOT(PAUSED(worker)))
+REFUTE(BOOL(worker))
+REFUTE(PAUSED(worker))

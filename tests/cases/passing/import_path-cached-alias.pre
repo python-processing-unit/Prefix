@@ -8,8 +8,8 @@ IF(EXISTFILE(marker_path)){
     ASSERT(DELETEFILE(marker_path))
 }
 
-ASSERT(NOT(IMPORT_PATH(helper_path)))
-ASSERT(NOT(IMPORT_PATH(helper_path, again)))
+REFUTE(IMPORT_PATH(helper_path))
+REFUTE(IMPORT_PATH(helper_path, again))
 
 STR: default_view = import_path_cache_target.marker_text()
 STR: alias_view = again.marker_text()

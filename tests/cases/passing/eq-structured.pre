@@ -13,10 +13,10 @@ THR(worker){}
 
 ASSERT(ISBOOL(EQ(tensor_copy, tensor)))
 ASSERT(EQ(tensor_copy, tensor))
-ASSERT(NOT(EQ(tensor, [[0d1, 0d2], [0d3, 0d5]])))
+REFUTE(EQ(tensor, [[0d1, 0d2], [0d3, 0d5]]))
 
 ASSERT(EQ(map_copy, map_value))
-ASSERT(NOT(EQ(map_value, <"alpha" = 0d1, "beta" = [0d2, 0d4]>)))
+REFUTE(EQ(map_value, <"alpha" = 0d1, "beta" = [0d2, 0d4]>))
 
 ASSERT(EQ(identity_alias, identity))
 ASSERT(EQ(worker, worker))

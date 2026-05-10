@@ -11,6 +11,6 @@ THR: stopped = STOP(worker)
 
 ASSERT(EQ(TYPE(stopped), "THR"))
 ASSERT(EQ(stopped, worker))
-ASSERT(NOT(BOOL(worker)))
-ASSERT(NOT(BOOL(stopped)))
+REFUTE(BOOL(worker))
+REFUTE(BOOL(stopped))
 ASSERT(EQ(reached_end, FALSE))

@@ -2,5 +2,5 @@ MAP: candidate = <"tensor" = [[0d1, 0d2], [0d3, 0d4]], "scalar" = 0d1>
 
 ASSERT(MATCH(candidate, <"tensor" = [0d9, 0d8, 0d7, 0d6]>))
 ASSERT(MATCH(candidate, <"tensor" = [[0d9, 0d8], [0d7, 0d6]]>, shape = 0d1))
-ASSERT(NOT(MATCH(candidate, <"tensor" = [0d9, 0d8, 0d7, 0d6]>, shape = -0d1)))
+REFUTE(MATCH(candidate, <"tensor" = [0d9, 0d8, 0d7, 0d6]>, shape = -0d1))
 ASSERT(MATCH(candidate, <"scalar" = "different type">, shape = 0d1))

@@ -8,12 +8,12 @@ MAP: shape_candidate = <"outer" = <"tensor" = [[0d1, 0d2], [0d3, 0d4]]>>
 MAP: shape_template = <"outer" = <"tensor" = [0d9, 0d8, 0d7, 0d6]>>
 
 ASSERT(MATCH(missing_candidate, missing_template))
-ASSERT(NOT(MATCH(missing_candidate, missing_template, recurse = 0d1)))
+REFUTE(MATCH(missing_candidate, missing_template, recurse = 0d1))
 
 ASSERT(MATCH(type_candidate, type_template, typing = 0d1))
 ASSERT(MATCH(type_candidate, type_template, recurse = 0d1))
-ASSERT(NOT(MATCH(type_candidate, type_template, typing = 0d1, recurse = -0d1)))
+REFUTE(MATCH(type_candidate, type_template, typing = 0d1, recurse = -0d1))
 
 ASSERT(MATCH(shape_candidate, shape_template, shape = 0d1))
 ASSERT(MATCH(shape_candidate, shape_template, recurse = 0d1))
-ASSERT(NOT(MATCH(shape_candidate, shape_template, shape = 0d1, recurse = 0d1)))
+REFUTE(MATCH(shape_candidate, shape_template, shape = 0d1, recurse = 0d1))

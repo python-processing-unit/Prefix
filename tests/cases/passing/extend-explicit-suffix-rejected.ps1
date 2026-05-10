@@ -14,7 +14,7 @@ try {
 
   Set-Content -Path $programPath -Encoding Ascii -Value @"
 BOOL: loaded = EXTEND($extensionSpecifier)
-ASSERT(NOT(loaded))
+REFUTE(loaded)
 "@
 
   $result = Invoke-PrefixWithArguments -Arguments @($programPath)
