@@ -8,7 +8,7 @@ TRY{
     caught = TRUE
 }
 
-ASSERT(NOT(caught))
+REFUTE(caught)
 
 
 ! Also ensure awaiting the failed thread does not synchronously raise
@@ -24,4 +24,4 @@ TRY{
     caught_await = TRUE
 }
 
-ASSERT(NOT(caught_await))
+REFUTE(caught_await)

@@ -14,11 +14,11 @@ THR(other){}
 
 ASSERT(ISBOOL(NEQ(tensor, different_tensor)))
 ASSERT(NEQ(tensor, different_tensor))
-ASSERT(NOT(NEQ(tensor, tensor)))
+REFUTE(NEQ(tensor, tensor))
 
 ASSERT(NEQ(map_value, different_map))
-ASSERT(NOT(NEQ(map_value, map_value)))
+REFUTE(NEQ(map_value, map_value))
 
-ASSERT(NOT(NEQ(identity_alias, identity)))
-ASSERT(NOT(NEQ(worker, worker)))
+REFUTE(NEQ(identity_alias, identity))
+REFUTE(NEQ(worker, worker))
 ASSERT(NEQ(worker, other))

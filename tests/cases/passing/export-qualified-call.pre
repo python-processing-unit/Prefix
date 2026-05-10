@@ -4,5 +4,5 @@ FUNC STR: describe(){
     RETURN("exported")
 }
 
-ASSERT(NOT(EXPORT(describe, helper)))
+REFUTE(EXPORT(describe, helper))
 ASSERT(EQ(helper.describe(), "exported"))

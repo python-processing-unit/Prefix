@@ -3,5 +3,5 @@ MAP: candidate = <"alpha" = 0d1, "beta" = "dog">
 ASSERT(MATCH(candidate, <>))
 ASSERT(MATCH(candidate, <"alpha" = 0d99>))
 ASSERT(MATCH(candidate, <"alpha" = "ignored", "beta" = 0d0>))
-ASSERT(NOT(MATCH(candidate, <"gamma" = 0d0>)))
+REFUTE(MATCH(candidate, <"gamma" = 0d0>))
 ASSERT(EQ(TYPE(MATCH(candidate, <"alpha" = 0d0>)), "BOOL"))

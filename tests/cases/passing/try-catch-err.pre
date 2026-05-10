@@ -3,4 +3,4 @@ TRY{
 } CATCH(err) {
     ASSERT(EXIST(err))
 }
-ASSERT(NOT(EXIST(err)))
+REFUTE(EXIST(err))

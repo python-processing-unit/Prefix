@@ -15,11 +15,11 @@ FUNC BOOL: missing_visible(){
 }
 
 ASSERT(EXIST(outer))
-ASSERT(NOT(EXIST(declared_only)))
+REFUTE(EXIST(declared_only))
 ASSERT(outer_visible())
 ASSERT(inner_visible())
-ASSERT(NOT(missing_visible()))
+REFUTE(missing_visible())
 
 DEL(outer)
-ASSERT(NOT(EXIST(outer)))
-ASSERT(NOT(outer_visible()))
+REFUTE(EXIST(outer))
+REFUTE(outer_visible())

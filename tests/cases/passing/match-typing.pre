@@ -3,4 +3,4 @@ MAP: candidate = <"value" = 0d1, "other" = "text">
 ASSERT(MATCH(candidate, <"value" = "1">))
 ASSERT(MATCH(candidate, <"value" = 0d99>, typing = 0d1))
 ASSERT(MATCH(candidate, <"other" = "different">, typing = 0d7))
-ASSERT(NOT(MATCH(candidate, <"value" = "1">, typing = -0d1)))
+REFUTE(MATCH(candidate, <"value" = "1">, typing = -0d1))

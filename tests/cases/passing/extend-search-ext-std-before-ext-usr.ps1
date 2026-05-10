@@ -26,7 +26,7 @@ try {
 
   Set-Content -Path $programPath -Encoding Ascii -Value @'
 BOOL: loaded = EXTEND(search_probe)
-ASSERT(NOT(loaded))
+REFUTE(loaded)
 PRINT(TST_SEARCH_PROBE_PATH())
 '@
 

@@ -1,12 +1,12 @@
 BOOL: thaw_value = TRUE
 
-ASSERT(NOT(THAW(thaw_value)))
+REFUTE(THAW(thaw_value))
 ASSERT(thaw_value)
 
-ASSERT(NOT(FREEZE(thaw_value)))
+REFUTE(FREEZE(thaw_value))
 ASSERT(FROZEN(thaw_value))
-ASSERT(NOT(THAW(thaw_value)))
-ASSERT(NOT(FROZEN(thaw_value)))
+REFUTE(THAW(thaw_value))
+REFUTE(FROZEN(thaw_value))
 
 thaw_value = FALSE
 ASSERT(EQ(thaw_value, FALSE))

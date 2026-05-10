@@ -15,5 +15,5 @@ released = TRUE
 
 AWAIT(worker)
 
-ASSERT(NOT(BOOL(worker)))
-ASSERT(NOT(PAUSED(worker)))
+REFUTE(BOOL(worker))
+REFUTE(PAUSED(worker))

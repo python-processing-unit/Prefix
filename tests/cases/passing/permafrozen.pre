@@ -1,6 +1,6 @@
 BOOL: normal_value = TRUE
-ASSERT(NOT(PERMAFROZEN(normal_value)))
+REFUTE(PERMAFROZEN(normal_value))
 
-ASSERT(NOT(PERMAFREEZE(normal_value)))
+REFUTE(PERMAFREEZE(normal_value))
 ASSERT(PERMAFROZEN(normal_value))
 ASSERT(FROZEN(normal_value))

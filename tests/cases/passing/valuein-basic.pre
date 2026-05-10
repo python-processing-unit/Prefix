@@ -1,5 +1,5 @@
 MAP: m = <"x" = "cat", "y" = "dog">
 
 ASSERT(VALUEIN("cat", m))
-ASSERT(NOT(VALUEIN("bird", m)))
+REFUTE(VALUEIN("bird", m))
 ASSERT(EQ(TYPE(VALUEIN("cat", m)), "BOOL"))

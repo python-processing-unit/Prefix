@@ -12,5 +12,5 @@ released = TRUE
 
 AWAIT(paused)
 
-ASSERT(NOT(BOOL(paused)))
-ASSERT(NOT(PAUSED(paused)))
+REFUTE(BOOL(paused))
+REFUTE(PAUSED(paused))

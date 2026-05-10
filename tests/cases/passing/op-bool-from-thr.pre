@@ -8,4 +8,4 @@ ASSERT(BOOL(worker))
 thr_release = TRUE
 WHILE(worker){
 }
-ASSERT(NOT(BOOL(worker)))
+REFUTE(BOOL(worker))

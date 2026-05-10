@@ -11,4 +11,4 @@ PARFOR(i, get_target()){
 }
 ASSERT(EQ(target_calls, 0d1))
 ASSERT(EQ(seen, [0d1, 0d2, 0d3]))
-ASSERT(NOT(EXIST(i)))
+REFUTE(EXIST(i))

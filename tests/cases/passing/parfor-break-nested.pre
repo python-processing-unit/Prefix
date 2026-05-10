@@ -9,5 +9,5 @@ FOR(j, 0d3){
 }
 
 ASSERT(EQ(outer, 0d1))
-ASSERT(NOT(EXIST(i)))
-ASSERT(NOT(EXIST(j)))
+REFUTE(EXIST(i))
+REFUTE(EXIST(j))

@@ -1,6 +1,6 @@
 BOOL: locked_value = TRUE
 
-ASSERT(NOT(PERMAFREEZE(locked_value)))
+REFUTE(PERMAFREEZE(locked_value))
 ASSERT(FROZEN(locked_value))
 ASSERT(PERMAFROZEN(locked_value))
 

@@ -11,11 +11,11 @@ FUNC INT: sample_func(INT: value){
 
 THR(sample_thr){}
 
-ASSERT(NOT(ISSTR(sample_bool_true)))
-ASSERT(NOT(ISSTR(sample_int)))
-ASSERT(NOT(ISSTR(sample_flt)))
+REFUTE(ISSTR(sample_bool_true))
+REFUTE(ISSTR(sample_int))
+REFUTE(ISSTR(sample_flt))
 ASSERT(ISSTR(sample_str))
-ASSERT(NOT(ISSTR(sample_tns)))
-ASSERT(NOT(ISSTR(sample_map)))
-ASSERT(NOT(ISSTR(sample_func)))
-ASSERT(NOT(ISSTR(sample_thr)))
+REFUTE(ISSTR(sample_tns))
+REFUTE(ISSTR(sample_map))
+REFUTE(ISSTR(sample_func))
+REFUTE(ISSTR(sample_thr))

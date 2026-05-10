@@ -1,1 +1,1 @@
-ASSERT(NOT(IN(0d9, [0d1, 0d2, 0d3])))
+REFUTE(IN(0d9, [0d1, 0d2, 0d3]))
