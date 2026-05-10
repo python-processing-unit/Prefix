@@ -21,6 +21,92 @@ The change log is a document recording what changed with every release of Prefix
 
 ---
 
+## 0.11.1
+
+### Patches
+
+Add a PowerShell-based automated test suite and run it in CI.
+
+Fix `IADD` so coercing `NaN` and infinities to `INT` fails instead of succeeding.
+
+Fix `PAUSE` and its tests.
+
+Fix `PARALLEL`.
+
+Fix serialization and deserialization.
+
+Make `MATCH` reject non-`INT` flags and accept later keyword arguments even when earlier optional ones are absent.
+
+Make `WARN` reject empty calls and arguments that cannot be converted with `~STR`, and improve the empty-call error message.
+
+Make `PRINT` reject empty calls and arguments that cannot be converted with `~STR`.
+
+Reject multiple statements on one logical line.
+
+Make `STRIP` treat `remove` as a substring rather than a character list, and reject an empty `remove` value.
+
+Make `REPLACE` reject an empty `old` value.
+
+Make `IN` reject tensor operands that are not `TNS` values.
+
+Make `STR` reject invalid operand types.
+
+Make `KEYIN` reject invalid key types.
+
+Make `BNOT` fail on non-binary `INT` values.
+
+Make `THROW` concatenate its arguments.
+
+Fix `SLEN` handling of multi-byte characters.
+
+Fix `SER` handling of high Unicode values.
+
+Make `POW` stop writing back through a pointer exponent.
+
+Fix `PARFOR` pointer writeback.
+
+Fix tensor operator handling of `MAP` and `THR` values.
+
+Make `MOD` stop overwriting a pointer passed as its second operand.
+
+Fix `SELF`.
+
+Make `IMPORT_PATH` expose imported module-restricted extension operators through aliases.
+
+Make `EXTEND` accept suffix-qualified specifiers and expose module-restricted operators through aliases.
+
+Fix `INV` and make it write back through pointer operands.
+
+Fix `APPEND`.
+
+Fix `FOR` counter handling.
+
+Fix `KEYS` handling of mixed key types.
+
+Fix `ILEN`.
+
+Fix `FPROD`.
+
+Fix `ROOT`.
+
+Fix `LCM`.
+
+Fix `CDIV`.
+
+Fix `GCD`.
+
+Fix `LEN`.
+
+Fix `CONV`.
+
+Fix module aliasing.
+
+Fix extension hook registration.
+
+Fix `SPLIT` handling of an empty delimiter.
+
+---
+
 ## 0.11.0
 
 ### Major changes
