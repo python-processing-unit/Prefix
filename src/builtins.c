@@ -6540,6 +6540,11 @@ static Value builtin_istns(Interpreter* interp, Value* args, int argc, Expr** ar
     return value_bool(args[0].type == VAL_TNS);
 }
 
+static Value builtin_ismap(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
+    (void)arg_nodes; (void)env; (void)interp; (void)line; (void)col;
+    return value_bool(args[0].type == VAL_MAP);
+}
+
 static Value builtin_type(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
     (void)arg_nodes; (void)env; (void)interp; (void)line; (void)col;
     return value_str(value_type_name(args[0]));
@@ -9067,6 +9072,7 @@ static BuiltinFunction builtins_table[] = {
     {"ISFLT", 1, 1, builtin_isflt},
     {"ISSTR", 1, 1, builtin_isstr},
     {"ISTNS", 1, 1, builtin_istns},
+    {"ISMAP", 1, 1, builtin_ismap},
     {"TYPE", 1, 1, builtin_type},
     {"SIGNATURE", 1, 1, builtin_signature},
 
