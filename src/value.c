@@ -94,6 +94,9 @@ void value_thr_set_finished(Value v, int finished) {
     if (v.type != VAL_THR || !v.as.thr) return;
     mtx_lock(&v.as.thr->state_lock);
     v.as.thr->finished = finished ? 1 : 0;
+    if (finished) {
+        v.as.thr->paused = 0;
+    }
     mtx_unlock(&v.as.thr->state_lock);
 }
 
