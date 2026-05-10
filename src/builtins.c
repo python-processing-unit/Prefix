@@ -8581,16 +8581,157 @@ typedef struct {
     int* err_cols;
 } ParallelStart;
 
+// Local copy of interpreter helper to map ValueType -> DeclType
+static DeclType value_type_to_decl(ValueType vt) {
+    switch (vt) {
+        case VAL_BOOL: return TYPE_BOOL;
+        case VAL_INT: return TYPE_INT;
+        case VAL_FLT: return TYPE_FLT;
+        case VAL_STR: return TYPE_STR;
+        case VAL_TNS: return TYPE_TNS;
+        case VAL_MAP: return TYPE_MAP;
+        case VAL_FUNC: return TYPE_FUNC;
+        case VAL_THR: return TYPE_THR;
+        default: return TYPE_UNKNOWN;
+    }
+}
+
+// Local coercion helper (mirrors interpreter.c behavior but is available
+// in this translation unit). Returns true on success and sets *out_value.
+static bool coerce_value_to_decl_type(Interpreter* interp,
+                                      Value input,
+                                      DeclType target,
+                                      Env* env,
+                                      int line,
+                                      int col,
+                                      Value* out_value) {
+    if (!out_value) return false;
+    *out_value = value_null();
+
+    if (value_type_to_decl(input.type) == target) {
+        *out_value = value_copy(input);
+        return true;
+    }
+
+    const char* builtin_name = NULL;
+    switch (target) {
+        case TYPE_BOOL: builtin_name = "BOOL"; break;
+        case TYPE_INT: builtin_name = "INT"; break;
+        case TYPE_FLT: builtin_name = "FLT"; break;
+        case TYPE_STR: builtin_name = "STR"; break;
+        case TYPE_TNS: builtin_name = "TNS"; break;
+        default:
+            return false;
+    }
+
+    BuiltinFunction* builtin = builtin_lookup(builtin_name);
+    if (!builtin || !builtin->impl) return false;
+
+    Value args[1];
+    args[0] = input;
+    Value converted = builtin->impl(interp, args, 1, NULL, env, line, col);
+    if (interp->error) {
+        return false;
+    }
+    if (value_type_to_decl(converted.type) != target) {
+        value_free(converted);
+        return false;
+    }
+
+    *out_value = converted;
+    return true;
+}
+
 static int parallel_worker(void* arg) {
     ParallelStart* ps = (ParallelStart*)arg;
     // Create a per-worker interpreter state similar to PARFOR
     Interpreter* thr_interp = ps->interp;
 
-    // Prepare a call environment from the function's closure
+    // Create a call environment from the function's closure and
+    // perform normal function parameter binding (no-arg call).
     Env* call_env = env_create(ps->func->closure);
 
-    // Execute the function body as if it were a function call so RETURN
-    // statements inside the function body are allowed.
+    // Bind parameters as the interpreter would for a user-call with
+    // zero positional/keyword arguments. This ensures missing
+    // required parameters and default-evaluation errors become
+    // runtime errors (as mandated by the spec).
+    for (size_t i = 0; i < ps->func->params.count; i++) {
+        Param* param = &ps->func->params.items[i];
+        Value arg_val = value_null();
+        bool provided = false;
+
+        if (param->default_value) {
+            arg_val = eval_expr(thr_interp, param->default_value, call_env);
+            if (thr_interp->error) {
+                // transfer ownership of interpreter error into shared slot
+                ps->errors[ps->index] = thr_interp->error;
+                if (ps->err_lines) ps->err_lines[ps->index] = thr_interp->error_line;
+                if (ps->err_cols) ps->err_cols[ps->index] = thr_interp->error_col;
+                thr_interp->error = NULL;
+                // cleanup
+                env_free(call_env);
+                free(thr_interp);
+                free(ps);
+                return 0;
+            }
+            provided = true;
+        } else {
+            char buf[128];
+            snprintf(buf, sizeof(buf), "Missing argument for parameter '%s'", param->name);
+            ps->errors[ps->index] = strdup(buf);
+            if (ps->err_lines) ps->err_lines[ps->index] = 0;
+            if (ps->err_cols) ps->err_cols[ps->index] = 0;
+            env_free(call_env);
+            free(thr_interp);
+            free(ps);
+            return 0;
+        }
+
+        Value bind_val = arg_val;
+        bool used_coercion = false;
+        if (value_type_to_decl(bind_val.type) != param->type && param->coerced) {
+            Value coerced = value_null();
+            if (coerce_value_to_decl_type(thr_interp, arg_val, param->type, call_env, 0, 0, &coerced)) {
+                bind_val = coerced;
+                used_coercion = true;
+            }
+        }
+
+        if (value_type_to_decl(bind_val.type) != param->type) {
+            char buf[128];
+            snprintf(buf, sizeof(buf), "Type mismatch for parameter '%s'", param->name);
+            ps->errors[ps->index] = strdup(buf);
+            if (ps->err_lines) ps->err_lines[ps->index] = 0;
+            if (ps->err_cols) ps->err_cols[ps->index] = 0;
+            if (used_coercion) value_free(bind_val);
+            value_free(arg_val);
+            env_free(call_env);
+            free(thr_interp);
+            free(ps);
+            return 0;
+        }
+
+        env_define(call_env, param->name, param->type);
+        if (!env_assign(call_env, param->name, bind_val, param->type, true)) {
+            char buf[256];
+            snprintf(buf, sizeof(buf), "Cannot assign to frozen identifier '%s'", param->name);
+            ps->errors[ps->index] = strdup(buf);
+            if (ps->err_lines) ps->err_lines[ps->index] = 0;
+            if (ps->err_cols) ps->err_cols[ps->index] = 0;
+            if (used_coercion) value_free(bind_val);
+            value_free(arg_val);
+            env_free(call_env);
+            free(thr_interp);
+            free(ps);
+            return 0;
+        }
+
+        // Release temporaries (env_assign copied value)
+        value_free(arg_val);
+        if (used_coercion) value_free(bind_val);
+    }
+
+    // Execute the function body as a proper call frame so RETURN is allowed
     ExecResult res = exec_program_in_env_as_function(thr_interp, ps->func->body, call_env, ps->func->name);
 
     if (res.status == EXEC_ERROR && res.error) {
