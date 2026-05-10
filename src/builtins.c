@@ -6448,6 +6448,16 @@ static Value builtin_assert(Interpreter* interp, Value* args, int argc, Expr** a
     return value_bool(true);
 }
 
+// REFUTE(~BOOL: cond):BOOL
+static Value builtin_refute(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
+    (void)arg_nodes; (void)env;
+
+    if (value_truthiness(args[0])) {
+        RUNTIME_ERROR(interp, "Refutation failed", line, col);
+    }
+    return value_bool(true);
+}
+
 static Value builtin_throw(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
     (void)arg_nodes; (void)env;
     
@@ -9102,6 +9112,7 @@ static BuiltinFunction builtins_table[] = {
 
     // Control
     {"ASSERT", 1, 1, builtin_assert},
+    {"REFUTE", 1, 1, builtin_refute},
     {"THROW", 0, -1, builtin_throw},
 
     // Variables

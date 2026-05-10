@@ -841,6 +841,8 @@ Built-in operator names MUST be matched case-sensitively and MUST be written in 
 
 - `BOOL: ASSERT(ANY: value)` = MUST raise a runtime error if `value` is falsey according to the language's truthiness rules. On success, it MUST return `TRUE`.
 
+- `BOOL: REFUTE(~BOOL: cond)` = MUST raise a runtime error if `cond` is truthy according to the language's truthiness rules. On success, it MUST return `TRUE`.
+
 - `THROW()` or `THROW(INT|STR: a1, ..., INT|STR: aN)` = MUST raise a runtime error. When one or more arguments are supplied, the error message MUST be formed by concatenating those arguments using the same rendering rules as `PRINT`, but without a trailing newline. When no arguments are supplied, the error message MUST be `"Exception thrown"`.
 
 - `BOOL: MAIN()` = MUST return `TRUE` when the call site is in the primary program source and `FALSE` when the call site is executing from imported module code. The result MUST depend on the source location of the call expression rather than on the dynamic caller stack.
