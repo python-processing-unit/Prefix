@@ -23,7 +23,7 @@ The change log is a document recording what changed with every release of Prefix
 
 ## 0.11.1
 
-### Patches
+### Patch-level changes
 
 Add a PowerShell-based automated test suite and run it in CI.
 
@@ -109,19 +109,19 @@ Fix `SPLIT` handling of an empty delimiter.
 
 ## 0.11.0
 
-### Major changes
+### Major-level changes
 
 Build Prefix as a shared runtime DLL with a matching import library, and link both the interpreter executable and compiled extensions against that shared runtime.
 
 Refine extension namespace exposure so module-qualified operators require a dedicated module-restriction flag rather than relying on `PREFIX_EXTENSION_ASMODULE` alone.
 
-### Minor changes
+### Minor-level changes
 
 Add the `APPEND` built-in for appending a single element to a one-dimensional tensor.
 
 Allow unqualified resolution of module-restricted extension operators within modules that extended them, and preserve those extension namespaces when such modules are imported through an alias.
 
-### Patches
+### Patch-level changes
 
 Update the bundled networking, win32, gui, and image extensions to use the new module-restriction semantics.
 
@@ -133,19 +133,19 @@ Fix floating-point rendering so infinities stringify correctly.
 
 ## 0.10.0
 
-### Major changes
+### Major-level changes
 
 Add the first-class `BOOL` type with the `TRUE` and `FALSE` literals, and change the language's Boolean model to use `BOOL` rather than integer sentinel values.
 
 Change built-in and standard-library APIs that previously returned `INT` sentinel values to return `BOOL` instead, including logical, comparison, type-checking, import, filesystem, console, freeze, and deletion operators, along with helpers such as `prime.IS_PRIME`, `prime.IS_MERSENNE_PRIME`, and `image.SHOW`.
 
-### Minor changes
+### Minor-level changes
 
 Bind `SELF` when calling `FUNC` values stored in `MAP` objects, preserving aliasing when the map is accessed through a pointer.
 
 Update pointer semantics so transformed built-in results write back through pointer operands, and pointer arguments to user-defined functions bind as aliases.
 
-### Patches
+### Patch-level changes
 
 Allow `BOOL` values in conversions, truthiness, tensor elements, serialization, deserialization, printing, and default `FUNC` returns.
 
@@ -157,17 +157,17 @@ Refactor the documentation site to use shared CSS and Markdown rendering, and ge
 
 ## 0.9.0
 
-### Major changes
+### Major-level changes
 
 Update search paths.
 
 Replace `.prex` files with the `EXTEND` operator.
 
-### Minor changes
+### Minor-level changes
 
 N/A
 
-### Patches
+### Patch-level changes
 
 Serialize index assignment.
 
@@ -175,15 +175,15 @@ Serialize index assignment.
 
 ## 0.8.0
 
-### Major changes
+### Major-level changes
 
 N/A
 
-### Minor changes
+### Minor-level changes
 
 Remove spaces between args in `PRINT`.
 
-### Patches
+### Patch-level changes
 
 Fix `CATCH` specification in [section 3.4 of the specification](https://python-processing-unit.github.io/Prefix/SPECIFICATION.html#34-exception-handling).
 
@@ -241,7 +241,7 @@ Fix `PARFOR` loop control.
 
 ## 0.7.2
 
-### Patches
+### Patch-level changes
 
 Rewrite the documentation.
 
@@ -249,7 +249,7 @@ Rewrite the documentation.
 
 ## 0.7.1
 
-### Patches
+### Patch-level changes
 
 Allow symbol creation via `ASSIGN`.
 
@@ -263,17 +263,17 @@ Fix `TYPE` documentation.
 
 ## 0.7.0
 
-### Major features
+### Major-level changes
 
 N/A
 
-### Minor features
+### Minor-level changes
 
 Add coerced type arguments.
 
 Add operator `WARN`.
 
-### Patches
+### Patch-level changes
 
 N/A
 
@@ -281,17 +281,17 @@ N/A
 
 ## 0.6.0
 
-### Major features
+### Major-level changes
 
 Convert `INT` and `FLT` from binary types to support multiple bases.
 
-### Minor features
+### Minor-level changes
 
 Add operator `CONVERT`.
 
 Add operator `BASE`.
 
-### Patches
+### Patch-level changes
 
 N/A
 
@@ -299,17 +299,17 @@ N/A
 
 ## 0.5.0
 
-### Major features
+### Major-level changes
 
 N/A
 
-### Minor features
+### Minor-level changes
 
 Expand search paths to include `stdlib/` and `stdext/`.
 
 Add `SELF`.
 
-### Patches
+### Patch-level changes
 
 Convert `MAP` to use a hash table for performance.
 
@@ -317,7 +317,7 @@ Convert `MAP` to use a hash table for performance.
 
 ## 0.4.1
 
-### Patches
+### Patch-level changes
 
 Fix contradiction in specification regarding `FOR`.
 
@@ -329,17 +329,17 @@ Make `TRY` catch `ParseError`.
 
 ## 0.4.0
 
-### Major features
+### Major-level changes
 
 N/A
 
-### Minor features
+### Minor-level changes
 
 Add `NEQ` operator.
 
 Add `-private` mode.
 
-### Patches
+### Patch-level changes
 
 N/A
 
@@ -347,15 +347,15 @@ N/A
 
 ## 0.3.0
 
-### Major features
+### Major-level changes
 
 Make `TNS` and `MAP` atomic.
 
-### Minor features
+### Minor-level changes
 
 N/A
 
-### Patches
+### Patch-level changes
 
 Fix `FUNC` handling in `SIGNATURE`.
 
@@ -363,17 +363,17 @@ Fix `FUNC` handling in `SIGNATURE`.
 
 ## 0.2.0
 
-### Major features
+### Major-level changes
 
 N/A
 
-### Minor features
+### Minor-level changes
 
 Add `FLT` infinities.
 
 Add `FLT` NaN.
 
-### Patches
+### Patch-level changes
 
 N/A
 
