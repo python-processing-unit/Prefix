@@ -705,7 +705,7 @@ Built-in operator names MUST be matched case-sensitively and MUST be written in 
 
 - `BOOL: EXIST(SYMBOL: name)` = MUST return `TRUE` if `name` resolves to a visible readable binding in the current lexical environment chain and `FALSE` otherwise.
 
-- `BOOL: ISBOOL/ISINT/ISFLT/ISSTR/ISTNS(ANY: value)` = MUST return `TRUE` if the runtime type of `value` is respectively `BOOL`, `INT`, `FLT`, `STR`, or `TNS`, and `FALSE` otherwise.
+- `BOOL: ISBOOL/ISINT/ISFLT/ISSTR/ISTNS/ISMAP(ANY: value)` = MUST return `TRUE` if the runtime type of `value` is respectively `BOOL`, `INT`, `FLT`, `STR`, `TNS`, or `MAP`, and `FALSE` otherwise.
 
 - `STR: TYPE(ANY: value)` = MUST return the runtime type name of `value` as a `STR`. For core language values, the result MUST be one of `BOOL`, `INT`, `FLT`, `STR`, `TNS`, `MAP`, `FUNC`, or `THR`. For null or otherwise unrecognized internal values, the result MUST be `NULL`. Extension-defined values MUST report their registered type names.
 
