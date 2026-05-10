@@ -186,6 +186,30 @@ static bool writeback_ptr_range(Interpreter* interp, Expr** arg_nodes, Env* env,
     return true;
 }
 
+// Checked FLT -> INT coercion helper.
+// Returns true and sets *out on success. On failure, sets interp->error
+// and returns false (caller should return value_null()).
+static bool coerce_flt_to_int_checked(Interpreter* interp, double f, int64_t* out, const char* opname, int line, int col) {
+    if (isnan(f) || isinf(f)) {
+        char buf[128];
+        snprintf(buf, sizeof(buf), "%s cannot coerce FLT to INT", opname);
+        interp->error = strdup(buf);
+        interp->error_line = line;
+        interp->error_col = col;
+        return false;
+    }
+    if (f > (double)INT64_MAX || f < (double)INT64_MIN) {
+        char buf[128];
+        snprintf(buf, sizeof(buf), "%s cannot coerce FLT to INT (out of range)", opname);
+        interp->error = strdup(buf);
+        interp->error_line = line;
+        interp->error_col = col;
+        return false;
+    }
+    *out = (int64_t)f;
+    return true;
+}
+
 // --- Encoding helpers ---
 static char* dec_latin1_to_utf8(const unsigned char* buf, size_t sz) {
     size_t outcap = sz * 2 + 1;
@@ -3492,8 +3516,18 @@ static Value builtin_iadd(Interpreter* interp, Value* args, int argc, Expr** arg
     EXPECT_NUM(args[0], "IADD", interp, line, col);
     EXPECT_NUM(args[1], "IADD", interp, line, col);
     
-    int64_t a = args[0].type == VAL_INT ? args[0].as.i : (int64_t)args[0].as.f;
-    int64_t b = args[1].type == VAL_INT ? args[1].as.i : (int64_t)args[1].as.f;
+    int64_t a;
+    if (args[0].type == VAL_INT) {
+        a = args[0].as.i;
+    } else {
+        if (!coerce_flt_to_int_checked(interp, args[0].as.f, &a, "IADD", line, col)) return value_null();
+    }
+    int64_t b;
+    if (args[1].type == VAL_INT) {
+        b = args[1].as.i;
+    } else {
+        if (!coerce_flt_to_int_checked(interp, args[1].as.f, &b, "IADD", line, col)) return value_null();
+    }
     Value result = value_int_base(a + b, result_base_from_values(args[0], args[1]));
     if (!writeback_ptr_range(interp, arg_nodes, env, 0, 2, result, "IADD", line, col)) {
         value_free(result);
@@ -3507,8 +3541,18 @@ static Value builtin_isub(Interpreter* interp, Value* args, int argc, Expr** arg
     EXPECT_NUM(args[0], "ISUB", interp, line, col);
     EXPECT_NUM(args[1], "ISUB", interp, line, col);
     
-    int64_t a = args[0].type == VAL_INT ? args[0].as.i : (int64_t)args[0].as.f;
-    int64_t b = args[1].type == VAL_INT ? args[1].as.i : (int64_t)args[1].as.f;
+    int64_t a;
+    if (args[0].type == VAL_INT) {
+        a = args[0].as.i;
+    } else {
+        if (!coerce_flt_to_int_checked(interp, args[0].as.f, &a, "ISUB", line, col)) return value_null();
+    }
+    int64_t b;
+    if (args[1].type == VAL_INT) {
+        b = args[1].as.i;
+    } else {
+        if (!coerce_flt_to_int_checked(interp, args[1].as.f, &b, "ISUB", line, col)) return value_null();
+    }
     Value result = value_int_base(a - b, result_base_from_values(args[0], args[1]));
     if (!writeback_ptr_range(interp, arg_nodes, env, 0, 2, result, "ISUB", line, col)) {
         value_free(result);
@@ -3522,8 +3566,18 @@ static Value builtin_imul(Interpreter* interp, Value* args, int argc, Expr** arg
     EXPECT_NUM(args[0], "IMUL", interp, line, col);
     EXPECT_NUM(args[1], "IMUL", interp, line, col);
     
-    int64_t a = args[0].type == VAL_INT ? args[0].as.i : (int64_t)args[0].as.f;
-    int64_t b = args[1].type == VAL_INT ? args[1].as.i : (int64_t)args[1].as.f;
+    int64_t a;
+    if (args[0].type == VAL_INT) {
+        a = args[0].as.i;
+    } else {
+        if (!coerce_flt_to_int_checked(interp, args[0].as.f, &a, "IMUL", line, col)) return value_null();
+    }
+    int64_t b;
+    if (args[1].type == VAL_INT) {
+        b = args[1].as.i;
+    } else {
+        if (!coerce_flt_to_int_checked(interp, args[1].as.f, &b, "IMUL", line, col)) return value_null();
+    }
     Value result = value_int_base(a * b, result_base_from_values(args[0], args[1]));
     if (!writeback_ptr_range(interp, arg_nodes, env, 0, 2, result, "IMUL", line, col)) {
         value_free(result);
@@ -3537,8 +3591,18 @@ static Value builtin_idiv(Interpreter* interp, Value* args, int argc, Expr** arg
     EXPECT_NUM(args[0], "IDIV", interp, line, col);
     EXPECT_NUM(args[1], "IDIV", interp, line, col);
     
-    int64_t a = args[0].type == VAL_INT ? args[0].as.i : (int64_t)args[0].as.f;
-    int64_t b = args[1].type == VAL_INT ? args[1].as.i : (int64_t)args[1].as.f;
+    int64_t a;
+    if (args[0].type == VAL_INT) {
+        a = args[0].as.i;
+    } else {
+        if (!coerce_flt_to_int_checked(interp, args[0].as.f, &a, "IDIV", line, col)) return value_null();
+    }
+    int64_t b;
+    if (args[1].type == VAL_INT) {
+        b = args[1].as.i;
+    } else {
+        if (!coerce_flt_to_int_checked(interp, args[1].as.f, &b, "IDIV", line, col)) return value_null();
+    }
     if (b == 0) {
         RUNTIME_ERROR(interp, "Division by zero", line, col);
     }
@@ -3618,8 +3682,18 @@ static Value builtin_ipow(Interpreter* interp, Value* args, int argc, Expr** arg
     EXPECT_NUM(args[0], "IPOW", interp, line, col);
     EXPECT_NUM(args[1], "IPOW", interp, line, col);
     
-    int64_t base = args[0].type == VAL_INT ? args[0].as.i : (int64_t)args[0].as.f;
-    int64_t exp = args[1].type == VAL_INT ? args[1].as.i : (int64_t)args[1].as.f;
+    int64_t base;
+    if (args[0].type == VAL_INT) {
+        base = args[0].as.i;
+    } else {
+        if (!coerce_flt_to_int_checked(interp, args[0].as.f, &base, "IPOW", line, col)) return value_null();
+    }
+    int64_t exp;
+    if (args[1].type == VAL_INT) {
+        exp = args[1].as.i;
+    } else {
+        if (!coerce_flt_to_int_checked(interp, args[1].as.f, &exp, "IPOW", line, col)) return value_null();
+    }
     if (exp < 0) {
         RUNTIME_ERROR(interp, "Negative exponent not supported", line, col);
     }
@@ -3948,8 +4022,11 @@ static Value builtin_conv(Interpreter* interp, Value* args, int argc, Expr** arg
                         if (bias_present && bias_t->length > 0) {
                             Value bv = bias_t->data[oc];
                             if (bv.type == VAL_INT) acc += bv.as.i;
-                            else if (bv.type == VAL_FLT) acc += (int64_t)bv.as.f;
-                            else { value_free(out); RUNTIME_ERROR(interp, "CONV bias must be numeric", line, col); }
+                            else if (bv.type == VAL_FLT) {
+                                int64_t tmp;
+                                if (!coerce_flt_to_int_checked(interp, bv.as.f, &tmp, "CONV", line, col)) { value_free(out); return value_null(); }
+                                acc += tmp;
+                            } else { value_free(out); RUNTIME_ERROR(interp, "CONV bias must be numeric", line, col); }
                         }
                         ot->data[ow * ot->strides[0] + oh * ot->strides[1] + oc * ot->strides[2]] = value_int(acc);
                     } else {
@@ -5009,7 +5086,9 @@ static Value builtin_int(Interpreter* interp, Value* args, int argc, Expr** arg_
     if (args[0].type == VAL_FLT) {
         int b = numeric_base_of(args[0]);
         if (b <= 0) b = 2;
-        return value_int_base((int64_t)args[0].as.f, b);
+        int64_t tmp;
+        if (!coerce_flt_to_int_checked(interp, args[0].as.f, &tmp, "INT", line, col)) return value_null();
+        return value_int_base(tmp, b);
     }
     if (args[0].type == VAL_STR) {
         int64_t val = 0;
@@ -7148,7 +7227,13 @@ static Value builtin_isum(Interpreter* interp, Value* args, int argc, Expr** arg
     int64_t sum = 0;
     for (int i = 0; i < argc; i++) {
         EXPECT_NUM(args[i], "ISUM", interp, line, col);
-        sum += args[i].type == VAL_INT ? args[i].as.i : (int64_t)args[i].as.f;
+        if (args[i].type == VAL_INT) {
+            sum += args[i].as.i;
+        } else {
+            int64_t tmp;
+            if (!coerce_flt_to_int_checked(interp, args[i].as.f, &tmp, "ISUM", line, col)) return value_null();
+            sum += tmp;
+        }
     }
     return value_int(sum);
 }
@@ -7178,7 +7263,13 @@ static Value builtin_iprod(Interpreter* interp, Value* args, int argc, Expr** ar
     int64_t prod = 1;
     for (int i = 0; i < argc; i++) {
         EXPECT_NUM(args[i], "IPROD", interp, line, col);
-        prod *= args[i].type == VAL_INT ? args[i].as.i : (int64_t)args[i].as.f;
+        if (args[i].type == VAL_INT) {
+            prod *= args[i].as.i;
+        } else {
+            int64_t tmp;
+            if (!coerce_flt_to_int_checked(interp, args[i].as.f, &tmp, "IPROD", line, col)) return value_null();
+            prod *= tmp;
+        }
     }
     return value_int(prod);
 }
