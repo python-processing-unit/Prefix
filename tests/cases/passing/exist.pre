@@ -1,16 +1,16 @@
-BOOL: outer = TRUE
-BOOL: declared_only
+BOOL outer = TRUE
+BOOL declared_only
 
-FUNC BOOL: outer_visible(){
+FUNC BOOL outer_visible(){
     RETURN(EXIST(outer))
 }
 
-FUNC BOOL: inner_visible(){
-    BOOL: inner = TRUE
+FUNC BOOL inner_visible(){
+    BOOL inner = TRUE
     RETURN(EXIST(inner))
 }
 
-FUNC BOOL: missing_visible(){
+FUNC BOOL missing_visible(){
     RETURN(EXIST(missing))
 }
 

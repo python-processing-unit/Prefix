@@ -1,4 +1,4 @@
 ! TNS arguments must share the same scalar element type per specification
-TNS: a = [0d1]
-TNS: b = ["x"]
-INT: _ = MAX(a, b)
+TNS a = [0d1]
+TNS b = ["x"]
+INT _ = MAX(a, b)

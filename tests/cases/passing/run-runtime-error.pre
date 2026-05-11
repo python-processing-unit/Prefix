@@ -1,5 +1,5 @@
-INT: step = 0d0
-BOOL: caught = FALSE
+INT step = 0d0
+BOOL caught = FALSE
 
 TRY{
     RUN("step = 0d1; ASSERT(FALSE); step = 0d2")

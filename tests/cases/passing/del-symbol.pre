@@ -1,9 +1,9 @@
-BOOL: symbol = TRUE
+BOOL symbol = TRUE
 ASSERT(EXIST(symbol))
 REFUTE(DEL(symbol))
 REFUTE(EXIST(symbol))
 
-BOOL: deleted_read_failed = FALSE
+BOOL deleted_read_failed = FALSE
 TRY{
 	symbol
 } CATCH {
@@ -11,7 +11,7 @@ TRY{
 }
 ASSERT(deleted_read_failed)
 
-INT: count = 0d1
+INT count = 0d1
 REFUTE(DEL(count))
 count = 0d2
 ASSERT(EQ(count, 0d2))

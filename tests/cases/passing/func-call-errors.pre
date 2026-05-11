@@ -1,14 +1,14 @@
-INT: runtime_errors = 0d0
+INT runtime_errors = 0d0
 
-FUNC INT: accept_int(INT: value){
+FUNC INT accept_int(INT value){
     RETURN(value)
 }
 
-FUNC INT: coerce_int(~INT: value){
+FUNC INT coerce_int(~INT value){
     RETURN(value)
 }
 
-FUNC INT: keyword_only(INT: left, INT: right = 0d0){
+FUNC INT keyword_only(INT left, INT right = 0d0){
     RETURN(ADD(left, right))
 }
 

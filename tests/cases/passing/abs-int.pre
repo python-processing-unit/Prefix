@@ -1,9 +1,9 @@
-INT: pos_dec = 0d5
-INT: neg_dec = -0d5
-INT: neg_hex = -0xA
-INT: hex_val = 0xA
-INT: bin_neg = -0b1010
-INT: zero = 0d0
+INT pos_dec = 0d5
+INT neg_dec = -0d5
+INT neg_hex = -0xA
+INT hex_val = 0xA
+INT bin_neg = -0b1010
+INT zero = 0d0
 
 ASSERT(EQ(ABS(pos_dec), pos_dec))
 ASSERT(EQ(ABS(neg_dec), 0d5))

@@ -12,7 +12,7 @@ try {
   New-Item -ItemType Directory -Path $packageDir | Out-Null
 
   Set-Content -Path $modulePath -Encoding Ascii -Value @'
-FUNC STR: identify(){
+FUNC STR identify(){
     RETURN("module")
 }
 '@

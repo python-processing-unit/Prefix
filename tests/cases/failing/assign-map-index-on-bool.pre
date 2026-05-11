@@ -1,2 +1,2 @@
-BOOL: b = TRUE
+BOOL b = TRUE
 ASSIGN(b<"k">, 0d1)

@@ -7,7 +7,7 @@ try {
   $programPath = Join-Path $tempDir 'program.pre'
 
   Set-Content -Path $programPath -Encoding Ascii -Value @'
-STR: line = INPUT("PROMPT>")
+STR line = INPUT("PROMPT>")
 ASSERT(EQ(line, "alpha"))
 PRINT("DONE=", line)
 '@

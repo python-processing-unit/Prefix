@@ -1,9 +1,9 @@
-FUNC INT: GET_FIVE(){
+FUNC INT GET_FIVE(){
     RETURN(0d5)
 }
 
 THR(worker){}
-MAP: mixed_values = <"bool" = TRUE, "int" = 0d2, "flt" = 0d3.5, "str" = "four", "tns" = [0d1, 0d2], "map" = <"n" = 0d5>, "func" = GET_FIVE, "thr" = worker>
+MAP mixed_values = <"bool" = TRUE, "int" = 0d2, "flt" = 0d3.5, "str" = "four", "tns" = [0d1, 0d2], "map" = <"n" = 0d5>, "func" = GET_FIVE, "thr" = worker>
 
 ASSERT(EQ(mixed_values<"bool">, TRUE))
 ASSERT(EQ(mixed_values<"int">, 0d2))

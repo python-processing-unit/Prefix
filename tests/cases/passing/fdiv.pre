@@ -1,7 +1,7 @@
-INT: a = IADD(0d1, 0d1.0)
-FLT: b = FDIV(0d1.0, 0d1.0)
-FLT: x = 0d1.0
-FLT: y = 0d0.5
-FLT: result_div = FDIV(x, y)
+INT a = IADD(0d1, 0d1.0)
+FLT b = FDIV(0d1.0, 0d1.0)
+FLT x = 0d1.0
+FLT y = 0d0.5
+FLT result_div = FDIV(x, y)
 ASSERT(EQ(result_div, 0d2.0))
-FLT: c = FPOW(-0d1.0, 0d0.5)
+FLT c = FPOW(-0d1.0, 0d0.5)

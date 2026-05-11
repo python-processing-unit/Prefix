@@ -1,4 +1,4 @@
-MAP: m = <0d1 = "int", 0d2.5 = "flt", "three" = "str">
+MAP m = <0d1 = "int", 0d2.5 = "flt", "three" = "str">
 
 ASSERT(KEYIN(0d1, m))
 ASSERT(KEYIN(0d2.5, m))

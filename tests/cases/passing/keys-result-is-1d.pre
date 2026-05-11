@@ -1,5 +1,5 @@
-MAP: m = <"x" = 0d1, "y" = 0d2>
+MAP m = <"x" = 0d1, "y" = 0d2>
 
-TNS: k = KEYS(m)
+TNS k = KEYS(m)
 ASSERT(EQ(TYPE(k), "TNS"))
 ASSERT(EQ(SHAPE(k), [0d2]))

@@ -1,13 +1,13 @@
-FUNC INT: ID(INT: x){
+FUNC INT ID(INT x){
     RETURN(x)
 }
 
-MAP: sample_map = <"n" = 0d5>
-TNS: zero_row = [0d0, 0d0]
-TNS: row = [0d1, 0d2]
+MAP sample_map = <"n" = 0d5>
+TNS zero_row = [0d0, 0d0]
+TNS row = [0d1, 0d2]
 THR(worker){}
 
-TNS: mixed = [TRUE, 0d2, 0d3.5, "four", sample_map, ID, worker, row]
+TNS mixed = [TRUE, 0d2, 0d3.5, "four", sample_map, ID, worker, row]
 
 ASSERT(EQ(mixed[0d1], TRUE))
 ASSERT(EQ(mixed[0d2], 0d2))

@@ -1,6 +1,6 @@
 IMPORT(path)
 
-STR: p = path.TEMPFILE("prefix-writefile-utf8-bom.txt")
+STR p = path.TEMPFILE("prefix-writefile-utf8-bom.txt")
 
 ASSERT(WRITEFILE("Prefix", p, coding = "UTF-8 BOM"))
 ASSERT(EQ(READFILE(p), "Prefix"))

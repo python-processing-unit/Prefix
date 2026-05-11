@@ -1,4 +1,4 @@
-BOOL: branch_taken = FALSE
+BOOL branch_taken = FALSE
 
 IF(MAIN()){
     branch_taken = TRUE

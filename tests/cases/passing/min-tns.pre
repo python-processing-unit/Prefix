@@ -1,4 +1,4 @@
 ! MIN flattens tensors and returns the minimum scalar element (string length for STR)
-TNS: a = [["aa", "b"], ["ccc", "dd"]]
-STR: result = MIN(a)
+TNS a = [["aa", "b"], ["ccc", "dd"]]
+STR result = MIN(a)
 ASSERT(EQ(result, "b"))

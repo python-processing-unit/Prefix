@@ -1,6 +1,6 @@
 ! Primality and factorization functions
 
-FUNC BOOL: IS_PRIME(INT: n){
+FUNC BOOL IS_PRIME(INT n){
     IF(LTE(n, 0d1)){
         RETURN(FALSE)
     }
@@ -11,7 +11,7 @@ FUNC BOOL: IS_PRIME(INT: n){
     IF(EQ(MOD(n, 0d2), 0d0)){
         RETURN(FALSE)
     }
-    INT: i = 0d3
+    INT i = 0d3
     WHILE(LTE(MUL(i, i), n)){
         IF(EQ(MOD(n, i), 0d0)){
             RETURN(FALSE)
@@ -21,8 +21,8 @@ FUNC BOOL: IS_PRIME(INT: n){
     RETURN(TRUE)
 }
 
-FUNC INT: NEXT_PRIME(INT: start){
-    INT: n = ADD(start, 0d1)
+FUNC INT NEXT_PRIME(INT start){
+    INT n = ADD(start, 0d1)
     WHILE(0d1){
         IF(IS_PRIME(n)){
             RETURN(n)
@@ -31,8 +31,8 @@ FUNC INT: NEXT_PRIME(INT: start){
     }
 }
 
-FUNC INT: PREV_PRIME(INT: start){
-    INT: n = SUB(start, 0d1)
+FUNC INT PREV_PRIME(INT start){
+    INT n = SUB(start, 0d1)
     WHILE(GT(n, 0d1)){
         IF(IS_PRIME(n)){
             RETURN(n)
@@ -42,10 +42,10 @@ FUNC INT: PREV_PRIME(INT: start){
     RETURN(0d0)
 }
 
-FUNC BOOL: IS_MERSENNE_PRIME(INT: p){
+FUNC BOOL IS_MERSENNE_PRIME(INT p){
     IF(IS_PRIME(p)){
-        INT: exp = POW(0d2, p)
-        INT: mersenne = SUB(exp, 0d1)
+        INT exp = POW(0d2, p)
+        INT mersenne = SUB(exp, 0d1)
         IF(IS_PRIME(mersenne)){
             RETURN(TRUE)
         }
@@ -55,24 +55,24 @@ FUNC BOOL: IS_MERSENNE_PRIME(INT: p){
     }
 }
 
-FUNC TNS: FACTOR(INT: n){
+FUNC TNS FACTOR(INT n){
     IF(LTE(n, 0d1)){
-        TNS: empty = [0d0]
+        TNS empty = [0d0]
         RETURN(empty)
     }
-    INT: p = 0d2
-    INT: coll_len = 0d0
-    TNS: coll = [0d0]  ! placeholder, real shape tracked by coll_len
+    INT p = 0d2
+    INT coll_len = 0d0
+    TNS coll = [0d0]  ! placeholder, real shape tracked by coll_len
     WHILE(LTE(MUL(p, p), n)){
         IF(EQ(MOD(n, p), 0d0)){
             IF(EQ(coll_len, 0d0)){
-                TNS: first = [p]
+                TNS first = [p]
                 coll = first
                 coll_len = 0d1
             } ELSE {
-                INT: old_len = TLEN(coll, 0d1)
-                INT: new_len = ADD(old_len, 0d1)
-                TNS: new_coll = TNS([new_len], 0d0)
+                INT old_len = TLEN(coll, 0d1)
+                INT new_len = ADD(old_len, 0d1)
+                TNS new_coll = TNS([new_len], 0d0)
                 FOR(i, old_len){
                     new_coll[i] = coll[i]
                 }
@@ -87,13 +87,13 @@ FUNC TNS: FACTOR(INT: n){
     }
     IF(GT(n, 0d1)){
         IF(EQ(coll_len, 0d0)){
-            TNS: last = [n]
+            TNS last = [n]
             coll = last
             coll_len = 0d1
         } ELSE {
-            INT: old_len2 = TLEN(coll, 0d1)
-            INT: new_len2 = ADD(old_len2, 0d1)
-            TNS: new_coll2 = TNS([new_len2], 0d0)
+            INT old_len2 = TLEN(coll, 0d1)
+            INT new_len2 = ADD(old_len2, 0d1)
+            TNS new_coll2 = TNS([new_len2], 0d0)
             FOR(j, old_len2){
                 new_coll2[j] = coll[j]
             }

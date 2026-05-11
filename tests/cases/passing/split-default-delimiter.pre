@@ -1,4 +1,4 @@
-TNS: words = SPLIT("foo bar baz")
+TNS words = SPLIT("foo bar baz")
 
 ASSERT(EQ(TYPE(words), "TNS"))
 ASSERT(EQ(words, ["foo", "bar", "baz"]))

@@ -1,5 +1,5 @@
 ! MAX flattens tensors and returns the maximum scalar element
-TNS: a = [[0d1, 0d2], [-0d3, 0d0]]
-TNS: b = [0d0, 0d4]
-INT: result = MAX(a, b)
+TNS a = [[0d1, 0d2], [-0d3, 0d0]]
+TNS b = [0d0, 0d4]
+INT result = MAX(a, b)
 ASSERT(EQ(result, 0d4))

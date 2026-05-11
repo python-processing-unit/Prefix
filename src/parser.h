@@ -10,6 +10,7 @@ typedef struct {
     Token current_token;
     Token previous_token;
     Token next_token;
+    Token lookahead2_token;
     bool panic_mode;
     bool had_error;
     char* error_msg;

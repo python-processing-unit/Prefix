@@ -1,6 +1,6 @@
 IMPORT(path, helper)
 
-FUNC STR: describe(){
+FUNC STR describe(){
     RETURN("exported")
 }
 

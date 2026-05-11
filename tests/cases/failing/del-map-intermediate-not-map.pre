@@ -1,2 +1,2 @@
-MAP: value = <"branch" = 0d1>
+MAP value = <"branch" = 0d1>
 DEL(value<"branch", "leaf">)

@@ -9,15 +9,15 @@ try {
   $modulePath = Join-Path $tempDir "$moduleName.pre"
 
   Set-Content -Path $modulePath -Encoding Ascii -Value @'
-INT: shared = 0d7
+INT shared = 0d7
 
-FUNC INT: read_shared(){
+FUNC INT read_shared(){
     RETURN(shared)
 }
 '@
 
   Set-Content -Path $programPath -Encoding Ascii -Value @"
-INT: shared = 0d11
+INT shared = 0d11
 
 IMPORT($moduleName, helper)
 

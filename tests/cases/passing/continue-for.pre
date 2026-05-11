@@ -1,4 +1,4 @@
-INT: total = 0d0
+INT total = 0d0
 FOR(i, 0d4){
     IF(EQ(i, 0d2)){
         CONTINUE()

@@ -1,3 +1,3 @@
 ! Passing integer arithmetic, checking coercion and correct logic
-INT: result_root = IROOT(0d16, 0d2)
+INT result_root = IROOT(0d16, 0d2)
 ASSERT(EQ(result_root, 0d4))

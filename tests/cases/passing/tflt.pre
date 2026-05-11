@@ -1,5 +1,5 @@
-TNS: source = [[TRUE, FALSE, 0d7, -0b11, 0d1.75, -0d1.75], ["0d2.5", "-0d3.25", "0d0.5", "INF", "-INF", "NaN"]]
-TNS: converted = TFLT(source)
+TNS source = [[TRUE, FALSE, 0d7, -0b11, 0d1.75, -0d1.75], ["0d2.5", "-0d3.25", "0d0.5", "INF", "-INF", "NaN"]]
+TNS converted = TFLT(source)
 ASSERT(EQ(TYPE(converted), "TNS"))
 ASSERT(EQ(converted[0d1], [0d1.0, 0d0.0, 0d7.0, -0d3.0, 0d1.75, -0d1.75]))
 ASSERT(EQ(converted[0d2, 0d1], 0d2.5))

@@ -1,10 +1,10 @@
-INT: exact_hex = 0x64
-INT: floor_dec = 0d17
-INT: zero_hex = 0x0
-INT: unit_hex = 0x1
-INT: root_dec = 0d2
-INT: root_hex = 0x2
-INT: neg_one_dec = -0d1
+INT exact_hex = 0x64
+INT floor_dec = 0d17
+INT zero_hex = 0x0
+INT unit_hex = 0x1
+INT root_dec = 0d2
+INT root_hex = 0x2
+INT neg_one_dec = -0d1
 
 ASSERT(EQ(ROOT(exact_hex, root_dec), 0xA))
 ASSERT(ISINT(ROOT(exact_hex, root_dec)))

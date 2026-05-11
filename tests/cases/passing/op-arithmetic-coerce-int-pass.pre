@@ -1,19 +1,19 @@
 ! Passing integer arithmetic, checking coercion and correct logic
-INT: result_add_1 = IADD(0d10, 0d5)
-INT: result_add_2 = IADD(0d10.5, 0d5.2) ! Coerces to integers before/after?
+INT result_add_1 = IADD(0d10, 0d5)
+INT result_add_2 = IADD(0d10.5, 0d5.2) ! Coerces to integers before/after?
 ASSERT(EQ(result_add_1, 0d15))
 
-INT: result_sub = ISUB(0d10, 0d2.0)
+INT result_sub = ISUB(0d10, 0d2.0)
 ASSERT(EQ(result_sub, 0d8))
 
-INT: result_mul = IMUL(0d4, 0d5)
+INT result_mul = IMUL(0d4, 0d5)
 ASSERT(EQ(result_mul, 0d20))
 
-INT: result_div = IDIV(0d20, 0d4)
+INT result_div = IDIV(0d20, 0d4)
 ASSERT(EQ(result_div, 0d5))
 
-INT: result_pow = IPOW(0d2, 0d3)
+INT result_pow = IPOW(0d2, 0d3)
 ASSERT(EQ(result_pow, 0d8))
 
-INT: result_root = IROOT(0d16, 0d2)
+INT result_root = IROOT(0d16, 0d2)
 ASSERT(EQ(result_root, 0d4))

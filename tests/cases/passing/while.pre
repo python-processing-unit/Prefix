@@ -1,4 +1,4 @@
-INT: c = 0d0
+INT c = 0d0
 WHILE(LT(c, 0d10)){
     ADD(@c, 0d1)
 }

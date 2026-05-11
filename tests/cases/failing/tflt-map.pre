@@ -1,2 +1,2 @@
-MAP: bad = <>
+MAP bad = <>
 TFLT([0d1, bad])

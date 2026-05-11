@@ -1,6 +1,6 @@
-BOOL: reached_end = FALSE
+BOOL reached_end = FALSE
 
-THR: stopped = STOP(ASYNC{
+THR stopped = STOP(ASYNC{
     FOR(i, 0d100000){}
     reached_end = TRUE
 })

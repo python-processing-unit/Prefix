@@ -1,7 +1,7 @@
-FLT: left_oct = 0o7.0
-FLT: right_hex = 0x2.0
-FLT: wide_oct = 0o5.0
-FLT: right_hex_frac = 0x1.8
+FLT left_oct = 0o7.0
+FLT right_hex = 0x2.0
+FLT wide_oct = 0o5.0
+FLT right_hex_frac = 0x1.8
 
 ASSERT(EQ(MOD(left_oct, right_hex), 0x1.0))
 ASSERT(EQ(BASE(MOD(left_oct, right_hex)), 0d16))

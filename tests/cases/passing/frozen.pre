@@ -1,4 +1,4 @@
-BOOL: normal_value = TRUE
+BOOL normal_value = TRUE
 REFUTE(FROZEN(normal_value))
 
 REFUTE(FREEZE(normal_value))

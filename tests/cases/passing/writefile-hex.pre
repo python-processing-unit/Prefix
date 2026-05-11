@@ -1,6 +1,6 @@
 IMPORT(path)
 
-STR: p = path.TEMPFILE("prefix-writefile-hex.bin")
+STR p = path.TEMPFILE("prefix-writefile-hex.bin")
 
 ASSERT(WRITEFILE("507265666978", p, coding = "hex"))
 ASSERT(EQ(READFILE(p), "Prefix"))

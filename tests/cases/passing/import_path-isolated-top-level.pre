@@ -1,9 +1,9 @@
 IMPORT(path)
 
-STR: tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
-STR: helper_path = JOIN(tests_dir, "/helpers/import_path_isolated_target.pre")
+STR tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
+STR helper_path = JOIN(tests_dir, "/helpers/import_path_isolated_target.pre")
 
-INT: shared = 0d11
+INT shared = 0d11
 
 REFUTE(IMPORT_PATH(helper_path, helper))
 ASSERT(EQ(helper.read_shared(), 0d7))

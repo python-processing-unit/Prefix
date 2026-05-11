@@ -2,7 +2,7 @@ $helperPath = Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) 
 . $helperPath
 
 $input = @'
-FUNC STR: hello(){
+FUNC STR hello(){
 RETURN("hi")
 }
 PRINT(hello())

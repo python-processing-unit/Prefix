@@ -1,4 +1,4 @@
-FUNC BOOL: explode(){
+FUNC BOOL explode(){
     THROW("boom")
 }
 

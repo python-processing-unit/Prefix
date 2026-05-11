@@ -1,7 +1,7 @@
 IMPORT(path)
 
-STR: tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
-STR: helper_path = JOIN(tests_dir, "/helpers/extend_core_once.pre")
+STR tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
+STR helper_path = JOIN(tests_dir, "/helpers/extend_core_once.pre")
 
 REFUTE(IMPORT_PATH(helper_path, helper))
 ASSERT(EQ(TST_EXT_ASMODULE_ONLY(), "asmodule-global"))

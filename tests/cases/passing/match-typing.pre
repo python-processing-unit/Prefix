@@ -1,4 +1,4 @@
-MAP: candidate = <"value" = 0d1, "other" = "text">
+MAP candidate = <"value" = 0d1, "other" = "text">
 
 ASSERT(MATCH(candidate, <"value" = "1">))
 ASSERT(MATCH(candidate, <"value" = 0d99>, typing = 0d1))

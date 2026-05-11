@@ -11,7 +11,7 @@ try {
   $modulePath = Join-Path $tempDir "$moduleName.pre"
 
   Set-Content -Path $modulePath -Encoding Ascii -Value @"
-STR: marker = "$markerLiteral"
+STR marker = "$markerLiteral"
 
 IF(EXISTFILE(marker)){
     WRITEFILE("reloaded", marker)
@@ -19,7 +19,7 @@ IF(EXISTFILE(marker)){
     WRITEFILE("loaded", marker)
 }
 
-FUNC STR: marker_text(){
+FUNC STR marker_text(){
     RETURN(READFILE(marker))
 }
 "@

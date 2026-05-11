@@ -1,6 +1,6 @@
-INT: left_dec = 0d2
-INT: right_bin = 0b11
-INT: wide_hex = 0x10
+INT left_dec = 0d2
+INT right_bin = 0b11
+INT wide_hex = 0x10
 
 ASSERT(EQ(ADD(left_dec, right_bin), 0d5))
 ASSERT(EQ(BASE(ADD(left_dec, right_bin)), 0d10))

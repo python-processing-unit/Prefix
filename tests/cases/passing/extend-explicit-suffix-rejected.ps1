@@ -13,7 +13,7 @@ try {
   Copy-Item -Path $coreExtension -Destination $stagedExtension -Force
 
   Set-Content -Path $programPath -Encoding Ascii -Value @"
-BOOL: loaded = EXTEND($extensionSpecifier)
+BOOL loaded = EXTEND($extensionSpecifier)
 REFUTE(loaded)
 "@
 

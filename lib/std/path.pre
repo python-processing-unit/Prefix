@@ -1,47 +1,47 @@
 ! Path utilities for Prefix
 
-FUNC STR: NORMALIZE_PATH(STR: path){
+FUNC STR NORMALIZE_PATH(STR path){
     RETURN(REPLACE(path,"\\","/"))
 }
 
-FUNC STR: WINPATH(STR: path){
+FUNC STR WINPATH(STR path){
     RETURN(REPLACE(path,"/","\\"))
 }
 
-FUNC STR: BASEPATH(STR: path){ ! returns directory portion of path
-    STR: npath = NORMALIZE_PATH(path)
-    STR: base = BASENAME(npath)
+FUNC STR BASEPATH(STR path){ ! returns directory portion of path
+    STR npath = NORMALIZE_PATH(path)
+    STR base = BASENAME(npath)
     IF(EQ(base, "")){
         RETURN("")
     }
-    STR: dir = REPLACE(npath, JOIN("/", base), "")
+    STR dir = REPLACE(npath, JOIN("/", base), "")
     POP(dir)
 }
 
-FUNC STR: BASENAME(STR: path){ ! returns filename portion of path
-    TNS: tpath = SPLIT(NORMALIZE_PATH(path), "/")
-    STR: basename = tpath[MAX(TLEN(tpath, 0d1), 0d1)]
+FUNC STR BASENAME(STR path){ ! returns filename portion of path
+    TNS tpath = SPLIT(NORMALIZE_PATH(path), "/")
+    STR basename = tpath[MAX(TLEN(tpath, 0d1), 0d1)]
     DEL(tpath)
     POP(basename)
 }
 
-FUNC TNS: SPLITEXT(STR: path){ ! returns [name without ext, ext]
-    STR: npath = NORMALIZE_PATH(path)
-    STR: base = BASENAME(npath)
-    STR: dir = BASEPATH(npath)
-    TNS: parts = SPLIT(base, ".")
+FUNC TNS SPLITEXT(STR path){ ! returns [name without ext, ext]
+    STR npath = NORMALIZE_PATH(path)
+    STR base = BASENAME(npath)
+    STR dir = BASEPATH(npath)
+    TNS parts = SPLIT(base, ".")
     ! If there is no dot, return the path unchanged and empty ext
     IF(EQ(TLEN(parts, 0d1), 0d1)){
         DEL(base)
-        TNS: result = [npath, ""]
+        TNS result = [npath, ""]
         POP(result)
     }
     ! Extension is the last segment (1-based indexing)
-    STR: ext = parts[ TLEN(parts, 0d1) ]
+    STR ext = parts[ TLEN(parts, 0d1) ]
     ! Name is base without the final "." + ext suffix
-    STR: name = REPLACE(base, JOIN(".", ext), "")
+    STR name = REPLACE(base, JOIN(".", ext), "")
     DEL(parts)
-    STR: delex = ""
+    STR delex = ""
     IF(EQ(dir, "")){
         delex = name
     } ELSE {
@@ -53,39 +53,39 @@ FUNC TNS: SPLITEXT(STR: path){ ! returns [name without ext, ext]
     }
     DEL(dir)
     DEL(name)
-    TNS: result = [delex, ext]
+    TNS result = [delex, ext]
     POP(result)
 }
 
-FUNC STR: EXTNAME(STR: path){ ! returns extension portion of path
+FUNC STR EXTNAME(STR path){ ! returns extension portion of path
     RETURN(SPLITEXT(path)[0d2])
 }
 
-FUNC STR: DELEXT(STR: path){ ! returns path without extension
+FUNC STR DELEXT(STR path){ ! returns path without extension
     RETURN(SPLITEXT(path)[0d1])
 }
 
-FUNC STR: TEMPFILE(STR: local_path){
+FUNC STR TEMPFILE(STR local_path){
     IF(EQ(OS(),"win")){
-        STR: temp = "C:/Windows/Temp/"
+        STR temp = "C:/Windows/Temp/"
     } ELSEIF(EQ(OS(),"mac")){
         THROW("TEMPFILE not implemented for macOS yet")
         ! per-user temp dirs on macOS are more complex
         ! add later
     } ELSE {
-        STR: temp = "/tmp/"
+        STR temp = "/tmp/"
     }
-    STR: final_path = JOIN(temp, local_path)
+    STR final_path = JOIN(temp, local_path)
     DEL(temp)
     POP(final_path)
 }
 
-STR: interpreter = ARGV()[0d1]
-STR: interpreter_dir = NORMALIZE_PATH(BASEPATH(ARGV()[0d1]))
+STR interpreter = ARGV()[0d1]
+STR interpreter_dir = NORMALIZE_PATH(BASEPATH(ARGV()[0d1]))
 IF(GTE(TLEN(ARGV(), 0d1), 0d2)){
-    STR: script = ARGV()[0d2]
-    STR: script_dir = NORMALIZE_PATH(BASEPATH(ARGV()[0d2]))
+    STR script = ARGV()[0d2]
+    STR script_dir = NORMALIZE_PATH(BASEPATH(ARGV()[0d2]))
 } ELSE {
-    STR: script = ""
-    STR: script_dir = ""
+    STR script = ""
+    STR script_dir = ""
 }

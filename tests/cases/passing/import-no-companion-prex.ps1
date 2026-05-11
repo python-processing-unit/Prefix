@@ -10,7 +10,7 @@ try {
   $pointerPath = Join-Path $tempDir "$moduleName.prex"
 
   Set-Content -Path $modulePath -Encoding Ascii -Value @'
-FUNC STR: identify(){
+FUNC STR identify(){
     RETURN("source")
 }
 '@

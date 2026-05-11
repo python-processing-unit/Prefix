@@ -33,12 +33,14 @@ void parser_init(Parser* parser, Lexer* lexer) {
     parser->error_col = 0;
     parser->current_token = lexer_next_token(parser->lexer);
     parser->next_token = lexer_next_token(parser->lexer);
+    parser->lookahead2_token = lexer_next_token(parser->lexer);
 }
 
 static void advance(Parser* parser) {
     parser->previous_token = parser->current_token;
     parser->current_token = parser->next_token;
-    parser->next_token = lexer_next_token(parser->lexer);
+    parser->next_token = parser->lookahead2_token;
+    parser->lookahead2_token = lexer_next_token(parser->lexer);
 
     /* If the lexer produced an error token, report it and advance until
        we reach a non-error token. Use a loop instead of recursion so the
@@ -50,7 +52,8 @@ static void advance(Parser* parser) {
 
         parser->previous_token = parser->current_token;
         parser->current_token = parser->next_token;
-        parser->next_token = lexer_next_token(parser->lexer);
+        parser->next_token = parser->lookahead2_token;
+        parser->lookahead2_token = lexer_next_token(parser->lexer);
     }
 }
 
@@ -86,6 +89,159 @@ static DeclType parse_type_name(const char* name) {
     if (strcmp(name, "THR") == 0) return TYPE_THR;
     if (strcmp(name, "TNS") == 0) return TYPE_TNS;
     return TYPE_UNKNOWN;
+}
+
+static const char* k_type_name_gap_error = "Type annotations require one or more spaces between type and name";
+
+static size_t token_source_width(const Token* token) {
+    if (!token) return 0;
+    if (token->literal) return strlen(token->literal);
+
+    switch (token->type) {
+        case TOKEN_FUNC: return 4;
+        case TOKEN_THR: return 3;
+        default: return 0;
+    }
+}
+
+static bool require_space_only_gap(Parser* parser, const Token* left, const Token* right, const char* message) {
+    char* line_text;
+    size_t line_len;
+    size_t left_width;
+    int gap_start_col;
+    int gap_end_col;
+
+    if (!left || !right || right->type != TOKEN_IDENT) {
+        report_error(parser, message);
+        return false;
+    }
+    /* If tokens are on different physical lines, allow that only when the
+       characters between them in the raw source consist solely of spaces and
+       valid line-continuation sequences (caret followed by a newline or a
+       caret immediately before a comment). This implements the language's
+       caret continuation semantics so declarations split across physical
+       lines can still be treated as a single logical line. */
+    if (left->line != right->line) {
+        Lexer* lexer = parser->lexer;
+        if (!lexer || !lexer->source) {
+            report_error(parser, message);
+            return false;
+        }
+
+        left_width = token_source_width(left);
+        if (left_width == 0) {
+            report_error(parser, message);
+            return false;
+        }
+
+        /* Compute absolute offsets for the end of the left token and the
+           start of the right token by scanning to each line start. */
+        size_t idx = 0;
+        int cur_line = 1;
+        while (idx < lexer->source_len && cur_line < left->line) {
+            if (lexer->source[idx] == '\n') cur_line++;
+            idx++;
+        }
+        if (cur_line != left->line) { report_error(parser, message); return false; }
+        size_t left_line_start = idx;
+        size_t left_start_offset = left_line_start + (size_t)((left->column > 0) ? (left->column - 1) : 0);
+        size_t left_end_offset = left_start_offset + left_width;
+
+        idx = 0; cur_line = 1;
+        while (idx < lexer->source_len && cur_line < right->line) {
+            if (lexer->source[idx] == '\n') cur_line++;
+            idx++;
+        }
+        if (cur_line != right->line) { report_error(parser, message); return false; }
+        size_t right_line_start = idx;
+        size_t right_start_offset = right_line_start + (size_t)((right->column > 0) ? (right->column - 1) : 0);
+
+        if (right_start_offset <= left_end_offset) { report_error(parser, message); return false; }
+
+        /* Walk the raw source between the two token offsets and accept only
+           spaces and valid caret-continuation sequences. */
+        size_t pos = left_end_offset;
+        while (pos < right_start_offset) {
+            char ch = lexer->source[pos];
+            if (ch == ' ') { pos++; continue; }
+
+            if (ch == '^') {
+                /* Must match the same rules as the lexer: '^' followed by LF,
+                   CR (optionally CRLF), or '!' (a comment) is a valid
+                   continuation. Anything else is invalid here. */
+                if (pos + 1 >= lexer->source_len) { report_error(parser, message); return false; }
+                char next = lexer->source[pos + 1];
+                if (next == '\n') { pos += 2; continue; }
+                if (next == '\r') { pos += 2; if (pos < lexer->source_len && lexer->source[pos] == '\n') pos++; continue; }
+                if (next == '!') {
+                    /* Skip '!' and the comment text until the line terminator. */
+                    pos += 2;
+                    while (pos < lexer->source_len && lexer->source[pos] != '\n' && lexer->source[pos] != '\r') pos++;
+                    if (pos < lexer->source_len) {
+                        if (lexer->source[pos] == '\r') { pos++; if (pos < lexer->source_len && lexer->source[pos] == '\n') pos++; }
+                        else if (lexer->source[pos] == '\n') pos++;
+                    }
+                    continue;
+                }
+
+                report_error(parser, message);
+                return false;
+            }
+
+            /* Any other character (including tabs or plain newlines) is invalid
+               as a gap between type and name. */
+            report_error(parser, message);
+            return false;
+        }
+
+        return true;
+    }
+
+    left_width = token_source_width(left);
+    if (left_width == 0) {
+        report_error(parser, message);
+        return false;
+    }
+
+    gap_start_col = left->column + (int)left_width;
+    gap_end_col = right->column - 1;
+    if (gap_end_col < gap_start_col) {
+        report_error(parser, message);
+        return false;
+    }
+
+    line_text = lexer_get_line(parser->lexer, left->line);
+    if (!line_text) {
+        report_error(parser, message);
+        return false;
+    }
+
+    line_len = strlen(line_text);
+    if ((size_t)gap_end_col > line_len) {
+        free(line_text);
+        report_error(parser, message);
+        return false;
+    }
+
+    for (int col = gap_start_col; col <= gap_end_col; col++) {
+        if (line_text[col - 1] != ' ') {
+            free(line_text);
+            report_error(parser, message);
+            return false;
+        }
+    }
+
+    free(line_text);
+    return true;
+}
+
+static bool advance_to_annotated_name(Parser* parser, const char* message) {
+    if (!require_space_only_gap(parser, &parser->current_token, &parser->next_token, message)) {
+        return false;
+    }
+
+    advance(parser);
+    return true;
 }
 
 static int base_from_literal_prefix(const char* s, size_t* prefix_len) {
@@ -208,6 +364,17 @@ static bool is_type_token(PTokenType type) {
     return type == TOKEN_IDENT || type == TOKEN_FUNC || type == TOKEN_THR;
 }
 
+static bool starts_named_type_annotation(Parser* parser) {
+    return is_type_token(parser->current_token.type) &&
+           (parser->next_token.type == TOKEN_IDENT || parser->next_token.type == TOKEN_COLON);
+}
+
+static bool looks_like_func_definition(Parser* parser) {
+    return parser->current_token.type == TOKEN_FUNC &&
+           is_type_token(parser->next_token.type) &&
+           (parser->lookahead2_token.type == TOKEN_IDENT || parser->lookahead2_token.type == TOKEN_COLON);
+}
+
 static bool parse_param_list(Parser* parser, ParamList* params) {
     if (parser->current_token.type == TOKEN_RPAREN) return true;
     do {
@@ -221,10 +388,7 @@ static bool parse_param_list(Parser* parser, ParamList* params) {
             return false;
         }
         DeclType ptype = parse_type_name(parser->current_token.literal);
-        advance(parser);
-        consume(parser, TOKEN_COLON, "Expected ':' after parameter type");
-        if (parser->current_token.type != TOKEN_IDENT) {
-            report_error(parser, "Expected parameter name");
+        if (!advance_to_annotated_name(parser, k_type_name_gap_error)) {
             return false;
         }
         Param param;
@@ -245,10 +409,7 @@ static bool parse_param_list(Parser* parser, ParamList* params) {
 static Expr* parse_typed_ident_expr(Parser* parser) {
     Token type_tok = parser->current_token;
     DeclType dtype = parse_type_name(type_tok.literal);
-    advance(parser);
-    consume(parser, TOKEN_COLON, "Expected ':' after type");
-    if (parser->current_token.type != TOKEN_IDENT) {
-        report_error(parser, "Expected identifier name");
+    if (!advance_to_annotated_name(parser, k_type_name_gap_error)) {
         return NULL;
     }
     char* name = parser->current_token.literal;
@@ -501,7 +662,7 @@ static Expr* parse_call(Parser* parser) {
                         call->as.call.args.count == 0 &&
                         call->as.call.kw_count == 0 &&
                         is_type_token(parser->current_token.type) &&
-                        parser->next_token.type == TOKEN_COLON;
+                        (parser->next_token.type == TOKEN_IDENT || parser->next_token.type == TOKEN_COLON);
 
                     bool is_extend_specifier =
                         call->as.call.callee->type == EXPR_IDENT &&
@@ -752,17 +913,13 @@ static Stmt* parse_try(Parser* parser) {
 static Stmt* parse_func(Parser* parser) {
     Token tok = parser->current_token;
     consume(parser, TOKEN_FUNC, "Expected 'FUNC'");
-    /* FUNC R: name( params ) { body } */
+    /* FUNC R name( params ) { body } */
     if (!is_type_token(parser->current_token.type)) {
         report_error(parser, "Expected return type after FUNC");
         return NULL;
     }
     DeclType ret = parse_type_name(parser->current_token.literal);
-    advance(parser);
-    consume(parser, TOKEN_COLON, "Expected ':' after return type");
-
-    if (parser->current_token.type != TOKEN_IDENT) {
-        report_error(parser, "Expected function name");
+    if (!advance_to_annotated_name(parser, k_type_name_gap_error)) {
         return NULL;
     }
     char* name = parser->current_token.literal;
@@ -780,18 +937,19 @@ static Stmt* parse_func(Parser* parser) {
 
 static Stmt* parse_statement(Parser* parser) {
     skip_newlines(parser);
-    // Handle typed declarations where the type token may be a keyword like THR
-    if ((parser->current_token.type == TOKEN_IDENT || parser->current_token.type == TOKEN_THR || parser->current_token.type == TOKEN_FUNC) && parser->next_token.type == TOKEN_COLON) {
+    if (looks_like_func_definition(parser)) {
+        return parse_func(parser);
+    }
+
+    // Handle typed declarations where the type token may be a keyword like THR.
+    if (starts_named_type_annotation(parser)) {
         Token type_tok = parser->current_token;
-        advance(parser);
-        consume(parser, TOKEN_COLON, "Expected ':' after type");
-        if (parser->current_token.type != TOKEN_IDENT) {
-            report_error(parser, "Expected identifier name");
+        DeclType dtype = parse_type_name(type_tok.literal);
+        if (!advance_to_annotated_name(parser, k_type_name_gap_error)) {
             return NULL;
         }
         char* name = parser->current_token.literal;
         advance(parser);
-        DeclType dtype = parse_type_name(type_tok.literal);
         // Support typed declaration with indexed-assignment target, e.g. `TNS: t[1-10] = ...`
         if (parser->current_token.type == TOKEN_LBRACKET || parser->current_token.type == TOKEN_LANGLE) {
             // construct base identifier expr and parse trailing indexers
@@ -992,17 +1150,14 @@ static Stmt* parse_statement(Parser* parser) {
             break;
     }
 
-    if ((parser->current_token.type == TOKEN_IDENT || parser->current_token.type == TOKEN_THR || parser->current_token.type == TOKEN_FUNC) && parser->next_token.type == TOKEN_COLON) {
+    if (starts_named_type_annotation(parser)) {
         Token type_tok = parser->current_token;
-        advance(parser);
-        consume(parser, TOKEN_COLON, "Expected ':' after type");
-        if (parser->current_token.type != TOKEN_IDENT) {
-            report_error(parser, "Expected identifier name");
+        DeclType dtype = parse_type_name(type_tok.literal);
+        if (!advance_to_annotated_name(parser, k_type_name_gap_error)) {
             return NULL;
         }
         char* name = parser->current_token.literal;
         advance(parser);
-        DeclType dtype = parse_type_name(type_tok.literal);
         if (match(parser, TOKEN_EQUALS)) {
             Expr* expr = parse_expression(parser);
             if (!expr) return NULL;

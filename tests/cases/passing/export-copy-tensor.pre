@@ -1,11 +1,11 @@
 IMPORT(path)
 
-STR: tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
-STR: helper_path = JOIN(tests_dir, "/helpers/export_target.pre")
+STR tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
+STR helper_path = JOIN(tests_dir, "/helpers/export_target.pre")
 
 REFUTE(IMPORT_PATH(helper_path, helper))
 
-TNS: tensor = [0d5, 0d6]
+TNS tensor = [0d5, 0d6]
 REFUTE(EXPORT(tensor, helper))
 
 tensor[0d1] = 0d8

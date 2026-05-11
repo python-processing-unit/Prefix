@@ -6572,45 +6572,25 @@ static Value builtin_signature(Interpreter* interp, Value* args, int argc, Expr*
     if (entry && entry->initialized) {
         if (entry->value.type == VAL_FUNC && entry->value.as.func != NULL) {
             struct Func* f = entry->value.as.func;
-            // Build signature in the canonical form: "FUNC R: name(T1: arg1, ... )"
+            // Build signature in the canonical form: "R name(T1 arg1, ...)"
             size_t cap = 512;
             char* buf = malloc(cap);
             if (!buf) RUNTIME_ERROR(interp, "Out of memory", line, col);
             buf[0] = '\0';
-            const char* rname = "ANY";
-            switch (f->return_type) {
-                case TYPE_BOOL: rname = "BOOL"; break;
-                case TYPE_INT: rname = "INT"; break;
-                case TYPE_FLT: rname = "FLT"; break;
-                case TYPE_STR: rname = "STR"; break;
-                case TYPE_TNS: rname = "TNS"; break;
-                case TYPE_MAP: rname = "MAP"; break;
-                case TYPE_FUNC: rname = "FUNC"; break;
-                case TYPE_THR: rname = "THR"; break;
-                default: rname = "ANY"; break;
-            }
+            const char* rname = decl_type_name(f->return_type);
+            if (strcmp(rname, "UNKNOWN") == 0) rname = "ANY";
             strcat(buf, rname);
-            strcat(buf, ": ");
+            strcat(buf, " ");
             strcat(buf, f->name ? f->name : name);
             strcat(buf, "(");
             for (size_t i = 0; i < f->params.count; i++) {
                 Param p = f->params.items[i];
-                const char* tname = "UNKNOWN";
-                switch (p.type) {
-                    case TYPE_BOOL: tname = "BOOL"; break;
-                    case TYPE_INT: tname = "INT"; break;
-                    case TYPE_FLT: tname = "FLT"; break;
-                    case TYPE_STR: tname = "STR"; break;
-                    case TYPE_TNS: tname = "TNS"; break;
-                    case TYPE_MAP: tname = "MAP"; break;
-                    case TYPE_FUNC: tname = "FUNC"; break;
-                    case TYPE_THR: tname = "THR"; break;
-                    default: tname = "ANY"; break;
-                }
+                const char* tname = decl_type_name(p.type);
+                if (strcmp(tname, "UNKNOWN") == 0) tname = "ANY";
                 if (i > 0) strcat(buf, ", ");
                 if (p.coerced) strcat(buf, "~");
                 strcat(buf, tname);
-                strcat(buf, ": ");
+                strcat(buf, " ");
                 strcat(buf, p.name ? p.name : "");
                 if (p.default_value != NULL) {
                     Value dv = eval_expr(interp, p.default_value, f->closure);
@@ -6649,7 +6629,7 @@ static Value builtin_signature(Interpreter* interp, Value* args, int argc, Expr*
         }
     }
 
-    // Non-function: return "TYPE: name" using declared type if available
+    // Non-function: return "TYPE name" using declared type if available
     if (!entry) {
         RUNTIME_ERROR(interp, "SIGNATURE: identifier not found or uninitialized", line, col);
     }
@@ -6668,7 +6648,7 @@ static Value builtin_signature(Interpreter* interp, Value* args, int argc, Expr*
     size_t len = strlen(tname) + 2 + strlen(name) + 1;
     char* res = malloc(len + 1);
     if (!res) RUNTIME_ERROR(interp, "Out of memory", line, col);
-    snprintf(res, len + 1, "%s: %s", tname, name);
+    snprintf(res, len + 1, "%s %s", tname, name);
     Value out = value_str(res);
     free(res);
     return out;

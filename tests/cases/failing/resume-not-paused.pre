@@ -1,4 +1,4 @@
-THR: worker = ASYNC{
+THR worker = ASYNC{
     FOR(i, 0d100000){}
 }
 

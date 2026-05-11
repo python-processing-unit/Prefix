@@ -1,4 +1,4 @@
-TNS: v = [0d10, 0d20, 0d30, 0d40]
+TNS v = [0d10, 0d20, 0d30, 0d40]
 
 ASSERT(EQ(TYPE(SHAPE(v)), "TNS"))
 ASSERT(EQ(SHAPE(v), [0d4]))

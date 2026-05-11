@@ -1,4 +1,4 @@
-MAP: src = <"left" = "x", "right" = "y">
+MAP src = <"left" = "x", "right" = "y">
 
 INV(src)
 

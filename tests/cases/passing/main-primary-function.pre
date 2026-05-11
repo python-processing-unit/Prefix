@@ -1,4 +1,4 @@
-FUNC BOOL: from_primary_function(){
+FUNC BOOL from_primary_function(){
     RETURN(MAIN())
 }
 

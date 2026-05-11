@@ -1,4 +1,4 @@
-FLT: flt_value = 0d1.5
+FLT flt_value = 0d1.5
 
 ASSERT(EQ(CONVERT(flt_value, 0b10), 0b1.1))
 ASSERT(EQ(BASE(CONVERT(flt_value, 0b10)), 0d2))

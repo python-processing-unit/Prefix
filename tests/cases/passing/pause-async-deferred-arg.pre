@@ -1,6 +1,6 @@
-BOOL: released = FALSE
+BOOL released = FALSE
 
-THR: paused = PAUSE(ASYNC{
+THR paused = PAUSE(ASYNC{
     WHILE(NOT(released)){}
 }, seconds = 0d0.05)
 

@@ -1,4 +1,4 @@
-TNS: out = CONV([0d7], [0d1])
+TNS out = CONV([0d7], [0d1])
 
 ASSERT(EQ(out, [0d7]))
 ASSERT(EQ(TYPE(out[0d1]), "INT"))

@@ -1,2 +1,2 @@
-MAP: m = <"a" = 0d1>
+MAP m = <"a" = 0d1>
 ASSIGN(m[0d1], 0d2)

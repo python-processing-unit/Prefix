@@ -1,5 +1,5 @@
-TNS: seen = [0d0, 0d0, 0d0]
-BOOL: caught = FALSE
+TNS seen = [0d0, 0d0, 0d0]
+BOOL caught = FALSE
 
 TRY{
     PARFOR(i, 0d3){

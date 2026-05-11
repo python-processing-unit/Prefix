@@ -1,5 +1,5 @@
 ! FPROD result uses the highest numeric base present among operands
-FLT: result = FPROD(0d2, 0x3.0)
+FLT result = FPROD(0d2, 0x3.0)
 
 ASSERT(EQ(result, 0x6.0))
 ASSERT(EQ(BASE(result), 0d16))

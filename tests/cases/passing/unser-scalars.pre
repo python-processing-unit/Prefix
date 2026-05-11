@@ -1,6 +1,6 @@
 ASSERT(EQ(UNSER('\R{"t":"BOOL","v":true}'), TRUE))
 
-STR: spaced_false = JOIN("\n  ", '\R{"t":"BOOL","v":false}', "\r\t")
+STR spaced_false = JOIN("\n  ", '\R{"t":"BOOL","v":false}', "\r\t")
 ASSERT(EQ(UNSER(spaced_false), FALSE))
 
 ASSERT(EQ(UNSER('\R{"t":"INT","v":"-0xA"}'), -0xA))

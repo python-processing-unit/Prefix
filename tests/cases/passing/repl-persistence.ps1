@@ -2,7 +2,7 @@ $helperPath = Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) 
 . $helperPath
 
 $input = @'
-BOOL: persisted = TRUE
+BOOL persisted = TRUE
 
 PRINT(persisted)
 .exit

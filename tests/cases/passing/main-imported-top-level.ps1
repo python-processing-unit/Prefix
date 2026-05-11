@@ -13,9 +13,9 @@ try {
   $programPath = Join-Path $tempDir 'program.pre'
 
   Set-Content -Path $modulePath -Encoding Ascii -Value @'
-BOOL: top_result = MAIN()
+BOOL top_result = MAIN()
 
-FUNC BOOL: read_top_result(){
+FUNC BOOL read_top_result(){
     RETURN(top_result)
 }
 '@

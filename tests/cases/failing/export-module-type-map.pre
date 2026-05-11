@@ -1,2 +1,2 @@
-INT: value = 0d1
+INT value = 0d1
 EXPORT(value, <>)

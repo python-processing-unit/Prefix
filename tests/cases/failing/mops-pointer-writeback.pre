@@ -1,15 +1,15 @@
 // M* family (matrix/tensor ops) should write back to pointer operands.
-TNS: A1 = [0d1, 0d2]
-TNS: B1 = [0d3, 0d4]
+TNS A1 = [0d1, 0d2]
+TNS B1 = [0d3, 0d4]
 MADD(@A1, B1)
 ASSERT(EQ(A1, [0d4, 0d6]))
 
-TNS: A2 = [0d1, 0d2]
-TNS: B2 = [0d3, 0d4]
+TNS A2 = [0d1, 0d2]
+TNS B2 = [0d3, 0d4]
 MADD(A2, @B2)
 ASSERT(EQ(B2, [0d4, 0d6]))
 
 // MSUM / MPROD behavior: elementwise -> writeback
-TNS: C1 = [0d2, 0d3]
+TNS C1 = [0d2, 0d3]
 MSUM(@C1)
 ASSERT(EQ(C1, [0d5]))

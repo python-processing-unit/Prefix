@@ -1,18 +1,18 @@
-TNS: seen = [FALSE, FALSE, FALSE]
+TNS seen = [FALSE, FALSE, FALSE]
 
-FUNC BOOL: first(){
+FUNC BOOL first(){
     FOR(i, 0d500){
     }
     seen[0d1] = TRUE
 }
 
-FUNC BOOL: second(){
+FUNC BOOL second(){
     FOR(i, 0d500){
     }
     seen[0d2] = TRUE
 }
 
-FUNC BOOL: third(){
+FUNC BOOL third(){
     FOR(i, 0d500){
     }
     seen[0d3] = TRUE

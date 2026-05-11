@@ -1,36 +1,36 @@
-STR: s1 = "foo"
-STR: s2 = "bar"
+STR s1 = "foo"
+STR s2 = "bar"
 JOIN(@s1, s2)
 ASSERT(EQ(s1, "foobar"))
 ASSERT(EQ(s2, "bar"))
 
-STR: s1 = "foo"
-STR: s2 = "bar"
+STR s1 = "foo"
+STR s2 = "bar"
 JOIN(s1, @s2)
 ASSERT(EQ(s1, "foo"))
 ASSERT(EQ(s2, "foobar"))
 
-STR: s1 = "foo"
-STR: s2 = "bar"
+STR s1 = "foo"
+STR s2 = "bar"
 JOIN(@s1, @s2)
 ASSERT(EQ(s1, "foobar"))
 ASSERT(EQ(s2, "foobar"))
 
 ! integer join mode (joins integer binary spellings)
-INT: i1 = 0b1010
-INT: i2 = 0b101
+INT i1 = 0b1010
+INT i2 = 0b101
 JOIN(@i1, i2)
 ASSERT(EQ(i1, 0b1010101))
 ASSERT(EQ(i2, 0b101))
 
-INT: i1 = 0b1010
-INT: i2 = 0b101
+INT i1 = 0b1010
+INT i2 = 0b101
 JOIN(i1, @i2)
 ASSERT(EQ(i1, 0b1010))
 ASSERT(EQ(i2, 0b1010101))
 
-INT: i1 = 0b1010
-INT: i2 = 0b101
+INT i1 = 0b1010
+INT i2 = 0b101
 JOIN(@i1, @i2)
 ASSERT(EQ(i1, 0b1010101))
 ASSERT(EQ(i2, 0b1010101))

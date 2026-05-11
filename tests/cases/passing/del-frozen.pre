@@ -1,7 +1,7 @@
-BOOL: frozen_symbol = TRUE
+BOOL frozen_symbol = TRUE
 REFUTE(FREEZE(frozen_symbol))
 
-BOOL: frozen_delete_failed = FALSE
+BOOL frozen_delete_failed = FALSE
 TRY{
     DEL(frozen_symbol)
 } CATCH {
@@ -14,10 +14,10 @@ REFUTE(THAW(frozen_symbol))
 REFUTE(DEL(frozen_symbol))
 REFUTE(EXIST(frozen_symbol))
 
-BOOL: permafrozen_symbol = TRUE
+BOOL permafrozen_symbol = TRUE
 REFUTE(PERMAFREEZE(permafrozen_symbol))
 
-BOOL: permafrozen_delete_failed = FALSE
+BOOL permafrozen_delete_failed = FALSE
 TRY{
     DEL(permafrozen_symbol)
 } CATCH {

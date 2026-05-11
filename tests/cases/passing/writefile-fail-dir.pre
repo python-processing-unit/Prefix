@@ -1,6 +1,6 @@
 IMPORT(path)
 
-STR: d = path.TEMPFILE("prefix-writefile-fail-dir")
+STR d = path.TEMPFILE("prefix-writefile-fail-dir")
 
 IF(EQ(OS(),"win")){
     ASSERT(EQ(CL(JOIN("powershell -NoProfile -NonInteractive -Command \"New-Item -ItemType Directory -Force -Path '", path.WINPATH(d), "'\"")), 0d0))

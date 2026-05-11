@@ -1,6 +1,6 @@
 // SCAT should write back to destination pointer operands.
-TNS: dst1 = [0d1, 0d2, 0d3]
-TNS: src1 = [0d9]
-TNS: ind1 = [[0d2, 0d2]]
+TNS dst1 = [0d1, 0d2, 0d3]
+TNS src1 = [0d9]
+TNS ind1 = [[0d2, 0d2]]
 SCAT(@dst1, src1, ind1)
 ASSERT(EQ(dst1, [0d1, 0d9, 0d3]))

@@ -1,6 +1,6 @@
 IMPORT(path)
 
-STR: p = JOIN(path.script_dir, "/plain.txt")
+STR p = JOIN(path.script_dir, "/plain.txt")
 
 ASSERT(EQ(READFILE(p, coding = "binary"), "010100000111001001100101011001100110100101111000"))
 ASSERT(EQ(READFILE(p, coding = "hex"), "507265666978"))
