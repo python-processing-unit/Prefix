@@ -13,15 +13,15 @@ try {
   $programPath = Join-Path $tempDir 'program.pre'
 
   Set-Content -Path $modulePath -Encoding Ascii -Value @'
-FUNC BOOL: imported_main(){
+FUNC BOOL imported_main(){
     RETURN(MAIN())
 }
 
-FUNC BOOL: call_callback(FUNC: callback){
+FUNC BOOL call_callback(FUNC callback){
     RETURN(callback())
 }
 
-FUNC BOOL: call_imported_main(){
+FUNC BOOL call_imported_main(){
     RETURN(imported_main())
 }
 '@
@@ -31,7 +31,7 @@ FUNC BOOL: call_imported_main(){
   Set-Content -Path $programPath -Encoding Ascii -Value @"
 IMPORT_PATH("$moduleLiteral", helper)
 
-FUNC BOOL: local_main(){
+FUNC BOOL local_main(){
     RETURN(MAIN())
 }
 

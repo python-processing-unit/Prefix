@@ -1,8 +1,8 @@
-FUNC INT: identity(INT: value){
+FUNC INT identity(INT value){
     RETURN(value)
 }
 
-FUNC: func_copy = DEEPCOPY(identity)
+FUNC func_copy = DEEPCOPY(identity)
 
 ASSERT(EQ(func_copy, identity))
 ASSERT(EQ(func_copy(0d7), 0d7))

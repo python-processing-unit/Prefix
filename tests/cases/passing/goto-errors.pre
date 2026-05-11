@@ -1,4 +1,4 @@
-INT: errors_caught = 0d0
+INT errors_caught = 0d0
 
 TRY {
     GOTOPOINT(TRUE)

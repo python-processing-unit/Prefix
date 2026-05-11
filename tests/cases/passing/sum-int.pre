@@ -1,3 +1,3 @@
 ! SUM with three INT arguments
-INT: result = SUM(0d1, 0d2, 0d3)
+INT result = SUM(0d1, 0d2, 0d3)
 ASSERT(EQ(result, 0d6))

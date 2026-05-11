@@ -1,4 +1,4 @@
-INT: int_value = 0d42
+INT int_value = 0d42
 
 ASSERT(EQ(CONVERT(int_value, 0x10), 0x2A))
 ASSERT(EQ(BASE(CONVERT(int_value, 0x10)), 0d16))

@@ -1,8 +1,8 @@
-FLT: left_dec = 0d54.0
-FLT: right_hex = 0x18.0
-FLT: zero_oct = 0o0.0
-FLT: co_prime_left_oct = 0o17.0
-FLT: co_prime_right_dec = 0d13.0
+FLT left_dec = 0d54.0
+FLT right_hex = 0x18.0
+FLT zero_oct = 0o0.0
+FLT co_prime_left_oct = 0o17.0
+FLT co_prime_right_dec = 0d13.0
 
 ASSERT(EQ(GCD(left_dec, right_hex), 0x6.0))
 ASSERT(EQ(GCD(right_hex, left_dec), 0x6.0))

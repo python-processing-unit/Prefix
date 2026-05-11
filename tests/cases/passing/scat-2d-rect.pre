@@ -1,6 +1,6 @@
-TNS: src = [[0d7, 0d8], [0d9, 0d10]]
-TNS: dst = [[0d1, 0d2, 0d3], [0d4, 0d5, 0d6], [0d11, 0d12, 0d13]]
-TNS: out = SCAT(src, dst, [[0d2, 0d3], [0d1, 0d2]])
+TNS src = [[0d7, 0d8], [0d9, 0d10]]
+TNS dst = [[0d1, 0d2, 0d3], [0d4, 0d5, 0d6], [0d11, 0d12, 0d13]]
+TNS out = SCAT(src, dst, [[0d2, 0d3], [0d1, 0d2]])
 
 ASSERT(EQ(out, [[0d1, 0d2, 0d3], [0d7, 0d8, 0d6], [0d9, 0d10, 0d13]]))
 ASSERT(EQ(SHAPE(out), [0d3, 0d3]))

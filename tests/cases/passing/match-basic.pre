@@ -1,4 +1,4 @@
-MAP: candidate = <"alpha" = 0d1, "beta" = "dog">
+MAP candidate = <"alpha" = 0d1, "beta" = "dog">
 
 ASSERT(MATCH(candidate, <>))
 ASSERT(MATCH(candidate, <"alpha" = 0d99>))

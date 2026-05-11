@@ -1,1 +1,1 @@
-BOOL: extend_result = EXTEND(extend_package)
+BOOL extend_result = EXTEND(extend_package)

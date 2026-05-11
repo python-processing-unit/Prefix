@@ -1,4 +1,4 @@
-BOOL: normal_value = TRUE
+BOOL normal_value = TRUE
 REFUTE(PERMAFROZEN(normal_value))
 
 REFUTE(PERMAFREEZE(normal_value))

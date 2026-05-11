@@ -1,4 +1,4 @@
-FUNC BOOL: sample_func(){
+FUNC BOOL sample_func(){
     RETURN(TRUE)
 }
 

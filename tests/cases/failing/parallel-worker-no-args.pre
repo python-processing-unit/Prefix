@@ -1,4 +1,4 @@
-FUNC BOOL: requires_arg(INT: value){
+FUNC BOOL requires_arg(INT value){
     RETURN(TRUE)
 }
 

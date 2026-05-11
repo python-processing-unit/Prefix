@@ -1,11 +1,11 @@
-INT: target_calls = 0d0
+INT target_calls = 0d0
 
-FUNC INT: get_target(){
+FUNC INT get_target(){
     ADD(@target_calls, 0d1)
     RETURN(0d3)
 }
 
-TNS: seen = [0d0, 0d0, 0d0]
+TNS seen = [0d0, 0d0, 0d0]
 PARFOR(i, get_target()){
     seen[i] = i
 }

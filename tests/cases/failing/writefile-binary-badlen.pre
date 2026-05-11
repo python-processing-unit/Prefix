@@ -1,5 +1,5 @@
 IMPORT(path)
 
-STR: p = path.TEMPFILE("prefix-writefile-bad-binary.txt")
+STR p = path.TEMPFILE("prefix-writefile-bad-binary.txt")
 
 WRITEFILE("101", p, coding = "binary")

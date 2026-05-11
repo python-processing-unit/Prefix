@@ -1,3 +1,3 @@
 ! MIN with multiple FLT arguments
-FLT: result = MIN(0d1.5, -0d2.25, 0d3.0)
+FLT result = MIN(0d1.5, -0d2.25, 0d3.0)
 ASSERT(EQ(result, -0d2.25))

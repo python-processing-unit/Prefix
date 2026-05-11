@@ -8,7 +8,7 @@ try {
 
   Set-Content -Path $programPath -Encoding Ascii -Value @'
 SHUSH()
-STR: line = INPUT("PROMPT>")
+STR line = INPUT("PROMPT>")
 ASSERT(EQ(line, "alpha"))
 PRINT("hidden")
 '@

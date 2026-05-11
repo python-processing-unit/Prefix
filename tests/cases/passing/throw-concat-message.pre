@@ -1,4 +1,4 @@
-BOOL: caught = FALSE
+BOOL caught = FALSE
 
 TRY{
     THROW("left=", 0d42, ",right=", -0b10)

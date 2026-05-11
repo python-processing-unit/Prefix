@@ -1,4 +1,4 @@
-INT: t = 0d1
+INT t = 0d1
 FREEZE(t)
 
-INT: p = @t
+INT p = @t

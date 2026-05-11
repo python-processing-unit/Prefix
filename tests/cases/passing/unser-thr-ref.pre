@@ -1,6 +1,6 @@
-STR: thread_json = '\R{"t":"THR","id":"t1","state":"finished","paused":false,"finished":true,"stop":false,"env":null,"block":null}'
+STR thread_json = '\R{"t":"THR","id":"t1","state":"finished","paused":false,"finished":true,"stop":false,"env":null,"block":null}'
 
-STR: json = JOIN( ^
+STR json = JOIN( ^
     '\R{"t":"MAP","v":[{"k":{"t":"STR","v":"first"},"v":', ^
     thread_json, ^
     '\R},{"k":{"t":"STR","v":"second"},"v":', ^
@@ -8,6 +8,6 @@ STR: json = JOIN( ^
     '\R}]}' ^
 )
 
-MAP: threads = UNSER(json)
+MAP threads = UNSER(json)
 ASSERT(EQ(threads<"first">, threads<"second">))
 REFUTE(BOOL(threads<"first">))

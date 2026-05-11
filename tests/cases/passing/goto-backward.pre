@@ -1,5 +1,5 @@
-INT: i = 0d0
-INT: hits = 0d0
+INT i = 0d0
+INT hits = 0d0
 GOTOPOINT('loop')
 ADD(@hits, 0d1)
 IF(LT(i, 0d2)){

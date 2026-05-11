@@ -9,7 +9,7 @@ try {
   $modulePath = Join-Path $tempDir "$moduleName.pre"
 
   Set-Content -Path $modulePath -Encoding Ascii -Value @'
-INT: hidden = 0d7
+INT hidden = 0d7
 '@
 
   Set-Content -Path $programPath -Encoding Ascii -Value @"

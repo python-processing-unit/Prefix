@@ -1,5 +1,5 @@
-FLT: flt_decimal = 0d1.5
-FLT: flt_binary = 0b1.1
+FLT flt_decimal = 0d1.5
+FLT flt_binary = 0b1.1
 
 ASSERT(EQ(BASE(flt_decimal), 0d10))
 ASSERT(EQ(BASE(flt_binary), 0d2))

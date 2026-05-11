@@ -1,4 +1,4 @@
-FLT: f1 = 0d6.0
-FLT: g1 = 0d3.0
+FLT f1 = 0d6.0
+FLT g1 = 0d3.0
 FDIV(@f1, g1)
 ASSERT(EQ(f1, 0d2.0))

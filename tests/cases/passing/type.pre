@@ -1,11 +1,11 @@
-BOOL: sample_bool = TRUE
-INT: sample_int = 0d1
-FLT: sample_flt = 0d1.5
-STR: sample_str = "prefix"
-TNS: sample_tns = [0d1, 0d2]
-MAP: sample_map = <"n" = 0d1>
+BOOL sample_bool = TRUE
+INT sample_int = 0d1
+FLT sample_flt = 0d1.5
+STR sample_str = "prefix"
+TNS sample_tns = [0d1, 0d2]
+MAP sample_map = <"n" = 0d1>
 
-FUNC INT: sample_func(){
+FUNC INT sample_func(){
     RETURN(0d1)
 }
 

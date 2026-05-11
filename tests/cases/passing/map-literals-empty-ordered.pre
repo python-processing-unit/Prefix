@@ -1,10 +1,10 @@
-FUNC INT: GET_FIVE(){
+FUNC INT GET_FIVE(){
     RETURN(0d5)
 }
 
-MAP: empty = <>
-MAP: ordered = <"alpha" = 0d1, "beta" = 0d2, "gamma" = 0d3>
-MAP: duplicate = <"x" = 0d1, "y" = 0d2, "x" = 0d3>
+MAP empty = <>
+MAP ordered = <"alpha" = 0d1, "beta" = 0d2, "gamma" = 0d3>
+MAP duplicate = <"x" = 0d1, "y" = 0d2, "x" = 0d3>
 
 ASSERT(EQ(empty, <>))
 

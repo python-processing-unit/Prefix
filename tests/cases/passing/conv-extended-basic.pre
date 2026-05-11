@@ -1,6 +1,6 @@
-TNS: x = [[[0d1], [0d2], [0d3]], [[0d4], [0d5], [0d6]]]
-TNS: kernel = [[[[0d1, 0d2]]]]
-TNS: out = CONV(x, kernel, stride_w = 0d1)
+TNS x = [[[0d1], [0d2], [0d3]], [[0d4], [0d5], [0d6]]]
+TNS kernel = [[[[0d1, 0d2]]]]
+TNS out = CONV(x, kernel, stride_w = 0d1)
 
 ASSERT(EQ(SHAPE(out), [0d2, 0d3, 0d2]))
 ASSERT(EQ(out, [[[0d1, 0d2], [0d2, 0d4], [0d3, 0d6]], [[0d4, 0d8], [0d5, 0d10], [0d6, 0d12]]]))

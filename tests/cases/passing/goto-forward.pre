@@ -1,4 +1,4 @@
-INT: value = 0d0
+INT value = 0d0
 GOTO(0d1)
 ASSERT(FALSE)
 GOTOPOINT(0d1)

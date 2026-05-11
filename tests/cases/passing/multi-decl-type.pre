@@ -1,2 +1,2 @@
-BOOL: x = TRUE
-BOOL: x = FALSE
+BOOL x = TRUE
+BOOL x = FALSE

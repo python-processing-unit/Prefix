@@ -1,3 +1,3 @@
 ! FPROD preserves INF under float arithmetic
-FLT: result = FPROD(INF, 0d2.0)
+FLT result = FPROD(INF, 0d2.0)
 ASSERT(EQ(result, INF))

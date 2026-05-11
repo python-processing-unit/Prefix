@@ -1,7 +1,7 @@
-INT: in1 = 0d5
+INT in1 = 0d5
 NEG(@in1)
 ASSERT(EQ(in1, -0d5))
 
-FLT: fin1 = 0d5.5
+FLT fin1 = 0d5.5
 NEG(@fin1)
 ASSERT(EQ(fin1, -0d5.5))

@@ -9,7 +9,7 @@ try {
   $programPath = Join-Path $tempDir 'program.pre'
 
   Set-Content -Path $programPath -Encoding Ascii -Value @'
-INT: total = 0d0
+INT total = 0d0
 
 FOR(i, 0d40){
     total = ADD(total, i)

@@ -1,5 +1,5 @@
 ASSERT(EQ(SER([0d1, 0d2]), '\R{"t":"TNS","shape":[2],"v":[{"t":"INT","v":"0d1"},{"t":"INT","v":"0d2"}]}'))
 
-TNS: square = [[0d1, 0d2], [0d3, 0d4]]
+TNS square = [[0d1, 0d2], [0d3, 0d4]]
 ASSERT(EQ(SER(square), '\R{"t":"TNS","shape":[2,2],"v":[{"t":"INT","v":"0d1"},{"t":"INT","v":"0d2"},{"t":"INT","v":"0d3"},{"t":"INT","v":"0d4"}]}'))
 ASSERT(EQ(UNSER(SER(square)), square))

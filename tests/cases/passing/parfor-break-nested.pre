@@ -1,4 +1,4 @@
-INT: outer = 0d0
+INT outer = 0d0
 
 FOR(j, 0d3){
     ADD(@outer, 0d1)

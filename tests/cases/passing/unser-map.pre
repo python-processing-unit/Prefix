@@ -1,4 +1,4 @@
-MAP: value = UNSER('\R{"t":"MAP","v":[{"k":{"t":"STR","v":"alpha"},"v":{"t":"INT","v":"0d1"}},{"k":{"t":"INT","v":"0d2"},"v":{"t":"STR","v":"two"}},{"k":{"t":"FLT","v":"0d3.5"},"v":{"t":"MAP","v":[{"k":{"t":"STR","v":"nested"},"v":{"t":"BOOL","v":true}}]}}]}')
+MAP value = UNSER('\R{"t":"MAP","v":[{"k":{"t":"STR","v":"alpha"},"v":{"t":"INT","v":"0d1"}},{"k":{"t":"INT","v":"0d2"},"v":{"t":"STR","v":"two"}},{"k":{"t":"FLT","v":"0d3.5"},"v":{"t":"MAP","v":[{"k":{"t":"STR","v":"nested"},"v":{"t":"BOOL","v":true}}]}}]}')
 
 ASSERT(EQ(value<"alpha">, 0d1))
 ASSERT(EQ(value<0d2>, "two"))

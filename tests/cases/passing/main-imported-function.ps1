@@ -13,7 +13,7 @@ try {
   $programPath = Join-Path $tempDir 'program.pre'
 
   Set-Content -Path $modulePath -Encoding Ascii -Value @'
-FUNC BOOL: imported_main(){
+FUNC BOOL imported_main(){
     RETURN(MAIN())
 }
 '@

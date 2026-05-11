@@ -1,10 +1,10 @@
-BOOL: locked_value = TRUE
+BOOL locked_value = TRUE
 
 REFUTE(PERMAFREEZE(locked_value))
 ASSERT(FROZEN(locked_value))
 ASSERT(PERMAFROZEN(locked_value))
 
-BOOL: permafreeze_undefined_failed = FALSE
+BOOL permafreeze_undefined_failed = FALSE
 TRY{
     PERMAFREEZE(not_declared)
 } CATCH {
@@ -12,7 +12,7 @@ TRY{
 }
 ASSERT(permafreeze_undefined_failed)
 
-BOOL: reassignment_failed = FALSE
+BOOL reassignment_failed = FALSE
 TRY{
     locked_value = FALSE
 } CATCH {
@@ -21,7 +21,7 @@ TRY{
 ASSERT(reassignment_failed)
 ASSERT(EQ(locked_value, TRUE))
 
-BOOL: deletion_failed = FALSE
+BOOL deletion_failed = FALSE
 TRY{
     DEL(locked_value)
 } CATCH {
@@ -30,7 +30,7 @@ TRY{
 ASSERT(deletion_failed)
 ASSERT(EXIST(locked_value))
 
-BOOL: thaw_failed = FALSE
+BOOL thaw_failed = FALSE
 TRY{
     THAW(locked_value)
 } CATCH {

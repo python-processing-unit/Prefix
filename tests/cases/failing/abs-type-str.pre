@@ -1,2 +1,2 @@
-STR: s = 'not-a-number'
+STR s = 'not-a-number'
 ABS(s)

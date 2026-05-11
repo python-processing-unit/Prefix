@@ -1,11 +1,11 @@
-FLT: a = 0d1.5
-FLT: b = -0d0.25
-FLT: c = 0b1.1
-FLT: d = 0xA.F
-FLT: e = 0r16F.8
-FLT: f = INF
-FLT: g = -INF
-FLT: h = NaN
+FLT a = 0d1.5
+FLT b = -0d0.25
+FLT c = 0b1.1
+FLT d = 0xA.F
+FLT e = 0r16F.8
+FLT f = INF
+FLT g = -INF
+FLT h = NaN
 
 ASSERT(EQ(a, 0d1.5))
 ASSERT(EQ(b, -0d0.25))

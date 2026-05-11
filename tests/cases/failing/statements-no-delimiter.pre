@@ -1,1 +1,1 @@
-BOOL: x = TRUE BOOL: y = FALSE
+BOOL x = TRUE BOOL y = FALSE

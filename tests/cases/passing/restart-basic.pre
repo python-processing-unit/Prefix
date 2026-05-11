@@ -1,6 +1,6 @@
-BOOL: finished = FALSE
+BOOL finished = FALSE
 
-THR: worker = ASYNC{
+THR worker = ASYNC{
     FOR(i, 0d2){}
     finished = TRUE
 }
@@ -10,7 +10,7 @@ AWAIT(worker)
 ASSERT(EQ(finished, TRUE))
 
 ! Restart the finished thread
-THR: r = RESTART(worker)
+THR r = RESTART(worker)
 ASSERT(EQ(TYPE(r), "THR"))
 ASSERT(EQ(r, worker))
 ASSERT(BOOL(r))

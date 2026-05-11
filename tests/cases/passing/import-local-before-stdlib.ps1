@@ -11,13 +11,13 @@ try {
   $localModulePath = Join-Path $tempDir "$moduleName.pre"
 
   Set-Content -Path $localModulePath -Encoding Ascii -Value @'
-FUNC STR: identify(){
+FUNC STR identify(){
     RETURN("local")
 }
 '@
 
   Set-Content -Path $stdlibPath -Encoding Ascii -Value @'
-FUNC STR: identify(){
+FUNC STR identify(){
     RETURN("stdlib")
 }
 '@

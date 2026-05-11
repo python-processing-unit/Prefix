@@ -1,1 +1,1 @@
-BOOL: x = TRUE ! foo
+BOOL x = TRUE ! foo

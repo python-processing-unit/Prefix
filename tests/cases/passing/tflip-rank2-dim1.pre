@@ -1,5 +1,5 @@
-TNS: m = [[0d1, 0d2, 0d3], [0d4, 0d5, 0d6]]
-TNS: flipped = TFLIP(m, 0d1)
+TNS m = [[0d1, 0d2, 0d3], [0d4, 0d5, 0d6]]
+TNS flipped = TFLIP(m, 0d1)
 
 ASSERT(EQ(flipped, [[0d4, 0d5, 0d6], [0d1, 0d2, 0d3]]))
 ASSERT(EQ(SHAPE(flipped), [0d2, 0d3]))

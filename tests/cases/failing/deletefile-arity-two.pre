@@ -1,6 +1,6 @@
 IMPORT(path)
 
-STR: p = path.TEMPFILE("temp.txt")
+STR p = path.TEMPFILE("temp.txt")
 WRITEFILE("Prefix", p)
 ASSERT(EXISTFILE(p))
 ASSERT(DELETEFILE(p, "Prefix"))
