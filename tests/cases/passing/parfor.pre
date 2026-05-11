@@ -1,4 +1,4 @@
-TNS: seen = [0d0, 0d0, 0d0, 0d0]
+TNS seen = [0d0, 0d0, 0d0, 0d0]
 PARFOR(i, 0d4){
     seen[i] = i
 }

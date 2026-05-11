@@ -1,4 +1,4 @@
-BOOL: thr_release = FALSE
+BOOL thr_release = FALSE
 THR(worker){
     WHILE(NOT(thr_release)){
     }

@@ -1,4 +1,4 @@
-FUNC BOOL: str_func(){
+FUNC BOOL str_func(){
     RETURN(TRUE)
 }
 

@@ -1,7 +1,7 @@
 IMPORT(path)
 
-STR: tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
-STR: helper_path = JOIN(tests_dir, "/helpers/export_target.pre")
+STR tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
+STR helper_path = JOIN(tests_dir, "/helpers/export_target.pre")
 
 REFUTE(IMPORT_PATH(helper_path, helper))
 EXPORT(LAMBDA BOOL: (){}, helper)

@@ -1,5 +1,5 @@
 IMPORT(path)
 
-STR: p = JOIN(path.script_dir, "/plain.txt")
+STR p = JOIN(path.script_dir, "/plain.txt")
 
 READFILE(p, coding = "UTF-7")

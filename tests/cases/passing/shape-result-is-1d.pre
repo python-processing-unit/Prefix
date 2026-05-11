@@ -1,5 +1,5 @@
-TNS: t = [[[0d1], [0d2], [0d3]], [[0d4], [0d5], [0d6]]]
-TNS: dims = SHAPE(t)
+TNS t = [[[0d1], [0d2], [0d3]], [[0d4], [0d5], [0d6]]]
+TNS dims = SHAPE(t)
 
 ASSERT(EQ(TYPE(dims), "TNS"))
 ASSERT(EQ(TLEN(dims, 0d1), 0d3))

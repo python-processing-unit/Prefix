@@ -1,4 +1,4 @@
-INT: test = 0d0
+INT test = 0d0
 IF(TRUE){
     GOTO('target')
     ASSERT(FALSE)

@@ -1,5 +1,5 @@
-BOOL: i = TRUE
-INT: runs = 0d0
+BOOL i = TRUE
+INT runs = 0d0
 PARFOR(i, 0d5){
     ADD(@runs, 0d1)
 }

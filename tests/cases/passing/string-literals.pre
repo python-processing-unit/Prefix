@@ -1,9 +1,9 @@
-STR: empty_single = ''
-STR: empty_double = ""
-STR: single = 'alpha'
-STR: double = "beta"
-STR: mixed_single = 'double "quote"'
-STR: mixed_double = "single 'quote'"
+STR empty_single = ''
+STR empty_double = ""
+STR single = 'alpha'
+STR double = "beta"
+STR mixed_single = 'double "quote"'
+STR mixed_double = "single 'quote'"
 
 ASSERT(EQ(empty_single, empty_double))
 ASSERT(EQ(single, "alpha"))

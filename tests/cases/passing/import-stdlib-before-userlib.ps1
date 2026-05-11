@@ -11,13 +11,13 @@ try {
   $programPath = Join-Path $tempDir 'program.pre'
 
   Set-Content -Path $stdlibPath -Encoding Ascii -Value @'
-FUNC STR: identify(){
+FUNC STR identify(){
     RETURN("stdlib")
 }
 '@
 
   Set-Content -Path $userlibPath -Encoding Ascii -Value @'
-FUNC STR: identify(){
+FUNC STR identify(){
     RETURN("userlib")
 }
 '@

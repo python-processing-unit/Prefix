@@ -1,5 +1,5 @@
-INT: int_binary = 0b101010
-INT: int_hex = 0x2A
+INT int_binary = 0b101010
+INT int_hex = 0x2A
 
 ASSERT(EQ(BASE(int_binary), 0d2))
 ASSERT(EQ(BASE(int_hex), 0d16))

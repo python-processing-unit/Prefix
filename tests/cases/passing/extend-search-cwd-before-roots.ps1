@@ -28,7 +28,7 @@ try {
   Add-StagedProbe $libStdProbe
   Add-StagedProbe $libUsrProbe
 
-  $sourceText = 'BOOL:loaded=EXTEND(search_probe);REFUTE(loaded);PRINT(TST_SEARCH_PROBE_PATH())'
+  $sourceText = 'BOOL loaded=EXTEND(search_probe);REFUTE(loaded);PRINT(TST_SEARCH_PROBE_PATH())'
   $result = Invoke-PrefixWithArguments -Arguments @('-source', $sourceText) -WorkingDirectory $cwdDir
   Assert-PrefixSuccess $result
   Assert-NoErrorOutput $result

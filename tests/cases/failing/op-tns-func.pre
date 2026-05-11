@@ -1,4 +1,4 @@
-FUNC INT: sample_func(){
+FUNC INT sample_func(){
     RETURN(0d1)
 }
 

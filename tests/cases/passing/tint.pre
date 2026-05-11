@@ -1,4 +1,4 @@
-TNS: source = [[TRUE, FALSE, 0d7, -0b11, 0d1.75, -0d1.75], ["0x1A", "-0d9", "", "prefix", "0b101", "0d0"]]
-TNS: converted = TINT(source)
+TNS source = [[TRUE, FALSE, 0d7, -0b11, 0d1.75, -0d1.75], ["0x1A", "-0d9", "", "prefix", "0b101", "0d0"]]
+TNS converted = TINT(source)
 ASSERT(EQ(TYPE(converted), "TNS"))
 ASSERT(EQ(converted, [[0d1, 0d0, 0d7, -0d3, 0d1, -0d1], [0d26, -0d9, 0d0, 0d1, 0d5, 0d0]]))

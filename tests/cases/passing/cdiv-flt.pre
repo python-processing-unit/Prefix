@@ -1,6 +1,6 @@
-FLT: left_oct = 0o1.4
-FLT: right_hex = 0x0.8
-FLT: wide_oct = 0o5.0
+FLT left_oct = 0o1.4
+FLT right_hex = 0x0.8
+FLT wide_oct = 0o5.0
 
 ASSERT(EQ(CDIV(left_oct, right_hex), 0x3.0))
 ASSERT(EQ(BASE(CDIV(left_oct, right_hex)), 0d16))

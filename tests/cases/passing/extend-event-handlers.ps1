@@ -9,7 +9,7 @@ try {
   $programPath = Join-Path $tempDir 'program.pre'
 
   Set-Content -Path $programPath -Encoding Ascii -Value @'
-FUNC INT: ping(){
+FUNC INT ping(){
     RETURN(0d1)
 }
 

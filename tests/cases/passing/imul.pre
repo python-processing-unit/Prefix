@@ -1,3 +1,3 @@
 ! Passing integer arithmetic, checking coercion and correct logic
-INT: result_mul = IMUL(0d4, 0d5)
+INT result_mul = IMUL(0d4, 0d5)
 ASSERT(EQ(result_mul, 0d20))

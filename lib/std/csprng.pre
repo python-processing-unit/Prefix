@@ -1,33 +1,33 @@
 ! ChaCha20-based cryptographically secure pseudorandom number generator
 
-INT: MASK32 = SUB( POW(0b10, 0b100000), 1 )  ! 2^32-1
+INT MASK32 = SUB( POW(0b10, 0b100000), 1 )  ! 2^32-1
 
 ! ChaCha20 constants ("expand 32-byte k")
-MAP: CH_CONST = < ^
+MAP CH_CONST = < ^
     0b0 = 0b01100001011100000111000001100101, ^
     0b1 = 0b00110011001000000110010001101110, ^
     0b10 = 0b01111001011000100010110100110010, ^
     0b11 = 0b01101011001000000110010101110100 ^
 >
 
-TNS: ch_key = TNS([0b1000], 0b0)  ! 8 words
-TNS: ch_nonce = [0b0, 0b0, 0b0] ! use literals for short TNS
-INT: ch_counter = 0
-TNS: ch_buf = TNS([0b10000], 0b0) ! 16 words
-INT: ch_buf_pos = TLEN(ch_buf, 0b1)  ! set to buffer length to force refill
+TNS ch_key = TNS([0b1000], 0b0)  ! 8 words
+TNS ch_nonce = [0b0, 0b0, 0b0] ! use literals for short TNS
+INT ch_counter = 0
+TNS ch_buf = TNS([0b10000], 0b0) ! 16 words
+INT ch_buf_pos = TLEN(ch_buf, 0b1)  ! set to buffer length to force refill
 
-FUNC INT: ROTL32(INT: x, INT: n){
-    INT: x32 = BAND(x, MASK32)
-    INT: left = BAND(SHL(x32, n), MASK32)
-    INT: right = SHR(x32, SUB(0b100000, n))  ! 32 - n
+FUNC INT ROTL32(INT x, INT n){
+    INT x32 = BAND(x, MASK32)
+    INT left = BAND(SHL(x32, n), MASK32)
+    INT right = SHR(x32, SUB(0b100000, n))  ! 32 - n
     RETURN( BAND(BOR(left, right), MASK32) )
 }
 
-FUNC INT: QR(TNS: s, INT: ia, INT: ib, INT: ic, INT: id){
-    INT: a = s[ia]
-    INT: b = s[ib]
-    INT: c = s[ic]
-    INT: d = s[id]
+FUNC INT QR(TNS s, INT ia, INT ib, INT ic, INT id){
+    INT a = s[ia]
+    INT b = s[ib]
+    INT c = s[ic]
+    INT d = s[id]
 
     a = BAND( ADD(a, b), MASK32 )
     d = ROTL32( BXOR(d, a), 0b10000 )   ! 16
@@ -45,10 +45,10 @@ FUNC INT: QR(TNS: s, INT: ia, INT: ib, INT: ic, INT: id){
     RETURN(0)
 }
 
-FUNC INT: CHACHA_BLOCK(){
-    TNS: k = ch_key
-    TNS: n = ch_nonce
-    TNS: state = [ ^
+FUNC INT CHACHA_BLOCK(){
+    TNS k = ch_key
+    TNS n = ch_nonce
+    TNS state = [ ^
         CH_CONST<0b0>, ^
         CH_CONST<0b1>, ^
         CH_CONST<0b10>, ^
@@ -98,15 +98,15 @@ FUNC INT: CHACHA_BLOCK(){
     RETURN(0b0)
 }
 
-FUNC INT: REFILL_BUF(){
+FUNC INT REFILL_BUF(){
     CHACHA_BLOCK()
     ch_buf_pos = 0b0
     ch_counter = BAND( ADD(ch_counter, 0b1), MASK32 )
     RETURN(0b0)
 }
 
-FUNC INT: DERIVE_KEY_AND_NONCE(INT: seed){
-    INT: s = BAND(seed, MASK32)
+FUNC INT DERIVE_KEY_AND_NONCE(INT seed){
+    INT s = BAND(seed, MASK32)
     FOR(i, 0b1000){  ! 8 key words (1000 == 8)
         s = BAND( ADD( MUL(s, ^
             0b01000001110001100100111001101101), ^
@@ -126,7 +126,7 @@ FUNC INT: DERIVE_KEY_AND_NONCE(INT: seed){
     RETURN(0b0)
 }
 
-FUNC INT: SEED(INT: seed){
+FUNC INT SEED(INT seed){
     DERIVE_KEY_AND_NONCE(seed)
     ch_counter = 0b0
     ch_buf = TNS([0b10000], 0b0)
@@ -134,25 +134,25 @@ FUNC INT: SEED(INT: seed){
     RETURN(ch_counter)
 }
 
-FUNC INT: NEXT(){
+FUNC INT NEXT(){
     IF( GTE(ch_buf_pos, TLEN(ch_buf, 0b1)) ){  ! buffer length
         REFILL_BUF()
     }
-    INT: v = ch_buf[ ADD(ch_buf_pos, 0b1) ]
+    INT v = ch_buf[ ADD(ch_buf_pos, 0b1) ]
     ch_buf_pos = ADD(ch_buf_pos, 0b1)
     RETURN(v)
 }
 
-FUNC INT: RANGE(INT: max){
+FUNC INT RANGE(INT max){
     ASSERT( GT(max, 0b0) )
     RETURN( MOD(NEXT(), max) )
 }
 
-FUNC INT: RANGE_MIN_MAX(INT: min, INT: max){
+FUNC INT RANGE_MIN_MAX(INT min, INT max){
     ASSERT( LTE(min, max) )
-    INT: range = SUB(max, min)
+    INT range = SUB(max, min)
     IF( EQ(range, 0b0) ){ RETURN(min) }
     ASSERT( GT(range, 0b0) )
-    INT: offset = RANGE(range)
+    INT offset = RANGE(range)
     RETURN( ADD(offset, min) )
 }

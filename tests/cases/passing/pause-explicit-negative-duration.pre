@@ -1,10 +1,10 @@
-BOOL: released = FALSE
+BOOL released = FALSE
 
 THR(worker){
     WHILE(NOT(released)){}
 }
 
-THR: paused = PAUSE(worker, seconds = -0d1.0)
+THR paused = PAUSE(worker, seconds = -0d1.0)
 
 ASSERT(EQ(paused, worker))
 ASSERT(PAUSED(worker))

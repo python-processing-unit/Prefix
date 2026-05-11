@@ -1,7 +1,7 @@
-BOOL: caught = FALSE
+BOOL caught = FALSE
 
 TRY{
-    THR: worker = ASYNC{
+    THR worker = ASYNC{
         FREEZE(not_declared)
     }
 } CATCH {
@@ -12,9 +12,9 @@ REFUTE(caught)
 
 
 ! Also ensure awaiting the failed thread does not synchronously raise
-BOOL: caught_await = FALSE
+BOOL caught_await = FALSE
 
-THR: worker2 = ASYNC{
+THR worker2 = ASYNC{
     FREEZE(not_declared)
 }
 

@@ -1,2 +1,2 @@
-TNS: matrix = [[0d1, 0d2], [0d3, 0d4]]
+TNS matrix = [[0d1, 0d2], [0d3, 0d4]]
 ASSIGN(matrix[*, *], [[0d9, 0d10, 0d11], [0d12, 0d13, 0d14]])

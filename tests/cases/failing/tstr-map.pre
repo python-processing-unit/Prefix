@@ -1,2 +1,2 @@
-MAP: bad = <>
+MAP bad = <>
 TSTR([TRUE, bad])

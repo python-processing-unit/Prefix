@@ -1,6 +1,6 @@
-INT: left_bin = 0b111
-INT: right_hex = 0x2
-INT: wide_dec = 0d9
+INT left_bin = 0b111
+INT right_hex = 0x2
+INT wide_dec = 0d9
 
 ASSERT(EQ(CDIV(left_bin, right_hex), 0x4))
 ASSERT(EQ(BASE(CDIV(left_bin, right_hex)), 0d16))

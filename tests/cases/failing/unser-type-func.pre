@@ -1,4 +1,4 @@
-FUNC INT: identity(INT: value){
+FUNC INT identity(INT value){
     RETURN(value)
 }
 

@@ -115,9 +115,86 @@ static bool require_space_only_gap(Parser* parser, const Token* left, const Toke
         report_error(parser, message);
         return false;
     }
+    /* If tokens are on different physical lines, allow that only when the
+       characters between them in the raw source consist solely of spaces and
+       valid line-continuation sequences (caret followed by a newline or a
+       caret immediately before a comment). This implements the language's
+       caret continuation semantics so declarations split across physical
+       lines can still be treated as a single logical line. */
     if (left->line != right->line) {
-        report_error(parser, message);
-        return false;
+        Lexer* lexer = parser->lexer;
+        if (!lexer || !lexer->source) {
+            report_error(parser, message);
+            return false;
+        }
+
+        left_width = token_source_width(left);
+        if (left_width == 0) {
+            report_error(parser, message);
+            return false;
+        }
+
+        /* Compute absolute offsets for the end of the left token and the
+           start of the right token by scanning to each line start. */
+        size_t idx = 0;
+        int cur_line = 1;
+        while (idx < lexer->source_len && cur_line < left->line) {
+            if (lexer->source[idx] == '\n') cur_line++;
+            idx++;
+        }
+        if (cur_line != left->line) { report_error(parser, message); return false; }
+        size_t left_line_start = idx;
+        size_t left_start_offset = left_line_start + (size_t)((left->column > 0) ? (left->column - 1) : 0);
+        size_t left_end_offset = left_start_offset + left_width;
+
+        idx = 0; cur_line = 1;
+        while (idx < lexer->source_len && cur_line < right->line) {
+            if (lexer->source[idx] == '\n') cur_line++;
+            idx++;
+        }
+        if (cur_line != right->line) { report_error(parser, message); return false; }
+        size_t right_line_start = idx;
+        size_t right_start_offset = right_line_start + (size_t)((right->column > 0) ? (right->column - 1) : 0);
+
+        if (right_start_offset <= left_end_offset) { report_error(parser, message); return false; }
+
+        /* Walk the raw source between the two token offsets and accept only
+           spaces and valid caret-continuation sequences. */
+        size_t pos = left_end_offset;
+        while (pos < right_start_offset) {
+            char ch = lexer->source[pos];
+            if (ch == ' ') { pos++; continue; }
+
+            if (ch == '^') {
+                /* Must match the same rules as the lexer: '^' followed by LF,
+                   CR (optionally CRLF), or '!' (a comment) is a valid
+                   continuation. Anything else is invalid here. */
+                if (pos + 1 >= lexer->source_len) { report_error(parser, message); return false; }
+                char next = lexer->source[pos + 1];
+                if (next == '\n') { pos += 2; continue; }
+                if (next == '\r') { pos += 2; if (pos < lexer->source_len && lexer->source[pos] == '\n') pos++; continue; }
+                if (next == '!') {
+                    /* Skip '!' and the comment text until the line terminator. */
+                    pos += 2;
+                    while (pos < lexer->source_len && lexer->source[pos] != '\n' && lexer->source[pos] != '\r') pos++;
+                    if (pos < lexer->source_len) {
+                        if (lexer->source[pos] == '\r') { pos++; if (pos < lexer->source_len && lexer->source[pos] == '\n') pos++; }
+                        else if (lexer->source[pos] == '\n') pos++;
+                    }
+                    continue;
+                }
+
+                report_error(parser, message);
+                return false;
+            }
+
+            /* Any other character (including tabs or plain newlines) is invalid
+               as a gap between type and name. */
+            report_error(parser, message);
+            return false;
+        }
+
+        return true;
     }
 
     left_width = token_source_width(left);

@@ -1,5 +1,5 @@
-INT: c = 0d0
-INT: seen = 0d0
+INT c = 0d0
+INT seen = 0d0
 WHILE(LT(c, 0d5)){
     ADD(@c, 0d1)
     IF(LT(c, 0d5)){

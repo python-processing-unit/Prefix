@@ -1,4 +1,4 @@
-BOOL: thaw_value = TRUE
+BOOL thaw_value = TRUE
 
 REFUTE(THAW(thaw_value))
 ASSERT(thaw_value)
@@ -11,7 +11,7 @@ REFUTE(FROZEN(thaw_value))
 thaw_value = FALSE
 ASSERT(EQ(thaw_value, FALSE))
 
-BOOL: thaw_undefined_failed = FALSE
+BOOL thaw_undefined_failed = FALSE
 TRY{
     THAW(not_declared)
 } CATCH {

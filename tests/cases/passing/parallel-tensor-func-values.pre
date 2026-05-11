@@ -1,16 +1,16 @@
-TNS: seen = [FALSE, FALSE]
+TNS seen = [FALSE, FALSE]
 
-FUNC: first = LAMBDA BOOL: (){
+FUNC first = LAMBDA BOOL: (){
     FOR(i, 0d500){}
     seen[0d1] = TRUE
 }
 
-FUNC: second = LAMBDA BOOL: (){
+FUNC second = LAMBDA BOOL: (){
     FOR(i, 0d500){}
     seen[0d2] = TRUE
 }
 
-TNS: workers = [first, second]
+TNS workers = [first, second]
 
 ASSERT(EQ(PARALLEL(workers), FALSE))
 ASSERT(EQ(seen, [TRUE, TRUE]))

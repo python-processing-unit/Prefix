@@ -1,13 +1,13 @@
-TNS: tensor = [[0d1, 0d2], [0d3, 0d4]]
-TNS: tensor_copy = tensor
+TNS tensor = [[0d1, 0d2], [0d3, 0d4]]
+TNS tensor_copy = tensor
 
-MAP: map_value = <"alpha" = 0d1, "beta" = [0d2, 0d3]>
-MAP: map_copy = map_value
+MAP map_value = <"alpha" = 0d1, "beta" = [0d2, 0d3]>
+MAP map_copy = map_value
 
-FUNC INT: identity(INT: value){
+FUNC INT identity(INT value){
     RETURN(value)
 }
-FUNC: identity_alias = identity
+FUNC identity_alias = identity
 
 THR(worker){}
 

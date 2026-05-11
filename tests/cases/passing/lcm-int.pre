@@ -1,8 +1,8 @@
-INT: left_oct = 0o25
-INT: right_hex = 0x6
-INT: zero_bin = 0b0
-INT: co_prime_left_oct = 0o10
-INT: co_prime_right_dec = 0d9
+INT left_oct = 0o25
+INT right_hex = 0x6
+INT zero_bin = 0b0
+INT co_prime_left_oct = 0o10
+INT co_prime_right_dec = 0d9
 
 ASSERT(EQ(LCM(left_oct, right_hex), 0x2A))
 ASSERT(EQ(LCM(right_hex, left_oct), 0x2A))

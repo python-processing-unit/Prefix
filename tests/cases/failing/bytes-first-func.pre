@@ -1,2 +1,2 @@
-FUNC INT: ff(INT: x){ RETURN x }
+FUNC INT ff(INT x){ RETURN x }
 BYTES(ff)

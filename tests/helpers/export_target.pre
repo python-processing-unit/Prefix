@@ -1,15 +1,15 @@
-FUNC INT: read_box_value(){
+FUNC INT read_box_value(){
     RETURN(box<"value">)
 }
 
-FUNC BOOL: set_box_value(INT: value){
+FUNC BOOL set_box_value(INT value){
     box<"value"> = value
 }
 
-FUNC INT: read_tensor_first(){
+FUNC INT read_tensor_first(){
     RETURN(tensor[0d1])
 }
 
-FUNC BOOL: set_tensor_first(INT: value){
+FUNC BOOL set_tensor_first(INT value){
     tensor[0d1] = value
 }
