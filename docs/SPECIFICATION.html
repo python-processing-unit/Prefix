@@ -92,13 +92,13 @@ The core statement forms of the language MUST include typed declarations, assign
 
 ### 3.2 Declarations and assignment
 
-A symbol MAY be declared without a value using `TYPE: name`. Such a declaration records the symbol's static type but does not create a readable runtime binding until an assignment occurs.
+A symbol MAY be declared without a value using `TYPE name`. Such a declaration records the symbol's static type but does not create a readable runtime binding until an assignment occurs. The type and name MUST be separated by one or more space characters, and no other character MAY appear between them.
 
-The first assignment to a symbol MUST use a typed form such as `TYPE: name = expression`, with optional spaces around `:` and `=`. Subsequent assignments MAY omit the type annotation, but the symbol's type MUST remain unchanged for the lifetime of that name, including after deletion and re-assignment.
+The first assignment to a symbol MUST use a typed form such as `TYPE name = expression`, with one or more spaces between the type and name and optional spaces around `=`. Subsequent assignments MAY omit the type annotation, but the symbol's type MUST remain unchanged for the lifetime of that name, including after deletion and re-assignment.
 
 Assignments to undeclared identifiers without a type annotation MUST raise a runtime error. A binding MUST remain allocated until it is deleted with `DEL(name)`.
 
-The built-in `ASSIGN(target, expression)` MUST provide expression-position assignment. The `target` MAY be a plain identifier or an indexed target. If the identifier does not yet exist, the typed form `ASSIGN(TYPE: name, expression)` MUST be used, and that typed form is valid only for plain identifiers.
+The built-in `ASSIGN(target, expression)` MUST provide expression-position assignment. The `target` MAY be a plain identifier or an indexed target. If the identifier does not yet exist, the typed form `ASSIGN(TYPE name, expression)` MUST be used, and that typed form is valid only for plain identifiers.
 
 Indexed assignment to a tensor MUST use the form `tensor[i1, i2, ..., iN] = expression`. The base symbol MUST already be a `TNS`, the index count MUST match the tensor rank, indices MUST follow the language's one-based and negative-index rules, and the assignment MUST preserve the static element type at the selected position.
 
@@ -120,11 +120,11 @@ Conditions MUST accept values of any type. When evaluating a condition, the runt
 
 ### 3.4 Exception handling
 
-Structured exception handling MUST use either `TRY{ ... }CATCH{ ... }` or `TRY{ ... }CATCH(SYMBOL: name){ ... }`. A `TRY` block MUST be followed immediately by exactly one `CATCH` block, and a standalone `CATCH` is a syntax error.
+Structured exception handling MUST use either `TRY{ ... }CATCH{ ... }` or `TRY{ ... }CATCH(SYMBOL name){ ... }`. A `TRY` block MUST be followed immediately by exactly one `CATCH` block, and a standalone `CATCH` is a syntax error.
 
 If the `TRY` block completes without a runtime error, the `CATCH` block MUST be skipped. If a runtime error occurs while executing the `TRY` block, execution of that block MUST stop and the matching `CATCH` block MUST execute.
 
-In the parameterized form, `CATCH(SYMBOL: name)` MUST create a temporary `STR` binding named `name` in the handler's lexical environment containing the triggering error message. That temporary binding MUST shadow any existing binding of the same name only for the duration of the `CATCH` block.
+In the parameterized form, `CATCH(SYMBOL name)` MUST create a temporary `STR` binding named `name` in the handler's lexical environment containing the triggering error message. That temporary binding MUST shadow any existing binding of the same name only for the duration of the `CATCH` block.
 
 `TRY` and `CATCH` MUST intercept interpreter-level errors. Errors raised inside `ASYNC` or other background execution contexts MUST be reported through the runtime's error-reporting mechanisms and MUST NOT synchronously transfer control to a surrounding `CATCH` block in another thread.
 
@@ -378,7 +378,7 @@ When a `MAP` is used in a boolean context, a `MAP` MUST be treated as `TRUE` if 
 
 #### 4.6.1 Function literals
 
-`FUNC` statements MUST define explicit parameter and return types. The definition MUST use the `FUNC` keyword followed by the return type, a colon, the function name, a comma-separated list of typed parameters in parentheses, and the body in curly braces.
+`FUNC` statements MUST define explicit parameter and return types. The definition MUST use the `FUNC` keyword followed by the return type, the function name, a comma-separated list of typed parameters in parentheses, and the body in curly braces. Type annotations in function definitions MUST use the `TYPE name` form, with one or more space characters between the type and the name.
 
 Parameters MAY declare a call-time default value. Positional parameters MUST appear before any parameters with defaults. A `RETURN(value)` statement terminates the function; the returned value MUST match the declared return type. Functions with a `MAP`, `TNS`, `FUNC`, or `THR` return type MUST execute an explicit `RETURN` or raise a runtime error.
 
@@ -430,7 +430,7 @@ Prefix MUST maintain a typed lexical environment mapping identifiers to bindings
 
 ### 5.1 Declarations, bindings, and lifetime
 
-A declaration MUST record the symbol's static type without necessarily creating a readable runtime value. A readable binding is created only when a value is first assigned.
+A declaration MUST record the symbol's static type without necessarily creating a readable runtime value. A readable binding is created only when a value is first assigned. In all type annotations, the type and name MUST be separated by one or more space characters, and other characters MUST NOT appear between them.
 
 Reading an undeclared symbol, a declared-but-never-assigned symbol, or a deleted symbol MUST raise a runtime error. Removing a binding MUST preserve its recorded static type, so any later re-assignment to the same name MUST still match the original type.
 
@@ -647,7 +647,7 @@ The extension context MUST provide registration surfaces equivalent to the follo
 
 The interpreter MUST NOT load `.prex` pointer files.
 
-Runtime extension loading from Prefix source MUST use `EXTEND(EXTENSION: ext)`, defined in [9.1.8](#918-function-and-module-operators). The `ext` specifier MUST exclude the platform filename suffix (`.dll`, `.so`, `.dylib`) and MAY use package semantics with `..`. When `ext` names a package, the loader MUST attempt `ext..init`.
+Runtime extension loading from Prefix source MUST use `EXTEND(EXTENSION ext)`, defined in [9.1.8](#918-function-and-module-operators). The `ext` specifier MUST exclude the platform filename suffix (`.dll`, `.so`, `.dylib`) and MAY use package semantics with `..`. When `ext` names a package, the loader MUST attempt `ext..init`.
 
 `EXTEND` MUST resolve extension libraries using the same extension search roots used by compiled-library loading: the calling module directory when available, then current working directory, then interpreter `ext/std`, `ext/usr`, `lib/std`, and `lib/usr` roots with bundled roots consulted before user roots.
 
@@ -683,7 +683,7 @@ The REPL MUST support immediate termination through the language's normal proces
 
 Built-in operators are pre-defined callable entities provided by the interpreter. They share the same uniform function-call syntax as user-defined functions: `NAME(arg1, arg2, ..., argN)`. The argument list MAY be empty for nullary operators. Arguments MUST be separated by commas; spaces MAY appear freely around commas and parentheses. Each operator has a fixed or variable arity; supplying the wrong number of arguments MUST raise a runtime error.
 
-The subsections below use a type-annotation convention. A union notation such as `INT|FLT` restricts an argument to any one of the listed types. `ANY` denotes any runtime type (`BOOL`, `INT`, `FLT`, `STR`, `TNS`, `MAP`, `FUNC`, or `THR`), including extension-defined types when extensions are active, unless the signature narrows the set explicitly. `SYMBOL` is a pseudo-type indicating that the argument MUST be a plain unquoted identifier; such operators receive the symbol name rather than its runtime value.
+The subsections below use a type-annotation convention. A type annotation is written as `TYPE name`, where `TYPE` is followed by one or more space characters and then the annotated name. A union notation such as `INT|FLT` restricts an argument to any one of the listed types. `ANY` denotes any runtime type (`BOOL`, `INT`, `FLT`, `STR`, `TNS`, `MAP`, `FUNC`, or `THR`), including extension-defined types when extensions are active, unless the signature narrows the set explicitly. `SYMBOL` is a pseudo-type indicating that the argument MUST be a plain unquoted identifier; such operators receive the symbol name rather than its runtime value.
 
 `MODULE` is a pseudo-type indicating that the argument MUST be a plain unquoted module identifier or a package-qualified module name using the language's `..` separator. A slash-separated signature such as `ADD/SUB/MUL` denotes a family of distinct operators that share the same argument rules and differ only in the named operation.
 
@@ -697,161 +697,161 @@ Built-in operator names MUST be matched case-sensitively and MUST be written in 
 
 #### 9.1.1 Symbol and type operators
 
-- `BOOL: DEL(SYMBOL: name)` = MUST delete the readable runtime binding designated by `name`. Deletion MUST preserve the symbol's recorded static type as defined in [5.1](#51-declarations-bindings-and-lifetime). Deleting an undeclared, never-assigned, or already-deleted symbol MUST raise a runtime error. Deleting a frozen or permanently frozen binding MUST raise a runtime error. On success, `DEL` MUST return `FALSE`.
+- `BOOL DEL(SYMBOL name)` = MUST delete the readable runtime binding designated by `name`. Deletion MUST preserve the symbol's recorded static type as defined in [5.1](#51-declarations-bindings-and-lifetime). Deleting an undeclared, never-assigned, or already-deleted symbol MUST raise a runtime error. Deleting a frozen or permanently frozen binding MUST raise a runtime error. On success, `DEL` MUST return `FALSE`.
 
-- `BOOL: DEL(target<key>)` or `BOOL: DEL(target<k1, k2, ...>)` = MUST delete the map entry identified by the final key in the chain of map indices. `target` MUST resolve to a `MAP` value and all intermediate lookups MUST resolve to nested `MAP` values; indexing a non-`MAP` MUST raise a runtime error. If an intermediate key does not exist, the operation MUST be a no-op. After deletion the modified map MUST be written back to the environment. `DEL` in indexed form MUST return `FALSE` whether it deleted an entry or completed as a no-op.
+- `BOOL DEL(target<key>)` or `BOOL DEL(target<k1, k2, ...>)` = MUST delete the map entry identified by the final key in the chain of map indices. `target` MUST resolve to a `MAP` value and all intermediate lookups MUST resolve to nested `MAP` values; indexing a non-`MAP` MUST raise a runtime error. If an intermediate key does not exist, the operation MUST be a no-op. After deletion the modified map MUST be written back to the environment. `DEL` in indexed form MUST return `FALSE` whether it deleted an entry or completed as a no-op.
 
-- `ANY: ASSIGN(target, ANY: value)` = MUST evaluate `value`, assign it to `target`, and return the assigned value. `target` MAY be a plain identifier, a tensor indexed target, or a map indexed target. If a plain identifier has not yet been declared, the typed form `ASSIGN(TYPE: name, value)` MUST be used. The typed form MUST NOT be used with indexed targets.
+- `ANY ASSIGN(target, ANY value)` = MUST evaluate `value`, assign it to `target`, and return the assigned value. `target` MAY be a plain identifier, a tensor indexed target, or a map indexed target. If a plain identifier has not yet been declared, the typed form `ASSIGN(TYPE name, value)` MUST be used. The typed form MUST NOT be used with indexed targets.
 
-- `BOOL: EXIST(SYMBOL: name)` = MUST return `TRUE` if `name` resolves to a visible readable binding in the current lexical environment chain and `FALSE` otherwise.
+- `BOOL EXIST(SYMBOL name)` = MUST return `TRUE` if `name` resolves to a visible readable binding in the current lexical environment chain and `FALSE` otherwise.
 
-- `BOOL: ISBOOL/ISINT/ISFLT/ISSTR/ISTNS/ISMAP/ISFUNC/ISTHR(ANY: value)` = MUST return `TRUE` if the runtime type of `value` is respectively `BOOL`, `INT`, `FLT`, `STR`, `TNS`, `MAP`, `FUNC`, or `THR`, and `FALSE` otherwise.
+- `BOOL ISBOOL/ISINT/ISFLT/ISSTR/ISTNS/ISMAP/ISFUNC/ISTHR(ANY value)` = MUST return `TRUE` if the runtime type of `value` is respectively `BOOL`, `INT`, `FLT`, `STR`, `TNS`, `MAP`, `FUNC`, or `THR`, and `FALSE` otherwise.
 
-- `STR: TYPE(ANY: value)` = MUST return the runtime type name of `value` as a `STR`. For core language values, the result MUST be one of `BOOL`, `INT`, `FLT`, `STR`, `TNS`, `MAP`, `FUNC`, or `THR`. For null or otherwise unrecognized internal values, the result MUST be `NULL`. Extension-defined values MUST report their registered type names.
+- `STR TYPE(ANY value)` = MUST return the runtime type name of `value` as a `STR`. For core language values, the result MUST be one of `BOOL`, `INT`, `FLT`, `STR`, `TNS`, `MAP`, `FUNC`, or `THR`. For null or otherwise unrecognized internal values, the result MUST be `NULL`. Extension-defined values MUST report their registered type names.
 
-- `STR: SIGNATURE(SYMBOL: name)` = MUST return a textual signature for `name`. If `name` denotes a user-defined function, the result MUST use the canonical function-signature form of this specification. For any other visible binding, the result MUST be `TYPE: name`.
+- `STR SIGNATURE(SYMBOL name)` = MUST return a textual signature for `name`. If `name` denotes a user-defined function, the result MUST use the canonical function-signature form of this specification. For any other visible binding, the result MUST be `TYPE name`.
 
-- `BOOL: FREEZE(SYMBOL: name)`, `BOOL: THAW(SYMBOL: name)`, and `BOOL: PERMAFREEZE(SYMBOL: name)` = MUST modify the mutability state of the binding designated by `name`. `FREEZE` MUST prevent reassignment and deletion until thawed. `PERMAFREEZE` MUST permanently prevent reassignment, deletion, and later thawing. `THAW` MUST clear a non-permanent freeze, MUST raise a runtime error when applied to a permanently frozen binding, and MUST otherwise succeed as a no-op when applied to a binding that is not currently frozen. `FREEZE`, `THAW`, and `PERMAFREEZE` MUST each return `FALSE` on success and MUST raise a runtime error if `name` is undefined.
+- `BOOL FREEZE(SYMBOL name)`, `BOOL THAW(SYMBOL name)`, and `BOOL PERMAFREEZE(SYMBOL name)` = MUST modify the mutability state of the binding designated by `name`. `FREEZE` MUST prevent reassignment and deletion until thawed. `PERMAFREEZE` MUST permanently prevent reassignment, deletion, and later thawing. `THAW` MUST clear a non-permanent freeze, MUST raise a runtime error when applied to a permanently frozen binding, and MUST otherwise succeed as a no-op when applied to a binding that is not currently frozen. `FREEZE`, `THAW`, and `PERMAFREEZE` MUST each return `FALSE` on success and MUST raise a runtime error if `name` is undefined.
 
-- `BOOL: FROZEN(SYMBOL: name)` and `BOOL: PERMAFROZEN(SYMBOL: name)` = MUST report the freeze state of `name`. `FROZEN` MUST return `TRUE` for any frozen or permanently frozen binding and `FALSE` otherwise. `PERMAFROZEN` MUST return `TRUE` only for permanently frozen bindings and `FALSE` otherwise. If `name` is undefined, both operators MUST return `FALSE`.
+- `BOOL FROZEN(SYMBOL name)` and `BOOL PERMAFROZEN(SYMBOL name)` = MUST report the freeze state of `name`. `FROZEN` MUST return `TRUE` for any frozen or permanently frozen binding and `FALSE` otherwise. `PERMAFROZEN` MUST return `TRUE` only for permanently frozen bindings and `FALSE` otherwise. If `name` is undefined, both operators MUST return `FALSE`.
 
 ---
 
 #### 9.1.2 Conversion and construction operators
 
-- `BOOL: BOOL(ANY: value)`, `INT: INT(BOOL|INT|FLT|STR: value)`, and `FLT: FLT(BOOL|INT|FLT|STR: value)` = MUST perform explicit scalar conversion. `BOOL(value)` MUST apply the language's truthiness rules and return a `BOOL`. Converting a `FLT` to `INT` MUST truncate toward zero. Converting `BOOL` to `INT` or `FLT` MUST map `TRUE` to `1` or `1.0` and `FALSE` to `0` or `0.0`. Converting a `STR` to `INT` MUST parse a base-prefixed integer literal, and if parsing fails the result MUST follow the string's boolean representation. Converting a `STR` to `FLT` MUST parse a base-prefixed floating-point literal or the special values `INF`, `-INF`, and `NaN`; invalid input MUST raise a runtime error. Passing any other type MUST raise a runtime error.
+- `BOOL BOOL(ANY value)`, `INT INT(BOOL|INT|FLT|STR value)`, and `FLT FLT(BOOL|INT|FLT|STR value)` = MUST perform explicit scalar conversion. `BOOL(value)` MUST apply the language's truthiness rules and return a `BOOL`. Converting a `FLT` to `INT` MUST truncate toward zero. Converting `BOOL` to `INT` or `FLT` MUST map `TRUE` to `1` or `1.0` and `FALSE` to `0` or `0.0`. Converting a `STR` to `INT` MUST parse a base-prefixed integer literal, and if parsing fails the result MUST follow the string's boolean representation. Converting a `STR` to `FLT` MUST parse a base-prefixed floating-point literal or the special values `INF`, `-INF`, and `NaN`; invalid input MUST raise a runtime error. Passing any other type MUST raise a runtime error.
 
-- `STR: STR(BOOL|STR|INT|FLT: value)` = MUST convert `value` to a `STR`. For `BOOL`, the result MUST be `TRUE` or `FALSE`. For `INT` and `FLT`, the result MUST be the base-prefixed numeric spelling, except that `INF`, `-INF`, and `NaN` render without a prefix. For `STR`, the result MUST be a copy.
+- `STR STR(BOOL|STR|INT|FLT value)` = MUST convert `value` to a `STR`. For `BOOL`, the result MUST be `TRUE` or `FALSE`. For `INT` and `FLT`, the result MUST be the base-prefixed numeric spelling, except that `INF`, `-INF`, and `NaN` render without a prefix. For `STR`, the result MUST be a copy.
 
-- `INT|FLT: CONVERT(INT|FLT: value, INT: base)` and `INT: BASE(INT|FLT: value)` = MUST expose numeric-base manipulation. `CONVERT` MUST return `value` represented in `base`, where `base` MUST be between `2` and `64`, inclusive. `BASE` MUST return the stored base of a numeric value. Asking for an invalid base MUST raise a runtime error.
+- `INT|FLT CONVERT(INT|FLT value, INT base)` and `INT BASE(INT|FLT value)` = MUST expose numeric-base manipulation. `CONVERT` MUST return `value` represented in `base`, where `base` MUST be between `2` and `64`, inclusive. `BASE` MUST return the stored base of a numeric value. Asking for an invalid base MUST raise a runtime error.
 
-- `TNS: BYTES(INT: value, STR: endian = "big")` = MUST convert a non-negative integer to a one-dimensional tensor of byte-sized `INT` elements in the range `0` through `0xFF`. `endian` MUST be either `"big"` or `"little"`. `BYTES(0)` MUST return a single zero byte. A negative integer or invalid endianness MUST raise a runtime error.
+- `TNS BYTES(INT value, STR endian = "big")` = MUST convert a non-negative integer to a one-dimensional tensor of byte-sized `INT` elements in the range `0` through `0xFF`. `endian` MUST be either `"big"` or `"little"`. `BYTES(0)` MUST return a single zero byte. A negative integer or invalid endianness MUST raise a runtime error.
 
-- `ANY: COPY(ANY: value)` and `ANY: DEEPCOPY(ANY: value)` = MUST return, respectively, a shallow copy and a deep copy of `value`. For primitive scalar values, both operations MAY return an equivalent scalar value. For `TNS` and `MAP`, `COPY` MUST duplicate only the outer container, while `DEEPCOPY` MUST recursively duplicate nested containers so that the result shares no mutable container objects with the input.
+- `ANY COPY(ANY value)` and `ANY DEEPCOPY(ANY value)` = MUST return, respectively, a shallow copy and a deep copy of `value`. For primitive scalar values, both operations MAY return an equivalent scalar value. For `TNS` and `MAP`, `COPY` MUST duplicate only the outer container, while `DEEPCOPY` MUST recursively duplicate nested containers so that the result shares no mutable container objects with the input.
 
-- `TNS: TINT/TFLT/TSTR(TNS: tensor)` = MUST convert each scalar element of `tensor` elementwise to `INT`, `FLT`, or `STR`, respectively. If any element cannot be converted, the operator MUST raise a runtime error.
+- `TNS TINT/TFLT/TSTR(TNS tensor)` = MUST convert each scalar element of `tensor` elementwise to `INT`, `FLT`, or `STR`, respectively. If any element cannot be converted, the operator MUST raise a runtime error.
 
-- `FLT: ROUND(FLT: value, STR: mode = "floor", INT: ndigits = 0)` = MUST round `value` to `ndigits` places to the right of the radix point, where negative `ndigits` values round to positions to the left of the radix point. Supported modes MUST include `"floor"`, `"ceiling"` and `"ceil"`, `"zero"`, and `"logical"` and `"half-up"`. When exactly two arguments are supplied and the second argument is an `INT`, it MUST be interpreted as `ndigits` and the mode MUST default to `"floor"`.
+- `FLT ROUND(FLT value, STR mode = "floor", INT ndigits = 0)` = MUST round `value` to `ndigits` places to the right of the radix point, where negative `ndigits` values round to positions to the left of the radix point. Supported modes MUST include `"floor"`, `"ceiling"` and `"ceil"`, `"zero"`, and `"logical"` and `"half-up"`. When exactly two arguments are supplied and the second argument is an `INT`, it MUST be interpreted as `ndigits` and the mode MUST default to `"floor"`.
 
 ---
 
 #### 9.1.3 Arithmetic operators
 
-- `INT|FLT: ADD/SUB/MUL/DIV/CDIV/POW/MOD(INT|FLT: a, INT|FLT: b)` = MUST implement, respectively, addition, subtraction, multiplication, division, ceiling division, exponentiation, and remainder. Except where an operator explicitly states otherwise, `a` and `b` MUST have the same numeric type. Division by zero MUST raise a runtime error.
+- `INT|FLT ADD/SUB/MUL/DIV/CDIV/POW/MOD(INT|FLT a, INT|FLT b)` = MUST implement, respectively, addition, subtraction, multiplication, division, ceiling division, exponentiation, and remainder. Except where an operator explicitly states otherwise, `a` and `b` MUST have the same numeric type. Division by zero MUST raise a runtime error.
 
-- `INT|FLT: NEG/ABS(INT|FLT: value)` = MUST return the additive inverse or absolute value of `value`, respectively.
+- `INT|FLT NEG/ABS(INT|FLT value)` = MUST return the additive inverse or absolute value of `value`, respectively.
 
-- `INT|FLT: GCD/LCM(INT|FLT: a, INT|FLT: b)` = MUST compute the greatest common divisor or least common multiple of `a` and `b`. Mixed `INT` and `FLT` operands MUST be rejected.
+- `INT|FLT GCD/LCM(INT|FLT a, INT|FLT b)` = MUST compute the greatest common divisor or least common multiple of `a` and `b`. Mixed `INT` and `FLT` operands MUST be rejected.
 
-- `INT|FLT: ROOT(INT|FLT: x, INT|FLT: n)` = MUST compute the `n`th root of `x`. For `INT` operands, positive `n` MUST produce the greatest integer `r` such that `r^n <= x` when that notion is defined; `n = 0` MUST raise a runtime error; and negative-`n` integer results are valid only where the reciprocal remains an integer. For `FLT` operands, the result MUST be `x^(1/n)`, with negative `x` permitted only when `n` denotes an odd integer. Invalid roots MUST raise a runtime error.
+- `INT|FLT ROOT(INT|FLT x, INT|FLT n)` = MUST compute the `n`th root of `x`. For `INT` operands, positive `n` MUST produce the greatest integer `r` such that `r^n <= x` when that notion is defined; `n = 0` MUST raise a runtime error; and negative-`n` integer results are valid only where the reciprocal remains an integer. For `FLT` operands, the result MUST be `x^(1/n)`, with negative `x` permitted only when `n` denotes an odd integer. Invalid roots MUST raise a runtime error.
 
-- `INT: IADD/ISUB/IMUL/IDIV/IPOW/IROOT(INT|FLT: a, INT|FLT: b)` and `FLT: FADD/FSUB/FMUL/FDIV/FPOW/FROOT(INT|FLT: a, INT|FLT: b)` = MUST first coerce both operands to the target numeric type and then perform the corresponding arithmetic operation. Failed coercion MUST raise a runtime error.
+- `INT IADD/ISUB/IMUL/IDIV/IPOW/IROOT(INT|FLT a, INT|FLT b)` and `FLT FADD/FSUB/FMUL/FDIV/FPOW/FROOT(INT|FLT a, INT|FLT b)` = MUST first coerce both operands to the target numeric type and then perform the corresponding arithmetic operation. Failed coercion MUST raise a runtime error.
 
-- `INT|FLT: SUM/PROD(INT|FLT: a1, ..., INT|FLT: aN)`, `INT: ISUM/IPROD(INT|FLT: a1, ..., INT|FLT: aN)`, and `FLT: FSUM/FPROD(INT|FLT: a1, ..., INT|FLT: aN)` = MUST compute the corresponding aggregate sum or product across all arguments. The unprefixed forms MUST reject mixed `INT` and `FLT` operands.
+- `INT|FLT SUM/PROD(INT|FLT a1, ..., INT|FLT aN)`, `INT ISUM/IPROD(INT|FLT a1, ..., INT|FLT aN)`, and `FLT FSUM/FPROD(INT|FLT a1, ..., INT|FLT aN)` = MUST compute the corresponding aggregate sum or product across all arguments. The unprefixed forms MUST reject mixed `INT` and `FLT` operands.
 
-- `INT|FLT|STR: MAX/MIN(INT|FLT|STR: a1, ..., INT|FLT|STR: aN)` = MUST return the numeric maximum or minimum for numeric arguments and the longest or shortest element for string arguments. Mixing runtime types MUST raise a runtime error.
+- `INT|FLT|STR MAX/MIN(INT|FLT|STR a1, ..., INT|FLT|STR aN)` = MUST return the numeric maximum or minimum for numeric arguments and the longest or shortest element for string arguments. Mixing runtime types MUST raise a runtime error.
 
-- `INT|FLT|STR: MAX/MIN(TNS: t1, ..., TNS: tN)` = MUST flatten the supplied tensors and apply the same maximum or minimum rules to their scalar elements. Every encountered element MUST be scalar, and all encountered scalar elements MUST have the same runtime type.
+- `INT|FLT|STR MAX/MIN(TNS t1, ..., TNS tN)` = MUST flatten the supplied tensors and apply the same maximum or minimum rules to their scalar elements. Every encountered element MUST be scalar, and all encountered scalar elements MUST have the same runtime type.
 
-- `INT|FLT: LOG(INT|FLT: value)` and `INT: CLOG(INT: value)` = MUST compute, respectively, floor base-2 logarithm and ceiling base-2 logarithm. The argument MUST be strictly positive.
+- `INT|FLT LOG(INT|FLT value)` and `INT CLOG(INT value)` = MUST compute, respectively, floor base-2 logarithm and ceiling base-2 logarithm. The argument MUST be strictly positive.
 
-- `INT: ILEN(INT: value)` = MUST return the length of the absolute value of `value` in binary digits. `ILEN(0)` MUST return `1`.
+- `INT ILEN(INT value)` = MUST return the length of the absolute value of `value` in binary digits. `ILEN(0)` MUST return `1`.
 
-- `INT: LEN(INT|STR: a1, ..., INT|STR: aN)` = MUST return the number of supplied arguments. Passing a `TNS` or any other unsupported type MUST raise a runtime error.
+- `INT LEN(INT|STR a1, ..., INT|STR aN)` = MUST return the number of supplied arguments. Passing a `TNS` or any other unsupported type MUST raise a runtime error.
 
 ---
 
 #### 9.1.4 Logical and comparison operators
 
-- `BOOL: AND/OR/XOR(ANY: a1, ..., ANY: aN)` and `BOOL: NOT(ANY: value)` = MUST perform boolean conjunction, disjunction, exclusive disjunction, and negation using the language's truthiness rules.
+- `BOOL AND/OR/XOR(ANY a1, ..., ANY aN)` and `BOOL NOT(ANY value)` = MUST perform boolean conjunction, disjunction, exclusive disjunction, and negation using the language's truthiness rules.
 
-- `BOOL: ALL(ANY: a1, ..., ANY: aN)` and `BOOL: ANY(ANY: a1, ..., ANY: aN)` = MUST compute boolean conjunction and disjunction across the supplied arguments and return the result as `BOOL`.
+- `BOOL ALL(ANY a1, ..., ANY aN)` and `BOOL ANY(ANY a1, ..., ANY aN)` = MUST compute boolean conjunction and disjunction across the supplied arguments and return the result as `BOOL`.
 
-- `BOOL: BOOL(ANY: value)` = MUST return the truthiness of `value` as `FALSE` or `TRUE` according to the boolean rules of the value's runtime type.
+- `BOOL BOOL(ANY value)` = MUST return the truthiness of `value` as `FALSE` or `TRUE` according to the boolean rules of the value's runtime type.
 
-- `INT: BAND/BOR/BXOR(INT: a, INT: b)`, `INT: BNOT(INT: value)`, and `INT: SHL/SHR(INT: a, INT: b)` = MUST perform bitwise boolean operations and bit shifting on integer operands. These operators MUST reject `INT` with a radix besides 2.
+- `INT BAND/BOR/BXOR(INT a, INT b)`, `INT BNOT(INT value)`, and `INT SHL/SHR(INT a, INT b)` = MUST perform bitwise boolean operations and bit shifting on integer operands. These operators MUST reject `INT` with a radix besides 2.
 
-- `BOOL: EQ/NEQ(ANY: a, ANY: b)` = MUST test equality or inequality using the language's normal value-comparison rules.
+- `BOOL EQ/NEQ(ANY a, ANY b)` = MUST test equality or inequality using the language's normal value-comparison rules.
 
-- `BOOL: GT/LT/GTE/LTE(INT|FLT: a, INT|FLT: b)` = MUST perform the corresponding ordered comparison on like-typed numeric operands and return `TRUE` when the relation holds and `FALSE` otherwise. Mixed `INT` and `FLT` comparisons MUST raise a runtime error.
+- `BOOL GT/LT/GTE/LTE(INT|FLT a, INT|FLT b)` = MUST perform the corresponding ordered comparison on like-typed numeric operands and return `TRUE` when the relation holds and `FALSE` otherwise. Mixed `INT` and `FLT` comparisons MUST raise a runtime error.
 
 ---
 
 #### 9.1.5 String operators
 
-- `INT: SLEN(STR: value)` = MUST return the character length of `value`.
+- `INT SLEN(STR value)` = MUST return the character length of `value`.
 
-- `STR: UPPER/LOWER(STR: value)` = MUST return the uppercase or lowercase form of `value`, respectively.
+- `STR UPPER/LOWER(STR value)` = MUST return the uppercase or lowercase form of `value`, respectively.
 
-- `INT|STR: FLIP(INT|STR: value)` = MUST reverse `value`. For `STR`, the result MUST be the character-reversed string. For `INT`, the result MUST reverse the integer's binary-digit spelling while preserving the sign.
+- `INT|STR FLIP(INT|STR value)` = MUST reverse `value`. For `STR`, the result MUST be the character-reversed string. For `INT`, the result MUST reverse the integer's binary-digit spelling while preserving the sign.
 
-- `INT|STR: SLICE(INT|STR: value, INT: start, INT: end)` = MUST slice either an integer or a string. For `STR`, the operator MUST return the inclusive character slice from `start` to `end`, counting from `1`, with negative indices counting from the end. For `INT`, the operator MUST return the corresponding inclusive slice of the integer's digit or bit representation according to the implementation's integer-slicing rules.
+- `INT|STR SLICE(INT|STR value, INT start, INT end)` = MUST slice either an integer or a string. For `STR`, the operator MUST return the inclusive character slice from `start` to `end`, counting from `1`, with negative indices counting from the end. For `INT`, the operator MUST return the corresponding inclusive slice of the integer's digit or bit representation according to the implementation's integer-slicing rules.
 
-- `INT|STR: JOIN(INT|STR: a1, ..., INT|STR: aN)` = MUST concatenate all arguments. When all arguments are `STR`, the result MUST be their direct concatenation. When all arguments are `INT`, the result MUST be an integer formed by concatenating their binary-digit spellings. Mixing positive and negative `INT` values or mixing `INT` and `STR` MUST raise a runtime error.
+- `INT|STR JOIN(INT|STR a1, ..., INT|STR aN)` = MUST concatenate all arguments. When all arguments are `STR`, the result MUST be their direct concatenation. When all arguments are `INT`, the result MUST be an integer formed by concatenating their binary-digit spellings. Mixing positive and negative `INT` values or mixing `INT` and `STR` MUST raise a runtime error.
 
-- `TNS: SPLIT(STR: value, STR: delimiter = " ")` = MUST split `value` on the exact substring `delimiter` and return the parts as a one-dimensional tensor of `STR`. `delimiter` MUST be non-empty. Consecutive delimiters and trailing delimiters MUST produce empty-string elements.
+- `TNS SPLIT(STR value, STR delimiter = " ")` = MUST split `value` on the exact substring `delimiter` and return the parts as a one-dimensional tensor of `STR`. `delimiter` MUST be non-empty. Consecutive delimiters and trailing delimiters MUST produce empty-string elements.
 
-- `STR: STRIP(STR: value, STR: remove)` = MUST return `value` with every occurrence of the non-empty substring `remove` removed.
+- `STR STRIP(STR value, STR remove)` = MUST return `value` with every occurrence of the non-empty substring `remove` removed.
 
-- `STR: REPLACE(STR: value, STR: old, STR: new)` = MUST return `value` with every occurrence of the non-empty substring `old` replaced by `new`.
+- `STR REPLACE(STR value, STR old, STR new)` = MUST return `value` with every occurrence of the non-empty substring `old` replaced by `new`.
 
 ---
 
 #### 9.1.6 Tensor operators
 
-- `TNS: TNS(TNS: shape, ANY: value)` and `TNS: TNS(STR: value)` = MUST construct tensors. In the shape form, `shape` MUST be a one-dimensional tensor of positive `INT` lengths and the result MUST be filled with `value`. In the string form, the result MUST be a one-dimensional tensor of one-character `STR` elements.
+- `TNS TNS(TNS shape, ANY value)` and `TNS TNS(STR value)` = MUST construct tensors. In the shape form, `shape` MUST be a one-dimensional tensor of positive `INT` lengths and the result MUST be filled with `value`. In the string form, the result MUST be a one-dimensional tensor of one-character `STR` elements.
 
-- `TNS: SHAPE(TNS: tensor)` and `INT: TLEN(TNS: tensor, INT: dim)` = MUST expose tensor shape information. `SHAPE` MUST return a one-dimensional tensor of dimension lengths, and `TLEN` MUST return the length of the specified one-based dimension. An out-of-range dimension MUST raise a runtime error.
+- `TNS SHAPE(TNS tensor)` and `INT TLEN(TNS tensor, INT dim)` = MUST expose tensor shape information. `SHAPE` MUST return a one-dimensional tensor of dimension lengths, and `TLEN` MUST return the length of the specified one-based dimension. An out-of-range dimension MUST raise a runtime error.
 
-- `TNS: TFLIP(TNS: tensor, INT: dim)` = MUST return a new tensor whose elements are reversed along the one-based dimension `dim`.
+- `TNS TFLIP(TNS tensor, INT dim)` = MUST return a new tensor whose elements are reversed along the one-based dimension `dim`.
 
-- `TNS: SCAT(TNS: src, TNS: dst, TNS: ind)` = MUST return a copy of `dst` with a rectangular slice replaced by `src`. `ind` MUST encode one inclusive `[lo, hi]` range pair per destination dimension. The selected slice shape MUST exactly match the shape of `src`, and out-of-range indices MUST raise a runtime error.
+- `TNS SCAT(TNS src, TNS dst, TNS ind)` = MUST return a copy of `dst` with a rectangular slice replaced by `src`. `ind` MUST encode one inclusive `[lo, hi]` range pair per destination dimension. The selected slice shape MUST exactly match the shape of `src`, and out-of-range indices MUST raise a runtime error.
 
-- `TNS: APPEND(ANY: elem, TNS: tns)` = MUST return a new one-dimensional tensor equal to `tns` with `elem` appended as the last element. If `tns` is not one-dimensional the operator MUST raise a runtime error. Prefix `TNS` values MAY contain heterogeneous element types; `APPEND` therefore MUST accept any element type and simply append it as the last element.
+- `TNS APPEND(ANY elem, TNS tns)` = MUST return a new one-dimensional tensor equal to `tns` with `elem` appended as the last element. If `tns` is not one-dimensional the operator MUST raise a runtime error. Prefix `TNS` values MAY contain heterogeneous element types; `APPEND` therefore MUST accept any element type and simply append it as the last element.
 
-- `TNS: FILL(TNS: tensor, ANY: value)` = MUST return a new tensor with the same shape as `tensor`, filled with `value`. `value` MUST satisfy the target tensor's element-type constraints.
+- `TNS FILL(TNS tensor, ANY value)` = MUST return a new tensor with the same shape as `tensor`, filled with `value`. `value` MUST satisfy the target tensor's element-type constraints.
 
-- `TNS: CONV(TNS: x, TNS: kernel, INT: stride_w = 1, INT: stride_h = 1, INT: pad_w = 0, INT: pad_h = 0, TNS: bias = [])` = MUST support both the legacy two-argument N-dimensional convolution form and the extended 2-D multi-output form. In the legacy form, `kernel` MUST have the same rank as `x`, every kernel dimension length MUST be odd, boundary sampling MUST clamp to the nearest valid index, and the result MUST have the same shape as `x`. In the extended form, when any keyword argument is supplied and `x` is rank 3 while `kernel` is rank 4 with shape `[kw, kh, in_c, out_c]`, the operator MUST perform 2-D convolution with the given strides, explicit zero padding, and optional per-output-channel bias, returning shape `[out_w, out_h, out_c]`. Where both inputs are `INT`, the output MUST be `INT`; otherwise it MUST be `FLT`.
+- `TNS CONV(TNS x, TNS kernel, INT stride_w = 1, INT stride_h = 1, INT pad_w = 0, INT pad_h = 0, TNS bias = [])` = MUST support both the legacy two-argument N-dimensional convolution form and the extended 2-D multi-output form. In the legacy form, `kernel` MUST have the same rank as `x`, every kernel dimension length MUST be odd, boundary sampling MUST clamp to the nearest valid index, and the result MUST have the same shape as `x`. In the extended form, when any keyword argument is supplied and `x` is rank 3 while `kernel` is rank 4 with shape `[kw, kh, in_c, out_c]`, the operator MUST perform 2-D convolution with the given strides, explicit zero padding, and optional per-output-channel bias, returning shape `[out_w, out_h, out_c]`. Where both inputs are `INT`, the output MUST be `INT`; otherwise it MUST be `FLT`.
 
-- `BOOL: IN(ANY: value, TNS: tensor)` = MUST return `TRUE` if any tensor element is equal to `value` and `FALSE` otherwise.
+- `BOOL IN(ANY value, TNS tensor)` = MUST return `TRUE` if any tensor element is equal to `value` and `FALSE` otherwise.
 
-- `TNS: MADD/MSUB/MMUL/MDIV(TNS: x, TNS: y)` = MUST perform elementwise tensor-tensor arithmetic. The input shapes MUST match exactly, the element types MUST be uniformly numeric and mutually compatible, and division by zero MUST raise a runtime error.
+- `TNS MADD/MSUB/MMUL/MDIV(TNS x, TNS y)` = MUST perform elementwise tensor-tensor arithmetic. The input shapes MUST match exactly, the element types MUST be uniformly numeric and mutually compatible, and division by zero MUST raise a runtime error.
 
-- `TNS: MSUM/MPROD(TNS: t1, ..., TNS: tN)` = MUST perform elementwise sum or product across tensors of identical shape and mutually compatible numeric element type.
+- `TNS MSUM/MPROD(TNS t1, ..., TNS tN)` = MUST perform elementwise sum or product across tensors of identical shape and mutually compatible numeric element type.
 
-- `TNS: TADD/TSUB/TMUL/TDIV/TPOW(TNS: tensor, INT|FLT: scalar)` = MUST perform tensor-scalar arithmetic. All tensor elements and the scalar MUST share the same numeric type, except where a specific operator explicitly permits widening. Division by zero MUST raise a runtime error.
+- `TNS TADD/TSUB/TMUL/TDIV/TPOW(TNS tensor, INT|FLT scalar)` = MUST perform tensor-scalar arithmetic. All tensor elements and the scalar MUST share the same numeric type, except where a specific operator explicitly permits widening. Division by zero MUST raise a runtime error.
 
 ---
 
 #### 9.1.7 Map operators
 
-- `TNS: KEYS(MAP: map)` and `TNS: VALUES(MAP: map)` = MUST return one-dimensional tensors containing, respectively, the keys and values of `map` in insertion order.
+- `TNS KEYS(MAP map)` and `TNS VALUES(MAP map)` = MUST return one-dimensional tensors containing, respectively, the keys and values of `map` in insertion order.
 
-- `BOOL: KEYIN(INT|FLT|STR: key, MAP: map)` and `BOOL: VALUEIN(ANY: value, MAP: map)` = MUST return `TRUE` when the given key or value occurs in `map` and `FALSE` otherwise.
+- `BOOL KEYIN(INT|FLT|STR key, MAP map)` and `BOOL VALUEIN(ANY value, MAP map)` = MUST return `TRUE` when the given key or value occurs in `map` and `FALSE` otherwise.
 
-- `BOOL: MATCH(MAP: map, MAP: template, INT: typing = 0, INT: recurse = 0, INT: shape = 0)` = MUST return `TRUE` if every key in `template` is present in `map`. When `typing` is non-zero, the corresponding stored value types MUST also match. When `shape` is non-zero, corresponding tensor values MUST additionally have identical shapes. When `recurse` is non-zero, the same rules MUST be applied recursively to nested maps. Any failed condition MUST produce `FALSE` rather than raising an error.
+- `BOOL MATCH(MAP map, MAP template, INT typing = 0, INT recurse = 0, INT shape = 0)` = MUST return `TRUE` if every key in `template` is present in `map`. When `typing` is non-zero, the corresponding stored value types MUST also match. When `shape` is non-zero, corresponding tensor values MUST additionally have identical shapes. When `recurse` is non-zero, the same rules MUST be applied recursively to nested maps. Any failed condition MUST produce `FALSE` rather than raising an error.
 
-- `MAP: INV(MAP: map)` = MUST return a new map whose keys and values are reversed. Every value in `map` MUST be a scalar key type (`INT`, `FLT`, or `STR`), and duplicate values MUST raise a runtime error.
+- `MAP INV(MAP map)` = MUST return a new map whose keys and values are reversed. Every value in `map` MUST be a scalar key type (`INT`, `FLT`, or `STR`), and duplicate values MUST raise a runtime error.
 
 ---
 
 #### 9.1.8 Function and module operators
 
-- `RUN(STR: source)` = MUST parse and execute `source` as Prefix code in the caller's current lexical environment. Parse failure or runtime failure inside the executed source MUST raise a runtime error.
+- `RUN(STR source)` = MUST parse and execute `source` as Prefix code in the caller's current lexical environment. Parse failure or runtime failure inside the executed source MUST raise a runtime error.
 
-- `BOOL: ASSERT(ANY: value)` = MUST raise a runtime error if `value` is falsey according to the language's truthiness rules. On success, it MUST return `TRUE`.
+- `BOOL ASSERT(ANY value)` = MUST raise a runtime error if `value` is falsey according to the language's truthiness rules. On success, it MUST return `TRUE`.
 
-- `BOOL: REFUTE(~BOOL: cond)` = MUST raise a runtime error if `cond` is truthy according to the language's truthiness rules. On success, it MUST return `TRUE`.
+- `BOOL REFUTE(~BOOL cond)` = MUST raise a runtime error if `cond` is truthy according to the language's truthiness rules. On success, it MUST return `TRUE`.
 
-- `THROW()` or `THROW(INT|STR: a1, ..., INT|STR: aN)` = MUST raise a runtime error. When one or more arguments are supplied, the error message MUST be formed by concatenating those arguments using the same rendering rules as `PRINT`, but without a trailing newline. When no arguments are supplied, the error message MUST be `"Exception thrown"`.
+- `THROW()` or `THROW(INT|STR a1, ..., INT|STR aN)` = MUST raise a runtime error. When one or more arguments are supplied, the error message MUST be formed by concatenating those arguments using the same rendering rules as `PRINT`, but without a trailing newline. When no arguments are supplied, the error message MUST be `"Exception thrown"`.
 
-- `BOOL: MAIN()` = MUST return `TRUE` when the call site is in the primary program source and `FALSE` when the call site is executing from imported module code. The result MUST depend on the source location of the call expression rather than on the dynamic caller stack.
+- `BOOL MAIN()` = MUST return `TRUE` when the call site is in the primary program source and `FALSE` when the call site is executing from imported module code. The result MUST depend on the source location of the call expression rather than on the dynamic caller stack.
 
-- `BOOL: EXTEND(EXTENSION: ext)` = MUST load the compiled extension designated by `ext`. The specifier `ext` MUST exclude the platform filename suffix and MAY use package-style `..` separators. If `ext` resolves to a package, the loader MUST attempt `ext..init`. Relative extension names MUST resolve using the calling module's source directory when available, then the current working directory, then the configured extension roots `ext/std`, `ext/usr`, `lib/std`, and `lib/usr` (with bundled roots searched before user roots). Repeating an `EXTEND` request for an already-loaded extension exposure MUST be idempotent. On success, `EXTEND` MUST return `FALSE`.
+- `BOOL EXTEND(EXTENSION ext)` = MUST load the compiled extension designated by `ext`. The specifier `ext` MUST exclude the platform filename suffix and MAY use package-style `..` separators. If `ext` resolves to a package, the loader MUST attempt `ext..init`. Relative extension names MUST resolve using the calling module's source directory when available, then the current working directory, then the configured extension roots `ext/std`, `ext/usr`, `lib/std`, and `lib/usr` (with bundled roots searched before user roots). Repeating an `EXTEND` request for an already-loaded extension exposure MUST be idempotent. On success, `EXTEND` MUST return `FALSE`.
 
   Operators registered with the module-restriction flag (for example `PREFIX_EXTENSION_MODULE_RESTRICTED`) MUST be exposed only under the extending module's namespace. Importing that module MUST expose the extension namespace qualifier under the importing module's qualified name. `PREFIX_EXTENSION_ASMODULE` by itself MUST NOT restrict an operator to the extending module's namespace or cause that qualified exposure. Extension side effects outside operator registration (for example process-global hooks or host-side state) remain global.
 
-- `BOOL: IMPORT(MODULE: name)` or `BOOL: IMPORT(MODULE: name, SYMBOL: alias)` = MUST load the named module, execute it in its own top-level environment on first import, cache that environment, and expose its bindings under the module name or the supplied alias. The implementation MUST search the referring source directory first, then bundled library locations as described in [8.2](#82-extensions-and-extend), [10](#10-standard-library), and the language's module-search rules. Re-importing an already loaded module MUST reuse the cached module namespace rather than re-executing the module.
+- `BOOL IMPORT(MODULE name)` or `BOOL IMPORT(MODULE name, SYMBOL alias)` = MUST load the named module, execute it in its own top-level environment on first import, cache that environment, and expose its bindings under the module name or the supplied alias. The implementation MUST search the referring source directory first, then bundled library locations as described in [8.2](#82-extensions-and-extend), [10](#10-standard-library), and the language's module-search rules. Re-importing an already loaded module MUST reuse the cached module namespace rather than re-executing the module.
 
   Prefix package namespaces MUST use `..` as the package separator. The canonical form is `package..subpackage..module`. When `IMPORT(pkg)` is used and a package directory named `pkg` exists, the interpreter MUST prefer package resolution and attempt to load `pkg/init.pre`. If that package directory exists but contains no `init.pre`, the import MUST raise a runtime error. When `IMPORT(pkg..mod)` is used, the interpreter MUST resolve to `pkg/mod.pre`. If both a package directory and a same-named module file exist in the same search location, the package MUST take precedence.
 
@@ -861,9 +861,9 @@ Built-in operator names MUST be matched case-sensitively and MUST be written in 
 
   Module import MUST NOT implicitly load companion extension pointer files. Runtime extensions for module code MUST be loaded explicitly via `EXTEND` inside the module. On success, `IMPORT` MUST return `FALSE`.
 
-- `BOOL: IMPORT_PATH(STR: path)` or `BOOL: IMPORT_PATH(STR: path, SYMBOL: alias)` = MUST load a module from an explicit filesystem path and expose it under `alias` or, if omitted, under a basename-derived module name. The argument MUST at minimum accept an absolute path to a `.pre` source file. The module's basename, excluding the `.pre` suffix, MUST be used as the default qualified module name when no alias is supplied. The loaded module MUST otherwise obey the same isolation, caching, and exposure rules as `IMPORT`. Runtime extensions for that module MUST be loaded explicitly via `EXTEND`. On success, `IMPORT_PATH` MUST return `FALSE`.
+- `BOOL IMPORT_PATH(STR path)` or `BOOL IMPORT_PATH(STR path, SYMBOL alias)` = MUST load a module from an explicit filesystem path and expose it under `alias` or, if omitted, under a basename-derived module name. The argument MUST at minimum accept an absolute path to a `.pre` source file. The module's basename, excluding the `.pre` suffix, MUST be used as the default qualified module name when no alias is supplied. The loaded module MUST otherwise obey the same isolation, caching, and exposure rules as `IMPORT`. Runtime extensions for that module MUST be loaded explicitly via `EXTEND`. On success, `IMPORT_PATH` MUST return `FALSE`.
 
-- `BOOL: EXPORT(SYMBOL: symbol, MODULE: module)` = MUST copy the caller's current binding for `symbol` into the namespace of the already imported module designated by `module`, making the exported binding available through that module's qualified namespace. `EXPORT` MUST return `FALSE` on success and MUST raise a runtime error if `module` is not currently imported.
+- `BOOL EXPORT(SYMBOL symbol, MODULE module)` = MUST copy the caller's current binding for `symbol` into the namespace of the already imported module designated by `module`, making the exported binding available through that module's qualified namespace. `EXPORT` MUST return `FALSE` on success and MUST raise a runtime error if `module` is not currently imported.
 
 ---
 
@@ -871,19 +871,19 @@ Built-in operator names MUST be matched case-sensitively and MUST be written in 
 
 The expression form `ASYNC{ ... }` and the statement form `THR(symbol){ ... }` are defined in [3.6](#36-asynchronous-execution-and-threads). The operators in this subsection act on `THR` handles.
 
-- `BOOL: PARALLEL(TNS: functions)` or `BOOL: PARALLEL(FUNC: f1, FUNC: f2, ..., FUNC: fN)` = MUST invoke each supplied function concurrently with no arguments, wait for all invocations to complete, and return `FALSE` on success. Any non-`FUNC` argument or any worker failure MUST raise a runtime error.
+- `BOOL PARALLEL(TNS functions)` or `BOOL PARALLEL(FUNC f1, FUNC f2, ..., FUNC fN)` = MUST invoke each supplied function concurrently with no arguments, wait for all invocations to complete, and return `FALSE` on success. Any non-`FUNC` argument or any worker failure MUST raise a runtime error.
 
-- `THR: AWAIT(THR: thread)` = MUST block until `thread` has finished and then return the same thread handle.
+- `THR AWAIT(THR thread)` = MUST block until `thread` has finished and then return the same thread handle.
 
-- `THR: PAUSE(THR: thread, FLT: seconds = -1)` = MUST pause `thread`. If `seconds` is supplied and is non-negative, the runtime MUST automatically resume the thread after that duration. Pausing a thread that is already paused MUST raise a runtime error.
+- `THR PAUSE(THR thread, FLT seconds = -1)` = MUST pause `thread`. If `seconds` is supplied and is non-negative, the runtime MUST automatically resume the thread after that duration. Pausing a thread that is already paused MUST raise a runtime error.
 
-- `THR: RESUME(THR: thread)` = MUST resume a paused thread. Resuming a thread that is not paused MUST raise a runtime error.
+- `THR RESUME(THR thread)` = MUST resume a paused thread. Resuming a thread that is not paused MUST raise a runtime error.
 
-- `BOOL: PAUSED(THR: thread)` = MUST return `TRUE` when `thread` is paused and `FALSE` otherwise.
+- `BOOL PAUSED(THR thread)` = MUST return `TRUE` when `thread` is paused and `FALSE` otherwise.
 
-- `THR: STOP(THR: thread)` = MUST cooperatively stop `thread`, mark it finished, and return the resulting handle.
+- `THR STOP(THR thread)` = MUST cooperatively stop `thread`, mark it finished, and return the resulting handle.
 
-- `THR: RESTART(THR: thread)` = MUST reinitialize `thread` and begin its execution again, returning the restarted handle.
+- `THR RESTART(THR thread)` = MUST reinitialize `thread` and begin its execution again, returning the restarted handle.
 
 ---
 
@@ -982,43 +982,43 @@ And example statement node shapes include:
 
 The operator semantics that use this format are defined next.
 
-- `STR: SER(ANY: value)` = MUST serialize `value` to a `STR` containing a single JSON text that conforms to the encoding rules and schema described above. `SER` returns that `STR` on success.
+- `STR SER(ANY value)` = MUST serialize `value` to a `STR` containing a single JSON text that conforms to the encoding rules and schema described above. `SER` returns that `STR` on success.
 
-- `ANY: UNSER(STR: text)` = MUST parse `text` as JSON and reconstruct the runtime value according to the schema above. `UNSER` MUST raise a runtime error for invalid JSON, invalid/missing fields, invalid numeric spellings, unsupported key types for `MAP`, unknown discriminators that cannot be reconstructed, or other structural violations.
+- `ANY UNSER(STR text)` = MUST parse `text` as JSON and reconstruct the runtime value according to the schema above. `UNSER` MUST raise a runtime error for invalid JSON, invalid/missing fields, invalid numeric spellings, unsupported key types for `MAP`, unknown discriminators that cannot be reconstructed, or other structural violations.
 
 ---
 
 #### 9.1.11 File and host operators
 
-- `STR: READFILE(STR: path, STR: coding = "UTF-8")` = MUST read the filesystem object at `path` and return its contents as a `STR`. Supported `coding` values MUST include `UTF-8`, `UTF-8 BOM`, `UTF-16 LE`, `UTF-16 BE`, `ANSI`, `binary`, and `hexadecimal`, along with the aliases `bin` for `binary` and `hex` for `hexadecimal`. Coding names MUST be matched case-insensitively. Text decoders MUST tolerate invalid data using replacement semantics. `UTF-8` MUST accept and strip a BOM if present. `ANSI` MUST map to Windows-1252 on Windows and Latin-1 on other hosts. `binary` MUST return an 8-bit-per-byte bitstring, and `hexadecimal` MUST return lowercase hexadecimal text. Read failure MUST raise a runtime error.
+- `STR READFILE(STR path, STR coding = "UTF-8")` = MUST read the filesystem object at `path` and return its contents as a `STR`. Supported `coding` values MUST include `UTF-8`, `UTF-8 BOM`, `UTF-16 LE`, `UTF-16 BE`, `ANSI`, `binary`, and `hexadecimal`, along with the aliases `bin` for `binary` and `hex` for `hexadecimal`. Coding names MUST be matched case-insensitively. Text decoders MUST tolerate invalid data using replacement semantics. `UTF-8` MUST accept and strip a BOM if present. `ANSI` MUST map to Windows-1252 on Windows and Latin-1 on other hosts. `binary` MUST return an 8-bit-per-byte bitstring, and `hexadecimal` MUST return lowercase hexadecimal text. Read failure MUST raise a runtime error.
 
-- `BOOL: WRITEFILE(STR: blob, STR: path, STR: coding = "UTF-8")` = MUST write `blob` to `path` using the selected coding rules. Coding names MUST be matched case-insensitively. `UTF-8 BOM` MUST emit a BOM. `ANSI` MUST map to Windows-1252 on Windows and Latin-1 on other hosts. `binary` MUST require a bitstring whose length is a multiple of 8, and `hexadecimal` MUST require valid hexadecimal text. Invalid coding names or malformed binary or hexadecimal input MUST raise a runtime error. Ordinary I/O failure MUST cause the operator to return `FALSE`; successful writes MUST return `TRUE`.
+- `BOOL WRITEFILE(STR blob, STR path, STR coding = "UTF-8")` = MUST write `blob` to `path` using the selected coding rules. Coding names MUST be matched case-insensitively. `UTF-8 BOM` MUST emit a BOM. `ANSI` MUST map to Windows-1252 on Windows and Latin-1 on other hosts. `binary` MUST require a bitstring whose length is a multiple of 8, and `hexadecimal` MUST require valid hexadecimal text. Invalid coding names or malformed binary or hexadecimal input MUST raise a runtime error. Ordinary I/O failure MUST cause the operator to return `FALSE`; successful writes MUST return `TRUE`.
 
-- `BOOL: EXISTFILE(STR: path)` = MUST return `TRUE` if a filesystem object exists at `path` and `FALSE` otherwise.
+- `BOOL EXISTFILE(STR path)` = MUST return `TRUE` if a filesystem object exists at `path` and `FALSE` otherwise.
 
-- `BOOL: DELETEFILE(STR: path)` = MUST delete the filesystem object at `path` and return `TRUE` on success. Missing files, permission failures, and other deletion failures MUST raise a runtime error.
+- `BOOL DELETEFILE(STR path)` = MUST delete the filesystem object at `path` and return `TRUE` on success. Missing files, permission failures, and other deletion failures MUST raise a runtime error.
 
-- `STR: OS()` = MUST return a short lowercase ASCII string describing the host operating-system family, such as `win`, `linux`, `macos`, or `unix`.
+- `STR OS()` = MUST return a short lowercase ASCII string describing the host operating-system family, such as `win`, `linux`, `macos`, or `unix`.
 
-- `TNS: ARGV()` = MUST return the process argument vector as a one-dimensional tensor of `STR`, preserving the host-provided order.
+- `TNS ARGV()` = MUST return the process argument vector as a one-dimensional tensor of `STR`, preserving the host-provided order.
 
 ---
 
 #### 9.1.12 Console and process operators
 
-- `BOOL: PRINT(~STR: arg1, ..., ~STR: argN)` = MUST convert each argument to `STR`, concatenate the rendered arguments, append a trailing newline, write the result to the console output, record the corresponding I/O event in the execution log, and return `FALSE`.
+- `BOOL PRINT(~STR arg1, ..., ~STR argN)` = MUST convert each argument to `STR`, concatenate the rendered arguments, append a trailing newline, write the result to the console output, record the corresponding I/O event in the execution log, and return `FALSE`.
 
-- `STR: INPUT()` or `STR: INPUT(STR: prompt)` = MUST read a single line of text from the console input and return it as a `STR`. If `prompt` is supplied, the interpreter MUST write it to the console before reading input. The resulting input event MUST be recorded in the execution log, and if a prompt was supplied the recorded event MUST include that prompt text.
+- `STR INPUT()` or `STR INPUT(STR prompt)` = MUST read a single line of text from the console input and return it as a `STR`. If `prompt` is supplied, the interpreter MUST write it to the console before reading input. The resulting input event MUST be recorded in the execution log, and if a prompt was supplied the recorded event MUST include that prompt text.
 
-- `BOOL: WARN(~STR: arg1, ..., ~STR: argN)` = MUST behave like `PRINT`, except that output MUST occur only when the interpreter was started with `-verbose`, the rendered line MUST be prefixed with `WARNING: `, and the operator MUST return `TRUE` when output occurred and `FALSE` otherwise. Arguments outside `INT` and `STR` MUST raise a runtime error.
+- `BOOL WARN(~STR arg1, ..., ~STR argN)` = MUST behave like `PRINT`, except that output MUST occur only when the interpreter was started with `-verbose`, the rendered line MUST be prefixed with `WARNING: `, and the operator MUST return `TRUE` when output occurred and `FALSE` otherwise. Arguments outside `INT` and `STR` MUST raise a runtime error.
 
-- `INT: CL(STR: command)` = MUST execute `command` using the host command shell and return the resulting subprocess exit code as an `INT`. Failure to start the subprocess MUST raise a runtime error. The execution log MUST record the command text and resulting exit code.
+- `INT CL(STR command)` = MUST execute `command` using the host command shell and return the resulting subprocess exit code as an `INT`. Failure to start the subprocess MUST raise a runtime error. The execution log MUST record the command text and resulting exit code.
 
-- `EXIT()` or `EXIT(INT: code)` = MUST immediately terminate the interpreter and return process exit code `0` or the supplied integer `code`, respectively. The termination event MUST be recorded in the execution log when logging is enabled.
+- `EXIT()` or `EXIT(INT code)` = MUST immediately terminate the interpreter and return process exit code `0` or the supplied integer `code`, respectively. The termination event MUST be recorded in the execution log when logging is enabled.
 
-- `BOOL: SHUSH()` = MUST suppress forwarding of console output produced by operators such as `PRINT`, `WARN`, and shell-output capture from `CL`, while leaving the corresponding I/O events available for deterministic logging and replay. `INPUT` prompts MUST continue to be forwarded while shushing is active. `SHUSH` MUST return `FALSE`.
+- `BOOL SHUSH()` = MUST suppress forwarding of console output produced by operators such as `PRINT`, `WARN`, and shell-output capture from `CL`, while leaving the corresponding I/O events available for deterministic logging and replay. `INPUT` prompts MUST continue to be forwarded while shushing is active. `SHUSH` MUST return `FALSE`.
 
-- `BOOL: UNSHUSH()` = MUST clear the shush state established by `SHUSH` so that subsequent console output is forwarded normally again. `UNSHUSH` MUST return `FALSE`.
+- `BOOL UNSHUSH()` = MUST clear the shush state established by `SHUSH` so that subsequent console output is forwarded normally again. `UNSHUSH` MUST return `FALSE`.
 
 ---
 
@@ -1036,9 +1036,9 @@ An expression written in statement position MUST be evaluated for its side effec
 
 #### 9.2.2 Declaration and assignment statements
 
-The declaration form `TYPE: name` MUST record the static type of `name` without creating a readable runtime binding. Reading that symbol before a later assignment MUST raise a runtime error.
+The declaration form `TYPE name` MUST record the static type of `name` without creating a readable runtime binding. Reading that symbol before a later assignment MUST raise a runtime error. The type and name MUST be separated by one or more space characters, and no other character MAY appear between them.
 
-The assignment forms `TYPE: name = expression` and `name = expression` MUST, respectively, perform first assignment with declaration and subsequent assignment to an already-declared symbol. An untyped assignment to an undeclared symbol MUST raise a runtime error, and every assignment MUST preserve the symbol's recorded static type.
+The assignment forms `TYPE name = expression` and `name = expression` MUST, respectively, perform first assignment with declaration and subsequent assignment to an already-declared symbol. An untyped assignment to an undeclared symbol MUST raise a runtime error, and every assignment MUST preserve the symbol's recorded static type.
 
 Indexed assignment statements `tensor[i1, ..., iN] = expression` and `map<k1, ..., kN> = expression` MUST follow the same typing, indexing, and mutation rules defined in [3.2](#32-declarations-and-assignment). Slice assignment to tensors MUST require exact shape agreement between the selected slice and the right-hand-side tensor value.
 
@@ -1054,7 +1054,7 @@ Conditions in statement position MUST accept values of any type, coercing them t
 
 #### 9.2.4 Exception-handling statements
 
-Structured exception handling MUST use either `TRY{ ... }CATCH{ ... }` or `TRY{ ... }CATCH(SYMBOL: name){ ... }`. The `CATCH` block MUST immediately follow its `TRY` block, and exactly one `CATCH` block MUST be provided for each `TRY` statement.
+Structured exception handling MUST use either `TRY{ ... }CATCH{ ... }` or `TRY{ ... }CATCH(SYMBOL name){ ... }`. The `CATCH` block MUST immediately follow its `TRY` block, and exactly one `CATCH` block MUST be provided for each `TRY` statement.
 
 If execution of the `TRY` block completes normally, the corresponding `CATCH` block MUST be skipped. If execution raises an interpreter-level runtime error, execution of the `TRY` block MUST stop and the `CATCH` block MUST run; in the parameterized form, the temporary binding named by `name` MUST be a `STR` containing the error message for the duration of that handler block only.
 
@@ -1072,11 +1072,11 @@ Loop counters introduced by `FOR` and `PARFOR` MUST be loop-local. Other declara
 
 #### 9.2.6 Function-definition and return statements
 
-Named function definitions MUST use the `FUNC` statement form with an explicit return type, function name, typed parameter list, and block body. Parameters MAY declare default expressions, coerced parameters MUST be marked with `~`, and all parameter-binding and default-evaluation behavior MUST follow the rules defined in [4.6](#46-functions) and [5.3](#53-function-symbols-and-call-binding).
+Named function definitions MUST use the `FUNC` statement form with an explicit return type, function name, typed parameter list, and block body. Parameters MAY declare default expressions, coerced parameters MUST be marked with `~`, and all parameter-binding and default-evaluation behavior MUST follow the rules defined in [4.6](#46-functions) and [5.3](#53-function-symbols-and-call-binding). Typed parameters and return annotations in the function syntax MUST use the `TYPE name` form, with one or more space characters between the type and the name.
 
 The statement `RETURN(expression)` MUST terminate the innermost enclosing function immediately and produce the supplied value as that function's result. The returned value MUST satisfy the function's declared return type, and using `RETURN` outside a function MUST raise a runtime error.
 
-The statement `POP(SYMBOL: name)` MUST be valid only inside a function body. It MUST retrieve the current value bound to `name`, delete that binding from the environment, and then return the retrieved value as though `RETURN(name)` had executed immediately before the deletion. Using `POP` outside a function, or applying it to an unreadable binding, MUST raise a runtime error.
+The statement `POP(SYMBOL name)` MUST be valid only inside a function body. It MUST retrieve the current value bound to `name`, delete that binding from the environment, and then return the retrieved value as though `RETURN(name)` had executed immediately before the deletion. Using `POP` outside a function, or applying it to an unreadable binding, MUST raise a runtime error.
 
 ---
 
