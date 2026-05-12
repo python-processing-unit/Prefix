@@ -29,7 +29,7 @@ typedef enum {
     TOKEN_COLON,    // :
     TOKEN_AT,       // @
     TOKEN_TILDE,    // ~
-    TOKEN_STAR,     // *
+    TOKEN_HASH,     // #
     TOKEN_DOT,      // .
     TOKEN_DASH,     // - (reserved; negative numeric literals are part of NUMBER/FLOAT; standalone '-' is a syntax error)
 

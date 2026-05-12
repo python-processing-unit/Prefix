@@ -262,7 +262,7 @@ Token lexer_next_token(Lexer* lexer) {
         if (c == ':') { advance(lexer); return make_token(lexer, TOKEN_COLON, ":", 1); }
         if (c == '@') { advance(lexer); return make_token(lexer, TOKEN_AT, "@", 1); }
         if (c == '~') { advance(lexer); return make_token(lexer, TOKEN_TILDE, "~", 1); }
-        if (c == '*') { advance(lexer); return make_token(lexer, TOKEN_STAR, "*", 1); }
+        if (c == '#') { advance(lexer); return make_token(lexer, TOKEN_HASH, "#", 1); }
         if (c == '.') { advance(lexer); return make_token(lexer, TOKEN_DOT, ".", 1); }
 
         if (c == '"' || c == '\'') {

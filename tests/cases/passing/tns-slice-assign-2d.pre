@@ -1,4 +1,4 @@
 TNS matrix = [[0d1, 0d2], [0d3, 0d4]]
 
-ASSERT(EQ(ASSIGN(matrix[*, 0d2], [0d9, 0d10]), [0d9, 0d10]))
+ASSERT(EQ(ASSIGN(matrix[# , 0d2], [0d9, 0d10]), [0d9, 0d10]))
 ASSERT(EQ(matrix, [[0d1, 0d9], [0d3, 0d10]]))

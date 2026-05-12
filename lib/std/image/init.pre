@@ -36,23 +36,23 @@ FUNC INT CHANNELS(TNS img){
 }
 
 FUNC TNS R(TNS img){
-    RETURN(img[*, *, 0d1])
+    RETURN(img[# , # , 0d1])
 }
 
 FUNC TNS G(TNS img){
-    RETURN(img[*, *, 0d2])
+    RETURN(img[# , # , 0d2])
 }
 
 FUNC TNS B(TNS img){
-    RETURN(img[*, *, 0d3])
+    RETURN(img[# , # , 0d3])
 }
 
 FUNC TNS A(TNS img){
-    RETURN(img[*, *, 0d4])
+    RETURN(img[# , # , 0d4])
 }
 
 FUNC TNS PIXEL(TNS img, INT x, INT y){
-    RETURN(img[x, y, *])
+    RETURN(img[x, y, #])
 }
 
 FUNC INT PIXEL_R(TNS img, INT x, INT y){
@@ -81,7 +81,7 @@ FUNC TNS FLIP_H(TNS img){
 
 FUNC TNS INVERT(TNS img){
     TNS return = MSUB(TNS(SHAPE(img), 0xFF), img)
-    return[*, *, 0d4] = img[*, *, 0d4] ! Preserve alpha
+    return[# , # , 0d4] = img[# , # , 0d4] ! Preserve alpha
     POP(return)
 }
 
@@ -120,7 +120,7 @@ FUNC TNS CROP(TNS img, TNS corners){
     IF(NEQ(SHAPE(corners), [0d4, 0d2])){
         THROW("CROP corners must be a 0d4 by 0d2 tensor: [[tl_x, tl_y], [tr_x, tr_y], [bl_x, bl_y], [br_x, br_y]]")
     }
-    RETURN(img[MIN(corners[*, 0d1]):MAX(corners[*, 0d1]), MIN(corners[*, 0d2]):MAX(corners[*, 0d2]), *])
+    RETURN(img[MIN(corners[# , 0d1]):MAX(corners[# , 0d1]), MIN(corners[# , 0d2]):MAX(corners[# , 0d2]), #])
 }
 
 FUNC BOOL SHOW(TNS img){
