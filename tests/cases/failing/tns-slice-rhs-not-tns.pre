@@ -1,2 +1,2 @@
 TNS vec = [0d1, 0d2]
-ASSIGN(vec[0d1-0d2], 0d9)
+ASSIGN(vec[0d1:0d2], 0d9)

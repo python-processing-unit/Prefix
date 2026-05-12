@@ -31,7 +31,7 @@ typedef enum {
     TOKEN_TILDE,    // ~
     TOKEN_STAR,     // *
     TOKEN_DOT,      // .
-    TOKEN_DASH,     // - (when used as slice range separator)
+    TOKEN_DASH,     // - (reserved; negative numeric literals are part of NUMBER/FLOAT; standalone '-' is a syntax error)
 
     // Keywords
     TOKEN_TRY,

@@ -54,7 +54,7 @@ The lexer MUST distinguish at least the following token classes: numeric literal
 
 Keywords and built-in names MUST be matched case-sensitively and MUST be written in their canonical uppercase forms. If a reserved word is written in any other case, it MUST be tokenized as an identifier instead.
 
-The character `-` MUST be interpreted only as the leading sign of a numeric literal or as the dash used by slice syntax `lo-hi`. Any unsupported use of `-` MUST raise a syntax error.
+The character `-` MUST be interpreted only as the leading sign of a numeric literal. Any unsupported use of `-` MUST raise a syntax error.
 
 The character `~` MUST be reserved for coerced function parameters and MUST NOT appear inside identifiers.
 
@@ -104,7 +104,7 @@ Indexed assignment to a tensor MUST use the form `tensor[i1, i2, ..., iN] = expr
 
 Indexed assignment to a map MUST use the same form as ordinary map access, such as `map<k1, k2> = expression`. Intermediate nested maps MUST be created on demand when assigning to deeper keys. Reassigning an existing key to a value of a different static type MUST raise a runtime error.
 
-If a tensor target uses slice indices such as `lo-hi` or `*`, the right-hand side MUST evaluate to a `TNS` whose shape exactly matches the selected slice, and every written element MUST satisfy the target's static type constraints.
+If a tensor target uses slice indices such as `lo:hi` or `*`, the right-hand side MUST evaluate to a `TNS` whose shape exactly matches the selected slice, and every written element MUST satisfy the target's static type constraints.
 
 ---
 
@@ -328,7 +328,7 @@ If an element evaluates to a `TNS` value, it MUST occupy a single position and M
 
 `TNS` indexing MUST use square brackets (`[` and `]`) with a comma-separated list of indices. Indexing MUST be one-based. Negative indices MUST count backwards from the end of the dimension.
 
-Slice indexing MUST be supported in any index position using a range of the form `lo-hi`. The selected slice MUST be inclusive of both endpoints. The symbol `*` MAY be used in an index position to denote a full-dimension slice, selecting every element along that axis.
+Slice indexing MUST be supported in any index position using a range of the form `lo:hi`. The selected slice MUST be inclusive of both endpoints. The symbol `*` MAY be used in an index position to denote a full-dimension slice, selecting every element along that axis.
 
 ---
 
