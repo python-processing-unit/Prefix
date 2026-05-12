@@ -313,7 +313,7 @@ Token lexer_next_token(Lexer* lexer) {
             return number_token(lexer, false);
         }
 
-        if (strchr("abcdefghijklmnopqrstuvwxyz23456789/ABCDEFGHIJKLMNOPQRSTUVWXYZ$%&_+|?", c)) {
+        if (strchr("abcdefghijklmnopqrstuvwxyz123456789/ABCDEFGHIJKLMNOPQRSTUVWXYZ$%&_+|?", c)) {
             return identifier_token(lexer);
         }
 
