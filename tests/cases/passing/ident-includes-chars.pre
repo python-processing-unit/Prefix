@@ -67,3 +67,4 @@ BOOL _ = TRUE
 BOOL + = TRUE
 BOOL | = TRUE
 BOOL ? = TRUE
+BOOL * = TRUE

@@ -1,0 +1,9 @@
+BOOL - = TRUE
+BOOL -lead = TRUE
+BOOL mid-dash = TRUE
+BOOL a-0tail = TRUE
+
+ASSERT(-)
+ASSERT(-lead)
+ASSERT(mid-dash)
+ASSERT(a-0tail)

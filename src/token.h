@@ -31,7 +31,7 @@ typedef enum {
     TOKEN_TILDE,    // ~
     TOKEN_HASH,     // #
     TOKEN_DOT,      // .
-    TOKEN_DASH,     // - (reserved; negative numeric literals are part of NUMBER/FLOAT; standalone '-' is a syntax error)
+    TOKEN_DASH,     // - (reserved for signed special-value syntax and invalid leading -0... forms; other '-' spellings may be identifiers)
 
     // Keywords
     TOKEN_TRY,

@@ -51,6 +51,9 @@ static void consume_line_continuation(Lexer* lexer);
 static int hex_digit(char c);
 static bool is_base_prefix_char(char c);
 static bool is_number_body_char(char c);
+static bool is_identifier_start_char(char c);
+static bool is_identifier_body_char(char c);
+static bool matches_reserved_signed_special(Lexer* lexer, size_t index, const char* text);
 
 static PTokenType check_keyword(const char* text, size_t length) {
 #define KEYWORD(str, type) \
@@ -202,6 +205,30 @@ static bool is_number_body_char(char c) {
     return c == '+' || c == '_';
 }
 
+static bool is_identifier_start_char(char c) {
+    return strchr("abcdefghijklmnopqrstuvwxyz123456789/ABCDEFGHIJKLMNOPQRSTUVWXYZ$%&_+|?*", c) != NULL;
+}
+
+static bool is_identifier_body_char(char c) {
+    return strchr("abcdefghijklmnopqrstuvwxyz1234567890/ABCDEFGHIJKLMNOPQRSTUVWXYZ$%&_+|?*-", c) != NULL;
+}
+
+static bool matches_reserved_signed_special(Lexer* lexer, size_t index, const char* text) {
+    size_t length = strlen(text);
+
+    if (index + length > lexer->source_len) {
+        return false;
+    }
+    if (memcmp(lexer->source + index, text, length) != 0) {
+        return false;
+    }
+    if (index + length >= lexer->source_len) {
+        return true;
+    }
+
+    return !is_identifier_body_char(lexer->source[index + length]);
+}
+
 Token lexer_next_token(Lexer* lexer) {
     while (!is_at_end(lexer)) {
         char c = peek(lexer);
@@ -270,50 +297,35 @@ Token lexer_next_token(Lexer* lexer) {
         }
 
         if (c == '-') {
-            int start_line = lexer->line;
-            int start_col = lexer->column;
-            advance(lexer);
-
-            // Determine the previous non-whitespace character to avoid
-            // interpreting a mid-token '-' (eg. `1-10`) as a negative number
-            // start. If the previous significant character is a digit,
-            // identifier character, or a closing bracket, treat '-' as a
-            // plain DASH token.
-            int prev_index = (int)lexer->current - 2; // position before the '-'
-            while (prev_index >= 0) {
-                char pc = lexer->source[prev_index];
-                if (pc == ' ' || pc == '\t' || pc == '\r' || pc == '\n') {
-                    prev_index--;
-                    continue;
-                }
-                // found a non-whitespace previous char
-                if (pc == '0' || pc == '1' || isalnum((unsigned char)pc) || pc == ']' || pc == ')' || pc == '}' ) {
-                    Token t = {TOKEN_DASH, safe_strdup("-"), start_line, start_col};
-                    return t;
-                }
-                break;
-            }
-
-            size_t lookahead = lexer->current;
+            size_t lookahead = lexer->current + 1;
             while (lookahead < lexer->source_len &&
                   (lexer->source[lookahead] == ' ' || lexer->source[lookahead] == '\t' || lexer->source[lookahead] == '\r')) {
                 lookahead++;
             }
-                if (lookahead + 1 < lexer->source_len &&
-                    (lexer->source[lookahead] == '0' && is_base_prefix_char(lexer->source[lookahead + 1]))) {
-                   while(lexer->current < lookahead) advance(lexer);
-                   return number_token(lexer, true);
+
+            if (lookahead + 1 < lexer->source_len &&
+                lexer->source[lookahead] == '0' &&
+                is_base_prefix_char(lexer->source[lookahead + 1])) {
+                advance(lexer);
+                while (lexer->current < lookahead) advance(lexer);
+                return number_token(lexer, true);
             }
 
-            Token t = {TOKEN_DASH, safe_strdup("-"), start_line, start_col};
-            return t;
+            if ((peek_next(lexer) == '0') ||
+                matches_reserved_signed_special(lexer, lookahead, "INF") ||
+                matches_reserved_signed_special(lexer, lookahead, "NaN")) {
+                advance(lexer);
+                return make_token(lexer, TOKEN_DASH, "-", 1);
+            }
+
+            return identifier_token(lexer);
         }
 
         if (c == '0' && is_base_prefix_char(peek_next(lexer))) {
             return number_token(lexer, false);
         }
 
-        if (strchr("abcdefghijklmnopqrstuvwxyz123456789/ABCDEFGHIJKLMNOPQRSTUVWXYZ$%&_+|?", c)) {
+        if (is_identifier_start_char(c)) {
             return identifier_token(lexer);
         }
 
@@ -484,7 +496,7 @@ static Token identifier_token(Lexer* lexer) {
     
     while (!is_at_end(lexer)) {
         char c = peek(lexer);
-        if (strchr("abcdefghijklmnopqrstuvwxyz1234567890/ABCDEFGHIJKLMNOPQRSTUVWXYZ$%&_+|?", c)) {
+        if (is_identifier_body_char(c)) {
             advance(lexer);
             if (len_val + 1 >= capacity) { capacity *= 2; value = safe_realloc(value, capacity); }
             value[len_val++] = c;
