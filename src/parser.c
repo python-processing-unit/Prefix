@@ -711,7 +711,7 @@ static Expr* parse_call(Parser* parser) {
             }
             while (parser->current_token.type != TOKEN_RBRACKET && parser->current_token.type != TOKEN_EOF) {
                 // wildcard
-                if (match(parser, TOKEN_STAR)) {
+                if (match(parser, TOKEN_HASH)) {
                     Expr* wc = expr_wildcard(parser->previous_token.line, parser->previous_token.column);
                     expr_list_add(&idx->as.index.indices, wc);
                 } else {
@@ -958,7 +958,7 @@ static Stmt* parse_statement(Parser* parser) {
                         return NULL;
                     }
                     while (parser->current_token.type != TOKEN_RBRACKET && parser->current_token.type != TOKEN_EOF) {
-                        if (match(parser, TOKEN_STAR)) {
+                        if (match(parser, TOKEN_HASH)) {
                             Expr* wc = expr_wildcard(parser->previous_token.line, parser->previous_token.column);
                             expr_list_add(&idx->as.index.indices, wc);
                         } else {

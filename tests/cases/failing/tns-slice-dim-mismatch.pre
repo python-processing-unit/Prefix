@@ -1,2 +1,2 @@
 TNS matrix = [[0d1, 0d2], [0d3, 0d4]]
-ASSIGN(matrix[*, 0d2], [[0d9], [0d10]])
+ASSIGN(matrix[# , 0d2], [[0d9], [0d10]])
