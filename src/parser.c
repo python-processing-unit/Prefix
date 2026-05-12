@@ -943,7 +943,7 @@ static Stmt* parse_statement(Parser* parser) {
         }
         char* name = parser->current_token.literal;
         advance(parser);
-        // Support typed declaration with indexed-assignment target, e.g. `TNS: t[1:10] = ...`
+        // Support typed declaration with indexed-assignment target, e.g. `TNS: t[1-10] = ...`
         if (parser->current_token.type == TOKEN_LBRACKET || parser->current_token.type == TOKEN_LANGLE) {
             // construct base identifier expr and parse trailing indexers
             Expr* base = expr_ident(name, type_tok.line, type_tok.column);
