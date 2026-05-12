@@ -120,7 +120,7 @@ FUNC TNS CROP(TNS img, TNS corners){
     IF(NEQ(SHAPE(corners), [0d4, 0d2])){
         THROW("CROP corners must be a 0d4 by 0d2 tensor: [[tl_x, tl_y], [tr_x, tr_y], [bl_x, bl_y], [br_x, br_y]]")
     }
-    RETURN(img[MIN(corners[*, 0d1])-MAX(corners[*, 0d1]), MIN(corners[*, 0d2])-MAX(corners[*, 0d2]), *])
+    RETURN(img[MIN(corners[*, 0d1]):MAX(corners[*, 0d1]), MIN(corners[*, 0d2]):MAX(corners[*, 0d2]), *])
 }
 
 FUNC BOOL SHOW(TNS img){

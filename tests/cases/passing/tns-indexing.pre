@@ -15,16 +15,16 @@ ASSERT(EQ(cube[0d2, 0d2, 0d1], 0d7))
 ASSERT(EQ(cube[0d1], [[0d1, 0d2], [0d3, 0d4]]))
 ASSERT(EQ(cube[0d1, *], [[0d1, 0d2], [0d3, 0d4]]))
 
-ASSERT(EQ(vec[0d1-0d2], [0d1, 0d2]))
-ASSERT(EQ(vec[0d2-0d2], 0d2))
-ASSERT(EQ(vec[0d1--0d1], [0d1, 0d2, 0d3]))
-ASSERT(EQ(vec[0d0-0d4], [0d1, 0d2, 0d3]))
+ASSERT(EQ(vec[0d1:0d2], [0d1, 0d2]))
+ASSERT(EQ(vec[0d2:0d2], 0d2))
+ASSERT(EQ(vec[0d1:-0d1], [0d1, 0d2, 0d3]))
+ASSERT(EQ(vec[0d0:0d4], [0d1, 0d2, 0d3]))
 
 ASSERT(EQ(matrix[*, *], matrix))
 ASSERT(EQ(matrix[*, 0d1], [0d1, 0d3]))
 ASSERT(EQ(matrix[0d1, *], [0d1, 0d2]))
-ASSERT(EQ(matrix[0d1-0d2, 0d1-0d2], matrix))
-ASSERT(EQ(matrix[0d1--0d1, 0d1], [0d1, 0d3]))
+ASSERT(EQ(matrix[0d1:0d2, 0d1:0d2], matrix))
+ASSERT(EQ(matrix[0d1:-0d1, 0d1], [0d1, 0d3]))
 ASSERT(EQ(cube[*, 0d2, 0d1], [0d3, 0d7]))
 
 INT errors_caught = 0d0
@@ -44,7 +44,7 @@ TRY {
 }
 
 TRY {
-    vec[TRUE-0d1]
+    vec[TRUE:0d1]
 } CATCH(err) {
     ASSERT(EQ(err, 'Range bounds must be INT'))
     ADD(@errors_caught, 0d1)
