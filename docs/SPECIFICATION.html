@@ -64,9 +64,9 @@ The character `~` MUST be reserved for coerced function parameters and MUST NOT 
 
 Identifiers MUST be non-empty and case-sensitive. Variables and user-defined functions share a single flat namespace, so one name MUST NOT denote both a variable and a function. A user-defined function name MUST NOT conflict with any built-in operator or function name.
 
-Identifiers MUST NOT contain non-ASCII characters or any of the following characters: `{`, `}`, `[`, `]`, `(`, `)`, `=`, `,`, `!`, `~`, or `@`. The first character of an identifier MUST NOT be `0` or `1`.
+Identifiers MUST NOT contain non-ASCII characters or any of the following characters: `{`, `}`, `[`, `]`, `(`, `)`, `=`, `,`, `!`, `~`, or `@`. The first character of an identifier MUST NOT be `0`.
 
-The first identifier character MAY be a letter `A-Z` or `a-z`, a decimal digit `2-9`, or one of `/`, `$`, `%`, `&`, `_`, `+`, `|`, or `?`. Subsequent identifier characters MAY additionally include the digits `0` and `1`. This permissive ASCII-only character set preserves an unambiguous distinction between identifiers and numeric literals, which MUST begin with a `0`-prefixed base marker.
+The first identifier character MAY be a letter `A-Z` or `a-z`, a decimal digit `1-9`, or one of `/`, `$`, `%`, `&`, `_`, `+`, `|`, or `?`. Subsequent identifier characters MAY additionally include the digit `0`. This permissive ASCII-only character set preserves an unambiguous distinction between identifiers and numeric literals, which MUST begin with a `0`-prefixed base marker.
 
 ---
 
