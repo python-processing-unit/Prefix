@@ -1,4 +1,4 @@
-MAP mixed_keys = <0d1 = "int", 0d2.5 = "flt", "three" = "str", ADD(0d2, 0d2) = "expr">
+MAP mixed_keys = <0d1 = "int", 0d2.5 = "flt", "three" = "str", +(0d2, 0d2) = "expr">
 MAP nested = <"outer" = <"inner" = 0d9>, "empty_inner" = <>>
 
 ASSERT(EQ(mixed_keys<0d1>, "int"))

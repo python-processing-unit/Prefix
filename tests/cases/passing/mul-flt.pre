@@ -2,8 +2,8 @@ FLT left_oct = 0o1.4
 FLT right_hex = 0x0.8
 FLT left_oct_one = 0o1.0
 
-ASSERT(EQ(MUL(left_oct, right_hex), 0x0.C))
-ASSERT(EQ(BASE(MUL(left_oct, right_hex)), 0d16))
+ASSERT(EQ(*(left_oct, right_hex), 0x0.C))
+ASSERT(EQ(BASE(*(left_oct, right_hex)), 0d16))
 
-ASSERT(EQ(MUL(left_oct_one, right_hex), 0x0.8))
-ASSERT(EQ(BASE(MUL(left_oct_one, right_hex)), 0d16))
+ASSERT(EQ(*(left_oct_one, right_hex), 0x0.8))
+ASSERT(EQ(BASE(*(left_oct_one, right_hex)), 0d16))

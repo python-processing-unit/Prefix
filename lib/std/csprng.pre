@@ -1,6 +1,6 @@
 ! ChaCha20-based cryptographically secure pseudorandom number generator
 
-INT MASK32 = SUB( POW(0b10, 0b100000), 1 )  ! 2^32-1
+INT MASK32 = -( POW(0b10, 0b100000), 1 )  ! 2^32-1
 
 ! ChaCha20 constants ("expand 32-byte k")
 MAP CH_CONST = < ^
@@ -19,7 +19,7 @@ INT ch_buf_pos = TLEN(ch_buf, 0b1)  ! set to buffer length to force refill
 FUNC INT ROTL32(INT x, INT n){
     INT x32 = BAND(x, MASK32)
     INT left = BAND(SHL(x32, n), MASK32)
-    INT right = SHR(x32, SUB(0b100000, n))  ! 32 - n
+    INT right = SHR(x32, -(0b100000, n))  ! 32 - n
     RETURN( BAND(BOR(left, right), MASK32) )
 }
 
@@ -29,13 +29,13 @@ FUNC INT QR(TNS s, INT ia, INT ib, INT ic, INT id){
     INT c = s[ic]
     INT d = s[id]
 
-    a = BAND( ADD(a, b), MASK32 )
+    a = BAND( +(a, b), MASK32 )
     d = ROTL32( BXOR(d, a), 0b10000 )   ! 16
-    c = BAND( ADD(c, d), MASK32 )
+    c = BAND( +(c, d), MASK32 )
     b = ROTL32( BXOR(b, c), 0b1100 )    ! 12
-    a = BAND( ADD(a, b), MASK32 )
+    a = BAND( +(a, b), MASK32 )
     d = ROTL32( BXOR(d, a), 0b1000 )    ! 8
-    c = BAND( ADD(c, d), MASK32 )
+    c = BAND( +(c, d), MASK32 )
     b = ROTL32( BXOR(b, c), 0b111 )     ! 7
 
     s[ia] = a
@@ -78,22 +78,22 @@ FUNC INT CHACHA_BLOCK(){
         QR(state, 0b100, 0b101, 0b1010, 0b1111)
     }
 
-    ch_buf[0b1] = BAND( ADD(state[0b1], CH_CONST<0b0>), MASK32 )
-    ch_buf[0b10] = BAND( ADD(state[0b10], CH_CONST<0b1>), MASK32 )
-    ch_buf[0b11] = BAND( ADD(state[0b11], CH_CONST<0b10>), MASK32 )
-    ch_buf[0b100] = BAND( ADD(state[0b100], CH_CONST<0b11>), MASK32 )
-    ch_buf[0b101] = BAND( ADD(state[0b101], k[0b1]), MASK32 )
-    ch_buf[0b110] = BAND( ADD(state[0b110], k[0b10]), MASK32 )
-    ch_buf[0b111] = BAND( ADD(state[0b111], k[0b11]), MASK32 )
-    ch_buf[0b1000] = BAND( ADD(state[0b1000], k[0b100]), MASK32 )
-    ch_buf[0b1001] = BAND( ADD(state[0b1001], k[0b101]), MASK32 )
-    ch_buf[0b1010] = BAND( ADD(state[0b1010], k[0b110]), MASK32 )
-    ch_buf[0b1011] = BAND( ADD(state[0b1011], k[0b111]), MASK32 )
-    ch_buf[0b1100] = BAND( ADD(state[0b1100], k[0b1000]), MASK32 )
-    ch_buf[0b1101] = BAND( ADD(state[0b1101], ch_counter), MASK32 )
-    ch_buf[0b1110] = BAND( ADD(state[0b1110], n[0b1]), MASK32 )
-    ch_buf[0b1111] = BAND( ADD(state[0b1111], n[0b10]), MASK32 )
-    ch_buf[0b10000] = BAND( ADD(state[0b10000], n[0b11]), MASK32 )
+    ch_buf[0b1] = BAND( +(state[0b1], CH_CONST<0b0>), MASK32 )
+    ch_buf[0b10] = BAND( +(state[0b10], CH_CONST<0b1>), MASK32 )
+    ch_buf[0b11] = BAND( +(state[0b11], CH_CONST<0b10>), MASK32 )
+    ch_buf[0b100] = BAND( +(state[0b100], CH_CONST<0b11>), MASK32 )
+    ch_buf[0b101] = BAND( +(state[0b101], k[0b1]), MASK32 )
+    ch_buf[0b110] = BAND( +(state[0b110], k[0b10]), MASK32 )
+    ch_buf[0b111] = BAND( +(state[0b111], k[0b11]), MASK32 )
+    ch_buf[0b1000] = BAND( +(state[0b1000], k[0b100]), MASK32 )
+    ch_buf[0b1001] = BAND( +(state[0b1001], k[0b101]), MASK32 )
+    ch_buf[0b1010] = BAND( +(state[0b1010], k[0b110]), MASK32 )
+    ch_buf[0b1011] = BAND( +(state[0b1011], k[0b111]), MASK32 )
+    ch_buf[0b1100] = BAND( +(state[0b1100], k[0b1000]), MASK32 )
+    ch_buf[0b1101] = BAND( +(state[0b1101], ch_counter), MASK32 )
+    ch_buf[0b1110] = BAND( +(state[0b1110], n[0b1]), MASK32 )
+    ch_buf[0b1111] = BAND( +(state[0b1111], n[0b10]), MASK32 )
+    ch_buf[0b10000] = BAND( +(state[0b10000], n[0b11]), MASK32 )
 
     RETURN(0b0)
 }
@@ -101,14 +101,14 @@ FUNC INT CHACHA_BLOCK(){
 FUNC INT REFILL_BUF(){
     CHACHA_BLOCK()
     ch_buf_pos = 0b0
-    ch_counter = BAND( ADD(ch_counter, 0b1), MASK32 )
+    ch_counter = BAND( +(ch_counter, 0b1), MASK32 )
     RETURN(0b0)
 }
 
 FUNC INT DERIVE_KEY_AND_NONCE(INT seed){
     INT s = BAND(seed, MASK32)
     FOR(i, 0b1000){  ! 8 key words (1000 == 8)
-        s = BAND( ADD( MUL(s, ^
+        s = BAND( +( *(s, ^
             0b01000001110001100100111001101101), ^
             0b00000000000000000011000000111001 ), ^
             MASK32 ^
@@ -116,7 +116,7 @@ FUNC INT DERIVE_KEY_AND_NONCE(INT seed){
         ch_key[i] = s
     }
     FOR(j, 0b11){  ! 3 nonce words (11 == 3)
-        s = BAND( ADD( MUL(s, ^
+        s = BAND( +( *(s, ^
             0b01000001110001100100111001101101), ^
             0b00000000000000000011000000111001 ), ^
             MASK32 ^
@@ -138,8 +138,8 @@ FUNC INT NEXT(){
     IF( GTE(ch_buf_pos, TLEN(ch_buf, 0b1)) ){  ! buffer length
         REFILL_BUF()
     }
-    INT v = ch_buf[ ADD(ch_buf_pos, 0b1) ]
-    ch_buf_pos = ADD(ch_buf_pos, 0b1)
+    INT v = ch_buf[ +(ch_buf_pos, 0b1) ]
+    ch_buf_pos = +(ch_buf_pos, 0b1)
     RETURN(v)
 }
 
@@ -150,9 +150,9 @@ FUNC INT RANGE(INT max){
 
 FUNC INT RANGE_MIN_MAX(INT min, INT max){
     ASSERT( LTE(min, max) )
-    INT range = SUB(max, min)
+    INT range = -(max, min)
     IF( EQ(range, 0b0) ){ RETURN(min) }
     ASSERT( GT(range, 0b0) )
     INT offset = RANGE(range)
-    RETURN( ADD(offset, min) )
+    RETURN( +(offset, min) )
 }

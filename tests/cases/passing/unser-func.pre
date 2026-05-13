@@ -9,7 +9,7 @@ STR json = JOIN( ^
     loc, ^
     '\R,"callee":{"n":"Identifier","loc":', ^
     loc, ^
-    '\R,"name":"ADD"},"args":[{"n":"CallArgument","name":null,"expression":{"n":"Identifier","loc":', ^
+        '\R,"name":"+"},"args":[{"n":"CallArgument","name":null,"expression":{"n":"Identifier","loc":', ^
     loc, ^
     '\R,"name":"value"}},{"n":"CallArgument","name":null,"expression":{"n":"Identifier","loc":', ^
     loc, ^

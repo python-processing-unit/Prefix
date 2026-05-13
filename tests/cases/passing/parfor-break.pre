@@ -2,11 +2,11 @@ INT outer = 0d0
 INT after = 0d0
 
 FOR(j, 0d3){
-    ADD(@outer, 0d1)
+    +(@outer, 0d1)
     PARFOR(i, 0d5){
         BREAK(0d1)
     }
-    ADD(@after, 0d1)
+    +(@after, 0d1)
 }
 
 ASSERT(EQ(outer, 0d3))

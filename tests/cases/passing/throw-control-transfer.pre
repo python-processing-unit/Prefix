@@ -3,9 +3,9 @@ INT step = 0d0
 TRY{
     step = 0d1
     THROW('stop')
-    step = ADD(step, 0d1)
+    step = +(step, 0d1)
 } CATCH {
-    step = ADD(step, 0d10)
+    step = +(step, 0d10)
 }
 
 ASSERT(EQ(step, 0d11))

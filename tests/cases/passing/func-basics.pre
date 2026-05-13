@@ -1,5 +1,5 @@
 FUNC INT add(INT left, INT right){
-    RETURN(ADD(left, right))
+    RETURN(+(left, right))
 }
 
 ASSERT(EQ(add(0d2, 0d3), 0d5))

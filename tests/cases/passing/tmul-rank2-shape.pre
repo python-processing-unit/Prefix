@@ -1,5 +1,5 @@
 TNS src = [[0d1, 0d2], [0d3, 0d4]]
-TNS out = TMUL(src, 0d6)
+TNS out = T*(src, 0d6)
 
 ASSERT(EQ(out, [[0d6, 0d12], [0d18, 0d24]]))
 ASSERT(EQ(SHAPE(out), [0d2, 0d2]))

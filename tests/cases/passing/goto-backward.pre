@@ -1,9 +1,9 @@
 INT i = 0d0
 INT hits = 0d0
 GOTOPOINT('loop')
-ADD(@hits, 0d1)
++(@hits, 0d1)
 IF(LT(i, 0d2)){
-    ADD(@i, 0d1)
+    +(@i, 0d1)
     GOTO('loop')
 }
 ASSERT(EQ(i, 0d2))

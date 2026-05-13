@@ -12,7 +12,7 @@ try {
 INT total = 0d0
 
 FOR(i, 0d40){
-    total = ADD(total, i)
+  total = +(total, i)
 }
 
 ASSERT(GT(total, 0d0))

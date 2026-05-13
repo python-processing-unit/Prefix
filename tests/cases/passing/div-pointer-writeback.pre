@@ -1,9 +1,9 @@
 INT a1 = 0d6
 INT b1 = 0d3
-DIV(@a1, b1)
+/(@a1, b1)
 ASSERT(EQ(a1, 0d2))
 
 FLT f1 = 0d3.0
 FLT g1 = 0d1.5
-DIV(@f1, g1)
+/(@f1, g1)
 ASSERT(EQ(f1, 0d2.0))

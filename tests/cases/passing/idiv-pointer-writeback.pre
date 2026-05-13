@@ -1,4 +1,4 @@
 INT a1 = 0d20
 INT b1 = 0d4
-IDIV(@a1, b1)
+I/(@a1, b1)
 ASSERT(EQ(a1, 0d5))

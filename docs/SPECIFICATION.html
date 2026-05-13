@@ -685,7 +685,7 @@ Built-in operators are pre-defined callable entities provided by the interpreter
 
 The subsections below use a type-annotation convention. A type annotation is written as `TYPE name`, where `TYPE` is followed by one or more space characters and then the annotated name. A union notation such as `INT|FLT` restricts an argument to any one of the listed types. `ANY` denotes any runtime type (`BOOL`, `INT`, `FLT`, `STR`, `TNS`, `MAP`, `FUNC`, or `THR`), including extension-defined types when extensions are active, unless the signature narrows the set explicitly. `SYMBOL` is a pseudo-type indicating that the argument MUST be a plain unquoted identifier; such operators receive the symbol name rather than its runtime value.
 
-`MODULE` is a pseudo-type indicating that the argument MUST be a plain unquoted module identifier or a package-qualified module name using the language's `..` separator. A slash-separated signature such as `ADD/SUB/MUL` denotes a family of distinct operators that share the same argument rules and differ only in the named operation.
+`MODULE` is a pseudo-type indicating that the argument MUST be a plain unquoted module identifier or a package-qualified module name using the language's `..` separator. A comma-separated signature such as `+, -, *` denotes a family of distinct operators that share the same argument rules and differ only in the named operation.
 
 `EXTENSION` is a pseudo-type indicating that the argument MUST be a plain unquoted extension specifier used by `EXTEND`, excluding the platform filename suffix and optionally using package-style `..` separators.
 
@@ -737,7 +737,7 @@ Built-in operator names MUST be matched case-sensitively and MUST be written in 
 
 #### 9.1.3 Arithmetic operators
 
-- `INT|FLT ADD/SUB/MUL/DIV/CDIV/POW/MOD(INT|FLT a, INT|FLT b)` = MUST implement, respectively, addition, subtraction, multiplication, division, ceiling division, exponentiation, and remainder. Except where an operator explicitly states otherwise, `a` and `b` MUST have the same numeric type. Division by zero MUST raise a runtime error.
+- `INT|FLT +, -, *, /, CDIV, POW, MOD(INT|FLT a, INT|FLT b)` = MUST implement, respectively, addition, subtraction, multiplication, division, ceiling division, exponentiation, and remainder. Except where an operator explicitly states otherwise, `a` and `b` MUST have the same numeric type. Division by zero MUST raise a runtime error.
 
 - `INT|FLT NEG/ABS(INT|FLT value)` = MUST return the additive inverse or absolute value of `value`, respectively.
 
@@ -745,7 +745,7 @@ Built-in operator names MUST be matched case-sensitively and MUST be written in 
 
 - `INT|FLT ROOT(INT|FLT x, INT|FLT n)` = MUST compute the `n`th root of `x`. For `INT` operands, positive `n` MUST produce the greatest integer `r` such that `r^n <= x` when that notion is defined; `n = 0` MUST raise a runtime error; and negative-`n` integer results are valid only where the reciprocal remains an integer. For `FLT` operands, the result MUST be `x^(1/n)`, with negative `x` permitted only when `n` denotes an odd integer. Invalid roots MUST raise a runtime error.
 
-- `INT IADD/ISUB/IMUL/IDIV/IPOW/IROOT(INT|FLT a, INT|FLT b)` and `FLT FADD/FSUB/FMUL/FDIV/FPOW/FROOT(INT|FLT a, INT|FLT b)` = MUST first coerce both operands to the target numeric type and then perform the corresponding arithmetic operation. Failed coercion MUST raise a runtime error.
+- `INT I+, I-, I*, I/, IPOW, IROOT(INT|FLT a, INT|FLT b)` and `FLT F+, F-, F*, F/, FPOW, FROOT(INT|FLT a, INT|FLT b)` = MUST first coerce both operands to the target numeric type and then perform the corresponding arithmetic operation. Failed coercion MUST raise a runtime error.
 
 - `INT|FLT SUM/PROD(INT|FLT a1, ..., INT|FLT aN)`, `INT ISUM/IPROD(INT|FLT a1, ..., INT|FLT aN)`, and `FLT FSUM/FPROD(INT|FLT a1, ..., INT|FLT aN)` = MUST compute the corresponding aggregate sum or product across all arguments. The unprefixed forms MUST reject mixed `INT` and `FLT` operands.
 
@@ -815,11 +815,11 @@ Built-in operator names MUST be matched case-sensitively and MUST be written in 
 
 - `BOOL IN(ANY value, TNS tensor)` = MUST return `TRUE` if any tensor element is equal to `value` and `FALSE` otherwise.
 
-- `TNS MADD/MSUB/MMUL/MDIV(TNS x, TNS y)` = MUST perform elementwise tensor-tensor arithmetic. The input shapes MUST match exactly, the element types MUST be uniformly numeric and mutually compatible, and division by zero MUST raise a runtime error.
+- `TNS M+, M-, M*, M/(TNS x, TNS y)` = MUST perform elementwise tensor-tensor arithmetic. The input shapes MUST match exactly, the element types MUST be uniformly numeric and mutually compatible, and division by zero MUST raise a runtime error.
 
 - `TNS MSUM/MPROD(TNS t1, ..., TNS tN)` = MUST perform elementwise sum or product across tensors of identical shape and mutually compatible numeric element type.
 
-- `TNS TADD/TSUB/TMUL/TDIV/TPOW(TNS tensor, INT|FLT scalar)` = MUST perform tensor-scalar arithmetic. All tensor elements and the scalar MUST share the same numeric type, except where a specific operator explicitly permits widening. Division by zero MUST raise a runtime error.
+- `TNS T+, T-, T*, T/, TPOW(TNS tensor, INT|FLT scalar)` = MUST perform tensor-scalar arithmetic. All tensor elements and the scalar MUST share the same numeric type, except where a specific operator explicitly permits widening. Division by zero MUST raise a runtime error.
 
 ---
 

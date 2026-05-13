@@ -1,9 +1,9 @@
 INT outer = 0d0
 INT inner = 0d0
 FOR(i, 0d3){
-    ADD(@outer, 0d1)
+    +(@outer, 0d1)
     FOR(j, 0d3){
-        ADD(@inner, 0d1)
+        +(@inner, 0d1)
         BREAK(0d2)
         ASSERT(FALSE)
     }

@@ -2,8 +2,8 @@ INT left_dec = 0d2
 INT right_bin = 0b11
 INT wide_hex = 0x10
 
-ASSERT(EQ(MUL(left_dec, right_bin), 0d6))
-ASSERT(EQ(BASE(MUL(left_dec, right_bin)), 0d10))
+ASSERT(EQ(*(left_dec, right_bin), 0d6))
+ASSERT(EQ(BASE(*(left_dec, right_bin)), 0d10))
 
-ASSERT(EQ(MUL(wide_hex, left_dec), 0d32))
-ASSERT(EQ(BASE(MUL(wide_hex, left_dec)), 0d16))
+ASSERT(EQ(*(wide_hex, left_dec), 0d32))
+ASSERT(EQ(BASE(*(wide_hex, left_dec)), 0d16))

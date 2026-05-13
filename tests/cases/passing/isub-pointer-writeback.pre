@@ -1,4 +1,4 @@
 INT a1 = 0d10
 INT b1 = 0d5
-ISUB(@a1, b1)
+I-(@a1, b1)
 ASSERT(EQ(a1, 0d5))

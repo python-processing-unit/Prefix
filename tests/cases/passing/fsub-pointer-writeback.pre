@@ -1,4 +1,4 @@
 FLT f1 = 0d10.5
 FLT g1 = 0d5.25
-FSUB(@f1, g1)
+F-(@f1, g1)
 ASSERT(EQ(f1, 0d5.25))
