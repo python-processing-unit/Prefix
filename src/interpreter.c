@@ -2630,7 +2630,19 @@ static ExecResult exec_stmt(Interpreter* interp, Stmt* stmt, Env* env, LabelMap*
                     decl_env = env->parent;
                 }
                 env_define(decl_env, stmt->as.decl.name, stmt->as.decl.decl_type);
+                return make_ok(value_null());
             }
+
+            /* If the symbol already exists, the declared static type must match.
+               Per specification, redeclaring with a different static type is
+               a runtime error rather than a no-op. */
+            if (existing->decl_type != stmt->as.decl.decl_type) {
+                char buf[128];
+                snprintf(buf, sizeof(buf), "Type mismatch: expected %s but got %s",
+                         decl_type_name(existing->decl_type), decl_type_name(stmt->as.decl.decl_type));
+                return make_error(buf, stmt->line, stmt->column);
+            }
+
             return make_ok(value_null());
         }
 
