@@ -1,11 +1,11 @@
 INT c = 0d0
 INT seen = 0d0
 WHILE(LT(c, 0d5)){
-    ADD(@c, 0d1)
+    +(@c, 0d1)
     IF(LT(c, 0d5)){
         CONTINUE()
     }
-    ADD(@seen, 0d1)
+    +(@seen, 0d1)
 }
 ASSERT(EQ(c, 0d5))
 ASSERT(EQ(seen, 0d1))

@@ -3,6 +3,6 @@ FOR(i, 0d4){
     IF(EQ(i, 0d2)){
         CONTINUE()
     }
-    ADD(@total, i)
+        +(@total, i)
 }
 ASSERT(EQ(total, 0d8))

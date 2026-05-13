@@ -6,7 +6,7 @@ INT seed = 0d9
 INT alias = @seed
 
 FUNC INT add_seed(~INT count, INT step = 0d1){
-    RETURN(ADD(alias, ADD(count, step)))
+    RETURN(+(alias, +(count, step)))
 }
 
 STR json = SER(add_seed)

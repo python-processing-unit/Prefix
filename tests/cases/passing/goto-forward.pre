@@ -2,5 +2,5 @@ INT value = 0d0
 GOTO(0d1)
 ASSERT(FALSE)
 GOTOPOINT(0d1)
-ADD(@value, 0d1)
++(@value, 0d1)
 ASSERT(EQ(value, 0d1))

@@ -3,7 +3,7 @@ FUNC BOOL contains(STR haystack, STR needle){
 }
 
 FUNC INT occurrences(STR haystack, STR needle){
-    RETURN(SUB(TLEN(SPLIT(haystack, needle), 0d1), 0d1))
+    RETURN(-(TLEN(SPLIT(haystack, needle), 0d1), 0d1))
 }
 
 THR(worker){}

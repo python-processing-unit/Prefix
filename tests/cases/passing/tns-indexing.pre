@@ -33,28 +33,28 @@ TRY {
     vec[0d4]
 } CATCH(err) {
     ASSERT(EQ(err, 'Index out of range'))
-    ADD(@errors_caught, 0d1)
+     +(@errors_caught, 0d1)
 }
 
 TRY {
     vec[TRUE]
 } CATCH(err) {
     ASSERT(EQ(err, 'Index expression must evaluate to INT'))
-    ADD(@errors_caught, 0d1)
+     +(@errors_caught, 0d1)
 }
 
 TRY {
     vec[TRUE:0d1]
 } CATCH(err) {
     ASSERT(EQ(err, 'Range bounds must be INT'))
-    ADD(@errors_caught, 0d1)
+     +(@errors_caught, 0d1)
 }
 
 TRY {
     0d1[0d1]
 } CATCH(err) {
     ASSERT(EQ(err, "Square-bracket indexing '[...]' is only allowed on TNS values"))
-    ADD(@errors_caught, 0d1)
+     +(@errors_caught, 0d1)
 }
 
 ASSERT(EQ(errors_caught, 0d4))

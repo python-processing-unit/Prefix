@@ -3234,11 +3234,11 @@ static Value builtin_unser(Interpreter* interp, Value* args, int argc, Expr** ar
 
 static Value builtin_add(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
     (void)argc;
-    EXPECT_NUM(args[0], "ADD", interp, line, col);
-    EXPECT_NUM(args[1], "ADD", interp, line, col);
+    EXPECT_NUM(args[0], "+", interp, line, col);
+    EXPECT_NUM(args[1], "+", interp, line, col);
     
     if (args[0].type != args[1].type) {
-        RUNTIME_ERROR(interp, "ADD cannot mix INT and FLT", line, col);
+        RUNTIME_ERROR(interp, "+ cannot mix INT and FLT", line, col);
     }
     
     Value result = value_null();
@@ -3248,7 +3248,7 @@ static Value builtin_add(Interpreter* interp, Value* args, int argc, Expr** arg_
     } else {
         result = value_flt_base(args[0].as.f + args[1].as.f, out_base);
     }
-    if (!writeback_ptr_range(interp, arg_nodes, env, 0, 2, result, "ADD", line, col)) {
+    if (!writeback_ptr_range(interp, arg_nodes, env, 0, 2, result, "+", line, col)) {
         value_free(result);
         return value_null();
     }
@@ -3257,11 +3257,11 @@ static Value builtin_add(Interpreter* interp, Value* args, int argc, Expr** arg_
 
 static Value builtin_sub(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
     (void)argc;
-    EXPECT_NUM(args[0], "SUB", interp, line, col);
-    EXPECT_NUM(args[1], "SUB", interp, line, col);
+    EXPECT_NUM(args[0], "-", interp, line, col);
+    EXPECT_NUM(args[1], "-", interp, line, col);
     
     if (args[0].type != args[1].type) {
-        RUNTIME_ERROR(interp, "SUB cannot mix INT and FLT", line, col);
+        RUNTIME_ERROR(interp, "- cannot mix INT and FLT", line, col);
     }
     
     Value result = value_null();
@@ -3271,7 +3271,7 @@ static Value builtin_sub(Interpreter* interp, Value* args, int argc, Expr** arg_
     } else {
         result = value_flt_base(args[0].as.f - args[1].as.f, out_base);
     }
-    if (!writeback_ptr_range(interp, arg_nodes, env, 0, 2, result, "SUB", line, col)) {
+    if (!writeback_ptr_range(interp, arg_nodes, env, 0, 2, result, "-", line, col)) {
         value_free(result);
         return value_null();
     }
@@ -3280,24 +3280,24 @@ static Value builtin_sub(Interpreter* interp, Value* args, int argc, Expr** arg_
 
 static Value builtin_mul(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
     (void)arg_nodes; (void)env;
-    EXPECT_NUM(args[0], "MUL", interp, line, col);
-    EXPECT_NUM(args[1], "MUL", interp, line, col);
+    EXPECT_NUM(args[0], "*", interp, line, col);
+    EXPECT_NUM(args[1], "*", interp, line, col);
     
     if (args[0].type != args[1].type) {
-        RUNTIME_ERROR(interp, "MUL cannot mix INT and FLT", line, col);
+        RUNTIME_ERROR(interp, "* cannot mix INT and FLT", line, col);
     }
     
     int out_base = result_base_from_values(args[0], args[1]);
     if (args[0].type == VAL_INT) {
         Value result = value_int_base(args[0].as.i * args[1].as.i, out_base);
-        if (!writeback_ptr_range(interp, arg_nodes, env, 0, 2, result, "MUL", line, col)) {
+        if (!writeback_ptr_range(interp, arg_nodes, env, 0, 2, result, "*", line, col)) {
             value_free(result);
             return value_null();
         }
         return result;
     }
     Value result = value_flt_base(args[0].as.f * args[1].as.f, out_base);
-    if (!writeback_ptr_range(interp, arg_nodes, env, 0, 2, result, "MUL", line, col)) {
+    if (!writeback_ptr_range(interp, arg_nodes, env, 0, 2, result, "*", line, col)) {
         value_free(result);
         return value_null();
     }
@@ -3306,11 +3306,11 @@ static Value builtin_mul(Interpreter* interp, Value* args, int argc, Expr** arg_
 
 static Value builtin_div(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
     (void)arg_nodes; (void)env;
-    EXPECT_NUM(args[0], "DIV", interp, line, col);
-    EXPECT_NUM(args[1], "DIV", interp, line, col);
+    EXPECT_NUM(args[0], "/", interp, line, col);
+    EXPECT_NUM(args[1], "/", interp, line, col);
     
     if (args[0].type != args[1].type) {
-        RUNTIME_ERROR(interp, "DIV cannot mix INT and FLT", line, col);
+        RUNTIME_ERROR(interp, "/ cannot mix INT and FLT", line, col);
     }
     
     int out_base = result_base_from_values(args[0], args[1]);
@@ -3319,7 +3319,7 @@ static Value builtin_div(Interpreter* interp, Value* args, int argc, Expr** arg_
             RUNTIME_ERROR(interp, "Division by zero", line, col);
         }
         Value result = value_int_base(args[0].as.i / args[1].as.i, out_base);
-        if (!writeback_ptr_range(interp, arg_nodes, env, 0, 2, result, "DIV", line, col)) {
+        if (!writeback_ptr_range(interp, arg_nodes, env, 0, 2, result, "/", line, col)) {
             value_free(result);
             return value_null();
         }
@@ -3329,7 +3329,7 @@ static Value builtin_div(Interpreter* interp, Value* args, int argc, Expr** arg_
         RUNTIME_ERROR(interp, "Division by zero", line, col);
     }
     Value result = value_flt_base(args[0].as.f / args[1].as.f, out_base);
-    if (!writeback_ptr_range(interp, arg_nodes, env, 0, 2, result, "DIV", line, col)) {
+    if (!writeback_ptr_range(interp, arg_nodes, env, 0, 2, result, "/", line, col)) {
         value_free(result);
         return value_null();
     }
@@ -3513,23 +3513,23 @@ static Value builtin_abs(Interpreter* interp, Value* args, int argc, Expr** arg_
 // Coercing variants
 static Value builtin_iadd(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
     (void)arg_nodes; (void)env;
-    EXPECT_NUM(args[0], "IADD", interp, line, col);
-    EXPECT_NUM(args[1], "IADD", interp, line, col);
+    EXPECT_NUM(args[0], "I+", interp, line, col);
+    EXPECT_NUM(args[1], "I+", interp, line, col);
     
     int64_t a;
     if (args[0].type == VAL_INT) {
         a = args[0].as.i;
     } else {
-        if (!coerce_flt_to_int_checked(interp, args[0].as.f, &a, "IADD", line, col)) return value_null();
+        if (!coerce_flt_to_int_checked(interp, args[0].as.f, &a, "I+", line, col)) return value_null();
     }
     int64_t b;
     if (args[1].type == VAL_INT) {
         b = args[1].as.i;
     } else {
-        if (!coerce_flt_to_int_checked(interp, args[1].as.f, &b, "IADD", line, col)) return value_null();
+        if (!coerce_flt_to_int_checked(interp, args[1].as.f, &b, "I+", line, col)) return value_null();
     }
     Value result = value_int_base(a + b, result_base_from_values(args[0], args[1]));
-    if (!writeback_ptr_range(interp, arg_nodes, env, 0, 2, result, "IADD", line, col)) {
+    if (!writeback_ptr_range(interp, arg_nodes, env, 0, 2, result, "I+", line, col)) {
         value_free(result);
         return value_null();
     }
@@ -3538,23 +3538,23 @@ static Value builtin_iadd(Interpreter* interp, Value* args, int argc, Expr** arg
 
 static Value builtin_isub(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
     (void)arg_nodes; (void)env;
-    EXPECT_NUM(args[0], "ISUB", interp, line, col);
-    EXPECT_NUM(args[1], "ISUB", interp, line, col);
+    EXPECT_NUM(args[0], "I-", interp, line, col);
+    EXPECT_NUM(args[1], "I-", interp, line, col);
     
     int64_t a;
     if (args[0].type == VAL_INT) {
         a = args[0].as.i;
     } else {
-        if (!coerce_flt_to_int_checked(interp, args[0].as.f, &a, "ISUB", line, col)) return value_null();
+        if (!coerce_flt_to_int_checked(interp, args[0].as.f, &a, "I-", line, col)) return value_null();
     }
     int64_t b;
     if (args[1].type == VAL_INT) {
         b = args[1].as.i;
     } else {
-        if (!coerce_flt_to_int_checked(interp, args[1].as.f, &b, "ISUB", line, col)) return value_null();
+        if (!coerce_flt_to_int_checked(interp, args[1].as.f, &b, "I-", line, col)) return value_null();
     }
     Value result = value_int_base(a - b, result_base_from_values(args[0], args[1]));
-    if (!writeback_ptr_range(interp, arg_nodes, env, 0, 2, result, "ISUB", line, col)) {
+    if (!writeback_ptr_range(interp, arg_nodes, env, 0, 2, result, "I-", line, col)) {
         value_free(result);
         return value_null();
     }
@@ -3563,23 +3563,23 @@ static Value builtin_isub(Interpreter* interp, Value* args, int argc, Expr** arg
 
 static Value builtin_imul(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
     (void)arg_nodes; (void)env;
-    EXPECT_NUM(args[0], "IMUL", interp, line, col);
-    EXPECT_NUM(args[1], "IMUL", interp, line, col);
+    EXPECT_NUM(args[0], "I*", interp, line, col);
+    EXPECT_NUM(args[1], "I*", interp, line, col);
     
     int64_t a;
     if (args[0].type == VAL_INT) {
         a = args[0].as.i;
     } else {
-        if (!coerce_flt_to_int_checked(interp, args[0].as.f, &a, "IMUL", line, col)) return value_null();
+        if (!coerce_flt_to_int_checked(interp, args[0].as.f, &a, "I*", line, col)) return value_null();
     }
     int64_t b;
     if (args[1].type == VAL_INT) {
         b = args[1].as.i;
     } else {
-        if (!coerce_flt_to_int_checked(interp, args[1].as.f, &b, "IMUL", line, col)) return value_null();
+        if (!coerce_flt_to_int_checked(interp, args[1].as.f, &b, "I*", line, col)) return value_null();
     }
     Value result = value_int_base(a * b, result_base_from_values(args[0], args[1]));
-    if (!writeback_ptr_range(interp, arg_nodes, env, 0, 2, result, "IMUL", line, col)) {
+    if (!writeback_ptr_range(interp, arg_nodes, env, 0, 2, result, "I*", line, col)) {
         value_free(result);
         return value_null();
     }
@@ -3588,26 +3588,26 @@ static Value builtin_imul(Interpreter* interp, Value* args, int argc, Expr** arg
 
 static Value builtin_idiv(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
     (void)arg_nodes; (void)env;
-    EXPECT_NUM(args[0], "IDIV", interp, line, col);
-    EXPECT_NUM(args[1], "IDIV", interp, line, col);
+    EXPECT_NUM(args[0], "I/", interp, line, col);
+    EXPECT_NUM(args[1], "I/", interp, line, col);
     
     int64_t a;
     if (args[0].type == VAL_INT) {
         a = args[0].as.i;
     } else {
-        if (!coerce_flt_to_int_checked(interp, args[0].as.f, &a, "IDIV", line, col)) return value_null();
+        if (!coerce_flt_to_int_checked(interp, args[0].as.f, &a, "I/", line, col)) return value_null();
     }
     int64_t b;
     if (args[1].type == VAL_INT) {
         b = args[1].as.i;
     } else {
-        if (!coerce_flt_to_int_checked(interp, args[1].as.f, &b, "IDIV", line, col)) return value_null();
+        if (!coerce_flt_to_int_checked(interp, args[1].as.f, &b, "I/", line, col)) return value_null();
     }
     if (b == 0) {
         RUNTIME_ERROR(interp, "Division by zero", line, col);
     }
     Value result = value_int_base(a / b, result_base_from_values(args[0], args[1]));
-    if (!writeback_ptr_range(interp, arg_nodes, env, 0, 2, result, "IDIV", line, col)) {
+    if (!writeback_ptr_range(interp, arg_nodes, env, 0, 2, result, "I/", line, col)) {
         value_free(result);
         return value_null();
     }
@@ -3616,13 +3616,13 @@ static Value builtin_idiv(Interpreter* interp, Value* args, int argc, Expr** arg
 
 static Value builtin_fadd(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
     (void)argc;
-    EXPECT_NUM(args[0], "FADD", interp, line, col);
-    EXPECT_NUM(args[1], "FADD", interp, line, col);
+    EXPECT_NUM(args[0], "F+", interp, line, col);
+    EXPECT_NUM(args[1], "F+", interp, line, col);
     
     double a = args[0].type == VAL_FLT ? args[0].as.f : (double)args[0].as.i;
     double b = args[1].type == VAL_FLT ? args[1].as.f : (double)args[1].as.i;
     Value result = value_flt_base(a + b, result_base_from_values(args[0], args[1]));
-    if (!writeback_ptr_range(interp, arg_nodes, env, 0, 2, result, "FADD", line, col)) {
+    if (!writeback_ptr_range(interp, arg_nodes, env, 0, 2, result, "F+", line, col)) {
         value_free(result);
         return value_null();
     }
@@ -3631,13 +3631,13 @@ static Value builtin_fadd(Interpreter* interp, Value* args, int argc, Expr** arg
 
 static Value builtin_fsub(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
     (void)arg_nodes; (void)env;
-    EXPECT_NUM(args[0], "FSUB", interp, line, col);
-    EXPECT_NUM(args[1], "FSUB", interp, line, col);
+    EXPECT_NUM(args[0], "F-", interp, line, col);
+    EXPECT_NUM(args[1], "F-", interp, line, col);
     
     double a = args[0].type == VAL_FLT ? args[0].as.f : (double)args[0].as.i;
     double b = args[1].type == VAL_FLT ? args[1].as.f : (double)args[1].as.i;
     Value result = value_flt_base(a - b, result_base_from_values(args[0], args[1]));
-    if (!writeback_ptr_range(interp, arg_nodes, env, 0, 2, result, "FSUB", line, col)) {
+    if (!writeback_ptr_range(interp, arg_nodes, env, 0, 2, result, "F-", line, col)) {
         value_free(result);
         return value_null();
     }
@@ -3646,13 +3646,13 @@ static Value builtin_fsub(Interpreter* interp, Value* args, int argc, Expr** arg
 
 static Value builtin_fmul(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
     (void)arg_nodes; (void)env;
-    EXPECT_NUM(args[0], "FMUL", interp, line, col);
-    EXPECT_NUM(args[1], "FMUL", interp, line, col);
+    EXPECT_NUM(args[0], "F*", interp, line, col);
+    EXPECT_NUM(args[1], "F*", interp, line, col);
     
     double a = args[0].type == VAL_FLT ? args[0].as.f : (double)args[0].as.i;
     double b = args[1].type == VAL_FLT ? args[1].as.f : (double)args[1].as.i;
     Value result = value_flt_base(a * b, result_base_from_values(args[0], args[1]));
-    if (!writeback_ptr_range(interp, arg_nodes, env, 0, 2, result, "FMUL", line, col)) {
+    if (!writeback_ptr_range(interp, arg_nodes, env, 0, 2, result, "F*", line, col)) {
         value_free(result);
         return value_null();
     }
@@ -3661,8 +3661,8 @@ static Value builtin_fmul(Interpreter* interp, Value* args, int argc, Expr** arg
 
 static Value builtin_fdiv(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col) {
     (void)arg_nodes; (void)env;
-    EXPECT_NUM(args[0], "FDIV", interp, line, col);
-    EXPECT_NUM(args[1], "FDIV", interp, line, col);
+    EXPECT_NUM(args[0], "F/", interp, line, col);
+    EXPECT_NUM(args[1], "F/", interp, line, col);
     
     double a = args[0].type == VAL_FLT ? args[0].as.f : (double)args[0].as.i;
     double b = args[1].type == VAL_FLT ? args[1].as.f : (double)args[1].as.i;
@@ -3670,7 +3670,7 @@ static Value builtin_fdiv(Interpreter* interp, Value* args, int argc, Expr** arg
         RUNTIME_ERROR(interp, "Division by zero", line, col);
     }
     Value result = value_flt_base(a / b, result_base_from_values(args[0], args[1]));
-    if (!writeback_ptr_range(interp, arg_nodes, env, 0, 2, result, "FDIV", line, col)) {
+    if (!writeback_ptr_range(interp, arg_nodes, env, 0, 2, result, "F/", line, col)) {
         value_free(result);
         return value_null();
     }
@@ -8969,10 +8969,10 @@ static const char* builtin_params_conv[] = {"x", "kernel", "stride_w", "stride_h
 
 static BuiltinFunction builtins_table[] = {
     // Arithmetic
-    {"ADD", 2, 2, builtin_add},
-    {"SUB", 2, 2, builtin_sub},
-    {"MUL", 2, 2, builtin_mul},
-    {"DIV", 2, 2, builtin_div},
+    {"+", 2, 2, builtin_add},
+    {"-", 2, 2, builtin_sub},
+    {"*", 2, 2, builtin_mul},
+    {"/", 2, 2, builtin_div},
     {"MOD", 2, 2, builtin_mod},
     {"POW", 2, 2, builtin_pow},
     {"NEG", 1, 1, builtin_neg},
@@ -8988,16 +8988,16 @@ static BuiltinFunction builtins_table[] = {
     {"ROUND", 1, 3, builtin_round, builtin_params_round, 3},
 
     // Coercing arithmetic
-    {"IADD", 2, 2, builtin_iadd},
-    {"ISUB", 2, 2, builtin_isub},
-    {"IMUL", 2, 2, builtin_imul},
-    {"IDIV", 2, 2, builtin_idiv},
+    {"I+", 2, 2, builtin_iadd},
+    {"I-", 2, 2, builtin_isub},
+    {"I*", 2, 2, builtin_imul},
+    {"I/", 2, 2, builtin_idiv},
     {"CDIV", 2, 2, builtin_cdiv},
     {"IPOW", 2, 2, builtin_ipow},
-    {"FADD", 2, 2, builtin_fadd},
-    {"FSUB", 2, 2, builtin_fsub},
-    {"FMUL", 2, 2, builtin_fmul},
-    {"FDIV", 2, 2, builtin_fdiv},
+    {"F+", 2, 2, builtin_fadd},
+    {"F-", 2, 2, builtin_fsub},
+    {"F*", 2, 2, builtin_fmul},
+    {"F/", 2, 2, builtin_fdiv},
     {"FPOW", 2, 2, builtin_fpow},
     // Tensor elementwise operators
     {"TNS", 1, 2, builtin_tns},
@@ -9006,20 +9006,20 @@ static BuiltinFunction builtins_table[] = {
     {"TSTR", 1, 1, builtin_tstr},
     {"CONV", 2, 7, builtin_conv, builtin_params_conv, 7},
     {"FILL", 2, 2, builtin_fill},
-    {"TADD", 2, 2, builtin_tadd},
-    {"TSUB", 2, 2, builtin_tsub},
-    {"TMUL", 2, 2, builtin_tmul},
-    {"TDIV", 2, 2, builtin_tdiv},
+    {"T+", 2, 2, builtin_tadd},
+    {"T-", 2, 2, builtin_tsub},
+    {"T*", 2, 2, builtin_tmul},
+    {"T/", 2, 2, builtin_tdiv},
     {"TPOW", 2, 2, builtin_tpow},
     {"SHAPE", 1, 1, builtin_shape},
     {"TLEN", 2, 2, builtin_tlen},
     {"TFLIP", 2, 2, builtin_tflip},
     {"SCAT", 3, 3, builtin_scat},
     {"APPEND", 2, 2, builtin_append},
-    {"MADD", 2, 2, builtin_madd},
-    {"MSUB", 2, 2, builtin_msub},
-    {"MMUL", 2, 2, builtin_mmul},
-    {"MDIV", 2, 2, builtin_mdiv},
+    {"M+", 2, 2, builtin_madd},
+    {"M-", 2, 2, builtin_msub},
+    {"M*", 2, 2, builtin_mmul},
+    {"M/", 2, 2, builtin_mdiv},
     {"MSUM", 1, -1, builtin_msum},
     {"MPROD", 1, -1, builtin_mprod},
 

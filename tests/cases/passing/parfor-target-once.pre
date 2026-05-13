@@ -1,7 +1,7 @@
 INT target_calls = 0d0
 
 FUNC INT get_target(){
-    ADD(@target_calls, 0d1)
+    +(@target_calls, 0d1)
     RETURN(0d3)
 }
 

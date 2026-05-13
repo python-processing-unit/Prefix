@@ -16,15 +16,15 @@ FUNC TNS SQUARE(INT freq, INT ms, INT amp, INT sr){
     ASSERT(GT(freq, 0d0))
     ASSERT(GT(ms, 0d0))
     ASSERT(GT(sr, 0d0))
-    INT frames = DIV(MUL(sr, ms), MS_DEN)
+    INT frames = /(*(sr, ms), MS_DEN)
     TNS shape = [frames]
     TNS out = TNS(shape, 0d0)
     DEL(shape)
     INT period = CDIV(sr, freq)
     IF(LTE(period, 0d0)){ RETURN(out) }
-    INT half = DIV(period, 0d2)
+    INT half = /(period, 0d2)
     PARFOR(idx, frames){
-        INT pos = MOD(SUB(idx, 0d1), period)
+        INT pos = MOD(-(idx, 0d1), period)
         INT v = amp
         IF(GTE(pos, half)){ v = NEG(amp) }
         out[idx] = AUDIO_CLAMP(v)
@@ -41,17 +41,17 @@ FUNC TNS SAWTOOTH(INT freq, INT ms, INT amp, INT sr){
     ASSERT(GT(freq, 0d0))
     ASSERT(GT(ms, 0d0))
     ASSERT(GT(sr, 0d0))
-    INT frames = DIV(MUL(sr, ms), MS_DEN)
+    INT frames = /(*(sr, ms), MS_DEN)
     TNS shape = [frames]
     TNS out = TNS(shape, 0d0)
     DEL(shape)
     INT period = CDIV(sr, freq)
     IF(LTE(period, 0d0)){ RETURN(out) }
     PARFOR(idx, frames){
-        INT pos = MOD(SUB(idx, 0d1), period)
-        INT num = MUL(MUL(MUL(pos, 0d4), amp), 0d1)
-        INT tmp = DIV(num, period)
-        INT v = SUB(tmp, amp)
+        INT pos = MOD(-(idx, 0d1), period)
+        INT num = *(*(*(pos, 0d4), amp), 0d1)
+        INT tmp = /(num, period)
+        INT v = -(tmp, amp)
         out[idx] = AUDIO_CLAMP(v)
     }
     DEL(frames)
@@ -67,25 +67,25 @@ FUNC TNS TRIANGLE(INT freq, INT ms, INT amp, INT sr){
     ASSERT(GT(freq, 0d0))
     ASSERT(GT(ms, 0d0))
     ASSERT(GT(sr, 0d0))
-    INT frames = DIV(MUL(sr, ms), MS_DEN)
+    INT frames = /(*(sr, ms), MS_DEN)
     TNS shape = [frames]
     TNS out = TNS(shape, 0d0)
     DEL(shape)
     INT period = CDIV(sr, freq)
     IF(LTE(period, 0d0)){ RETURN(out) }
-    INT half = DIV(period, 0d2)
+    INT half = /(period, 0d2)
     PARFOR(idx, frames){
-        INT pos = MOD(SUB(idx, 0d1), period)
+        INT pos = MOD(-(idx, 0d1), period)
         INT v = 0d0
         IF(LT(pos, half)){
-            INT num = MUL(MUL(MUL(pos, 0d4), amp), 0d1)
-            INT tmp = DIV(num, period)
-            v = ADD(NEG(amp), tmp)
+            INT num = *(*(*(pos, 0d4), amp), 0d1)
+            INT tmp = /(num, period)
+            v = +(NEG(amp), tmp)
         }ELSE{
-            INT t = SUB(pos, half)
-            INT num = MUL(MUL(MUL(t, 0d4), amp), 0d1)
-            INT tmp = DIV(num, period)
-            v = SUB(amp, tmp)
+            INT t = -(pos, half)
+            INT num = *(*(*(t, 0d4), amp), 0d1)
+            INT tmp = /(num, period)
+            v = -(amp, tmp)
         }
         out[idx] = AUDIO_CLAMP(v)
     }
@@ -104,21 +104,21 @@ FUNC TNS SINE(INT freq, INT ms, INT amp, INT sr){
     ASSERT(GT(freq, 0d0))
     ASSERT(GT(ms, 0d0))
     ASSERT(GT(sr, 0d0))
-    INT frames = DIV(MUL(sr, ms), MS_DEN)
+    INT frames = /(*(sr, ms), MS_DEN)
     TNS shape = [frames]
     TNS base = SAWTOOTH(freq, ms, amp, sr)
     TNS out = TNS(shape, 0d0)
     DEL(shape)
     PARFOR(idx, frames){
         INT previ = idx
-        IF(GT(idx, 0d1)){ previ = SUB(idx, 0d1) }
+        IF(GT(idx, 0d1)){ previ = -(idx, 0d1) }
         INT nexti = idx
-        IF(LT(idx, frames)){ nexti = ADD(idx, 0d1) }
+        IF(LT(idx, frames)){ nexti = +(idx, 0d1) }
         INT a = base[previ]
         INT b = base[idx]
         INT c = base[nexti]
-        INT sum = ADD(ADD(a, b), c)
-        INT v = DIV(sum, 0d3)
+        INT sum = +(+(a, b), c)
+        INT v = /(sum, 0d3)
         out[idx] = AUDIO_CLAMP(v)
     }
     DEL(frames)
@@ -137,15 +137,15 @@ FUNC TNS PULSE(INT freq, INT ms, INT amp, INT sr, INT duty){
     ASSERT(GT(sr, 0d0))
     ASSERT(GTE(duty, 0d0))
     ASSERT(LTE(duty, 0d100))
-    INT frames = DIV(MUL(sr, ms), MS_DEN)
+    INT frames = /(*(sr, ms), MS_DEN)
     TNS shape = [frames]
     TNS out = TNS(shape, 0d0)
     DEL(shape)
     INT period = CDIV(sr, freq)
     IF(LTE(period, 0d0)){ RETURN(out) }
-    INT thresh = DIV(MUL(period, duty), 0d100)
+    INT thresh = /(*(period, duty), 0d100)
     PARFOR(idx, frames){
-        INT pos = MOD(SUB(idx, 0d1), period)
+        INT pos = MOD(-(idx, 0d1), period)
         INT v = amp
         IF(GTE(pos, thresh)){ v = NEG(amp) }
         out[idx] = AUDIO_CLAMP(v)
@@ -184,40 +184,40 @@ FUNC TNS ENVELOPE_ADSR( ^
     INT a = attack
     IF(GT(a, frames)){ a = frames }
     INT d = decay
-    IF(GT(ADD(a,d), frames)){ d = SUB(frames, a) }
+    IF(GT(+(a,d), frames)){ d = -(frames, a) }
     INT r = release
-    IF(GT(ADD(ADD(a,d), r), frames)){ r = SUB(frames, ADD(a,d)) }
-    INT s_len = SUB(frames, ADD(ADD(a,d), r))
+    IF(GT(+(+(a,d), r), frames)){ r = -(frames, +(a,d)) }
+    INT s_len = -(frames, +(+(a,d), r))
     PARFOR(idx, frames){
-        INT z = SUB(idx, 0d1)
+        INT z = -(idx, 0d1)
         INT v = 0d0
         IF(LT(z, a)){
             ! attack: ramp 0 -> 100
             IF(EQ(a, 0d0)){ v = 0d4 }ELSE{
-                INT num = MUL(idx, 0d4)
-                v = DIV(num, a)
+                INT num = *(idx, 0d4)
+                v = /(num, a)
             }
         } ELSE {
-            INT pos = SUB(z, a)
+            INT pos = -(z, a)
             IF(LT(pos, d)){
                 ! decay: ramp 100 -> sustain
                 IF(EQ(d, 0d0)){ v = sustain }ELSE{
-                    INT num = MUL(SUB(0d4, sustain), SUB(d, pos))
-                    INT tmp = DIV(num, d)
-                    v = ADD(sustain, tmp)
+                    INT num = *(-(0d4, sustain), -(d, pos))
+                    INT tmp = /(num, d)
+                    v = +(sustain, tmp)
                 }
             }ELSE{
-                INT pos2 = SUB(pos, d)
+                INT pos2 = -(pos, d)
                 IF(LT(pos2, s_len)){
                     ! sustain region
                     v = sustain
                 }ELSE{
                     ! release region: ramp sustain -> 0
-                    INT relpos = SUB(pos2, s_len)
-                    INT relrem = SUB(r, relpos)
+                    INT relpos = -(pos2, s_len)
+                    INT relrem = -(r, relpos)
                     IF(OR(EQ(r, 0d0), LTE(relrem, 0d0))){ v = 0d0 }ELSE{
-                        INT num = MUL(sustain, relrem)
-                        v = DIV(num, r)
+                        INT num = *(sustain, relrem)
+                        v = /(num, r)
                     }
                 }
             }
@@ -244,20 +244,20 @@ FUNC TNS LOWPASS(TNS inp, INT cutoff, INT sr){
     INT period = CDIV(sr, cutoff)
     IF(LTE(period, 0d0)){ RETURN(out) }
     PARFOR(idx, frames){
-        INT z = SUB(idx, 0d1)
+        INT z = -(idx, 0d1)
         ! compute window start
-        INT start = SUB(z, SUB(period, 0d1))
+        INT start = -(z, -(period, 0d1))
         IF(LT(start, 0d0)){ start = 0d0 }
         INT j = start
         INT sum = 0d0
         WHILE(LTE(j, z)){
-            INT sample = inp[ADD(j, 0d1)]
-            sum = ADD(sum, sample)
-            j = ADD(j, 0d1)
+            INT sample = inp[+(j, 0d1)]
+            sum = +(sum, sample)
+            j = +(j, 0d1)
         }
-        INT count = SUB( ADD(z, 0d1), start )
+        INT count = -( +(z, 0d1), start )
         INT avg = 0d0
-        IF(GTE(count, 0d1)){ avg = DIV(sum, count) }
+        IF(GTE(count, 0d1)){ avg = /(sum, count) }
         out[idx] = AUDIO_CLAMP(avg)
     }
     DEL(slen)
@@ -283,7 +283,7 @@ FUNC TNS HIGHPASS(TNS inp, INT cutoff, INT sr){
         INT i1 = idx
         INT a = inp[i1]
         INT b = low[i1]
-        out[i1] = AUDIO_CLAMP(SUB(a, b))
+        out[i1] = AUDIO_CLAMP(-(a, b))
     }
     DEL(slen)
     DEL(frames)

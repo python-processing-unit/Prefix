@@ -1,11 +1,11 @@
 ! Passing float arithmetic, checking coercion and correct logic
-FLT result_add = FADD(0d10.5, 0d5.25)
+FLT result_add = F+(0d10.5, 0d5.25)
 ASSERT(EQ(result_add, 0d15.75))
 
-FLT result_sub = FSUB(0d10.0, 0d2)
+FLT result_sub = F-(0d10.0, 0d2)
 ASSERT(EQ(result_sub, 0d8.0))
 
-FLT result_mul = FMUL(0d4.25, 0d2.0)
+FLT result_mul = F*(0d4.25, 0d2.0)
 ASSERT(EQ(result_mul, 0d8.5))
 
 FLT result_pow = FPOW(0d2.5, 0d2.0)

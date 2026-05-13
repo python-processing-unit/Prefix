@@ -1,1 +1,1 @@
-MSUB([LAMBDA BOOL: (){}], [LAMBDA BOOL: (){}])
+M-([LAMBDA BOOL: (){}], [LAMBDA BOOL: (){}])

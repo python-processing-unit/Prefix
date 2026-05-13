@@ -1,15 +1,15 @@
 FLT f1 = 0d10.5
 FLT g1 = 0d5.25
-FADD(@f1, g1)
+F+(@f1, g1)
 ASSERT(EQ(f1, 0d15.75))
 
 FLT f2 = 0d10.5
 FLT g2 = 0d5.25
-FADD(f2, @g2)
+F+(f2, @g2)
 ASSERT(EQ(g2, 0d15.75))
 
 FLT f3 = 0d10.5
 FLT g3 = 0d5.25
-FADD(@f3, @g3)
+F+(@f3, @g3)
 ASSERT(EQ(f3, 0d15.75))
 ASSERT(EQ(g3, 0d15.75))

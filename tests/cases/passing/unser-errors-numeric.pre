@@ -3,19 +3,19 @@ INT errors = 0d0
 TRY{
     UNSER('\R{"t":"INT","v":"12"}')
 } CATCH(err){
-    ADD(@errors, 0d1)
+    +(@errors, 0d1)
 }
 
 TRY{
     UNSER('\R{"t":"FLT","v":"0d1"}')
 } CATCH(err){
-    ADD(@errors, 0d1)
+    +(@errors, 0d1)
 }
 
 TRY{
     UNSER('\R{"t":"FLT","v":"-NaN"}')
 } CATCH(err){
-    ADD(@errors, 0d1)
+    +(@errors, 0d1)
 }
 
 ASSERT(EQ(errors, 0d3))

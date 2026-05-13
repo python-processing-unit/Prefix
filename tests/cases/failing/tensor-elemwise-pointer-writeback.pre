@@ -1,16 +1,16 @@
 // Elementwise tensor ops should write back to pointer operands when provided.
 TNS a1 = [0d1, 0d2]
 TNS b1 = [0d3, 0d4]
-TADD(@a1, b1)
+T+(@a1, b1)
 ASSERT(EQ(a1, [0d4, 0d6]))
 
 TNS a2 = [0d1, 0d2]
 TNS b2 = [0d3, 0d4]
-TADD(a2, @b2)
+T+(a2, @b2)
 ASSERT(EQ(b2, [0d4, 0d6]))
 
-// similar for TMUL
+// similar for T*
 TNS c1 = [0d2, 0d3]
 TNS d1 = [0d4, 0d5]
-TMUL(@c1, d1)
+T*(@c1, d1)
 ASSERT(EQ(c1, [0d8, 0d15]))

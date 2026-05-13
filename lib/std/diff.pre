@@ -31,7 +31,7 @@ FUNC STR UNIFIED(STR mod, STR src){
                 out = _append_line(out, JOIN("+", right))
             }
         }
-        i = ADD(i, 0d1)
+        i = +(i, 0d1)
     }
     RETURN(out)
 }
@@ -61,7 +61,7 @@ FUNC STR SIDE_BY_SIDE(STR mod, STR src){
         IF( NEQ(left, right)){ marker = "|" }
         STR line = JOIN(left, " ", marker, " ", right)
         out = _append_line(out, line)
-        i = ADD(i, 0d1)
+        i = +(i, 0d1)
     }
     RETURN(out)
 }

@@ -5,7 +5,7 @@ FUNC INT read_captured(){
 }
 
 FUNC add_captured = LAMBDA INT: (INT delta){
-    RETURN(ADD(captured, delta))
+    RETURN(+(captured, delta))
 }
 
 ASSERT(EQ(read_captured(), 0d2))
@@ -21,7 +21,7 @@ FUNC greeter = LAMBDA STR: (STR name, STR prefix = "Hi"){
 ASSERT(EQ(greeter("Prefix"), "Hi Prefix"))
 ASSERT(EQ(greeter("Prefix", prefix = "Hello"), "Hello Prefix"))
 
-ASSERT(EQ((LAMBDA INT: (INT x){ RETURN(ADD(x, 0d1)) })(0d2), 0d3))
+ASSERT(EQ((LAMBDA INT: (INT x){ RETURN(+(x, 0d1)) })(0d2), 0d3))
 
 FUNC INT invoke(FUNC callable, INT arg){
     RETURN(callable(arg))

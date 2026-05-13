@@ -1,6 +1,6 @@
 ! LCG-based pseudorandom number generator
 
-INT MASK32 = SUB( POW(0b10, 0b100000), 0b1 )  ! 2^32 - 1
+INT MASK32 = -( POW(0b10, 0b100000), 0b1 )  ! 2^32 - 1
 
 ! LCG constants: state = (A * state + C) mod 2^32
 INT LCG_A = 0b000110010110011000001101          ! 1664525
@@ -13,7 +13,7 @@ FUNC INT SEED(INT seed){
 }
 
 FUNC INT NEXT(){
-    lcg_state = BAND( ADD( MUL(LCG_A, lcg_state), LCG_C ), MASK32 )
+    lcg_state = BAND( +( *(LCG_A, lcg_state), LCG_C ), MASK32 )
     RETURN(lcg_state)
 }
 
@@ -24,9 +24,9 @@ FUNC INT RANGE(INT max){
 
 FUNC INT RANGE_MIN_MAX(INT min, INT max){
     ASSERT( LTE(min, max) )
-    INT range = SUB(max, min)
+    INT range = -(max, min)
     IF( EQ(range, 0b0) ){ RETURN(min) }
     ASSERT( GT(range, 0b0) )
     INT offset = RANGE(range)
-    RETURN( ADD(offset, min) )
+    RETURN( +(offset, min) )
 }

@@ -1,2 +1,2 @@
-! Division by zero for FDIV must raise a runtime error per specification
-_ = FDIV(0d1.0, 0d0.0)
+! Division by zero for F/ must raise a runtime error per specification
+_ = F/(0d1.0, 0d0.0)

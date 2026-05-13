@@ -3,25 +3,25 @@ INT errors = 0d0
 TRY{
     UNSER("{")
 } CATCH(err){
-    ADD(@errors, 0d1)
+    +(@errors, 0d1)
 }
 
 TRY{
     UNSER('\R{"v":true}')
 } CATCH(err){
-    ADD(@errors, 0d1)
+    +(@errors, 0d1)
 }
 
 TRY{
     UNSER('\R{"t":"BOOL"}')
 } CATCH(err){
-    ADD(@errors, 0d1)
+    +(@errors, 0d1)
 }
 
 TRY{
     UNSER('\R{"t":"NOPE","v":0}')
 } CATCH(err){
-    ADD(@errors, 0d1)
+    +(@errors, 0d1)
 }
 
 ASSERT(EQ(errors, 0d4))

@@ -1,6 +1,6 @@
 TNS a = [[0d1, 0d2], [0d3, 0d4]]
 TNS b = [[0d10, 0d20], [0d30, 0d40]]
-TNS out = MADD(a, b)
+TNS out = M+(a, b)
 
 ASSERT(EQ(out, [[0d11, 0d22], [0d33, 0d44]]))
 ASSERT(EQ(SHAPE(out), [0d2, 0d2]))
