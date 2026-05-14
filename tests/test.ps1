@@ -59,6 +59,9 @@ Assert (Test-Path $casesDir) "Test cases directory not found at: $casesDir"
 
 Write-Host 'Running tests...'
 
+# Record the wall-clock time when the first test case is invoked.
+$testStart = Get-Date
+
 $failures = @()
 $total = 0
 
@@ -96,6 +99,9 @@ foreach ($case in $failingCases) {
   }
 }
 
+$testEnd = Get-Date
+$elapsed = $testEnd - $testStart
+$elapsedSeconds = '{0:N3}' -f $elapsed.TotalSeconds
 Write-Host ''
 if ($failures.Count -gt 0) {
   Write-Host 'FAILURES:' -ForegroundColor Red
@@ -104,9 +110,9 @@ if ($failures.Count -gt 0) {
     if ($f.Output) { Write-Host $f.Output -ForegroundColor Red}
   }
   Write-Host ''
-  Write-Host "Completed with $($total - $failures.Count)/$($total) tests passing, $($failures.Count)/$($total) tests failing." -ForegroundColor Red
+  Write-Host "Ran $total tests in $elapsedSeconds seconds, with $($total - $failures.Count)/$($total) tests passing, $($failures.Count)/$($total) tests failing." -ForegroundColor Red
   exit 1
 } else {
-  Write-Host "Completed with $($total)/$($total) tests passing, 0/$($total) tests failing." -ForegroundColor Green
+  Write-Host "Ran $total tests in $elapsedSeconds seconds, with $($total)/$($total) tests passing, 0/$($total) tests failing." -ForegroundColor Green
   exit 0
 }
