@@ -4,10 +4,6 @@
 #include <string.h>
 #include <stdlib.h>
 
-#ifdef _MSC_VER
-#define strdup _strdup
-#endif
-
 // Memory hardening helpers
 static void* safe_malloc(size_t size) {
     void* ptr = malloc(size);

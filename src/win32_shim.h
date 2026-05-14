@@ -1,7 +1,7 @@
 #ifndef WIN32_SHIM_H
 #define WIN32_SHIM_H
 
-#if defined(_WIN32) || defined(_MSC_VER)
+#if defined(_WIN32)
 
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
@@ -76,8 +76,6 @@ static inline void thrd_yield(void) {
     SwitchToThread();
 }
 
-// Ensure struct timespec is available on MSVC *only* if not already provided
-// Check common platform macros that indicate timespec is defined.
 // Avoid declaring a global struct timespec to prevent redefinition with CRT headers.
 // Use an opaque pointer and cast to a local shape to compute milliseconds.
 static inline int thrd_sleep(const void* duration, void* remaining) {

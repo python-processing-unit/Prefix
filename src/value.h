@@ -2,7 +2,7 @@
 #define VALUE_H
 
 #include "ast.h"
-#include "win32_shim.h"  // Hardware threading always required (MSVC C17)
+#include "win32_shim.h"  // Hardware threading shim is required for Windows builds.
 
 struct EnvEntry; // forward declare for pointer values
 struct Env; // forward declare Env

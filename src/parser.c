@@ -5,10 +5,6 @@
 #include <stdlib.h>
 #include <ctype.h>
 
-#ifdef _MSC_VER
-#define strdup _strdup
-#endif
-
 static void report_error(Parser* parser, const char* message) {
     if (parser->panic_mode) return;
     parser->panic_mode = true;

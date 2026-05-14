@@ -4,7 +4,7 @@ Compiles the Prefix runtime into a shared DLL, links the interpreter EXE
 against that DLL's import library, and compiles each discovered extension
 against the same shared runtime.
 
-Requires: run from a Developer Command Prompt for Visual Studio where cl.exe is on PATH.
+Requires: clang.exe on PATH targeting x64.
 Usage (from Prefix folder):
     powershell -ExecutionPolicy Bypass -File .\build.ps1
 #>
@@ -30,9 +30,22 @@ $buildDir = Join-Path $env:TEMP ("prefix-build-$stamp")
 New-Item -ItemType Directory -Path $buildDir -Force | Out-Null
 Write-Host "Build dir: $buildDir"
 
-$cl = Get-Command cl.exe -ErrorAction SilentlyContinue
-if (-not $cl) {
-    Write-Error "cl.exe not found. Run this script from a Developer Command Prompt for Visual Studio."
+$clang = Get-Command clang.exe -ErrorAction SilentlyContinue
+if (-not $clang) {
+    Write-Error "clang.exe not found on PATH."
+    Remove-Item -Recurse -Force $buildDir -ErrorAction SilentlyContinue
+    exit 1
+}
+
+$clangTarget = (& clang.exe -dumpmachine 2>$null | Select-Object -First 1)
+if (-not $clangTarget) {
+    Write-Error "Unable to determine clang.exe target triple."
+    Remove-Item -Recurse -Force $buildDir -ErrorAction SilentlyContinue
+    exit 1
+}
+
+if ($clangTarget -notmatch '^x86_64-') {
+    Write-Error "clang.exe must target baseline x64. Found target '$clangTarget'."
     Remove-Item -Recurse -Force $buildDir -ErrorAction SilentlyContinue
     exit 1
 }
@@ -74,22 +87,53 @@ if ($platform::IsOSPlatform([System.Runtime.InteropServices.OSPlatform]::Linux))
 
 Push-Location $buildDir
 try {
-    $runtimeArgs = @(
-        "/std:c17", "/Gd", "/O2", "/Gy", "/GF", "/GL", "/W4", "/WX", "/MP", "/nologo",
+    $isWindows = $platform::IsOSPlatform([System.Runtime.InteropServices.OSPlatform]::Windows)
+
+    # Use a single release profile for every artifact: portable baseline x64,
+    # full-program optimization, and link-time dead stripping/folding.
+    $clangArgs = @(
+        "--driver-mode=cl",
+        "/clang:-march=x86-64",
+        "/clang:-fuse-ld=lld",
+        "/clang:-flto=full",
+        "/clang:-ffunction-sections",
+        "/clang:-fdata-sections"
+    )
+    $releaseCompileArgs = @(
+        "/std:c17", "/Gd", "/O2", "/Ot", "/Oi", "/Ob2", "/Gy", "/Gw", "/GF", "/W4", "/WX", "/nologo"
+    )
+    # Only pass the `--gc-sections` linker option on non-Windows platforms;
+    # on Windows we use MSVC-style linker options (/OPT:REF /OPT:ICF).
+    if (-not $isWindows) {
+        $clangArgs += "/clang:-Wl,--gc-sections"
+    }
+
+    # Libraries that extensions may need on Windows. Link via the build
+    # system instead of source-level linker pragmas in the extension code.
+    $linkLibs = @()
+    if ($isWindows) {
+        $linkLibs = @("ole32.lib", "ws2_32.lib", "winhttp.lib", "user32.lib", "gdi32.lib")
+        $clangArgs += "/clang:-Wno-deprecated-declarations"
+    }
+
+    $runtimeArgs = @($clangArgs + $releaseCompileArgs + @(
         "/LD", "/I$src",
         "/Fe:$runtimeDllName"
-    )
+    ))
     $runtimeArgs += $runtimeSources
-    $runtimeArgs += @(
-        "/link",
-        "/DEF:$runtimeDef",
-        "/IMPLIB:$runtimeLibName"
-    )
+    $runtimeLinkFlags = @("/link", "/DEF:$runtimeDef", "/IMPLIB:$runtimeLibName")
+    if ($isWindows) {
+        $runtimeLinkFlags += "/OPT:REF"
+        $runtimeLinkFlags += "/OPT:ICF"
+    } else {
+        $runtimeLinkFlags += "/clang:-Wl,--gc-sections"
+    }
+    $runtimeArgs += $runtimeLinkFlags
 
-    Write-Host "Invoking: cl.exe $($runtimeArgs -join ' ')"
-    & cl.exe @runtimeArgs
+    Write-Host "Invoking: clang.exe $($runtimeArgs -join ' ')"
+    & clang.exe @runtimeArgs
     if ($LASTEXITCODE -ne 0) {
-        throw "cl.exe returned exit code $LASTEXITCODE while building shared runtime"
+        throw "clang.exe returned exit code $LASTEXITCODE while building shared runtime"
     }
 
     $runtimeDllPath = Join-Path $buildDir $runtimeDllName
@@ -111,18 +155,26 @@ try {
     Write-Host "Copied runtime DLL to: $runtimeDllDest"
     Write-Host "Copied runtime import library to: $runtimeLibDest"
 
-    $exeArgs = @(
-        "/std:c17", "/Gd", "/O2", "/Gy", "/GF", "/GL", "/W4", "/WX", "/MP", "/nologo",
+    $exeArgs = @($clangArgs + $releaseCompileArgs + @(
         "/I$src",
         "/Fe:prefix.exe",
         $mainSource,
         $runtimeLibPath
-    )
+    ))
+    $exeLinkFlags = @()
+    if ($isWindows) {
+        $exeLinkFlags += "/link"
+        $exeLinkFlags += "/OPT:REF"
+        $exeLinkFlags += "/OPT:ICF"
+    } else {
+        $exeLinkFlags += "/clang:-Wl,--gc-sections"
+    }
+    $exeArgs += $exeLinkFlags
 
-    Write-Host "Invoking: cl.exe $($exeArgs -join ' ')"
-    & cl.exe @exeArgs
+    Write-Host "Invoking: clang.exe $($exeArgs -join ' ')"
+    & clang.exe @exeArgs
     if ($LASTEXITCODE -ne 0) {
-        throw "cl.exe returned exit code $LASTEXITCODE while building interpreter"
+        throw "clang.exe returned exit code $LASTEXITCODE while building interpreter"
     }
 
     $outExe = Join-Path $buildDir "prefix.exe"
@@ -157,18 +209,29 @@ try {
         New-Item -ItemType Directory -Path $extBuildDir -Force | Out-Null
         Push-Location $extBuildDir
         try {
-            $extArgs = @(
-                "/std:c17", "/Gd", "/O2", "/W4", "/WX", "/nologo", "/LD", "/LTCG",
+            $extArgs = @($clangArgs + $releaseCompileArgs + @(
+                "/LD",
                 "/I$src",
                 "/Fe:$extOutName",
-                $extSourcePath,
-                $runtimeLibPath
-            )
+                $extSourcePath
+            ))
+            # Add OS-specific libraries required by some extensions.
+            if ($linkLibs.Count -gt 0) { $extArgs += $linkLibs }
+            $extArgs += $runtimeLibPath
+            $extLinkFlags = @()
+            if ($isWindows) {
+                $extLinkFlags += "/link"
+                $extLinkFlags += "/OPT:REF"
+                $extLinkFlags += "/OPT:ICF"
+            } else {
+                $extLinkFlags += "/clang:-Wl,--gc-sections"
+            }
+            $extArgs += $extLinkFlags
 
-            Write-Host "Invoking: cl.exe $($extArgs -join ' ')"
-            & cl.exe @extArgs
+            Write-Host "Invoking: clang.exe $($extArgs -join ' ')"
+            & clang.exe @extArgs
             if ($LASTEXITCODE -ne 0) {
-                throw "cl.exe returned exit code $LASTEXITCODE while building extension '$extSourcePath'"
+                throw "clang.exe returned exit code $LASTEXITCODE while building extension '$extSourcePath'"
             }
 
             $extOutPath = Join-Path $extBuildDir $extOutName

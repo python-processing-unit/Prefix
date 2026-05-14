@@ -12,12 +12,9 @@
 #define WIN32_LEAN_AND_MEAN
 #endif
 #include <windows.h>
-#pragma comment(lib, "user32.lib")
-#pragma comment(lib, "gdi32.lib")
+#if 0
+/* Linker directives removed; link against OS libraries via build system when needed. */
 #endif
-
-#ifdef _MSC_VER
-#define strdup _strdup
 #endif
 
 #ifdef _WIN32

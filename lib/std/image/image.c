@@ -13,11 +13,9 @@
 #define WIN32_LEAN_AND_MEAN
 #endif
 #include <windows.h>
-#pragma comment(lib, "ole32.lib")
+#if 0
+/* Linker directives removed; link against OS libraries via build system when needed. */
 #endif
-
-#ifdef _MSC_VER
-#define strdup _strdup
 #endif
 
 typedef struct {
@@ -29,11 +27,7 @@ typedef struct {
 static void set_runtime_error(Interpreter* interp, const char* msg, int line, int col) {
 	if (!interp) return;
 	if (interp->error) free(interp->error);
-#ifdef _MSC_VER
-	interp->error = msg ? _strdup(msg) : NULL;
-#else
 	interp->error = msg ? strdup(msg) : NULL;
-#endif
 	interp->error_line = line;
 	interp->error_col = col;
 }

@@ -15,18 +15,14 @@
 #include <stdarg.h>
 #include <limits.h>
 #include <stdint.h>
-#ifndef _MSC_VER
+#ifndef _WIN32
 #include <sys/wait.h>
 #endif
 
-#ifdef _MSC_VER
-#define strdup _strdup
-#endif
-
-#ifdef _MSC_VER
-#pragma warning(push)
-#pragma warning(disable:4100) // unreferenced formal parameter
-#pragma warning(disable:4996) // unsafe CRT functions like strcpy/strcat
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wunused-parameter"
+#pragma clang diagnostic ignored "-Wmissing-field-initializers"
 #endif
 
 // Forward declarations for interpreter functions we need
@@ -211,6 +207,7 @@ static bool coerce_flt_to_int_checked(Interpreter* interp, double f, int64_t* ou
 }
 
 // --- Encoding helpers ---
+#ifndef _WIN32
 static char* dec_latin1_to_utf8(const unsigned char* buf, size_t sz) {
     size_t outcap = sz * 2 + 1;
     char* out = malloc(outcap);
@@ -234,6 +231,7 @@ static char* dec_latin1_to_utf8(const unsigned char* buf, size_t sz) {
     out[op] = '\0';
     return out;
 }
+#endif
 
 static const uint32_t cp1252_map[32] = {
     0x20AC, 0x0081, 0x201A, 0x0192, 0x201E, 0x2026, 0x2020, 0x2021,
@@ -347,8 +345,7 @@ static unsigned char* enc_utf8_to_utf16(const char* s, size_t* out_sz, int littl
     while (i < slen) {
         unsigned char c = (unsigned char)s[i];
         uint32_t cp = 0;
-        size_t need = 0;
-        if (c < 0x80) { cp = c; need = 1; i += 1; }
+        if (c < 0x80) { cp = c; i += 1; }
         else if ((c & 0xE0) == 0xC0) {
             if (i + 1 >= slen) { cp = 0xFFFD; i += 1; }
             else { cp = ((c & 0x1F) << 6) | ((unsigned char)s[i+1] & 0x3F); i += 2; }
@@ -480,19 +477,7 @@ static unsigned char* enc_utf8_to_cp1252(const char* s, size_t* out_sz, int is_w
 }
 
 static char* canonicalize_existing_path(const char* path) {
-    if (!path || path[0] == '\0') return NULL;
-#ifdef _WIN32
-    char full[_MAX_PATH];
-    if (_fullpath(full, path, _MAX_PATH)) {
-        return strdup(full);
-    }
-#else
-    char full[PATH_MAX];
-    if (realpath(path, full)) {
-        return strdup(full);
-    }
-#endif
-    return strdup(path);
+    return prefix_fullpath_dup(path);
 }
 
 static char* module_source_dir_dup(Env* env) {
@@ -774,52 +759,6 @@ static char* int_to_binary_str(int64_t val) {
 }
 
 // Helper: convert float to binary string
-static char* flt_to_binary_str(double val) {
-    char buf[128];
-    if (isnan(val)) {
-        return strdup("NaN");
-    }
-    if (isinf(val)) {
-        return strdup(signbit(val) ? "-INF" : "INF");
-    }
-    int is_negative = val < 0;
-    if (is_negative) val = -val;
-    
-    int64_t int_part = (int64_t)val;
-    double frac_part = val - (double)int_part;
-    
-    // Integer part
-    char* int_str = int_to_binary_str(int_part);
-    
-    // Fractional part (up to 32 bits of precision)
-    char frac_buf[64];
-    int frac_pos = 0;
-    for (int i = 0; i < 32 && frac_part > 0; i++) {
-        frac_part *= 2;
-        if (frac_part >= 1.0) {
-            frac_buf[frac_pos++] = '1';
-            frac_part -= 1.0;
-        } else {
-            frac_buf[frac_pos++] = '0';
-        }
-    }
-    frac_buf[frac_pos] = '\0';
-    
-    // Remove trailing zeros
-    while (frac_pos > 0 && frac_buf[frac_pos - 1] == '0') {
-        frac_buf[--frac_pos] = '\0';
-    }
-    
-    if (frac_pos == 0) {
-        snprintf(buf, sizeof(buf), "%s%s.0", is_negative ? "-" : "", int_str);
-    } else {
-        snprintf(buf, sizeof(buf), "%s%s.%s", is_negative ? "-" : "", int_str, frac_buf);
-    }
-    
-    free(int_str);
-    return strdup(buf);
-}
-
 typedef struct {
     char* data;
     size_t len;
@@ -8752,7 +8691,6 @@ static int parallel_worker(void* arg) {
     for (size_t i = 0; i < ps->func->params.count; i++) {
         Param* param = &ps->func->params.items[i];
         Value arg_val = value_null();
-        bool provided = false;
 
         if (param->default_value) {
             arg_val = eval_expr(thr_interp, param->default_value, call_env);
@@ -8768,7 +8706,7 @@ static int parallel_worker(void* arg) {
                 free(ps);
                 return 0;
             }
-            provided = true;
+            (void)0;
         } else {
             char buf[128];
             snprintf(buf, sizeof(buf), "Missing argument for parameter '%s'", param->name);
@@ -9259,8 +9197,8 @@ bool is_builtin(const char* name) {
     return builtin_lookup(name) != NULL;
 }
 
-#ifdef _MSC_VER
-#pragma warning(pop)
+#ifdef __clang__
+#pragma clang diagnostic pop
 #endif
 void builtins_set_argv(int argc, char** argv) {
     g_argc = argc;

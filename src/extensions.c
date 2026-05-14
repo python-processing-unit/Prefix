@@ -8,10 +8,6 @@
 #include <ctype.h>
 #include <sys/stat.h>
 
-#ifdef _MSC_VER
-#define strdup _strdup
-#endif
-
 #ifdef _WIN32
 #include <windows.h>
 typedef HMODULE DynLibHandle;
@@ -174,15 +170,7 @@ static char* path_basename_no_ext_dup(const char* path) {
 }
 
 static char* canonicalize_existing_path(const char* path) {
-    if (!path || path[0] == '\0') return NULL;
-#ifdef _WIN32
-    char full[_MAX_PATH];
-    if (_fullpath(full, path, _MAX_PATH)) return strdup(full);
-#else
-    char full[4096];
-    if (realpath(path, full)) return strdup(full);
-#endif
-    return strdup(path);
+    return prefix_fullpath_dup(path);
 }
 
 static char* resolve_extension_path(const char* input, const char* base_dir) {

@@ -13,11 +13,7 @@
 static void set_runtime_error(Interpreter* interp, const char* msg, int line, int col) {
 	if (!interp) return;
 	if (interp->error) free(interp->error);
-#ifdef _MSC_VER
-	interp->error = msg ? _strdup(msg) : NULL;
-#else
 	interp->error = msg ? strdup(msg) : NULL;
-#endif
 	interp->error_line = line;
 	interp->error_col = col;
 }
@@ -112,12 +108,8 @@ static Value op_win_load_library(Interpreter* interp, Value* args, int argc, Exp
 	if (!name) return value_null();
 	// Accept both with and without .dll
 	char buf[1024];
-	if (_stricmp(name + (strlen(name) >= 4 ? strlen(name) - 4 : 0), ".dll") == 0) {
-#ifdef _MSC_VER
-		strcpy_s(buf, sizeof(buf), name);
-#else
+	if (prefix_stricmp(name + (strlen(name) >= 4 ? strlen(name) - 4 : 0), ".dll") == 0) {
 		strncpy(buf, name, sizeof(buf)-1); buf[sizeof(buf)-1] = '\0';
-#endif
 	} else {
 		snprintf(buf, sizeof(buf), "%s.dll", name);
 	}
@@ -317,15 +309,12 @@ static Value op_win_call(Interpreter* interp, Value* args, int argc, Expr** arg_
 	const char* func = value_as_cstr(interp, args[1], "func", line, col); if (!func) return value_null();
 	const char* arg_types = NULL; if (args[2].type == VAL_STR) arg_types = args[2].as.s; else { set_runtime_error(interp, "arg types must be STR", line, col); return value_null(); }
 	const char* ret_type = NULL; if (args[3].type == VAL_STR) ret_type = args[3].as.s; else { set_runtime_error(interp, "ret type must be STR", line, col); return value_null(); }
+	(void)ret_type;
 
 	// Normalize library name
 	char libbuf[1024]; if (strlen(lib) >= sizeof(libbuf)-5) { set_runtime_error(interp, "library name too long", line, col); return value_null(); }
-	    if (_stricmp(lib + (strlen(lib) >= 4 ? strlen(lib) - 4 : 0), ".dll") == 0) {
-	#ifdef _MSC_VER
-		strcpy_s(libbuf, sizeof(libbuf), lib);
-	#else
+	    if (prefix_stricmp(lib + (strlen(lib) >= 4 ? strlen(lib) - 4 : 0), ".dll") == 0) {
 		strncpy(libbuf, lib, sizeof(libbuf)-1); libbuf[sizeof(libbuf)-1] = '\0';
-	#endif
 	    } else snprintf(libbuf, sizeof(libbuf), "%s.dll", lib);
 	HMODULE h = LoadLibraryA(libbuf);
 	if (!h) { char em[128]; snprintf(em, sizeof(em), "Failed to load DLL %s: %lu", libbuf, (unsigned long)GetLastError()); set_runtime_error(interp, em, line, col); return value_null(); }
@@ -337,11 +326,7 @@ static Value op_win_call(Interpreter* interp, Value* args, int argc, Expr** arg_
 	int provided = argc - 4;
 	int code_count = 0;
 	char codes[64];
-#ifdef _MSC_VER
-	strcpy_s(codes, sizeof(codes), arg_types);
-#else
 	strncpy(codes, arg_types, sizeof(codes)-1); codes[sizeof(codes)-1] = '\0';
-#endif
 	// if comma-separated, compact
 	char compact[64]; int cc = 0;
 	for (int i = 0; codes[i] && cc + 1 < (int)sizeof(compact); i++) if (codes[i] != ',') compact[cc++] = codes[i]; compact[cc] = '\0';
