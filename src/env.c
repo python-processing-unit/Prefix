@@ -18,10 +18,6 @@
 #include <string.h>
 #include <stdio.h>
 
-#ifdef _MSC_VER
-#define strdup _strdup
-#endif
-
 /* Forward declarations for local helpers used before their definitions. */
 static EnvEntry* env_find_local(Env* env, const char* name);
 

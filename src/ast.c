@@ -3,10 +3,6 @@
 #include <string.h>
 #include <stdio.h>
 
-#ifdef _MSC_VER
-#define strdup _strdup
-#endif
-
 static void* ast_alloc(size_t size) {
     void* ptr = malloc(size);
     if (!ptr) {

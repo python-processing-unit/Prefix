@@ -5,10 +5,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#ifdef _MSC_VER
-#define strdup _strdup
-#endif
-
 static void set_runtime_error(Interpreter* interp, const char* msg, int line, int col) {
     if (!interp) return;
     if (interp->error) free(interp->error);

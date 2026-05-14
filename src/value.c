@@ -5,10 +5,6 @@
 #include <assert.h>
 #include <stdint.h>
 
-#ifdef _MSC_VER
-#define strdup _strdup
-#endif
-
 Value value_null(void) {
     Value v; v.type = VAL_NULL; v.num_base = 2; v.num_base_nan = 0; return v;
 }

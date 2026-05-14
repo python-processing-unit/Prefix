@@ -6,10 +6,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#ifdef _MSC_VER
-#define strdup _strdup
-#endif
-
 // Forward declarations
 static ExecResult exec_stmt(Interpreter* interp, Stmt* stmt, Env* env, LabelMap* labels);
 static ExecResult exec_stmt_list(Interpreter* interp, StmtList* list, Env* env, LabelMap* labels);
@@ -860,19 +856,7 @@ static const char* decl_type_name(DeclType dt) {
     }
 }
 
-static ValueType decl_type_to_value(DeclType dt) {
-    switch (dt) {
-        case TYPE_BOOL: return VAL_BOOL;
-        case TYPE_INT: return VAL_INT;
-        case TYPE_FLT: return VAL_FLT;
-        case TYPE_STR: return VAL_STR;
-        case TYPE_TNS: return VAL_TNS;
-        case TYPE_MAP: return VAL_MAP;
-        case TYPE_FUNC: return VAL_FUNC;
-        case TYPE_THR: return VAL_THR;
-        default: return VAL_NULL;
-    }
-}
+/* `decl_type_to_value` removed: inverse mapping was unused. */
 
 static bool coerce_value_to_decl_type(Interpreter* interp,
                                       Value input,
@@ -2186,69 +2170,10 @@ tns_eval_fail:
 
 // ============ Statement execution ============
 
-// Recursive helper to assign a value into a nested map path.
-// map_ptr: pointer to the Value (must be VAL_MAP) to operate on.
-// keys: list of key Expr nodes
-// idx: current index into keys
-// rhs: value to assign (ownership: caller retains ownership; this function MUST NOT free rhs)
-static ExecResult assign_map_nested(Interpreter* interp, Env* env, Value* map_ptr, ExprList* keys, size_t idx, Value rhs, int stmt_line, int stmt_col) {
-    if (idx >= keys->count) {
-        return make_error("Internal: missing key in nested assignment", stmt_line, stmt_col);
-    }
-    // evaluate key
-    Expr* kexpr = keys->items[idx];
-    Value key = eval_expr(interp, kexpr, env);
-    if (interp->error) {
-        ExecResult err = make_error(interp->error, interp->error_line, interp->error_col);
-        clear_error(interp);
-        return err;
-    }
-    if (!(key.type == VAL_INT || key.type == VAL_STR || key.type == VAL_FLT)) {
-        value_free(key);
-        return make_error("Map index must be INT, FLT or STR", kexpr->line, kexpr->column);
-    }
-
-    if (idx + 1 == keys->count) {
-        // final key: set rhs here (value_map_set copies rhs)
-        value_map_set(map_ptr, key, rhs);
-        value_free(key);
-        return make_ok(value_null());
-    }
-
-    // intermediate: ensure child map exists
-    int found = 0;
-    Value child = value_map_get(*map_ptr, key, &found);
-    if (!found) {
-        Value nm = value_map_new();
-        value_map_set(map_ptr, key, nm);
-        value_free(nm);
-        child = value_map_get(*map_ptr, key, &found);
-        if (!found) {
-            value_free(key);
-            return make_error("Internal error creating nested map", stmt_line, stmt_col);
-        }
-    }
-
-    if (child.type != VAL_MAP) {
-        value_free(child);
-        value_free(key);
-        return make_error("Attempted nested map indexing on non-map value", kexpr->line, kexpr->column);
-    }
-
-    // Recurse into child (child is a copy). Mutate child, then write it back into parent.
-    ExecResult res = assign_map_nested(interp, env, &child, keys, idx + 1, rhs, stmt_line, stmt_col);
-    if (res.status == EXEC_ERROR) {
-        value_free(child);
-        value_free(key);
-        return res;
-    }
-
-    // write back modified child into parent map under key
-    value_map_set(map_ptr, key, child);
-    value_free(child);
-    value_free(key);
-    return make_ok(value_null());
-}
+/* assign_map_nested removed: functionality in `assign_index_chain` handles
+ * nested map assignments directly. The standalone helper was unreferenced
+ * by other translation units and caused unneeded internal-declaration warnings.
+ */
 
 ExecResult assign_index_chain(Interpreter* interp, Env* env, Expr* idx_expr, Value rhs, int stmt_line, int stmt_col) {
     // Collect index nodes from outermost -> innermost, and require base to be an identifier.
@@ -3165,8 +3090,8 @@ static ExecResult exec_stmt(Interpreter* interp, Stmt* stmt, Env* env, LabelMap*
 
         case STMT_WHILE: {
             interp->loop_depth++;
-            int iteration_count = 0;
-            const unsigned long long max_iterations = 18446744073709551615; // Prevent infinite loops
+            unsigned long long iteration_count = 0;
+            const unsigned long long max_iterations = 18446744073709551615ULL; // Prevent infinite loops
 
             while (1) {
                 if (interpreter_thr_should_stop(interp)) {
@@ -3260,7 +3185,6 @@ static ExecResult exec_stmt(Interpreter* interp, Stmt* stmt, Env* env, LabelMap*
             bool had_global = false;
             Value global_prev_val = value_null();
             DeclType global_prev_type = TYPE_UNKNOWN;
-            bool global_prev_initialized = false;
             for (Env* cursor = env; cursor && cursor->parent; cursor = cursor->parent) {
                 Env* parent = cursor->parent;
                 if (!parent) break;
@@ -3271,7 +3195,6 @@ static ExecResult exec_stmt(Interpreter* interp, Stmt* stmt, Env* env, LabelMap*
                     had_global = true;
                     global_prev_val = tmp_val;
                     global_prev_type = tmp_type;
-                    global_prev_initialized = tmp_initialized;
                     break;
                 }
             }
@@ -3697,12 +3620,7 @@ void interpreter_init(Interpreter* interp, const char* source_path, bool verbose
     ns_buffer_init();
 
     if (source_path && source_path[0] != '\0') {
-        char* canonical = NULL;
-#if defined(_WIN32)
-        canonical = _fullpath(NULL, source_path, 0);
-#else
-        canonical = realpath(source_path, NULL);
-#endif
+        char* canonical = prefix_fullpath_dup(source_path);
         if (canonical) {
             env_assign(interp->global_env, "__MODULE_SOURCE__", value_str(canonical), TYPE_STR, true);
             free(canonical);

@@ -5,10 +5,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#ifdef _MSC_VER
-#define strdup _strdup
-#endif
-
 #ifdef _WIN32
 #define PREFIX_TEST_EXPORT __declspec(dllexport)
 #else

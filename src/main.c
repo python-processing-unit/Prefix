@@ -3,9 +3,8 @@
 #include <string.h>
 #include <ctype.h>
 // platform-specific chdir
-#ifdef _MSC_VER
+#ifdef _WIN32
 #include <direct.h>
-#define strdup _strdup
 #else
 #include <unistd.h>
 #endif
@@ -252,11 +251,7 @@ int main(int argc, char** argv) {
 
     char cwd_buf[4096];
     const char* cwd = NULL;
-#ifdef _MSC_VER
-    if (_getcwd(cwd_buf, (int)sizeof(cwd_buf))) cwd = cwd_buf;
-#else
-    if (getcwd(cwd_buf, sizeof(cwd_buf))) cwd = cwd_buf;
-#endif
+    if (prefix_getcwd(cwd_buf, sizeof(cwd_buf))) cwd = cwd_buf;
     char* exe_dir = path_dirname_dup((argc > 0) ? argv[0] : NULL);
     extensions_set_runtime_dirs(exe_dir ? exe_dir : ".", cwd ? cwd : ".");
     free(exe_dir);
@@ -349,11 +344,7 @@ int main(int argc, char** argv) {
         /* Canonicalize the provided program path now so it's correct even if
            the process changes cwd below. This prevents relative paths like
            "./tests/test2.pre" from resolving incorrectly after chdir. */
-#if defined(_MSC_VER)
-        if (path) source_label = _fullpath(NULL, path, 0);
-#else
-        if (path) source_label = realpath(path, NULL);
-#endif
+        if (path) source_label = prefix_fullpath_dup(path);
         if (!source_label && path) source_label = strdup(path);
 
         FILE* f = fopen(path, "rb");
@@ -410,11 +401,7 @@ int main(int argc, char** argv) {
         for (char* p = dir; *p; p++) if (*p == '/' || *p == '\\') last_slash = p;
         if (last_slash) {
             *last_slash = '\0';
-#ifdef _MSC_VER
-            _chdir(dir);
-#else
-            chdir(dir);
-#endif
+            prefix_chdir(dir);
         }
         free(dir);
     }

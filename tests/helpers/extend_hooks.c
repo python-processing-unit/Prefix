@@ -5,10 +5,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#ifdef _MSC_VER
-#define strdup _strdup
-#endif
-
 static void set_runtime_error(Interpreter* interp, const char* msg, int line, int col) {
     if (!interp) return;
     if (interp->error) free(interp->error);
@@ -38,16 +34,7 @@ static char* dup_env(const char* name) {
 
 static FILE* open_file(const char* path, const char* mode) {
     if (!path || !mode) return NULL;
-
-#ifdef _MSC_VER
-    FILE* file = NULL;
-    if (fopen_s(&file, path, mode) != 0) {
-        return NULL;
-    }
-    return file;
-#else
     return fopen(path, mode);
-#endif
 }
 
 static void write_text(const char* path, const char* text) {

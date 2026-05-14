@@ -6,15 +6,6 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#ifdef _MSC_VER
-#define strdup _strdup
-#endif
-
-#ifndef _WIN32
-#include <strings.h>
-#define _stricmp strcasecmp
-#endif
-
 #ifdef _WIN32
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
@@ -23,8 +14,9 @@
 #include <ws2tcpip.h>
 #include <windows.h>
 #include <winhttp.h>
-#pragma comment(lib, "ws2_32.lib")
-#pragma comment(lib, "winhttp.lib")
+#if 0
+/* Linker directives removed - handled by build system instead. */
+#endif
 #else
 #include <unistd.h>
 #include <errno.h>
@@ -212,11 +204,11 @@ static int tns_to_bytes(Value v, unsigned char** out_data, size_t* out_len) {
 
 static char* normalize_encoding_name(const char* coding) {
 	if (!coding || coding[0] == '\0') return strdup("UTF-8");
-	if (_stricmp(coding, "UTF8") == 0 || _stricmp(coding, "UTF-8") == 0) return strdup("UTF-8");
-	if (_stricmp(coding, "UTF16") == 0 || _stricmp(coding, "UTF-16") == 0) return strdup("UTF-16");
-	if (_stricmp(coding, "ASCII") == 0) return strdup("ASCII");
-	if (_stricmp(coding, "LATIN1") == 0 || _stricmp(coding, "LATIN-1") == 0) return strdup("latin-1");
-	if (_stricmp(coding, "ANSI") == 0) return strdup("cp1252");
+	if (prefix_stricmp(coding, "UTF8") == 0 || prefix_stricmp(coding, "UTF-8") == 0) return strdup("UTF-8");
+	if (prefix_stricmp(coding, "UTF16") == 0 || prefix_stricmp(coding, "UTF-16") == 0) return strdup("UTF-16");
+	if (prefix_stricmp(coding, "ASCII") == 0) return strdup("ASCII");
+	if (prefix_stricmp(coding, "LATIN1") == 0 || prefix_stricmp(coding, "LATIN-1") == 0) return strdup("latin-1");
+	if (prefix_stricmp(coding, "ANSI") == 0) return strdup("cp1252");
 	return strdup(coding);
 }
 
@@ -369,7 +361,7 @@ static int ensure_bridge_script(char* out_path, size_t out_path_cap) {
 	if (snprintf(script_path, sizeof(script_path), "%s%s", temp_dir, "prefix_networking_bridge.py") < 0) return -1;
 	const char* code = py_bridge_script();
 	if (write_text_file(script_path, code) != 0) return -1;
-	strncpy_s(out_path, out_path_cap, script_path, out_path_cap - 1);
+	snprintf(out_path, out_path_cap, "%s", script_path);
 	return 0;
 #endif
 }
@@ -385,7 +377,7 @@ static int create_temp_file_path(char* out_path, size_t out_cap) {
 	if (n == 0 || n >= sizeof(temp_dir)) return -1;
 	char temp_file[MAX_PATH];
 	if (GetTempFileNameA(temp_dir, "pfx", 0, temp_file) == 0) return -1;
-	strncpy_s(out_path, out_cap, temp_file, out_cap - 1);
+	snprintf(out_path, out_cap, "%s", temp_file);
 	return 0;
 #endif
 }
@@ -720,7 +712,7 @@ static Value op_tcp_send(Interpreter* interp, Value* args, int argc, Expr** arg_
 	const char* coding = (argc >= 3) ? as_cstr(args[2]) : "UTF-8";
 	char* norm = normalize_encoding_name(coding);
 	if (!norm) RUNTIME_ERROR(interp, "TCP_SEND failed: out of memory", line, col);
-	if (_stricmp(norm, "UTF-8") != 0 && _stricmp(norm, "ASCII") != 0 && _stricmp(norm, "latin-1") != 0 && _stricmp(norm, "cp1252") != 0) {
+	if (prefix_stricmp(norm, "UTF-8") != 0 && prefix_stricmp(norm, "ASCII") != 0 && prefix_stricmp(norm, "latin-1") != 0 && prefix_stricmp(norm, "cp1252") != 0) {
 		free(norm);
 		RUNTIME_ERROR(interp, "TCP_SEND failed: unsupported coding", line, col);
 	}
