@@ -1,7 +1,7 @@
 BOOL finished = FALSE
 
 THR worker = ASYNC{
-    FOR(i, 0d2){}
+    FOR(i, 0d1000){}
     finished = TRUE
 }
 
