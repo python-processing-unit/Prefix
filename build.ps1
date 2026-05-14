@@ -87,7 +87,7 @@ if ($platform::IsOSPlatform([System.Runtime.InteropServices.OSPlatform]::Linux))
 
 Push-Location $buildDir
 try {
-    $isWindows = $platform::IsOSPlatform([System.Runtime.InteropServices.OSPlatform]::Windows)
+    $runningOnWindows = $platform::IsOSPlatform([System.Runtime.InteropServices.OSPlatform]::Windows)
 
     # Use a single release profile for every artifact: portable baseline x64,
     # full-program optimization, and link-time dead stripping/folding.
@@ -104,14 +104,14 @@ try {
     )
     # Only pass the `--gc-sections` linker option on non-Windows platforms;
     # on Windows we use MSVC-style linker options (/OPT:REF /OPT:ICF).
-    if (-not $isWindows) {
+    if (-not $runningOnWindows) {
         $clangArgs += "/clang:-Wl,--gc-sections"
     }
 
     # Libraries that extensions may need on Windows. Link via the build
     # system instead of source-level linker pragmas in the extension code.
     $linkLibs = @()
-    if ($isWindows) {
+    if ($runningOnWindows) {
         $linkLibs = @("ole32.lib", "ws2_32.lib", "winhttp.lib", "user32.lib", "gdi32.lib")
         $clangArgs += "/clang:-Wno-deprecated-declarations"
     }
@@ -122,7 +122,7 @@ try {
     ))
     $runtimeArgs += $runtimeSources
     $runtimeLinkFlags = @("/link", "/DEF:$runtimeDef", "/IMPLIB:$runtimeLibName")
-    if ($isWindows) {
+    if ($runningOnWindows) {
         $runtimeLinkFlags += "/OPT:REF"
         $runtimeLinkFlags += "/OPT:ICF"
     } else {
@@ -162,7 +162,7 @@ try {
         $runtimeLibPath
     ))
     $exeLinkFlags = @()
-    if ($isWindows) {
+    if ($runningOnWindows) {
         $exeLinkFlags += "/link"
         $exeLinkFlags += "/OPT:REF"
         $exeLinkFlags += "/OPT:ICF"
@@ -219,7 +219,7 @@ try {
             if ($linkLibs.Count -gt 0) { $extArgs += $linkLibs }
             $extArgs += $runtimeLibPath
             $extLinkFlags = @()
-            if ($isWindows) {
+            if ($runningOnWindows) {
                 $extLinkFlags += "/link"
                 $extLinkFlags += "/OPT:REF"
                 $extLinkFlags += "/OPT:ICF"
