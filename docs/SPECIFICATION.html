@@ -1104,7 +1104,26 @@ Bundled standard-library modules MUST live under `lib/std/`. User-installed modu
 
 Bundled extensions shipped with the interpreter MUST live under `ext/std/`. User-installed extensions MUST live under `ext/usr/`. Extension search paths MUST consult `ext/std/` immediately before `ext/usr/`, so bundled extensions are preferred over user-installed copies with the same name.
 
-At present, the standard library is not defined by the specification, and any reasonable set of standard utilities is acceptable for a conforming implementation. Backwards-incompatible changes to the standard library MUST NOT increment the major version number of the specification, unless the incompatible change is altering a behaviour defined in this specification (NOTE: *At present* none of the stdlib is documented, and the stdlib should be considered unstable.). 
+At present, most of the standard library is not defined by the specification, and any reasonable set of standard utilities is acceptable for a conforming implementation. Backwards-incompatible changes to the standard library MUST NOT increment the major version number of the specification, unless the incompatible change is altering a behaviour defined in this specification.
+
+### 10.1 Path
+
+Path is a standard-library module that provides utilities for working with filesystem paths. It is implemented as a single module importable under the name `path`.
+
+#### 10.1.1 API
+
+- `STR NORMALIZE_PATH(STR path)` = Replace all backslashes in the path with forward slashes.
+- `STR WINPATH(STR path)` = Replace all forward slashes in the path with backslashes.
+- `STR BASEPATH(STR path)` = Return the directory part of the path, excluding the file name.
+- `STR BASENAME(STR path)` = Return the file name part of the path, excluding the directory.
+- `TNS SPLITEXT(STR path)` = Split the path into a tensor containing the base name and the extension.
+- `STR EXTNAME(STR path)` = Return the file extension from the path, without the dot.
+- `STR DELEXT(STR path)` = Return the path without the file extension.
+- `STR TEMPFILE(STR prefix, STR suffix)` = Modify the path to originate in the system's temporary directory.
+- `STR interpreter` = The path to the Prefix interpreter executable.
+- `STR interpreter_dir` = The directory containing the Prefix interpreter executable.
+- `STR script` = The path to the currently executing script.
+- `STR script_dir` = The directory containing the currently executing script.
 
   </script>
 
