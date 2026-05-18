@@ -1,0 +1,130 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - '*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  issues: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Get tag and commit message
+        id: tag-info
+        shell: pwsh
+        run: |
+          $tag = ($env:GITHUB_REF -split '/')[ -1 ]
+          Write-Host "Tag: $tag"
+          git fetch --tags
+          $commit = (git rev-list -n 1 $tag).Trim()
+          Write-Host "Commit: $commit"
+          $rawBody = git show -s --format=%B $commit
+          # Strip the first non-blank line (commit summary) and any intervening blank lines,
+          # starting notes from the second non-blank line onward.
+          $lines = $rawBody -split '(?:\r\n|\n|\r)'
+          $nonBlank = @()
+          for ($i = 0; $i -lt $lines.Count; $i++) {
+            if ($lines[$i].Trim() -ne '') { $nonBlank += $i }
+          }
+          if ($nonBlank.Count -ge 2) {
+            $start = $nonBlank[1]
+            $notesLines = $lines[$start..($lines.Count - 1)]
+            $body = ($notesLines -join "`n")
+          } else {
+            # No body content beyond a single-line summary
+            $body = ''
+          }
+          $norm = $tag -replace '^v',''
+          # Use a unique delimiter for multiline output to GITHUB_OUTPUT to avoid collisions
+          $delim = [guid]::NewGuid().ToString()
+          Add-Content -Path $env:GITHUB_OUTPUT -Value "tag=$tag"
+          Add-Content -Path $env:GITHUB_OUTPUT -Value "body<<$delim"
+          Add-Content -Path $env:GITHUB_OUTPUT -Value $body
+          Add-Content -Path $env:GITHUB_OUTPUT -Value $delim
+          Add-Content -Path $env:GITHUB_OUTPUT -Value "norm_tag=$norm"
+
+      - name: Create GitHub release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ steps.tag-info.outputs.tag }}
+          release_name: ${{ steps.tag-info.outputs.norm_tag }}
+          body: ${{ steps.tag-info.outputs.body }}
+          draft: false
+          prerelease: false
+
+      - name: Update docs/CHANGELOG.html and close milestone
+        shell: pwsh
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $tag = '${{ steps.tag-info.outputs.tag }}'
+          $norm = '${{ steps.tag-info.outputs.norm_tag }}'
+          git fetch --tags --prune
+          $commit = (git rev-list -n 1 $tag).Trim()
+          $rawBody = git show -s --format=%B $commit
+          # Strip the first non-blank line (commit summary) and any intervening blank lines,
+          # starting notes from the second non-blank line onward.
+          $lines = $rawBody -split '(?:\r\n|\n|\r)'
+          $nonBlank = @()
+          for ($i = 0; $i -lt $lines.Count; $i++) {
+            if ($lines[$i].Trim() -ne '') { $nonBlank += $i }
+          }
+          if ($nonBlank.Count -ge 2) {
+            $start = $nonBlank[1]
+            $notesLines = $lines[$start..($lines.Count - 1)]
+            $body = ($notesLines -join "`n")
+          } else {
+            $body = ''
+          }
+          $path = 'Prefix/docs/CHANGELOG.html'
+          if (-not (Test-Path $path)) { Write-Error "$path not found"; exit 1 }
+          $text = Get-Content -Raw -Encoding UTF8 $path
+          $regex = [regex]::new('(?s)(<script id="md" type="text/markdown">\s*)(?<md>.*?)(\s*</script>)')
+          $match = $regex.Match($text)
+          if (-not $match.Success) { Write-Error "Embedded markdown block not found in $path"; exit 1 }
+          $prefix = $match.Groups[1].Value
+          $md = $match.Groups['md'].Value
+          $suffix = $match.Groups[3].Value
+          if ($md -match '(?m)^\s*##\s*' + [regex]::Escape($norm) + '\s*$') {
+            Write-Host "CHANGELOG already contains $norm; skipping update."
+            exit 0
+          }
+          $sepMatches = [regex]::Matches($md, '^[ \t]*---[ \t]*$', [System.Text.RegularExpressions.RegexOptions]::Multiline)
+          if ($sepMatches.Count -ge 2) { $insIndex = $sepMatches[1].Index + $sepMatches[1].Length } elseif ($sepMatches.Count -ge 1) { $insIndex = $sepMatches[0].Index + $sepMatches[0].Length } else { $insIndex = 0 }
+          # Insert the commit message body exactly as provided (no added headers or placeholders).
+          $sectionBody = $body
+          $section = "## $norm`n`n" + $sectionBody + "`n`n---`n`n"
+          $new_md = $md.Substring(0, $insIndex) + $section + $md.Substring($insIndex)
+          $new_text = $text.Substring(0,$match.Index) + $prefix + $new_md + $suffix + $text.Substring($match.Index + $match.Length)
+          Set-Content -Path $path -Value $new_text -Encoding UTF8
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add $path
+          git commit -m "chore(release): update CHANGELOG for $tag" || Write-Host "No changelog changes"
+          git remote set-head origin --auto
+          $default_branch = (git symbolic-ref refs/remotes/origin/HEAD).Replace('refs/remotes/origin/','')
+          git push origin HEAD:$default_branch
+          # close matching open milestone (exact title match)
+          $repo = $env:GITHUB_REPOSITORY
+          $token = $env:GITHUB_TOKEN
+          $miles = Invoke-RestMethod -Headers @{ Authorization = "token $token"; 'User-Agent' = 'github-actions' } -Uri "https://api.github.com/repos/$repo/milestones?state=open&per_page=100" -Method Get
+          foreach ($m in $miles) {
+            if ($m.title -eq $norm) {
+              Write-Host "Closing milestone $($m.title) (number $($m.number))"
+              Invoke-RestMethod -Headers @{ Authorization = "token $token"; 'User-Agent' = 'github-actions' } -Method Patch -Uri "https://api.github.com/repos/$repo/milestones/$($m.number)" -Body (@{ state = 'closed' } | ConvertTo-Json)
+            }
+          }
