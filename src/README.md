@@ -1,0 +1,29 @@
+Folder layout
+-------------
+
+- `ast.c`: Implements abstract-syntax-tree node structures and helpers.
+- `ast.h`: AST type declarations and the public AST API.
+- `builtins.c`: Definitions for builtin operators and runtime utilities.
+- `builtins.h`: Declarations and registration helpers for builtins.
+- `common.h`: Common macros, small utilities, and portability helpers.
+- `env.c`: Environment (scope) implementation: frames, bindings, closures.
+- `env.h`: Public environment API: create, lookup, assign, destroy.
+- `extensions.c`: Runtime extension loader and native-API bridge code.
+- `extensions.h`: Extension registration and lookup interfaces.
+- `interpreter.c`: The evaluator implementing runtime semantics and application.
+- `interpreter.h`: Evaluator public API and evaluation entry points.
+- `lexer.c`: Tokenizer converting source text into tokens for the parser.
+- `lexer.h`: Lexer API and token definitions.
+- `main.c`: Program entry point: CLI, initialization, REPL and script runner.
+- `ns_buffer.c`: Small buffer utilities for building identifiers and strings.
+- `ns_buffer.h`: Public API for the namespace/string buffer utilities.
+- `parser.c`: Parser that constructs the AST from tokens and reports errors.
+- `parser.h`: Parser public API and related error/type definitions.
+- `prefix_extension.h`: ABI and helper macros for native Prefix extensions.
+- `prefix_runtime.def`: Windows module-definition file listing exported symbols.
+- `README.md`: This file.
+- `token.c`: Token helpers: creation, copying, printing and utilities.
+- `token.h`: Token data structures and token-type enum.
+- `value.c`: Runtime `Value` representation and operations.
+- `value.h`: `Value` type definition and helpers for manipulating values.
+- `win32_shim.h`: Minimal Win32 compatibility shim and portability helpers.
