@@ -11,6 +11,25 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Run code formatter and commit changes
+        run: |
+          # Run project formatter
+          .\format.ps1
+          # Configure Git for automated commits
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          $changes = git status --porcelain
+          if ($changes) {
+            git add -A
+            git commit -m "chore: format and lint with Clang."
+            git push
+          } else {
+            Write-Host "No changes to commit"
+          }
 
       - name: Build interpreter and extensions
         run: .\build.ps1
