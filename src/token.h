@@ -11,8 +11,8 @@ typedef enum {
 
     // Literals
     TOKEN_IDENT,
-    TOKEN_NUMBER,  // Binary integer (signed or unsigned)
-    TOKEN_FLOAT,   // Binary float
+    TOKEN_NUMBER, // Binary integer (signed or unsigned)
+    TOKEN_FLOAT,  // Binary float
     TOKEN_STRING,
 
     // Symbols
@@ -31,7 +31,8 @@ typedef enum {
     TOKEN_TILDE,    // ~
     TOKEN_HASH,     // #
     TOKEN_DOT,      // .
-    TOKEN_DASH,     // - (reserved for signed special-value syntax and invalid leading -0... forms; other '-' spellings may be identifiers)
+    TOKEN_DASH, // - (reserved for signed special-value syntax and invalid leading -0... forms; other '-' spellings may
+                // be identifiers)
 
     // Keywords
     TOKEN_TRY,
@@ -57,12 +58,12 @@ typedef enum {
 
 typedef struct {
     PTokenType type;
-    char* literal; // For IDENT, NUMBER, FLOAT, STRING, etc.
+    char *literal; // For IDENT, NUMBER, FLOAT, STRING, etc.
     int line;
     int column;
 } Token;
 
-const char* token_type_to_string(PTokenType type);
-void free_token(Token* token);
+const char *token_type_to_string(PTokenType type);
+void free_token(Token *token);
 
 #endif // TOKEN_H

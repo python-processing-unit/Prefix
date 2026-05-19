@@ -6,41 +6,34 @@
 
 typedef struct {
     DeclType type;
-    char* name;
-    Expr* default_value;
+    char *name;
+    Expr *default_value;
 } RuntimeParam;
 
 typedef struct {
-    RuntimeParam* items;
+    RuntimeParam *items;
     size_t count;
 } RuntimeParamList;
 
 // Func is the runtime representation of a function
 struct Func {
-    char* name;
+    char *name;
     DeclType return_type;
     ParamList params;
-    Stmt* body;
-    Env* closure;
+    Stmt *body;
+    Env *closure;
 };
 
 typedef struct Func Func;
 
-typedef enum {
-    EXEC_OK,
-    EXEC_RETURN,
-    EXEC_BREAK,
-    EXEC_CONTINUE,
-    EXEC_ERROR,
-    EXEC_GOTO
-} ExecStatus;
+typedef enum { EXEC_OK, EXEC_RETURN, EXEC_BREAK, EXEC_CONTINUE, EXEC_ERROR, EXEC_GOTO } ExecStatus;
 
 typedef struct {
     ExecStatus status;
     Value value;
     int break_count;
     int jump_index;
-    char* error;
+    char *error;
     int error_line;
     int error_column;
 } ExecResult;
@@ -51,19 +44,19 @@ typedef struct {
 } LabelEntry;
 
 typedef struct {
-    LabelEntry* items;
+    LabelEntry *items;
     size_t count;
     size_t capacity;
 } LabelMap;
 
 typedef struct {
-    Env* env;
+    Env *env;
     LabelMap labels;
 } Frame;
 
 typedef struct {
-    char* name;
-    Env* env;
+    char *name;
+    Env *env;
     int call_line;
     int call_col;
     int has_call_location;
@@ -77,26 +70,26 @@ typedef struct {
 
 // Interpreter state
 typedef struct Interpreter {
-    Env* global_env;
+    Env *global_env;
     int loop_depth;
-    char* error;
+    char *error;
     int error_line;
     int error_col;
     bool in_try_block;
     // Module registry: linked list of imported modules
-    struct ModuleEntry* modules;
+    struct ModuleEntry *modules;
     // When non-zero, forwarding of console output (PRINT/CL) is suppressed
     int shushed;
     // Current thread handle when executing in a background thread (NULL in main thread)
-    struct Thr* current_thr;
+    struct Thr *current_thr;
     // When true, first-declarations/typed first-assignment stay in the current
     // env instead of being redirected to parent env (used by PARFOR workers).
     bool isolate_env_writes;
     // Traceback/logging state
     int verbose;
     int private_mode;
-    char* source_path;
-    TraceFrame* trace_stack;
+    char *source_path;
+    TraceFrame *trace_stack;
     size_t trace_stack_count;
     size_t trace_stack_capacity;
     int trace_next_step_index;
@@ -106,53 +99,53 @@ typedef struct Interpreter {
 
 // Initialize/destroy a reusable interpreter session.
 // `source_path` sets the primary module source label (e.g. script path or "<repl>").
-void interpreter_init(Interpreter* interp, const char* source_path, bool verbose, bool private_mode);
-void interpreter_destroy(Interpreter* interp);
+void interpreter_init(Interpreter *interp, const char *source_path, bool verbose, bool private_mode);
+void interpreter_destroy(Interpreter *interp);
 
 // Main entry point
-ExecResult exec_program(Stmt* program, const char* source_path);
+ExecResult exec_program(Stmt *program, const char *source_path);
 
 // Execute a parsed program (`Stmt*`) within an existing interpreter
 // and environment. This runs the program using the provided `interp`
 // state and the supplied `env` (which may be the current frame or
 // the global environment). Returns an ExecResult similar to
 // `exec_program`.
-ExecResult exec_program_in_env(Interpreter* interp, Stmt* program, Env* env);
+ExecResult exec_program_in_env(Interpreter *interp, Stmt *program, Env *env);
 
 // Execute a parsed function body (`program`) within an interpreter and
 // environment while treating the execution as a function call. This pushes
 // a call-frame so `RETURN` is valid inside `program`.
-ExecResult exec_program_in_env_as_function(Interpreter* interp, Stmt* program, Env* env, const char* func_name);
+ExecResult exec_program_in_env_as_function(Interpreter *interp, Stmt *program, Env *env, const char *func_name);
 
 // Build and return a traceback string for the current interpreter call stack.
 // Caller owns the returned string.
-char* interpreter_format_traceback(Interpreter* interp, const char* error_msg, int line, int col);
+char *interpreter_format_traceback(Interpreter *interp, const char *error_msg, int line, int col);
 
 // Reset traceback stack for interactive recovery while preserving the current
 // top-level frame.
-void interpreter_reset_traceback(Interpreter* interp, Env* top_env);
+void interpreter_reset_traceback(Interpreter *interp, Env *top_env);
 // Functions needed by builtins.c
-Value eval_expr(Interpreter* interp, Expr* expr, Env* env);
+Value eval_expr(Interpreter *interp, Expr *expr, Env *env);
 int value_truthiness(Value v);
 // Clear interpreter error (used by builtins & helpers)
-void clear_error(Interpreter* interp);
+void clear_error(Interpreter *interp);
 // Expose indexed-assignment helper so builtins can reuse it
-ExecResult assign_index_chain(Interpreter* interp, Env* env, Expr* idx_expr, Value rhs, int stmt_line, int stmt_col);
+ExecResult assign_index_chain(Interpreter *interp, Env *env, Expr *idx_expr, Value rhs, int stmt_line, int stmt_col);
 // Restart a finished thread `thr_val` by re-launching its stored body/env.
 // Returns 0 on success, -1 on failure. On failure, sets interp->error/message.
-int interpreter_restart_thread(Interpreter* interp, Value thr_val, int line, int col);
+int interpreter_restart_thread(Interpreter *interp, Value thr_val, int line, int col);
 
 // Module registry helpers
 // Register a module name and create its isolated Env. Returns 0 on success, -1 on error.
-int module_register(Interpreter* interp, const char* name);
+int module_register(Interpreter *interp, const char *name);
 // Register another module name as an alias to an existing module Env.
 // Returns 0 on success, -1 on error.
-int module_register_alias(Interpreter* interp, const char* name, Env* env);
+int module_register_alias(Interpreter *interp, const char *name, Env *env);
 // Lookup a module's Env by name; returns NULL if not found.
-Env* module_env_lookup(Interpreter* interp, const char* name);
+Env *module_env_lookup(Interpreter *interp, const char *name);
 // Return a newly-allocated array of alias names (caller must free each string
 // and the returned array) for the given module Env. `out_count` receives the
 // number of aliases. Returns NULL when there are no aliases or on error.
-char** module_list_aliases(Interpreter* interp, Env* env, size_t* out_count);
+char **module_list_aliases(Interpreter *interp, Env *env, size_t *out_count);
 
 #endif // INTERPRETER_H

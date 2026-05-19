@@ -1,54 +1,96 @@
 #include "value.h"
+#include <assert.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <assert.h>
-#include <stdint.h>
 
 Value value_null(void) {
-    Value v; v.type = VAL_NULL; v.num_base = 2; v.num_base_nan = 0; return v;
+    Value v;
+    v.type = VAL_NULL;
+    v.num_base = 2;
+    v.num_base_nan = 0;
+    return v;
 }
 
 Value value_bool(bool v) {
     Value val;
     val.type = VAL_BOOL;
-    val.as.boolean = v ? true : false;
+    val.as.boolean = (((((int)v ? true : false) != 0)) != 0);
     val.num_base = 2;
     val.num_base_nan = 0;
     return val;
 }
 
 Value value_int(int64_t v) {
-    Value val; val.type = VAL_INT; val.as.i = v; val.num_base = 2; val.num_base_nan = 0; return val;
+    Value val;
+    val.type = VAL_INT;
+    val.as.i = v;
+    val.num_base = 2;
+    val.num_base_nan = 0;
+    return val;
 }
 
 Value value_flt(double v) {
-    Value val; val.type = VAL_FLT; val.as.f = v; val.num_base = 2; val.num_base_nan = 0; return val;
+    Value val;
+    val.type = VAL_FLT;
+    val.as.f = v;
+    val.num_base = 2;
+    val.num_base_nan = 0;
+    return val;
 }
 
 Value value_int_base(int64_t v, int base) {
-    Value val; val.type = VAL_INT; val.as.i = v; val.num_base = base; val.num_base_nan = 0; return val;
+    Value val;
+    val.type = VAL_INT;
+    val.as.i = v;
+    val.num_base = base;
+    val.num_base_nan = 0;
+    return val;
 }
 
 Value value_flt_base(double v, int base) {
-    Value val; val.type = VAL_FLT; val.as.f = v; val.num_base = base; val.num_base_nan = 0; return val;
+    Value val;
+    val.type = VAL_FLT;
+    val.as.f = v;
+    val.num_base = base;
+    val.num_base_nan = 0;
+    return val;
 }
 
 Value value_flt_nan_base(double v) {
-    Value val; val.type = VAL_FLT; val.as.f = v; val.num_base = 0; val.num_base_nan = 1; return val;
+    Value val;
+    val.type = VAL_FLT;
+    val.as.f = v;
+    val.num_base = 0;
+    val.num_base_nan = 1;
+    return val;
 }
 
-Value value_str(const char* s) {
-    Value val; val.type = VAL_STR; val.num_base = 2; val.num_base_nan = 0; val.as.s = s ? strdup(s) : strdup(""); return val;
+Value value_str(const char *s) {
+    Value val;
+    val.type = VAL_STR;
+    val.num_base = 2;
+    val.num_base_nan = 0;
+    val.as.s = s ? strdup(s) : strdup("");
+    return val;
 }
 
-Value value_func(struct Func* func) {
-    Value val; val.type = VAL_FUNC; val.num_base = 2; val.num_base_nan = 0; val.as.func = func; return val;
+Value value_func(struct Func *func) {
+    Value val;
+    val.type = VAL_FUNC;
+    val.num_base = 2;
+    val.num_base_nan = 0;
+    val.as.func = func;
+    return val;
 }
 
 Value value_thr_new(void) {
-    Thr* t = malloc(sizeof(Thr));
-    if (!t) { fprintf(stderr, "Out of memory\n"); exit(1); }
+    Thr *t = malloc(sizeof(Thr));
+    if (!t) {
+        fprintf(stderr, "Out of memory\n");
+        exit(1);
+    }
     t->finished = 0;
     t->paused = 0;
     t->stop_requested = 0;
@@ -58,11 +100,18 @@ Value value_thr_new(void) {
     t->env = NULL;
     mtx_init(&t->state_lock, 0);
     memset(&t->thread, 0, sizeof(thrd_t));
-    Value v; v.type = VAL_THR; v.num_base = 2; v.num_base_nan = 0; v.as.thr = t; return v;
+    Value v;
+    v.type = VAL_THR;
+    v.num_base = 2;
+    v.num_base_nan = 0;
+    v.as.thr = t;
+    return v;
 }
 
 int value_thr_is_running(Value v) {
-    if (v.type != VAL_THR || !v.as.thr) return 0;
+    if (v.type != VAL_THR || !v.as.thr) {
+        return 0;
+    }
     int finished_or_stopping = 0;
     mtx_lock(&v.as.thr->state_lock);
     finished_or_stopping = v.as.thr->finished || v.as.thr->stop_requested;
@@ -71,14 +120,18 @@ int value_thr_is_running(Value v) {
 }
 
 void value_thr_set_stop_requested(Value v, int stop_requested) {
-    if (v.type != VAL_THR || !v.as.thr) return;
+    if (v.type != VAL_THR || !v.as.thr) {
+        return;
+    }
     mtx_lock(&v.as.thr->state_lock);
     v.as.thr->stop_requested = stop_requested ? 1 : 0;
     mtx_unlock(&v.as.thr->state_lock);
 }
 
 int value_thr_get_stop_requested(Value v) {
-    if (v.type != VAL_THR || !v.as.thr) return 0;
+    if (v.type != VAL_THR || !v.as.thr) {
+        return 0;
+    }
     int stop = 0;
     mtx_lock(&v.as.thr->state_lock);
     stop = v.as.thr->stop_requested;
@@ -87,7 +140,9 @@ int value_thr_get_stop_requested(Value v) {
 }
 
 void value_thr_set_finished(Value v, int finished) {
-    if (v.type != VAL_THR || !v.as.thr) return;
+    if (v.type != VAL_THR || !v.as.thr) {
+        return;
+    }
     mtx_lock(&v.as.thr->state_lock);
     v.as.thr->finished = finished ? 1 : 0;
     if (finished) {
@@ -97,7 +152,9 @@ void value_thr_set_finished(Value v, int finished) {
 }
 
 int value_thr_get_finished(Value v) {
-    if (v.type != VAL_THR || !v.as.thr) return 1;
+    if (v.type != VAL_THR || !v.as.thr) {
+        return 1;
+    }
     int finished = 1;
     mtx_lock(&v.as.thr->state_lock);
     finished = v.as.thr->finished;
@@ -106,14 +163,18 @@ int value_thr_get_finished(Value v) {
 }
 
 void value_thr_set_paused(Value v, int paused) {
-    if (v.type != VAL_THR || !v.as.thr) return;
+    if (v.type != VAL_THR || !v.as.thr) {
+        return;
+    }
     mtx_lock(&v.as.thr->state_lock);
     v.as.thr->paused = paused ? 1 : 0;
     mtx_unlock(&v.as.thr->state_lock);
 }
 
 int value_thr_get_paused(Value v) {
-    if (v.type != VAL_THR || !v.as.thr) return 0;
+    if (v.type != VAL_THR || !v.as.thr) {
+        return 0;
+    }
     int paused = 0;
     mtx_lock(&v.as.thr->state_lock);
     paused = v.as.thr->paused;
@@ -122,14 +183,18 @@ int value_thr_get_paused(Value v) {
 }
 
 void value_thr_set_started(Value v, int started) {
-    if (v.type != VAL_THR || !v.as.thr) return;
+    if (v.type != VAL_THR || !v.as.thr) {
+        return;
+    }
     mtx_lock(&v.as.thr->state_lock);
     v.as.thr->started = started ? 1 : 0;
     mtx_unlock(&v.as.thr->state_lock);
 }
 
 int value_thr_get_started(Value v) {
-    if (v.type != VAL_THR || !v.as.thr) return 0;
+    if (v.type != VAL_THR || !v.as.thr) {
+        return 0;
+    }
     int started = 0;
     mtx_lock(&v.as.thr->state_lock);
     started = v.as.thr->started;
@@ -140,8 +205,7 @@ int value_thr_get_started(Value v) {
 // Create a pointer value referring to a binding name
 // Pointer values removed: aliasing is handled at EnvEntry level
 
-
-static size_t compute_strides(const size_t* shape, size_t ndim, size_t* out_strides) {
+static size_t compute_strides(const size_t *shape, size_t ndim, size_t *out_strides) {
     size_t len = 1;
     for (size_t i = ndim; i-- > 0;) {
         out_strides[i] = len;
@@ -150,43 +214,56 @@ static size_t compute_strides(const size_t* shape, size_t ndim, size_t* out_stri
     return len;
 }
 
-Value value_tns_new(DeclType elem_type, size_t ndim, const size_t* shape) {
+Value value_tns_new(DeclType elem_type, size_t ndim, const size_t *shape) {
     Value v;
     v.type = VAL_TNS;
     v.num_base = 2;
     v.num_base_nan = 0;
-    Tensor* t = malloc(sizeof(Tensor));
-    if (!t) { fprintf(stderr, "Out of memory\n"); exit(1); }
+    Tensor *t = malloc(sizeof(Tensor));
+    if (!t) {
+        fprintf(stderr, "Out of memory\n");
+        exit(1);
+    }
     t->elem_type = elem_type;
     t->ndim = ndim;
     t->shape = malloc(sizeof(size_t) * ndim);
     t->strides = malloc(sizeof(size_t) * ndim);
-    for (size_t i = 0; i < ndim; i++) t->shape[i] = shape[i];
+    for (size_t i = 0; i < ndim; i++) {
+        t->shape[i] = shape[i];
+    }
     t->length = compute_strides(shape, ndim, t->strides);
     t->data = malloc(sizeof(Value) * (t->length));
-    for (size_t i = 0; i < t->length; i++) t->data[i] = value_null();
+    for (size_t i = 0; i < t->length; i++) {
+        t->data[i] = value_null();
+    }
     t->refcount = 1;
     mtx_init(&t->lock, 0);
     v.as.tns = t;
     return v;
 }
 
-Value value_tns_from_values(DeclType elem_type, size_t ndim, const size_t* shape, Value* items, size_t item_count) {
+Value value_tns_from_values(DeclType elem_type, size_t ndim, const size_t *shape, Value *items, size_t item_count) {
     Value tval = value_tns_new(elem_type, ndim, shape);
-    Tensor* t = tval.as.tns;
+    Tensor *t = tval.as.tns;
     if (item_count != t->length) {
         // Fill with nulls if mismatched
         size_t to_copy = item_count < t->length ? item_count : t->length;
-        for (size_t i = 0; i < to_copy; i++) t->data[i] = value_copy(items[i]);
+        for (size_t i = 0; i < to_copy; i++) {
+            t->data[i] = value_copy(items[i]);
+        }
     } else {
-        for (size_t i = 0; i < t->length; i++) t->data[i] = value_copy(items[i]);
+        for (size_t i = 0; i < t->length; i++) {
+            t->data[i] = value_copy(items[i]);
+        }
     }
     return tval;
 }
 
-Value value_tns_get(Value v, const size_t* idxs, size_t nidxs) {
-    if (v.type != VAL_TNS) return value_null();
-    Tensor* t = v.as.tns;
+Value value_tns_get(Value v, const size_t *idxs, size_t nidxs) {
+    if (v.type != VAL_TNS) {
+        return value_null();
+    }
+    Tensor *t = v.as.tns;
     assert(nidxs <= t->ndim);
     size_t offset = 0;
     for (size_t i = 0; i < nidxs; i++) {
@@ -199,46 +276,58 @@ Value value_tns_get(Value v, const size_t* idxs, size_t nidxs) {
     // If full indexing (nidxs == ndim) return element, else return a view (slice) as a new tensor
     if (nidxs == t->ndim) {
         return value_copy(t->data[offset]);
-    } else {
-        // Build shape for sub-tensor
-        size_t new_ndim = t->ndim - nidxs;
-        size_t* new_shape = malloc(sizeof(size_t) * new_ndim);
-        for (size_t i = 0; i < new_ndim; i++) new_shape[i] = t->shape[nidxs + i];
-        // Create new tensor and copy data
-        Value out = value_tns_new(t->elem_type, new_ndim, new_shape);
-        Tensor* ot = out.as.tns;
-        // Copy contiguous block segments if lower dimensions match contiguous layout
-        size_t copy_count = ot->length;
-        for (size_t i = 0; i < copy_count; i++) {
-            // compute source index in original
-            size_t src = offset + i; // works because original is row-major and subarray is contiguous
-            ot->data[i] = value_copy(t->data[src]);
-        }
-        free(new_shape);
-        return out;
     }
+    // Build shape for sub-tensor
+    size_t new_ndim = t->ndim - nidxs;
+    size_t *new_shape = malloc(sizeof(size_t) * new_ndim);
+    for (size_t i = 0; i < new_ndim; i++) {
+        new_shape[i] = t->shape[nidxs + i];
+    }
+    // Create new tensor and copy data
+    Value out = value_tns_new(t->elem_type, new_ndim, new_shape);
+    Tensor *ot = out.as.tns;
+    // Copy contiguous block segments if lower dimensions match contiguous layout
+    size_t copy_count = ot->length;
+    for (size_t i = 0; i < copy_count; i++) {
+        // compute source index in original
+        size_t src = offset + i; // works because original is row-major and subarray is contiguous
+        ot->data[i] = value_copy(t->data[src]);
+    }
+    free(new_shape);
+    return out;
 }
 
-Value value_tns_slice(Value v, const int64_t* starts, const int64_t* ends, size_t n) {
+Value value_tns_slice(Value v, const int64_t *starts, const int64_t *ends, size_t n) {
     // starts/ends are 1-based inclusive per spec; negative values handled as Python-style
-    if (v.type != VAL_TNS) return value_null();
-    Tensor* t = v.as.tns;
+    if (v.type != VAL_TNS) {
+        return value_null();
+    }
+    Tensor *t = v.as.tns;
     size_t use_n = n < t->ndim ? n : t->ndim;
 
     // normalized starts/ends in 1-based inclusive form -> we'll keep int64_t
-    int64_t* nstarts = malloc(sizeof(int64_t) * t->ndim);
-    int64_t* nends = malloc(sizeof(int64_t) * t->ndim);
+    int64_t *nstarts = malloc(sizeof(int64_t) * t->ndim);
+    int64_t *nends = malloc(sizeof(int64_t) * t->ndim);
     for (size_t i = 0; i < t->ndim; i++) {
         if (i < use_n) {
             int64_t s = starts[i];
             int64_t e = ends[i];
             int64_t dim = (int64_t)t->shape[i];
-            if (s < 0) s = dim + s + 1;
-            if (e < 0) e = dim + e + 1;
-            if (s < 1) s = 1;
-            if (e > dim) e = dim;
+            if (s < 0) {
+                s = dim + s + 1;
+            }
+            if (e < 0) {
+                e = dim + e + 1;
+            }
+            if (s < 1) {
+                s = 1;
+            }
+            if (e > dim) {
+                e = dim;
+            }
             if (s > e) {
-                nstarts[i] = 1; nends[i] = 0; // empty
+                nstarts[i] = 1;
+                nends[i] = 0; // empty
             } else {
                 nstarts[i] = s;
                 nends[i] = e;
@@ -251,7 +340,7 @@ Value value_tns_slice(Value v, const int64_t* starts, const int64_t* ends, size_
 
     // Determine output shape by removing dimensions that are fixed to a single element
     size_t new_ndim = 0;
-    int* orig_to_out = malloc(sizeof(int) * t->ndim);
+    int *orig_to_out = malloc(sizeof(int) * t->ndim);
     for (size_t i = 0; i < t->ndim; i++) {
         size_t len = (nends[i] >= nstarts[i]) ? (size_t)(nends[i] - nstarts[i] + 1) : 0;
         if (len <= 1) {
@@ -269,11 +358,13 @@ Value value_tns_slice(Value v, const int64_t* starts, const int64_t* ends, size_
             src_offset += pos * t->strides[i];
         }
         Value out = value_copy(t->data[src_offset]);
-        free(nstarts); free(nends); free(orig_to_out);
+        free(nstarts);
+        free(nends);
+        free(orig_to_out);
         return out;
     }
 
-    size_t* new_shape = malloc(sizeof(size_t) * new_ndim);
+    size_t *new_shape = malloc(sizeof(size_t) * new_ndim);
     for (size_t i = 0; i < t->ndim; i++) {
         if (orig_to_out[i] >= 0) {
             new_shape[orig_to_out[i]] = (size_t)(nends[i] - nstarts[i] + 1);
@@ -281,7 +372,7 @@ Value value_tns_slice(Value v, const int64_t* starts, const int64_t* ends, size_
     }
 
     Value out = value_tns_new(t->elem_type, new_ndim, new_shape);
-    Tensor* ot = out.as.tns;
+    Tensor *ot = out.as.tns;
 
     // iterate over output positions and copy corresponding element
     for (size_t out_idx = 0; out_idx < ot->length; out_idx++) {
@@ -295,7 +386,10 @@ Value value_tns_slice(Value v, const int64_t* starts, const int64_t* ends, size_
             // scan orig_to_out to find index with value == d
             size_t orig = 0;
             for (size_t k = 0; k < t->ndim; k++) {
-                if (orig_to_out[k] == (int)d) { orig = k; break; }
+                if (orig_to_out[k] == (int)d) {
+                    orig = k;
+                    break;
+                }
             }
             size_t src_pos = pos + (size_t)(nstarts[orig] - 1);
             src_offset += src_pos * t->strides[orig];
@@ -327,9 +421,9 @@ static uint64_t map_hash_mix(uint64_t x) {
     return x;
 }
 
-static uint64_t map_hash_string(const char* s) {
+static uint64_t map_hash_string(const char *s) {
     uint64_t h = 1469598103934665603ULL;
-    const unsigned char* p = (const unsigned char*)(s ? s : "");
+    const unsigned char *p = (const unsigned char *)(s ? s : "");
     while (*p) {
         h ^= (uint64_t)(*p++);
         h *= 1099511628211ULL;
@@ -343,7 +437,9 @@ static uint64_t map_hash_key(Value key) {
     }
     if (key.type == VAL_FLT) {
         double d = key.as.f;
-        if (d == 0.0) d = 0.0;
+        if (d == 0.0) {
+            d = 0.0;
+        }
         uint64_t bits = 0;
         memcpy(&bits, &d, sizeof(uint64_t));
         return map_hash_mix(bits ^ 0x243f6a8885a308d3ULL);
@@ -355,11 +451,19 @@ static uint64_t map_hash_key(Value key) {
 }
 
 static int map_key_equals(Value a, Value b) {
-    if (a.type != b.type) return 0;
-    if (a.type == VAL_INT) return a.as.i == b.as.i;
-    if (a.type == VAL_FLT) return a.as.f == b.as.f;
+    if (a.type != b.type) {
+        return 0;
+    }
+    if (a.type == VAL_INT) {
+        return a.as.i == b.as.i;
+    }
+    if (a.type == VAL_FLT) {
+        return a.as.f == b.as.f;
+    }
     if (a.type == VAL_STR) {
-        if (!a.as.s || !b.as.s) return a.as.s == b.as.s;
+        if (!a.as.s || !b.as.s) {
+            return a.as.s == b.as.s;
+        }
         return strcmp(a.as.s, b.as.s) == 0;
     }
     return 0;
@@ -368,19 +472,32 @@ static int map_key_equals(Value a, Value b) {
 static size_t map_recommended_bucket_count(size_t entries) {
     size_t needed = entries < 8 ? 16 : entries * 2;
     size_t bc = 16;
-    while (bc < needed && bc <= (SIZE_MAX / 2)) bc <<= 1;
+    while (bc < needed && bc <= (SIZE_MAX / 2)) {
+        bc <<= 1;
+    }
     return bc;
 }
 
-static void map_rehash(Map* m, size_t bucket_count) {
-    if (!m) return;
-    if (bucket_count == 0) bucket_count = map_recommended_bucket_count(m->count);
+static void map_rehash(Map *m, size_t bucket_count) {
+    if (!m) {
+        return;
+    }
+    if (bucket_count == 0) {
+        bucket_count = map_recommended_bucket_count(m->count);
+    }
 
-    int64_t* new_buckets = malloc(sizeof(int64_t) * bucket_count);
-    if (!new_buckets) { fprintf(stderr, "Out of memory\n"); exit(1); }
-    for (size_t i = 0; i < bucket_count; i++) new_buckets[i] = -1;
+    int64_t *new_buckets = malloc(sizeof(int64_t) * bucket_count);
+    if (!new_buckets) {
+        fprintf(stderr, "Out of memory\n");
+        exit(1);
+    }
+    for (size_t i = 0; i < bucket_count; i++) {
+        new_buckets[i] = -1;
+    }
 
-    for (size_t i = 0; i < m->count; i++) m->items[i].next_hash = -1;
+    for (size_t i = 0; i < m->count; i++) {
+        m->items[i].next_hash = -1;
+    }
     for (size_t i = 0; i < m->count; i++) {
         size_t b = (size_t)(map_hash_key(m->items[i].key) % bucket_count);
         m->items[i].next_hash = new_buckets[b];
@@ -392,16 +509,23 @@ static void map_rehash(Map* m, size_t bucket_count) {
     m->bucket_count = bucket_count;
 }
 
-static void map_ensure_entry_capacity(Map* m, size_t need) {
-    if (need <= m->capacity) return;
+static void map_ensure_entry_capacity(Map *m, size_t need) {
+    if (need <= m->capacity) {
+        return;
+    }
     size_t newc = m->capacity == 0 ? 8 : m->capacity * 2;
-    while (newc < need && newc <= (SIZE_MAX / 2)) newc *= 2;
+    while (newc < need && newc <= (SIZE_MAX / 2)) {
+        newc *= 2;
+    }
     m->items = realloc(m->items, sizeof(MapEntry) * newc);
-    if (!m->items) { fprintf(stderr, "Out of memory\n"); exit(1); }
+    if (!m->items) {
+        fprintf(stderr, "Out of memory\n");
+        exit(1);
+    }
     m->capacity = newc;
 }
 
-static int map_maybe_rehash_for_insert(Map* m, size_t post_insert_count) {
+static int map_maybe_rehash_for_insert(Map *m, size_t post_insert_count) {
     if (m->bucket_count == 0 || !m->buckets) {
         map_rehash(m, map_recommended_bucket_count(post_insert_count));
         return 1;
@@ -418,11 +542,15 @@ static int map_maybe_rehash_for_insert(Map* m, size_t post_insert_count) {
     return 0;
 }
 
-static int map_find_index(Map* m, Value key) {
-    if (!m || m->count == 0) return -1;
+static int map_find_index(Map *m, Value key) {
+    if (!m || m->count == 0) {
+        return -1;
+    }
     if (!m->buckets || m->bucket_count == 0) {
         for (size_t i = 0; i < m->count; i++) {
-            if (map_key_equals(m->items[i].key, key)) return (int)i;
+            if (map_key_equals(m->items[i].key, key)) {
+                return (int)i;
+            }
         }
         return -1;
     }
@@ -430,14 +558,16 @@ static int map_find_index(Map* m, Value key) {
     size_t b = (size_t)(map_hash_key(key) % m->bucket_count);
     int64_t idx = m->buckets[b];
     while (idx >= 0) {
-        MapEntry* e = &m->items[(size_t)idx];
-        if (map_key_equals(e->key, key)) return (int)idx;
+        MapEntry *e = &m->items[(size_t)idx];
+        if (map_key_equals(e->key, key)) {
+            return (int)idx;
+        }
         idx = e->next_hash;
     }
     return -1;
 }
 
-static int64_t map_append_entry(Map* m, Value key_copy, Value val_copy) {
+static int64_t map_append_entry(Map *m, Value key_copy, Value val_copy) {
     size_t idx = m->count;
     map_ensure_entry_capacity(m, idx + 1);
 
@@ -456,9 +586,15 @@ static int64_t map_append_entry(Map* m, Value key_copy, Value val_copy) {
 }
 
 Value value_map_new(void) {
-    Value v; v.type = VAL_MAP; v.num_base = 2; v.num_base_nan = 0;
-    Map* m = malloc(sizeof(Map));
-    if (!m) { fprintf(stderr, "Out of memory\n"); exit(1); }
+    Value v;
+    v.type = VAL_MAP;
+    v.num_base = 2;
+    v.num_base_nan = 0;
+    Map *m = malloc(sizeof(Map));
+    if (!m) {
+        fprintf(stderr, "Out of memory\n");
+        exit(1);
+    }
     m->items = NULL;
     m->count = 0;
     m->capacity = 0;
@@ -470,9 +606,11 @@ Value value_map_new(void) {
     return v;
 }
 
-void value_map_set(Value* mapval, Value key, Value val) {
-    if (!mapval || mapval->type != VAL_MAP) return;
-    Map* m = mapval->as.map;
+void value_map_set(Value *mapval, Value key, Value val) {
+    if (!mapval || mapval->type != VAL_MAP) {
+        return;
+    }
+    Map *m = mapval->as.map;
     int idx = map_find_index(m, key);
     if (idx >= 0) {
         value_free(m->items[idx].value);
@@ -482,36 +620,58 @@ void value_map_set(Value* mapval, Value key, Value val) {
     map_append_entry(m, value_copy(key), value_copy(val));
 }
 
-Value value_map_get(Value mapval, Value key, int* found) {
+Value value_map_get(Value mapval, Value key, int *found) {
     Value out = value_null();
-    if (!mapval.as.map) { if (found) *found = 0; return out; }
-    Map* m = mapval.as.map;
+    if (!mapval.as.map) {
+        if (found) {
+            *found = 0;
+        }
+        return out;
+    }
+    Map *m = mapval.as.map;
     int idx = map_find_index(m, key);
-    if (idx < 0) { if (found) *found = 0; return out; }
-    if (found) *found = 1;
+    if (idx < 0) {
+        if (found) {
+            *found = 0;
+        }
+        return out;
+    }
+    if (found) {
+        *found = 1;
+    }
     return value_copy(m->items[idx].value);
 }
 
-void value_map_delete(Value* mapval, Value key) {
-    if (!mapval || mapval->type != VAL_MAP) return;
-    Map* m = mapval->as.map;
+void value_map_delete(Value *mapval, Value key) {
+    if (!mapval || mapval->type != VAL_MAP) {
+        return;
+    }
+    Map *m = mapval->as.map;
     int idx = map_find_index(m, key);
-    if (idx < 0) return;
+    if (idx < 0) {
+        return;
+    }
 
     value_free(m->items[idx].key);
     value_free(m->items[idx].value);
 
-    for (size_t i = (size_t)idx; i + 1 < m->count; i++) m->items[i] = m->items[i + 1];
-    if (m->count > 0) m->count--;
+    for (size_t i = (size_t)idx; i + 1 < m->count; i++) {
+        m->items[i] = m->items[i + 1];
+    }
+    if (m->count > 0) {
+        m->count--;
+    }
 
     if (m->buckets && m->bucket_count > 0) {
         map_rehash(m, map_recommended_bucket_count(m->count));
     }
 }
 
-void value_map_set_self(Value* mapval, Value key) {
-    if (!mapval || mapval->type != VAL_MAP) return;
-    Map* m = mapval->as.map;
+void value_map_set_self(Value *mapval, Value key) {
+    if (!mapval || mapval->type != VAL_MAP) {
+        return;
+    }
+    Map *m = mapval->as.map;
     int idx = map_find_index(m, key);
     if (idx >= 0) {
         value_free(m->items[idx].value);
@@ -521,25 +681,37 @@ void value_map_set_self(Value* mapval, Value key) {
     map_append_entry(m, value_copy(key), value_alias(*mapval));
 }
 
-Value* value_map_get_ptr(Value* mapval, Value key, bool create_if_missing) {
-    if (!mapval || mapval->type != VAL_MAP) return NULL;
-    Map* m = mapval->as.map;
+Value *value_map_get_ptr(Value *mapval, Value key, bool create_if_missing) {
+    if (!mapval || mapval->type != VAL_MAP) {
+        return NULL;
+    }
+    Map *m = mapval->as.map;
     int idx = map_find_index(m, key);
-    if (idx >= 0) return &m->items[idx].value;
-    if (!create_if_missing) return NULL;
+    if (idx >= 0) {
+        return &m->items[idx].value;
+    }
+    if (!create_if_missing) {
+        return NULL;
+    }
 
     int64_t new_idx = map_append_entry(m, value_copy(key), value_null());
     return &m->items[(size_t)new_idx].value;
 }
 
-Value* value_tns_get_ptr(Value v, const size_t* idxs, size_t nidxs) {
-    if (v.type != VAL_TNS || !v.as.tns) return NULL;
-    Tensor* t = v.as.tns;
-    if (nidxs != t->ndim) return NULL;
+Value *value_tns_get_ptr(Value v, const size_t *idxs, size_t nidxs) {
+    if (v.type != VAL_TNS || !v.as.tns) {
+        return NULL;
+    }
+    Tensor *t = v.as.tns;
+    if (nidxs != t->ndim) {
+        return NULL;
+    }
     size_t offset = 0;
     for (size_t i = 0; i < nidxs; i++) {
         size_t idx = idxs[i];
-        if (idx >= t->shape[i]) return NULL;
+        if (idx >= t->shape[i]) {
+            return NULL;
+        }
         offset += idx * t->strides[i];
     }
     return &t->data[offset];
@@ -551,27 +723,36 @@ Value value_copy(Value v) {
     if (v.type == VAL_STR && v.as.s) {
         out.as.s = strdup(v.as.s);
     } else if (v.type == VAL_TNS && v.as.tns) {
-        Tensor* t = v.as.tns;
-        Tensor* t2 = malloc(sizeof(Tensor));
-        if (!t2) { fprintf(stderr, "Out of memory\n"); exit(1); }
+        Tensor *t = v.as.tns;
+        Tensor *t2 = malloc(sizeof(Tensor));
+        if (!t2) {
+            fprintf(stderr, "Out of memory\n");
+            exit(1);
+        }
         t2->elem_type = t->elem_type;
         t2->ndim = t->ndim;
         t2->shape = malloc(sizeof(size_t) * t2->ndim);
         t2->strides = malloc(sizeof(size_t) * t2->ndim);
-        for (size_t i = 0; i < t2->ndim; i++) { t2->shape[i] = t->shape[i]; t2->strides[i] = t->strides[i]; }
+        for (size_t i = 0; i < t2->ndim; i++) {
+            t2->shape[i] = t->shape[i];
+            t2->strides[i] = t->strides[i];
+        }
         t2->length = t->length;
         t2->data = malloc(sizeof(Value) * t2->length);
         for (size_t i = 0; i < t2->length; i++) {
-            extern Value value_alias(Value v);
+
             t2->data[i] = value_alias(t->data[i]);
         }
         t2->refcount = 1;
         mtx_init(&t2->lock, 0);
         out.as.tns = t2;
     } else if (v.type == VAL_MAP && v.as.map) {
-        Map* m = v.as.map;
-        Map* m2 = malloc(sizeof(Map));
-        if (!m2) { fprintf(stderr, "Out of memory\n"); exit(1); }
+        Map *m = v.as.map;
+        Map *m2 = malloc(sizeof(Map));
+        if (!m2) {
+            fprintf(stderr, "Out of memory\n");
+            exit(1);
+        }
         m2->count = m->count;
         m2->capacity = m->count;
         m2->items = malloc(sizeof(MapEntry) * (m2->capacity ? m2->capacity : 1));
@@ -580,7 +761,7 @@ Value value_copy(Value v) {
         m2->refcount = 1;
         mtx_init(&m2->lock, 0);
         for (size_t i = 0; i < m->count; i++) {
-            extern Value value_alias(Value v);
+
             m2->items[i].key = value_alias(m->items[i].key);
             Value orig_val = m->items[i].value;
             if (orig_val.type == VAL_MAP && orig_val.as.map == m) {
@@ -595,10 +776,12 @@ Value value_copy(Value v) {
             }
             m2->items[i].next_hash = -1;
         }
-        if (m2->count > 0) map_rehash(m2, map_recommended_bucket_count(m2->count));
+        if (m2->count > 0) {
+            map_rehash(m2, map_recommended_bucket_count(m2->count));
+        }
         out.as.map = m2;
     } else if (v.type == VAL_THR && v.as.thr) {
-        Thr* th = v.as.thr;
+        Thr *th = v.as.thr;
         mtx_lock(&th->state_lock);
         th->refcount++;
         mtx_unlock(&th->state_lock);
@@ -615,26 +798,25 @@ Value value_alias(Value v) {
     if (v.type == VAL_STR && v.as.s) {
         out.as.s = strdup(v.as.s);
     } else if (v.type == VAL_TNS && v.as.tns) {
-        Tensor* t = v.as.tns;
+        Tensor *t = v.as.tns;
         mtx_lock(&t->lock);
         t->refcount++;
         mtx_unlock(&t->lock);
         out.as.tns = t;
     } else if (v.type == VAL_MAP && v.as.map) {
-        Map* m = v.as.map;
+        Map *m = v.as.map;
         mtx_lock(&m->lock);
         m->refcount++;
         mtx_unlock(&m->lock);
         out.as.map = m;
     } else if (v.type == VAL_THR && v.as.thr) {
-        Thr* th = v.as.thr;
+        Thr *th = v.as.thr;
         mtx_lock(&th->state_lock);
         th->refcount++;
         mtx_unlock(&th->state_lock);
         out.as.thr = th;
     }
     return out;
-
 }
 
 // Deep-copy helper: recursively duplicate container contents.
@@ -643,24 +825,35 @@ Value value_deep_copy(Value v) {
     if (v.type == VAL_STR && v.as.s) {
         out.as.s = strdup(v.as.s);
     } else if (v.type == VAL_TNS && v.as.tns) {
-        Tensor* t = v.as.tns;
-        Tensor* t2 = malloc(sizeof(Tensor));
-        if (!t2) { fprintf(stderr, "Out of memory\n"); exit(1); }
+        Tensor *t = v.as.tns;
+        Tensor *t2 = malloc(sizeof(Tensor));
+        if (!t2) {
+            fprintf(stderr, "Out of memory\n");
+            exit(1);
+        }
         t2->elem_type = t->elem_type;
         t2->ndim = t->ndim;
         t2->shape = malloc(sizeof(size_t) * t2->ndim);
         t2->strides = malloc(sizeof(size_t) * t2->ndim);
-        for (size_t i = 0; i < t2->ndim; i++) { t2->shape[i] = t->shape[i]; t2->strides[i] = t->strides[i]; }
+        for (size_t i = 0; i < t2->ndim; i++) {
+            t2->shape[i] = t->shape[i];
+            t2->strides[i] = t->strides[i];
+        }
         t2->length = t->length;
         t2->data = malloc(sizeof(Value) * t2->length);
-        for (size_t i = 0; i < t2->length; i++) t2->data[i] = value_deep_copy(t->data[i]);
+        for (size_t i = 0; i < t2->length; i++) {
+            t2->data[i] = value_deep_copy(t->data[i]);
+        }
         t2->refcount = 1;
         mtx_init(&t2->lock, 0);
         out.as.tns = t2;
     } else if (v.type == VAL_MAP && v.as.map) {
-        Map* m = v.as.map;
-        Map* m2 = malloc(sizeof(Map));
-        if (!m2) { fprintf(stderr, "Out of memory\n"); exit(1); }
+        Map *m = v.as.map;
+        Map *m2 = malloc(sizeof(Map));
+        if (!m2) {
+            fprintf(stderr, "Out of memory\n");
+            exit(1);
+        }
         m2->count = m->count;
         m2->capacity = m->count;
         m2->items = malloc(sizeof(MapEntry) * (m2->capacity ? m2->capacity : 1));
@@ -671,13 +864,15 @@ Value value_deep_copy(Value v) {
         }
         m2->buckets = NULL;
         m2->bucket_count = 0;
-        if (m2->count > 0) map_rehash(m2, map_recommended_bucket_count(m2->count));
+        if (m2->count > 0) {
+            map_rehash(m2, map_recommended_bucket_count(m2->count));
+        }
         m2->refcount = 1;
         mtx_init(&m2->lock, 0);
         out.as.map = m2;
     } else if (v.type == VAL_THR && v.as.thr) {
         // Threads are not deep-copyable; preserve handle semantics (share)
-        Thr* th = v.as.thr;
+        Thr *th = v.as.thr;
         mtx_lock(&th->state_lock);
         th->refcount++;
         mtx_unlock(&th->state_lock);
@@ -690,26 +885,36 @@ void value_free(Value v) {
     if (v.type == VAL_STR) {
         free(v.as.s);
     } else if (v.type == VAL_TNS && v.as.tns) {
-        Tensor* t = v.as.tns;
+        Tensor *t = v.as.tns;
         int free_now = 0;
         mtx_lock(&t->lock);
-        if (--t->refcount <= 0) free_now = 1;
+        if (--t->refcount <= 0) {
+            free_now = 1;
+        }
         mtx_unlock(&t->lock);
         if (free_now) {
             if (t->data) {
-                for (size_t i = 0; i < t->length; i++) value_free(t->data[i]);
+                for (size_t i = 0; i < t->length; i++) {
+                    value_free(t->data[i]);
+                }
                 free(t->data);
             }
-            if (t->shape) free(t->shape);
-            if (t->strides) free(t->strides);
+            if (t->shape) {
+                free(t->shape);
+            }
+            if (t->strides) {
+                free(t->strides);
+            }
             mtx_destroy(&t->lock);
             free(t);
         }
     } else if (v.type == VAL_MAP && v.as.map) {
-        Map* m = v.as.map;
+        Map *m = v.as.map;
         int free_now = 0;
         mtx_lock(&m->lock);
-        if (--m->refcount <= 0) free_now = 1;
+        if (--m->refcount <= 0) {
+            free_now = 1;
+        }
         mtx_unlock(&m->lock);
         if (free_now) {
             if (m->items) {
@@ -719,15 +924,19 @@ void value_free(Value v) {
                 }
                 free(m->items);
             }
-            if (m->buckets) free(m->buckets);
+            if (m->buckets) {
+                free(m->buckets);
+            }
             mtx_destroy(&m->lock);
             free(m);
         }
     } else if (v.type == VAL_THR && v.as.thr) {
-        Thr* th = v.as.thr;
+        Thr *th = v.as.thr;
         int free_now = 0;
         mtx_lock(&th->state_lock);
-        if (--th->refcount <= 0) free_now = 1;
+        if (--th->refcount <= 0) {
+            free_now = 1;
+        }
         mtx_unlock(&th->state_lock);
         if (free_now) {
             mtx_destroy(&th->state_lock);
@@ -736,16 +945,25 @@ void value_free(Value v) {
     }
 }
 
-const char* value_type_name(Value v) {
+const char *value_type_name(Value v) {
     switch (v.type) {
-        case VAL_BOOL: return "BOOL";
-        case VAL_INT: return "INT";
-        case VAL_FLT: return "FLT";
-        case VAL_MAP: return "MAP";
-        case VAL_TNS: return "TNS";
-        case VAL_STR: return "STR";
-        case VAL_FUNC: return "FUNC";
-        case VAL_THR: return "THR";
-        default: return "NULL";
+    case VAL_BOOL:
+        return "BOOL";
+    case VAL_INT:
+        return "INT";
+    case VAL_FLT:
+        return "FLT";
+    case VAL_MAP:
+        return "MAP";
+    case VAL_TNS:
+        return "TNS";
+    case VAL_STR:
+        return "STR";
+    case VAL_FUNC:
+        return "FUNC";
+    case VAL_THR:
+        return "THR";
+    default:
+        return "NULL";
     }
 }

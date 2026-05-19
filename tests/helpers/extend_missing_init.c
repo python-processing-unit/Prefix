@@ -1,3 +1,1 @@
-int extend_missing_init_dummy(void) {
-    return 7;
-}
+int extend_missing_init_dummy(void) { return 7; }

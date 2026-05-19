@@ -1,24 +1,24 @@
 #ifndef PARSER_H
 #define PARSER_H
 
-#include "lexer.h"
-#include "common.h"
 #include "ast.h"
+#include "common.h"
+#include "lexer.h"
 
 typedef struct {
-    Lexer* lexer;
+    Lexer *lexer;
     Token current_token;
     Token previous_token;
     Token next_token;
     Token lookahead2_token;
     bool panic_mode;
     bool had_error;
-    char* error_msg;
+    char *error_msg;
     int error_line;
     int error_col;
 } Parser;
 
-void parser_init(Parser* parser, Lexer* lexer);
-Stmt* parser_parse(Parser* parser);
+void parser_init(Parser *parser, Lexer *lexer);
+Stmt *parser_parse(Parser *parser);
 
 #endif // PARSER_H

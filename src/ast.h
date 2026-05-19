@@ -20,13 +20,13 @@ typedef struct Stmt Stmt;
 
 typedef struct Param {
     DeclType type;
-    char* name;
+    char *name;
     bool coerced;
-    Expr* default_value; // optional
+    Expr *default_value; // optional
 } Param;
 
 typedef struct ParamList {
-    Param* items;
+    Param *items;
     size_t count;
     size_t capacity;
 } ParamList;
@@ -50,7 +50,7 @@ typedef enum {
 } ExprType;
 
 typedef struct {
-    Expr** items;
+    Expr **items;
     size_t count;
     size_t capacity;
 } ExprList;
@@ -61,29 +61,41 @@ struct Expr {
     int column;
     union {
         bool bool_value;
-        struct { int64_t value; int base; } int_value;
-        struct { double value; int base; int base_is_nan; } flt_value;
-        char* str_value;
-        char* ident;
-        struct { DeclType decl_type; char* name; } typed_ident;
-        char* ptr_name;
-            struct { Stmt* block; } async;
         struct {
-            Expr* callee;
+            int64_t value;
+            int base;
+        } int_value;
+        struct {
+            double value;
+            int base;
+            int base_is_nan;
+        } flt_value;
+        char *str_value;
+        char *ident;
+        struct {
+            DeclType decl_type;
+            char *name;
+        } typed_ident;
+        char *ptr_name;
+        struct {
+            Stmt *block;
+        } async;
+        struct {
+            Expr *callee;
             ExprList args;
-            char** kw_names;
+            char **kw_names;
             ExprList kw_args;
             size_t kw_count;
             size_t kw_capacity;
         } call;
         struct {
-            Expr* target;
+            Expr *target;
             ExprList indices;
             bool is_map; /* true if angle-bracket indexing '<...>' was used */
         } index;
         struct {
-            Expr* start;
-            Expr* end;
+            Expr *start;
+            Expr *end;
         } range;
         struct {
             ExprList keys;
@@ -92,7 +104,7 @@ struct Expr {
         struct {
             ParamList params;
             DeclType return_type;
-            Stmt* body;
+            Stmt *body;
         } lambda;
         ExprList tns_items;
     } as;
@@ -120,7 +132,7 @@ typedef enum {
 } StmtType;
 
 typedef struct {
-    Stmt** items;
+    Stmt **items;
     size_t count;
     size_t capacity;
 } StmtList;
@@ -129,78 +141,124 @@ struct Stmt {
     StmtType type;
     int line;
     int column;
-    char* src_text;
+    char *src_text;
     union {
         StmtList block;
-        struct { Expr* expr; } expr_stmt;
-        struct { bool has_type; DeclType decl_type; char* name; Expr* target; Expr* value; } assign;
-        struct { DeclType decl_type; char* name; } decl;
         struct {
-            Expr* condition;
-            Stmt* then_branch;
+            Expr *expr;
+        } expr_stmt;
+        struct {
+            bool has_type;
+            DeclType decl_type;
+            char *name;
+            Expr *target;
+            Expr *value;
+        } assign;
+        struct {
+            DeclType decl_type;
+            char *name;
+        } decl;
+        struct {
+            Expr *condition;
+            Stmt *then_branch;
             ExprList elif_conditions;
             StmtList elif_blocks;
-            Stmt* else_branch; // optional
+            Stmt *else_branch; // optional
         } if_stmt;
-        struct { Expr* condition; Stmt* body; } while_stmt;
-        struct { char* counter; Expr* target; Stmt* body; } for_stmt;
-        struct { char* counter; Expr* target; Stmt* body; } parfor_stmt;
-        struct { char* name; ParamList params; DeclType return_type; Stmt* body; } func_stmt;
-        struct { Expr* value; } return_stmt;
-        struct { Expr* value; } break_stmt;
-        struct { Stmt* body; } async_stmt;
-        struct { char* name; Stmt* body; } thr_stmt;
-        struct { Stmt* try_block; char* catch_name; Stmt* catch_block; } try_stmt;
-        struct { Expr* target; } goto_stmt;
-        struct { char* name; } pop_stmt;
-        struct { Expr* target; } gotopoint_stmt;
+        struct {
+            Expr *condition;
+            Stmt *body;
+        } while_stmt;
+        struct {
+            char *counter;
+            Expr *target;
+            Stmt *body;
+        } for_stmt;
+        struct {
+            char *counter;
+            Expr *target;
+            Stmt *body;
+        } parfor_stmt;
+        struct {
+            char *name;
+            ParamList params;
+            DeclType return_type;
+            Stmt *body;
+        } func_stmt;
+        struct {
+            Expr *value;
+        } return_stmt;
+        struct {
+            Expr *value;
+        } break_stmt;
+        struct {
+            Stmt *body;
+        } async_stmt;
+        struct {
+            char *name;
+            Stmt *body;
+        } thr_stmt;
+        struct {
+            Stmt *try_block;
+            char *catch_name;
+            Stmt *catch_block;
+        } try_stmt;
+        struct {
+            Expr *target;
+        } goto_stmt;
+        struct {
+            char *name;
+        } pop_stmt;
+        struct {
+            Expr *target;
+        } gotopoint_stmt;
     } as;
 };
 
-Expr* expr_bool(bool value, int line, int column);
-Expr* expr_int(int64_t value, int base, int line, int column);
-Expr* expr_flt(double value, int base, int base_is_nan, int line, int column);
-Expr* expr_str(char* value, int line, int column);
-Expr* expr_ptr(char* name, int line, int column);
-Expr* expr_ident(char* name, int line, int column);
-Expr* expr_typed_ident(DeclType decl_type, char* name, int line, int column);
-Expr* expr_call(Expr* callee, int line, int column);
-void call_kw_add(Expr* call, char* name, Expr* value);
-Expr* expr_tns(int line, int column);
-Expr* expr_async(Stmt* block, int line, int column);
-Expr* expr_map(int line, int column);
-Expr* expr_index(Expr* target, int line, int column, bool is_map);
-Expr* expr_range(Expr* start, Expr* end, int line, int column);
-Expr* expr_wildcard(int line, int column);
-Expr* expr_lambda(ParamList params, DeclType return_type, Stmt* body, int line, int column);
-void expr_list_add(ExprList* list, Expr* expr);
+Expr *expr_bool(bool value, int line, int column);
+Expr *expr_int(int64_t value, int base, int line, int column);
+Expr *expr_flt(double value, int base, int base_is_nan, int line, int column);
+Expr *expr_str(char *value, int line, int column);
+Expr *expr_ptr(char *name, int line, int column);
+Expr *expr_ident(char *name, int line, int column);
+Expr *expr_typed_ident(DeclType decl_type, char *name, int line, int column);
+Expr *expr_call(Expr *callee, int line, int column);
+void call_kw_add(Expr *call, char *name, Expr *value);
+Expr *expr_tns(int line, int column);
+Expr *expr_async(Stmt *block, int line, int column);
+Expr *expr_map(int line, int column);
+Expr *expr_index(Expr *target, int line, int column, bool is_map);
+Expr *expr_range(Expr *start, Expr *end, int line, int column);
+Expr *expr_wildcard(int line, int column);
+Expr *expr_lambda(ParamList params, DeclType return_type, Stmt *body, int line, int column);
+void expr_list_add(ExprList *list, Expr *expr);
 
-Stmt* stmt_block(int line, int column);
-Stmt* stmt_async(Stmt* body, int line, int column);
-Stmt* stmt_expr(Expr* expr, int line, int column);
-Stmt* stmt_assign(bool has_type, DeclType decl_type, char* name, Expr* target, Expr* value, int line, int column);
-Stmt* stmt_decl(DeclType decl_type, char* name, int line, int column);
-Stmt* stmt_if(Expr* cond, Stmt* then_branch, int line, int column);
-Stmt* stmt_while(Expr* cond, Stmt* body, int line, int column);
-Stmt* stmt_for(char* counter, Expr* target, Stmt* body, int line, int column);
-Stmt* stmt_parfor(char* counter, Expr* target, Stmt* body, int line, int column);
-Stmt* stmt_func(char* name, DeclType ret, Stmt* body, int line, int column);
-Stmt* stmt_return(Expr* value, int line, int column);
-Stmt* stmt_pop(char* name, int line, int column);
-Stmt* stmt_break(Expr* value, int line, int column);
-Stmt* stmt_continue(int line, int column);
-Stmt* stmt_thr(char* name, Stmt* body, int line, int column);
-Stmt* stmt_try(Stmt* try_block, char* catch_name, Stmt* catch_block, int line, int column);
-Stmt* stmt_goto(Expr* target, int line, int column);
-Stmt* stmt_gotopoint(Expr* target, int line, int column);
+Stmt *stmt_block(int line, int column);
+Stmt *stmt_async(Stmt *body, int line, int column);
+Stmt *stmt_expr(Expr *expr, int line, int column);
+Stmt *stmt_assign(bool has_type, DeclType decl_type, char *name, Expr *target, Expr *value, int line, int column);
+Stmt *stmt_decl(DeclType decl_type, char *name, int line, int column);
+Stmt *stmt_if(Expr *cond, Stmt *then_branch, int line, int column);
+Stmt *stmt_while(Expr *cond, Stmt *body, int line, int column);
+Stmt *stmt_for(char *counter, Expr *target, Stmt *body, int line, int column);
+Stmt *stmt_parfor(char *counter, Expr *target, Stmt *body, int line, int column);
+Stmt *stmt_func(char *name, DeclType ret, Stmt *body, int line, int column);
+Stmt *stmt_return(Expr *value, int line, int column);
+Stmt *stmt_pop(char *name, int line, int column);
+Stmt *stmt_break(Expr *value, int line, int column);
+Stmt *stmt_continue(int line, int column);
+Stmt *stmt_thr(char *name, Stmt *body, int line, int column);
+Stmt *stmt_try(Stmt *try_block, char *catch_name, Stmt *catch_block, int line, int column);
+Stmt *stmt_goto(Expr *target, int line, int column);
+Stmt *stmt_gotopoint(Expr *target, int line, int column);
 
-void stmt_list_add(StmtList* list, Stmt* stmt);
-void param_list_add(ParamList* list, Param param);
+void stmt_list_add(StmtList *list, Stmt *stmt);
+void param_list_add(ParamList *list, Param param);
 
 // Attach original source text (single line) to a statement node.
-void stmt_set_src(Stmt* stmt, const char* src);
+void stmt_set_src(Stmt *stmt, const char *src);
 
-void free_expr(Expr* expr);
-void free_stmt(Stmt* stmt);
+void free_expr(Expr *expr);
+void free_stmt(Stmt *stmt);
 
 #endif // AST_H
