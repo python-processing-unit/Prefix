@@ -1,7 +1,7 @@
+#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <ctype.h>
 // platform-specific chdir
 #ifdef _WIN32
 #include <direct.h>
@@ -9,61 +9,82 @@
 #include <unistd.h>
 #endif
 
-#include "lexer.h"
-#include "parser.h"
-#include "interpreter.h"
 #include "builtins.h"
 #include "extensions.h"
+#include "interpreter.h"
+#include "lexer.h"
+#include "parser.h"
 
-static int ends_with_case_insensitive(const char* s, const char* suffix) {
-    if (!s || !suffix) return 0;
+static int ends_with_case_insensitive(const char *s, const char *suffix) {
+    if (!s || !suffix) {
+        return 0;
+    }
     size_t ls = strlen(s);
     size_t lf = strlen(suffix);
-    if (lf > ls) return 0;
-    const char* tail = s + (ls - lf);
+    if (lf > ls) {
+        return 0;
+    }
+    const char *tail = s + (ls - lf);
     for (size_t i = 0; i < lf; i++) {
         unsigned char a = (unsigned char)tail[i];
         unsigned char b = (unsigned char)suffix[i];
-        if ((unsigned char)tolower(a) != (unsigned char)tolower(b)) return 0;
+        if ((unsigned char)tolower(a) != (unsigned char)tolower(b)) {
+            return 0;
+        }
     }
     return 1;
 }
 
-static int is_extension_arg(const char* arg) {
-    if (!arg) return 0;
-    return ends_with_case_insensitive(arg, ".dll") ||
-           ends_with_case_insensitive(arg, ".so") ||
+static int is_extension_arg(const char *arg) {
+    if (!arg) {
+        return 0;
+    }
+    return ends_with_case_insensitive(arg, ".dll") || ends_with_case_insensitive(arg, ".so") ||
            ends_with_case_insensitive(arg, ".dylib");
 }
 
-static char* path_dirname_dup(const char* path) {
-    if (!path || path[0] == '\0') return strdup(".");
-    const char* last = NULL;
-    for (const char* p = path; *p; p++) {
-        if (*p == '/' || *p == '\\') last = p;
+static char *path_dirname_dup(const char *path) {
+    if (!path || path[0] == '\0') {
+        return strdup(".");
     }
-    if (!last) return strdup(".");
+    const char *last = NULL;
+    for (const char *p = path; *p; p++) {
+        if (*p == '/' || *p == '\\') {
+            last = p;
+        }
+    }
+    if (!last) {
+        return strdup(".");
+    }
     size_t n = (size_t)(last - path);
-    if (n == 0) n = 1;
-    char* out = malloc(n + 1);
-    if (!out) return NULL;
+    if (n == 0) {
+        n = 1;
+    }
+    char *out = malloc(n + 1);
+    if (!out) {
+        return NULL;
+    }
     memcpy(out, path, n);
     out[n] = '\0';
     return out;
 }
 
-static int load_extension_input(const char* arg, char** err_out) {
-    return extensions_load_library(arg, NULL, err_out);
-}
+static int load_extension_input(const char *arg, char **err_out) { return extensions_load_library(arg, NULL, err_out); }
 
-static int buf_append(char** buf, size_t* len, size_t* cap, const char* s) {
-    if (!buf || !len || !cap || !s) return -1;
+static int buf_append(char **buf, size_t *len, size_t *cap, const char *s) {
+    if (!buf || !len || !cap || !s) {
+        return -1;
+    }
     size_t add = strlen(s);
     if (*len + add + 1 > *cap) {
         size_t new_cap = (*cap == 0) ? 256 : *cap;
-        while (*len + add + 1 > new_cap) new_cap *= 2;
-        char* next = realloc(*buf, new_cap);
-        if (!next) return -1;
+        while (*len + add + 1 > new_cap) {
+            new_cap *= 2;
+        }
+        char *next = realloc(*buf, new_cap);
+        if (!next) {
+            return -1;
+        }
         *buf = next;
         *cap = new_cap;
     }
@@ -73,9 +94,11 @@ static int buf_append(char** buf, size_t* len, size_t* cap, const char* s) {
     return 0;
 }
 
-static char* read_line_dynamic(FILE* in) {
-    if (!in) return NULL;
-    char* line = NULL;
+static char *read_line_dynamic(FILE *in) {
+    if (!in) {
+        return NULL;
+    }
+    char *line = NULL;
     size_t len = 0;
     size_t cap = 0;
     char chunk[512];
@@ -86,7 +109,9 @@ static char* read_line_dynamic(FILE* in) {
             return NULL;
         }
         size_t n = strlen(chunk);
-        if (n > 0 && chunk[n - 1] == '\n') break;
+        if (n > 0 && chunk[n - 1] == '\n') {
+            break;
+        }
     }
 
     if (len == 0 && feof(in)) {
@@ -100,18 +125,28 @@ static char* read_line_dynamic(FILE* in) {
     return line;
 }
 
-static int is_exit_meta_command(const char* text) {
-    if (!text) return 0;
-    const char* p = text;
-    while (*p == ' ' || *p == '\t' || *p == '\r' || *p == '\n') p++;
-    if (strncmp(p, ".exit", 5) != 0) return 0;
+static int is_exit_meta_command(const char *text) {
+    if (!text) {
+        return 0;
+    }
+    const char *p = text;
+    while (*p == ' ' || *p == '\t' || *p == '\r' || *p == '\n') {
+        p++;
+    }
+    if (strncmp(p, ".exit", 5) != 0) {
+        return 0;
+    }
     p += 5;
-    while (*p == ' ' || *p == '\t' || *p == '\r' || *p == '\n') p++;
+    while (*p == ' ' || *p == '\t' || *p == '\r' || *p == '\n') {
+        p++;
+    }
     return *p == '\0';
 }
 
-static void repl_update_line_state(const char* line, int* brace_depth, int* line_continuation) {
-    if (!line || !brace_depth || !line_continuation) return;
+static void repl_update_line_state(const char *line, int *brace_depth, int *line_continuation) {
+    if (!line || !brace_depth || !line_continuation) {
+        return;
+    }
 
     int in_single = 0;
     int in_double = 0;
@@ -125,13 +160,19 @@ static void repl_update_line_state(const char* line, int* brace_depth, int* line
             continue;
         }
         if (in_single) {
-            if (c == '\\') escaped = 1;
-            else if (c == '\'') in_single = 0;
+            if (c == '\\') {
+                escaped = 1;
+            } else if (c == '\'') {
+                in_single = 0;
+            }
             continue;
         }
         if (in_double) {
-            if (c == '\\') escaped = 1;
-            else if (c == '"') in_double = 0;
+            if (c == '\\') {
+                escaped = 1;
+            } else if (c == '"') {
+                in_double = 0;
+            }
             continue;
         }
 
@@ -170,7 +211,7 @@ static int run_repl(int verbose, int private_flag) {
     Interpreter interp;
     interpreter_init(&interp, "<repl>", verbose != 0, private_flag != 0);
 
-    char* entry = NULL;
+    char *entry = NULL;
     size_t entry_len = 0;
     size_t entry_cap = 0;
     int brace_depth = 0;
@@ -182,7 +223,7 @@ static int run_repl(int verbose, int private_flag) {
         fputs(in_continuation ? "\x1b[38;2;153;221;255m..>\033[0m " : "\x1b[38;2;153;221;255m>>>\033[0m ", stdout);
         fflush(stdout);
 
-        char* line = read_line_dynamic(stdin);
+        char *line = read_line_dynamic(stdin);
         int eof = (line == NULL);
 
         if (!eof) {
@@ -202,7 +243,9 @@ static int run_repl(int verbose, int private_flag) {
         }
 
         if (entry_len == 0) {
-            if (eof) break;
+            if (eof) {
+                break;
+            }
             continue;
         }
 
@@ -215,23 +258,29 @@ static int run_repl(int verbose, int private_flag) {
 
         Parser parser;
         parser_init(&parser, &lex);
-        Stmt* program = parser_parse(&parser);
+        Stmt *program = parser_parse(&parser);
 
         if (!parser.had_error) {
             ExecResult res = exec_program_in_env(&interp, program, interp.global_env);
             if (res.status == EXEC_ERROR) {
                 fprintf(stderr, "%s\n", res.error ? res.error : "RuntimeError");
-                if (res.error) free(res.error);
+                if (res.error) {
+                    free(res.error);
+                }
                 interpreter_reset_traceback(&interp, interp.global_env);
             }
         }
 
         entry_len = 0;
-        if (entry) entry[0] = '\0';
+        if (entry) {
+            entry[0] = '\0';
+        }
         brace_depth = 0;
         line_continuation = 0;
 
-        if (eof) break;
+        if (eof) {
+            break;
+        }
     }
 
     free(entry);
@@ -239,10 +288,10 @@ static int run_repl(int verbose, int private_flag) {
     return PREFIX_SUCCESS;
 }
 
-int main(int argc, char** argv) {
-    const char* path = NULL;
+int main(int argc, char **argv) {
+    const char *path = NULL;
     int source_mode = 0;
-    char* source_text = NULL;
+    char *source_text = NULL;
     int verbose_flag = 0;
     int private_flag = 0;
 
@@ -250,14 +299,16 @@ int main(int argc, char** argv) {
     builtins_set_argv(argc, argv);
 
     char cwd_buf[4096];
-    const char* cwd = NULL;
-    if (prefix_getcwd(cwd_buf, sizeof(cwd_buf))) cwd = cwd_buf;
-    char* exe_dir = path_dirname_dup((argc > 0) ? argv[0] : NULL);
+    const char *cwd = NULL;
+    if (prefix_getcwd(cwd_buf, sizeof(cwd_buf))) {
+        cwd = cwd_buf;
+    }
+    char *exe_dir = path_dirname_dup((argc > 0) ? argv[0] : NULL);
     extensions_set_runtime_dirs(exe_dir ? exe_dir : ".", cwd ? cwd : ".");
     free(exe_dir);
 
     for (int i = 1; i < argc; i++) {
-        const char* arg = argv[i];
+        const char *arg = argv[i];
 
         if (strcmp(arg, "-verbose") == 0) {
             verbose_flag = 1;
@@ -288,7 +339,7 @@ int main(int argc, char** argv) {
         }
 
         if (is_extension_arg(arg)) {
-            char* err = NULL;
+            char *err = NULL;
             if (load_extension_input(arg, &err) != 0) {
                 fprintf(stderr, "%s\n", err ? err : "Failed to load extension");
                 free(err);
@@ -324,8 +375,8 @@ int main(int argc, char** argv) {
         return repl_rc;
     }
 
-    char* src = NULL;
-    char* source_label = NULL;
+    char *src = NULL;
+    char *source_label = NULL;
 
     if (source_mode) {
         /* Per SPECIFICATION: when running with -source the primary
@@ -344,10 +395,14 @@ int main(int argc, char** argv) {
         /* Canonicalize the provided program path now so it's correct even if
            the process changes cwd below. This prevents relative paths like
            "./tests/test2.pre" from resolving incorrectly after chdir. */
-        if (path) source_label = prefix_fullpath_dup(path);
-        if (!source_label && path) source_label = strdup(path);
+        if (path) {
+            source_label = prefix_fullpath_dup(path);
+        }
+        if (!source_label && path) {
+            source_label = strdup(path);
+        }
 
-        FILE* f = fopen(path, "rb");
+        FILE *f = fopen(path, "rb");
         if (!f) {
             fprintf(stderr, "Failed to open '%s'\n", path);
             extensions_shutdown();
@@ -362,7 +417,9 @@ int main(int argc, char** argv) {
             return PREFIX_ERROR_IO;
         }
         long sz = ftell(f);
-        if (sz < 0) sz = 0;
+        if (sz < 0) {
+            sz = 0;
+        }
         rewind(f);
 
         src = malloc((size_t)sz + 1);
@@ -384,10 +441,12 @@ int main(int argc, char** argv) {
     Parser parser;
     parser_init(&parser, &lex);
 
-    Stmt* program = parser_parse(&parser);
+    Stmt *program = parser_parse(&parser);
     if (parser.had_error) {
         free(src);
-        if (source_text) free(source_text);
+        if (source_text) {
+            free(source_text);
+        }
         extensions_shutdown();
         builtins_reset_dynamic();
         return PREFIX_ERROR_SYNTAX;
@@ -396,9 +455,13 @@ int main(int argc, char** argv) {
     // Change working directory to the directory containing the script
     // so relative READFILE/WRITEFILE operate relative to the script.
     if (path) {
-        char* dir = strdup(path);
-        char* last_slash = NULL;
-        for (char* p = dir; *p; p++) if (*p == '/' || *p == '\\') last_slash = p;
+        char *dir = strdup(path);
+        char *last_slash = NULL;
+        for (char *p = dir; *p; p++) {
+            if (*p == '/' || *p == '\\') {
+                last_slash = p;
+            }
+        }
         if (last_slash) {
             *last_slash = '\0';
             prefix_chdir(dir);
@@ -412,18 +475,28 @@ int main(int argc, char** argv) {
     interpreter_destroy(&interp);
     if (res.status == EXEC_ERROR) {
         fprintf(stderr, "%s\n", res.error ? res.error : "RuntimeError");
-        if (res.error) free(res.error);
+        if (res.error) {
+            free(res.error);
+        }
         free(src);
-        if (source_label) free(source_label);
-        if (source_text) free(source_text);
+        if (source_label) {
+            free(source_label);
+        }
+        if (source_text) {
+            free(source_text);
+        }
         extensions_shutdown();
         builtins_reset_dynamic();
         return PREFIX_ERROR_RUNTIME;
     }
 
     free(src);
-    if (source_label) free(source_label);
-    if (source_text) free(source_text);
+    if (source_label) {
+        free(source_label);
+    }
+    if (source_text) {
+        free(source_text);
+    }
     extensions_shutdown();
     builtins_reset_dynamic();
     return PREFIX_SUCCESS;

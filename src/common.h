@@ -1,11 +1,11 @@
 #ifndef COMMON_H
 #define COMMON_H
 
-#include <stdio.h>
-#include <stdlib.h>
+#include <ctype.h>
 #include <stdbool.h>
 #include <stdint.h>
-#include <ctype.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #ifdef _WIN32
@@ -20,11 +20,15 @@
  * translation units include a safe implementation without relying on
  * platform-specific libc extensions. We then map `strdup` to this
  * implementation when no macro is present. */
-static inline char* prefix_portable_strdup(const char* s) {
-    if (!s) return NULL;
+static inline char *prefix_portable_strdup(const char *s) {
+    if (!s) {
+        return NULL;
+    }
     size_t n = strlen(s) + 1;
-    char* r = (char*)malloc(n);
-    if (!r) return NULL;
+    char *r = (char *)malloc(n);
+    if (!r) {
+        return NULL;
+    }
     memcpy(r, s, n);
     return r;
 }
@@ -34,12 +38,16 @@ static inline char* prefix_portable_strdup(const char* s) {
 #define PREFIX_HAVE_PORTABLE_STRDUP 1
 #endif
 
-static inline int prefix_stricmp(const char* lhs, const char* rhs) {
+static inline int prefix_stricmp(const char *lhs, const char *rhs) {
     unsigned char left;
     unsigned char right;
 
-    if (!lhs) lhs = "";
-    if (!rhs) rhs = "";
+    if (!lhs) {
+        lhs = "";
+    }
+    if (!rhs) {
+        rhs = "";
+    }
 
     for (;;) {
         left = (unsigned char)tolower((unsigned char)*lhs++);
@@ -50,7 +58,7 @@ static inline int prefix_stricmp(const char* lhs, const char* rhs) {
     }
 }
 
-static inline char* prefix_getcwd(char* buffer, size_t size) {
+static inline char *prefix_getcwd(char *buffer, size_t size) {
 #ifdef _WIN32
     return _getcwd(buffer, (int)size);
 #else
@@ -58,7 +66,7 @@ static inline char* prefix_getcwd(char* buffer, size_t size) {
 #endif
 }
 
-static inline int prefix_chdir(const char* path) {
+static inline int prefix_chdir(const char *path) {
 #ifdef _WIN32
     return _chdir(path);
 #else
@@ -66,8 +74,10 @@ static inline int prefix_chdir(const char* path) {
 #endif
 }
 
-static inline char* prefix_fullpath_dup(const char* path) {
-    if (!path || path[0] == '\0') return NULL;
+static inline char *prefix_fullpath_dup(const char *path) {
+    if (!path || path[0] == '\0') {
+        return NULL;
+    }
 
 #ifdef _WIN32
     char full[_MAX_PATH];

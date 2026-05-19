@@ -1,19 +1,23 @@
 #include "interpreter.h"
 #include "builtins.h"
-#include "ns_buffer.h"
 #include "extensions.h"
+#include "ns_buffer.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 // Forward declarations
-static ExecResult exec_stmt(Interpreter* interp, Stmt* stmt, Env* env, LabelMap* labels);
-static ExecResult exec_stmt_list(Interpreter* interp, StmtList* list, Env* env, LabelMap* labels);
+static ExecResult exec_stmt(Interpreter *interp, Stmt *stmt, Env *env, LabelMap *labels);
+static ExecResult exec_stmt_list(Interpreter *interp, StmtList *list, Env *env, LabelMap *labels);
 
-static void wait_if_paused(Interpreter* interp) {
-    if (!interp || !interp->current_thr) return;
-    Thr* th = interp->current_thr;
-    if (!th) return;
+static void wait_if_paused(Interpreter *interp) {
+    if (!interp || !interp->current_thr) {
+        return;
+    }
+    Thr *th = interp->current_thr;
+    if (!th) {
+        return;
+    }
     Value thv;
     thv.type = VAL_THR;
     thv.as.thr = th;
@@ -26,48 +30,80 @@ static mtx_t g_tns_lock;
 static mtx_t g_parfor_merge_lock;
 static int g_for_temp_id = 0;
 
-static const char* stmt_type_name(StmtType type) {
+static const char *stmt_type_name(StmtType type) {
     switch (type) {
-        case STMT_BLOCK: return "BLOCK";
-        case STMT_ASYNC: return "ASYNC";
-        case STMT_EXPR: return "EXPR";
-        case STMT_ASSIGN: return "ASSIGN";
-        case STMT_DECL: return "DECL";
-        case STMT_IF: return "IF";
-        case STMT_WHILE: return "WHILE";
-        case STMT_FOR: return "FOR";
-        case STMT_PARFOR: return "PARFOR";
-        case STMT_FUNC: return "FUNC";
-        case STMT_RETURN: return "RETURN";
-        case STMT_BREAK: return "BREAK";
-        case STMT_CONTINUE: return "CONTINUE";
-        case STMT_THR: return "THR";
-        case STMT_POP: return "POP";
-        case STMT_TRY: return "TRY";
-        case STMT_GOTO: return "GOTO";
-        case STMT_GOTOPOINT: return "GOTOPOINT";
-        default: return "UNKNOWN";
+    case STMT_BLOCK:
+        return "BLOCK";
+    case STMT_ASYNC:
+        return "ASYNC";
+    case STMT_EXPR:
+        return "EXPR";
+    case STMT_ASSIGN:
+        return "ASSIGN";
+    case STMT_DECL:
+        return "DECL";
+    case STMT_IF:
+        return "IF";
+    case STMT_WHILE:
+        return "WHILE";
+    case STMT_FOR:
+        return "FOR";
+    case STMT_PARFOR:
+        return "PARFOR";
+    case STMT_FUNC:
+        return "FUNC";
+    case STMT_RETURN:
+        return "RETURN";
+    case STMT_BREAK:
+        return "BREAK";
+    case STMT_CONTINUE:
+        return "CONTINUE";
+    case STMT_THR:
+        return "THR";
+    case STMT_POP:
+        return "POP";
+    case STMT_TRY:
+        return "TRY";
+    case STMT_GOTO:
+        return "GOTO";
+    case STMT_GOTOPOINT:
+        return "GOTOPOINT";
+    default:
+        return "UNKNOWN";
     }
 }
 
-static int trace_stack_grow(Interpreter* interp) {
-    if (!interp) return -1;
-    if (interp->trace_stack_count + 1 <= interp->trace_stack_capacity) return 0;
+static int trace_stack_grow(Interpreter *interp) {
+    if (!interp) {
+        return -1;
+    }
+    if (interp->trace_stack_count + 1 <= interp->trace_stack_capacity) {
+        return 0;
+    }
     size_t new_cap = interp->trace_stack_capacity == 0 ? 8 : interp->trace_stack_capacity * 2;
-    TraceFrame* grown = realloc(interp->trace_stack, new_cap * sizeof(TraceFrame));
-    if (!grown) return -1;
+    TraceFrame *grown = realloc(interp->trace_stack, new_cap * sizeof(TraceFrame));
+    if (!grown) {
+        return -1;
+    }
     interp->trace_stack = grown;
     interp->trace_stack_capacity = new_cap;
     return 0;
 }
 
-static int trace_push_frame(Interpreter* interp, const char* name, Env* env, int call_line, int call_col, int has_call_location) {
-    if (!interp) return -1;
-    if (trace_stack_grow(interp) != 0) return -1;
-    TraceFrame* frame = &interp->trace_stack[interp->trace_stack_count];
+static int trace_push_frame(Interpreter *interp, const char *name, Env *env, int call_line, int call_col,
+                            int has_call_location) {
+    if (!interp) {
+        return -1;
+    }
+    if (trace_stack_grow(interp) != 0) {
+        return -1;
+    }
+    TraceFrame *frame = &interp->trace_stack[interp->trace_stack_count];
     memset(frame, 0, sizeof(*frame));
     frame->name = strdup(name ? name : "<frame>");
-    if (!frame->name) return -1;
+    if (!frame->name) {
+        return -1;
+    }
     interp->trace_stack_count++;
     frame->env = env;
     frame->call_line = call_line;
@@ -77,22 +113,30 @@ static int trace_push_frame(Interpreter* interp, const char* name, Env* env, int
     return 0;
 }
 
-static void trace_pop_frame(Interpreter* interp) {
-    if (!interp || interp->trace_stack_count == 0) return;
-    TraceFrame* frame = &interp->trace_stack[interp->trace_stack_count - 1];
+static void trace_pop_frame(Interpreter *interp) {
+    if (!interp || interp->trace_stack_count == 0) {
+        return;
+    }
+    TraceFrame *frame = &interp->trace_stack[interp->trace_stack_count - 1];
     free(frame->name);
     frame->name = NULL;
     interp->trace_stack_count--;
 }
 
-static void trace_log_step(Interpreter* interp, Stmt* stmt, Env* env) {
-    if (!interp || !stmt) return;
-    if (interp->private_mode) return;
+static void trace_log_step(Interpreter *interp, Stmt *stmt, Env *env) {
+    if (!interp || !stmt) {
+        return;
+    }
+    if (interp->private_mode) {
+        return;
+    }
     if (interp->trace_stack_count == 0) {
-        if (trace_push_frame(interp, "<top-level>", env ? env : interp->global_env, 0, 0, 0) != 0) return;
+        if (trace_push_frame(interp, "<top-level>", env ? env : interp->global_env, 0, 0, 0) != 0) {
+            return;
+        }
     }
 
-    TraceFrame* frame = &interp->trace_stack[interp->trace_stack_count - 1];
+    TraceFrame *frame = &interp->trace_stack[interp->trace_stack_count - 1];
     frame->env = env;
     frame->last_step_index = interp->trace_next_step_index;
     snprintf(frame->state_id, sizeof(frame->state_id), "s_%06d", interp->trace_next_step_index);
@@ -111,15 +155,20 @@ static void trace_log_step(Interpreter* interp, Stmt* stmt, Env* env) {
     interp->trace_next_step_index++;
 }
 
-static bool bind_self_for_map_call(Interpreter* interp, Expr* target_expr, Env* caller_env, Env* call_env, int line, int col) {
-    if (!interp || !call_env || !target_expr) return true;
+static bool bind_self_for_map_call(Interpreter *interp, Expr *target_expr, Env *caller_env, Env *call_env, int line,
+                                   int col) {
+    if (!interp || !call_env || !target_expr) {
+        return true;
+    }
 
     // SELF should mirror the immediate map target of the call site.
-    Expr* base_expr = target_expr;
-    if (!base_expr) return true;
+    Expr *base_expr = target_expr;
+    if (!base_expr) {
+        return true;
+    }
 
     if (base_expr->type == EXPR_IDENT && base_expr->as.ident) {
-        EnvEntry* raw_entry = env_get_entry(caller_env, base_expr->as.ident);
+        EnvEntry *raw_entry = env_get_entry(caller_env, base_expr->as.ident);
         Value base_val = value_null();
         bool initialized = false;
 
@@ -129,12 +178,9 @@ static bool bind_self_for_map_call(Interpreter* interp, Expr* target_expr, Env* 
 
         if (raw_entry && raw_entry->alias_target && base_val.type == VAL_MAP) {
             env_define(call_env, "SELF", TYPE_MAP);
-            if (!env_set_alias_cross(call_env,
-                                     "SELF",
+            if (!env_set_alias_cross(call_env, "SELF",
                                      raw_entry->alias_target_env ? raw_entry->alias_target_env : caller_env,
-                                     raw_entry->alias_target,
-                                     TYPE_MAP,
-                                     true)) {
+                                     raw_entry->alias_target, TYPE_MAP, true)) {
                 value_free(base_val);
                 if (interp->error) {
                     free(interp->error);
@@ -171,7 +217,9 @@ static bool bind_self_for_map_call(Interpreter* interp, Expr* target_expr, Env* 
     }
 
     Value base_val = eval_expr(interp, base_expr, caller_env);
-    if (interp->error) return false;
+    if (interp->error) {
+        return false;
+    }
     if (base_val.type != VAL_MAP) {
         value_free(base_val);
         return true;
@@ -194,35 +242,50 @@ static bool bind_self_for_map_call(Interpreter* interp, Expr* target_expr, Env* 
     return true;
 }
 
-static BuiltinFunction* lookup_extended_builtin(Env* env, const char* func_name, char** resolved_name_out) {
-    if (resolved_name_out) *resolved_name_out = NULL;
-    if (!env || !func_name || func_name[0] == '\0' || strchr(func_name, '.')) return NULL;
-
-    EnvEntry* namespaces_entry = env_get_entry(env, "__EXTEND_NAMES__");
-    if (!namespaces_entry || !namespaces_entry->initialized || namespaces_entry->value.type != VAL_STR || !namespaces_entry->value.as.s) {
+static BuiltinFunction *lookup_extended_builtin(Env *env, const char *func_name, char **resolved_name_out) {
+    if (resolved_name_out) {
+        *resolved_name_out = NULL;
+    }
+    if (!env || !func_name || func_name[0] == '\0' || strchr(func_name, '.')) {
         return NULL;
     }
 
-    const char* cursor = namespaces_entry->value.as.s;
-    while (cursor && *cursor != '\0') {
-        while (*cursor == '|') cursor++;
-        if (*cursor == '\0') break;
+    EnvEntry *namespaces_entry = env_get_entry(env, "__EXTEND_NAMES__");
+    if (!namespaces_entry || !namespaces_entry->initialized || namespaces_entry->value.type != VAL_STR ||
+        !namespaces_entry->value.as.s) {
+        return NULL;
+    }
 
-        const char* start = cursor;
-        while (*cursor != '\0' && *cursor != '|') cursor++;
+    const char *cursor = namespaces_entry->value.as.s;
+    while (cursor && *cursor != '\0') {
+        while (*cursor == '|') {
+            cursor++;
+        }
+        if (*cursor == '\0') {
+            break;
+        }
+
+        const char *start = cursor;
+        while (*cursor != '\0' && *cursor != '|') {
+            cursor++;
+        }
         size_t ns_len = (size_t)(cursor - start);
-        if (ns_len == 0) continue;
+        if (ns_len == 0) {
+            continue;
+        }
 
         size_t qualified_len = ns_len + 1 + strlen(func_name) + 1;
-        char* qualified = malloc(qualified_len);
-        if (!qualified) return NULL;
+        char *qualified = malloc(qualified_len);
+        if (!qualified) {
+            return NULL;
+        }
 
         memcpy(qualified, start, ns_len);
         qualified[ns_len] = '.';
         size_t fn_len = strlen(func_name);
         memcpy(qualified + ns_len + 1, func_name, fn_len + 1);
 
-        BuiltinFunction* builtin = builtin_lookup(qualified);
+        BuiltinFunction *builtin = builtin_lookup(qualified);
         if (builtin) {
             if (resolved_name_out) {
                 *resolved_name_out = qualified;
@@ -238,15 +301,21 @@ static BuiltinFunction* lookup_extended_builtin(Env* env, const char* func_name,
     return NULL;
 }
 
-static void trace_append(char** dst, size_t* len, size_t* cap, const char* text) {
-    if (!dst || !len || !cap || !text) return;
+static void trace_append(char **dst, size_t *len, size_t *cap, const char *text) {
+    if (!dst || !len || !cap || !text) {
+        return;
+    }
     size_t add = strlen(text);
     size_t need = *len + add + 1;
     if (need > *cap) {
         size_t new_cap = *cap == 0 ? 256 : *cap;
-        while (new_cap < need) new_cap *= 2;
-        char* grown = realloc(*dst, new_cap);
-        if (!grown) return;
+        while (new_cap < need) {
+            new_cap *= 2;
+        }
+        char *grown = realloc(*dst, new_cap);
+        if (!grown) {
+            return;
+        }
         *dst = grown;
         *cap = new_cap;
     }
@@ -255,78 +324,103 @@ static void trace_append(char** dst, size_t* len, size_t* cap, const char* text)
     (*dst)[*len] = '\0';
 }
 
-static char* trace_env_snapshot(Env* env) {
-    if (!env || env->count == 0) return strdup("");
-    char* out = NULL;
-    size_t len = 0, cap = 0;
+static char *trace_env_snapshot(Env *env) {
+    if (!env || env->count == 0) {
+        return strdup("");
+    }
+    char *out = NULL;
+    size_t len = 0;
+    size_t cap = 0;
     size_t shown = 0;
     for (size_t i = 0; i < env->count; i++) {
-        EnvEntry* e = &env->entries[i];
-        if (!e->name || !e->initialized) continue;
+        EnvEntry *e = &env->entries[i];
+        if (!e->name || !e->initialized) {
+            continue;
+        }
         if (shown >= 8) {
             trace_append(&out, &len, &cap, ", ...");
             break;
         }
-        if (shown > 0) trace_append(&out, &len, &cap, ", ");
+        if (shown > 0) {
+            trace_append(&out, &len, &cap, ", ");
+        }
         trace_append(&out, &len, &cap, e->name);
         trace_append(&out, &len, &cap, "=");
         trace_append(&out, &len, &cap, value_type_name(e->value));
         shown++;
     }
-    if (!out) return strdup("");
+    if (!out) {
+        return strdup("");
+    }
     return out;
 }
 
-char* interpreter_format_traceback(Interpreter* interp, const char* error_msg, int line, int col) {
+char *interpreter_format_traceback(Interpreter *interp, const char *error_msg, int line, int col) {
     (void)col;
-    if (!interp) return strdup(error_msg ? error_msg : "Runtime error");
+    if (!interp) {
+        return strdup(error_msg ? error_msg : "Runtime error");
+    }
 
-    char* out = NULL;
-    size_t len = 0, cap = 0;
+    char *out = NULL;
+    size_t len = 0;
+    size_t cap = 0;
     trace_append(&out, &len, &cap, "Traceback (most recent call last):\n");
 
-    const char* file = (interp->source_path && interp->source_path[0] != '\0') ? interp->source_path : "<unknown>";
+    const char *file = (interp->source_path && interp->source_path[0] != '\0') ? interp->source_path : "<unknown>";
     for (size_t i = 0; i < interp->trace_stack_count; i++) {
-        TraceFrame* frame = &interp->trace_stack[i];
+        TraceFrame *frame = &interp->trace_stack[i];
         int frame_line = 0;
-        if (frame->has_state_entry) frame_line = frame->last_line;
-        else if (frame->has_call_location) frame_line = frame->call_line;
-        else frame_line = line;
+        if (frame->has_state_entry) {
+            frame_line = frame->last_line;
+        } else if (frame->has_call_location) {
+            frame_line = frame->call_line;
+        } else {
+            frame_line = line;
+        }
 
         char row[512];
-        snprintf(row, sizeof(row), "  File \"%s\", line %d, in %s\n", file, frame_line > 0 ? frame_line : 0, frame->name ? frame->name : "<frame>");
+        snprintf(row, sizeof(row), "  File \"%s\", line %d, in %s\n", file, frame_line > 0 ? frame_line : 0,
+                 frame->name ? frame->name : "<frame>");
         trace_append(&out, &len, &cap, row);
 
         if (frame->has_state_entry && frame->last_statement[0] != '\0') {
             snprintf(row, sizeof(row), "    %s\n", frame->last_statement);
             trace_append(&out, &len, &cap, row);
-            snprintf(row, sizeof(row), "    State log index: %d  State id: %s\n", frame->last_step_index, frame->state_id);
+            snprintf(row, sizeof(row), "    State log index: %d  State id: %s\n", frame->last_step_index,
+                     frame->state_id);
             trace_append(&out, &len, &cap, row);
             if (interp->verbose && !interp->private_mode) {
-                char* snap = trace_env_snapshot(frame->env);
+                char *snap = trace_env_snapshot(frame->env);
                 if (snap && snap[0] != '\0') {
                     trace_append(&out, &len, &cap, "    Env snapshot: ");
                     trace_append(&out, &len, &cap, snap);
                     trace_append(&out, &len, &cap, "\n");
                 }
-                if (snap) free(snap);
+                if (snap) {
+                    free(snap);
+                }
             }
         }
     }
 
     char tail[512];
-    snprintf(tail, sizeof(tail), "RuntimeError: %s (rewrite: %s)",
-             error_msg ? error_msg : "runtime error",
+    snprintf(tail, sizeof(tail), "RuntimeError: %s (rewrite: %s)", error_msg ? error_msg : "runtime error",
              interp->trace_last_rule[0] ? interp->trace_last_rule : "runtime");
     trace_append(&out, &len, &cap, tail);
 
-    if (!out) return strdup(error_msg ? error_msg : "Runtime error");
+    if (!out) {
+        return strdup(error_msg ? error_msg : "Runtime error");
+    }
     return out;
 }
 
-void interpreter_reset_traceback(Interpreter* interp, Env* top_env) {
-    if (!interp) return;
-    while (interp->trace_stack_count > 0) trace_pop_frame(interp);
+void interpreter_reset_traceback(Interpreter *interp, Env *top_env) {
+    if (!interp) {
+        return;
+    }
+    while (interp->trace_stack_count > 0) {
+        trace_pop_frame(interp);
+    }
     interp->trace_next_step_index = 0;
     snprintf(interp->trace_last_state_id, sizeof(interp->trace_last_state_id), "seed");
     interp->trace_last_rule[0] = '\0';
@@ -336,20 +430,22 @@ void interpreter_reset_traceback(Interpreter* interp, Env* top_env) {
 }
 // Thread worker for THR blocks
 typedef struct {
-    Interpreter* interp;
-    Env* env;
-    Stmt* body;
+    Interpreter *interp;
+    Env *env;
+    Stmt *body;
     Value thr_val;
 } ThrStart;
 
-static int thr_worker(void* arg) {
-    ThrStart* start = (ThrStart*)arg;
+static int thr_worker(void *arg) {
+    ThrStart *start = (ThrStart *)arg;
     LabelMap labels = {0};
     start->interp->current_thr = start->thr_val.as.thr;
     ExecResult res = exec_stmt(start->interp, start->body, start->env, &labels);
 
     // Clean up labels
-    for (size_t i = 0; i < labels.count; i++) value_free(labels.items[i].key);
+    for (size_t i = 0; i < labels.count; i++) {
+        value_free(labels.items[i].key);
+    }
     free(labels.items);
 
     if (res.status == EXEC_RETURN || res.status == EXEC_OK || res.status == EXEC_GOTO) {
@@ -371,39 +467,49 @@ static int thr_worker(void* arg) {
 }
 
 typedef struct {
-    Interpreter* interp;
-    Env* env;
-    Stmt* body;
-    char** errors; // shared array, one slot per iteration
-    int index; // iteration index
+    Interpreter *interp;
+    Env *env;
+    Stmt *body;
+    char **errors; // shared array, one slot per iteration
+    int index;     // iteration index
     Value thr_val;
-    int* err_lines;
-    int* err_cols;
-    const char* counter_name;
-    ExecStatus* statuses;
-    int* break_counts;
-    int* stop_launch;
-    mtx_t* control_lock;
+    int *err_lines;
+    int *err_cols;
+    const char *counter_name;
+    ExecStatus *statuses;
+    int *break_counts;
+    int *stop_launch;
+    mtx_t *control_lock;
 } ParforStart;
 
-static int parfor_merge_iteration_env(ParforStart* start, char** merge_error) {
-    if (merge_error) *merge_error = NULL;
-    if (!start || !start->env || !start->env->parent) return 0;
+static int parfor_merge_iteration_env(ParforStart *start, char **merge_error) {
+    if (merge_error) {
+        *merge_error = NULL;
+    }
+    if (!start || !start->env || !start->env->parent) {
+        return 0;
+    }
 
-    Env* iter_env = start->env;
-    Env* parent_env = iter_env->parent;
+    Env *iter_env = start->env;
+    Env *parent_env = iter_env->parent;
 
     mtx_lock(&g_parfor_merge_lock);
     for (size_t i = 0; i < iter_env->count; i++) {
-        EnvEntry* entry = &iter_env->entries[i];
-        if (!entry->name) continue;
-        if (start->counter_name && strcmp(entry->name, start->counter_name) == 0) continue;
+        EnvEntry *entry = &iter_env->entries[i];
+        if (!entry->name) {
+            continue;
+        }
+        if (start->counter_name && strcmp(entry->name, start->counter_name) == 0) {
+            continue;
+        }
 
         if (entry->alias_target) {
             if (!env_set_alias(parent_env, entry->name, entry->alias_target, entry->decl_type, true)) {
                 char buf[256];
                 snprintf(buf, sizeof(buf), "PARFOR merge failed for alias '%s'", entry->name);
-                if (merge_error) *merge_error = strdup(buf);
+                if (merge_error) {
+                    *merge_error = strdup(buf);
+                }
                 mtx_unlock(&g_parfor_merge_lock);
                 return -1;
             }
@@ -428,7 +534,9 @@ static int parfor_merge_iteration_env(ParforStart* start, char** merge_error) {
                 value_free(merged);
                 char buf[256];
                 snprintf(buf, sizeof(buf), "PARFOR merge failed for identifier '%s'", entry->name);
-                if (merge_error) *merge_error = strdup(buf);
+                if (merge_error) {
+                    *merge_error = strdup(buf);
+                }
                 mtx_unlock(&g_parfor_merge_lock);
                 return -1;
             }
@@ -439,8 +547,8 @@ static int parfor_merge_iteration_env(ParforStart* start, char** merge_error) {
     return 0;
 }
 
-static int parfor_worker(void* arg) {
-    ParforStart* start = (ParforStart*)arg;
+static int parfor_worker(void *arg) {
+    ParforStart *start = (ParforStart *)arg;
     LabelMap labels = {0};
     int skip_iteration = 0;
     if (start->control_lock && start->stop_launch) {
@@ -469,7 +577,7 @@ static int parfor_worker(void* arg) {
         mtx_unlock(start->control_lock);
     }
 
-    char* merge_error = NULL;
+    char *merge_error = NULL;
     if (res.status != EXEC_ERROR) {
         (void)parfor_merge_iteration_env(start, &merge_error);
     }
@@ -480,36 +588,52 @@ static int parfor_worker(void* arg) {
         final_status = EXEC_ERROR;
         final_break_count = 0;
     }
-    if (start->statuses) start->statuses[start->index] = final_status;
-    if (start->break_counts) start->break_counts[start->index] = final_break_count;
+    if (start->statuses) {
+        start->statuses[start->index] = final_status;
+    }
+    if (start->break_counts) {
+        start->break_counts[start->index] = final_break_count;
+    }
 
-    for (size_t i = 0; i < labels.count; i++) value_free(labels.items[i].key);
+    for (size_t i = 0; i < labels.count; i++) {
+        value_free(labels.items[i].key);
+    }
     free(labels.items);
 
     if (res.status == EXEC_ERROR && res.error) {
         // Transfer ownership of the error string into shared array
         start->errors[start->index] = res.error;
         /* record original error location so parent can report/handle it */
-        if (start->err_lines) start->err_lines[start->index] = res.error_line;
-        if (start->err_cols) start->err_cols[start->index] = res.error_column;
+        if (start->err_lines) {
+            start->err_lines[start->index] = res.error_line;
+        }
+        if (start->err_cols) {
+            start->err_cols[start->index] = res.error_column;
+        }
     } else if (merge_error) {
         if (res.status == EXEC_RETURN || res.status == EXEC_OK || res.status == EXEC_GOTO) {
             value_free(res.value);
         }
-        if (res.status == EXEC_ERROR && res.error) free(res.error);
+        if (res.status == EXEC_ERROR && res.error) {
+            free(res.error);
+        }
         start->errors[start->index] = merge_error;
     } else {
         if (res.status == EXEC_RETURN || res.status == EXEC_OK || res.status == EXEC_GOTO) {
             value_free(res.value);
         }
-        if (res.status == EXEC_ERROR && res.error) free(res.error);
+        if (res.status == EXEC_ERROR && res.error) {
+            free(res.error);
+        }
     }
 
     value_thr_set_finished(start->thr_val, 1);
     /* Null out env on the Thr handle before freeing so the handle
        (which may still be referenced until the join completes) does
        not carry a dangling pointer. */
-    if (start->thr_val.as.thr) start->thr_val.as.thr->env = NULL;
+    if (start->thr_val.as.thr) {
+        start->thr_val.as.thr->env = NULL;
+    }
     value_free(start->thr_val);
     env_free(start->env);
     free(start->interp);
@@ -520,8 +644,10 @@ static int parfor_worker(void* arg) {
 // ============ Helper functions ============
 
 // Return non-zero if the current executing thread has been requested to stop.
-static inline int interpreter_thr_should_stop(Interpreter* interp) {
-    if (!interp || !interp->current_thr) return 0;
+static inline int interpreter_thr_should_stop(Interpreter *interp) {
+    if (!interp || !interp->current_thr) {
+        return 0;
+    }
     int finished = 0;
     mtx_lock(&interp->current_thr->state_lock);
     finished = interp->current_thr->finished;
@@ -529,9 +655,8 @@ static inline int interpreter_thr_should_stop(Interpreter* interp) {
     return finished;
 }
 
-
-static void* safe_malloc(size_t size) {
-    void* ptr = malloc(size);
+static void *safe_malloc(size_t size) {
+    void *ptr = malloc(size);
     if (!ptr) {
         fprintf(stderr, "Out of memory\n");
         exit(1);
@@ -540,12 +665,9 @@ static void* safe_malloc(size_t size) {
     return ptr;
 }
 
-static Func* create_runtime_function(const char* name,
-                                     DeclType return_type,
-                                     ParamList* src_params,
-                                     Stmt* body,
-                                     Env* closure) {
-    Func* f = safe_malloc(sizeof(Func));
+static Func *create_runtime_function(const char *name, DeclType return_type, ParamList *src_params, Stmt *body,
+                                     Env *closure) {
+    Func *f = safe_malloc(sizeof(Func));
     f->name = name ? strdup(name) : NULL;
     f->return_type = return_type;
     f->body = body;
@@ -566,9 +688,13 @@ static Func* create_runtime_function(const char* name,
     return f;
 }
 
-static void free_runtime_function(Func* f) {
-    if (!f) return;
-    if (f->name) free(f->name);
+static void free_runtime_function(Func *f) {
+    if (!f) {
+        return;
+    }
+    if (f->name) {
+        free(f->name);
+    }
     for (size_t i = 0; i < f->params.count; i++) {
         free(f->params.items[i].name);
     }
@@ -577,24 +703,36 @@ static void free_runtime_function(Func* f) {
     free(f);
 }
 
-static int builtin_param_index(BuiltinFunction* builtin, const char* kw) {
-    if (!builtin || !kw) return -1;
-    if (!builtin->param_names || builtin->param_count <= 0) return -1;
+static int builtin_param_index(BuiltinFunction *builtin, const char *kw) {
+    if (!builtin || !kw) {
+        return -1;
+    }
+    if (!builtin->param_names || builtin->param_count <= 0) {
+        return -1;
+    }
     for (int i = 0; i < builtin->param_count; i++) {
-        const char* pn = builtin->param_names[i];
-        if (pn && strcmp(pn, kw) == 0) return i;
+        const char *pn = builtin->param_names[i];
+        if (pn && strcmp(pn, kw) == 0) {
+            return i;
+        }
     }
     return -1;
 }
 
-static int should_defer_async_argument_for_call(const char* func_name, int arg_index, Expr* arg_expr) {
-    if (!func_name || !arg_expr) return 0;
-    if (arg_index != 0) return 0;
-    if (arg_expr->type != EXPR_ASYNC) return 0;
+static int should_defer_async_argument_for_call(const char *func_name, int arg_index, Expr *arg_expr) {
+    if (!func_name || !arg_expr) {
+        return 0;
+    }
+    if (arg_index != 0) {
+        return 0;
+    }
+    if (arg_expr->type != EXPR_ASYNC) {
+        return 0;
+    }
     return strcmp(func_name, "STOP") == 0 || strcmp(func_name, "PAUSE") == 0;
 }
 
-static Value make_deferred_async_handle(Expr* async_expr, Env* env) {
+static Value make_deferred_async_handle(Expr *async_expr, Env *env) {
     Value thr_val = value_thr_new();
     if (thr_val.type == VAL_THR && thr_val.as.thr) {
         thr_val.as.thr->body = async_expr->as.async.block;
@@ -603,9 +741,13 @@ static Value make_deferred_async_handle(Expr* async_expr, Env* env) {
     return thr_val;
 }
 
-static int start_deferred_async_handle(Interpreter* interp, Value thr_val, int line, int col) {
-    if (thr_val.type != VAL_THR || !thr_val.as.thr) return 0;
-    if (value_thr_get_finished(thr_val) || value_thr_get_started(thr_val)) return 0;
+static int start_deferred_async_handle(Interpreter *interp, Value thr_val, int line, int col) {
+    if (thr_val.type != VAL_THR || !thr_val.as.thr) {
+        return 0;
+    }
+    if (value_thr_get_finished(thr_val) || value_thr_get_started(thr_val)) {
+        return 0;
+    }
 
     if (!thr_val.as.thr->body || !thr_val.as.thr->env) {
         if (interp && !interp->error) {
@@ -616,8 +758,8 @@ static int start_deferred_async_handle(Interpreter* interp, Value thr_val, int l
         return -1;
     }
 
-    ThrStart* start = safe_malloc(sizeof(ThrStart));
-    Interpreter* thr_interp = safe_malloc(sizeof(Interpreter));
+    ThrStart *start = safe_malloc(sizeof(ThrStart));
+    Interpreter *thr_interp = safe_malloc(sizeof(Interpreter));
     *thr_interp = (Interpreter){0};
     thr_interp->global_env = interp->global_env;
     thr_interp->loop_depth = 0;
@@ -650,11 +792,14 @@ static int start_deferred_async_handle(Interpreter* interp, Value thr_val, int l
     return 0;
 }
 
-static void label_map_add(LabelMap* map, Value key, int index) {
+static void label_map_add(LabelMap *map, Value key, int index) {
     if (map->count + 1 > map->capacity) {
         size_t new_cap = map->capacity == 0 ? 8 : map->capacity * 2;
         map->items = realloc(map->items, new_cap * sizeof(LabelEntry));
-        if (!map->items) { fprintf(stderr, "Out of memory\n"); exit(1); }
+        if (!map->items) {
+            fprintf(stderr, "Out of memory\n");
+            exit(1);
+        }
         map->capacity = new_cap;
     }
     map->items[map->count].key = value_copy(key);
@@ -662,12 +807,18 @@ static void label_map_add(LabelMap* map, Value key, int index) {
     map->count++;
 }
 
-static int label_map_find(LabelMap* map, Value key) {
+static int label_map_find(LabelMap *map, Value key) {
     for (size_t i = 0; i < map->count; i++) {
-            if (map->items[i].key.type == key.type) {
-                if (key.type == VAL_INT && map->items[i].key.as.i == key.as.i) return map->items[i].index;
-                if (key.type == VAL_STR && strcmp(map->items[i].key.as.s, key.as.s) == 0) return map->items[i].index;
-                if (key.type == VAL_FLT && map->items[i].key.as.f == key.as.f) return map->items[i].index;
+        if (map->items[i].key.type == key.type) {
+            if (key.type == VAL_INT && map->items[i].key.as.i == key.as.i) {
+                return map->items[i].index;
+            }
+            if (key.type == VAL_STR && strcmp(map->items[i].key.as.s, key.as.s) == 0) {
+                return map->items[i].index;
+            }
+            if (key.type == VAL_FLT && map->items[i].key.as.f == key.as.f) {
+                return map->items[i].index;
+            }
         }
     }
     return -1;
@@ -676,20 +827,24 @@ static int label_map_find(LabelMap* map, Value key) {
 // ============ Module registry ============
 
 typedef struct ModuleEntry {
-    char* name;
-    Env* env;
+    char *name;
+    Env *env;
     int owns_env;
-    struct ModuleEntry* next;
+    struct ModuleEntry *next;
 } ModuleEntry;
 
-int module_register(Interpreter* interp, const char* name) {
-    if (!interp || !name) return -1;
-    ModuleEntry* e = interp->modules;
+int module_register(Interpreter *interp, const char *name) {
+    if (!interp || !name) {
+        return -1;
+    }
+    ModuleEntry *e = interp->modules;
     while (e) {
-        if (strcmp(e->name, name) == 0) return 0; // already registered
+        if (strcmp(e->name, name) == 0) {
+            return 0; // already registered
+        }
         e = e->next;
     }
-    ModuleEntry* me = safe_malloc(sizeof(ModuleEntry));
+    ModuleEntry *me = safe_malloc(sizeof(ModuleEntry));
     me->name = strdup(name);
     me->env = env_create(NULL);
     me->owns_env = 1;
@@ -698,10 +853,12 @@ int module_register(Interpreter* interp, const char* name) {
     return 0;
 }
 
-int module_register_alias(Interpreter* interp, const char* name, Env* env) {
-    if (!interp || !name || !env) return -1;
+int module_register_alias(Interpreter *interp, const char *name, Env *env) {
+    if (!interp || !name || !env) {
+        return -1;
+    }
 
-    ModuleEntry* e = interp->modules;
+    ModuleEntry *e = interp->modules;
     while (e) {
         if (strcmp(e->name, name) == 0) {
             return e->env == env ? 0 : -1;
@@ -709,7 +866,7 @@ int module_register_alias(Interpreter* interp, const char* name, Env* env) {
         e = e->next;
     }
 
-    ModuleEntry* me = safe_malloc(sizeof(ModuleEntry));
+    ModuleEntry *me = safe_malloc(sizeof(ModuleEntry));
     me->name = strdup(name);
     me->env = env;
     me->owns_env = 0;
@@ -718,44 +875,64 @@ int module_register_alias(Interpreter* interp, const char* name, Env* env) {
     return 0;
 }
 
-Env* module_env_lookup(Interpreter* interp, const char* name) {
-    if (!interp || !name) return NULL;
-    ModuleEntry* e = interp->modules;
+Env *module_env_lookup(Interpreter *interp, const char *name) {
+    if (!interp || !name) {
+        return NULL;
+    }
+    ModuleEntry *e = interp->modules;
     while (e) {
-        if (strcmp(e->name, name) == 0) return e->env;
+        if (strcmp(e->name, name) == 0) {
+            return e->env;
+        }
         e = e->next;
     }
     return NULL;
 }
 
-char** module_list_aliases(Interpreter* interp, Env* env, size_t* out_count) {
-    if (out_count) *out_count = 0;
-    if (!interp || !env) return NULL;
+char **module_list_aliases(Interpreter *interp, Env *env, size_t *out_count) {
+    if (out_count) {
+        *out_count = 0;
+    }
+    if (!interp || !env) {
+        return NULL;
+    }
     size_t count = 0;
-    ModuleEntry* e = interp->modules;
+    ModuleEntry *e = interp->modules;
     while (e) {
-        if (e->env == env) count++;
+        if (e->env == env) {
+            count++;
+        }
         e = e->next;
     }
-    if (count == 0) return NULL;
-    char** arr = malloc(sizeof(char*) * count);
-    if (!arr) return NULL;
+    if (count == 0) {
+        return NULL;
+    }
+    char **arr = malloc(sizeof(char *) * count);
+    if (!arr) {
+        return NULL;
+    }
     e = interp->modules;
     size_t idx = 0;
     while (e) {
         if (e->env == env) {
             arr[idx] = strdup(e->name);
             if (!arr[idx]) {
-                for (size_t j = 0; j < idx; j++) free(arr[j]);
+                for (size_t j = 0; j < idx; j++) {
+                    free(arr[j]);
+                }
                 free(arr);
-                if (out_count) *out_count = 0;
+                if (out_count) {
+                    *out_count = 0;
+                }
                 return NULL;
             }
             idx++;
         }
         e = e->next;
     }
-    if (out_count) *out_count = idx;
+    if (out_count) {
+        *out_count = idx;
+    }
     return arr;
 }
 
@@ -763,66 +940,84 @@ char** module_list_aliases(Interpreter* interp, Env* env, size_t* out_count) {
 
 int value_truthiness(Value v) {
     switch (v.type) {
-        case VAL_BOOL:
-            return v.as.boolean ? 1 : 0;
-        case VAL_INT:
-            return v.as.i != 0;
-        case VAL_FLT:
-            return v.as.f != 0.0;
-        case VAL_STR:
-            return v.as.s != NULL && v.as.s[0] != '\0';
-        case VAL_FUNC:
-            return 1;  // Functions are always truthy
-        case VAL_THR:
-            return value_thr_is_running(v);
-        case VAL_TNS: {
-            Tensor* t = v.as.tns;
-            if (!t || t->length == 0) return 0;
-            for (size_t i = 0; i < t->length; i++) {
-                Value e = t->data[i];
-                switch (e.type) {
-                    case VAL_BOOL:
-                        if (e.as.boolean) return 1;
-                        break;
-                    case VAL_INT:
-                        if (e.as.i != 0) return 1;
-                        break;
-                    case VAL_FLT:
-                        if (e.as.f != 0.0) return 1;
-                        break;
-                    case VAL_STR:
-                        if (e.as.s && e.as.s[0] != '\0') return 1;
-                        break;
-                    case VAL_FUNC:
-                        return 1;
-                    case VAL_THR:
-                        if (value_thr_is_running(e)) return 1;
-                        break;
-                    case VAL_TNS:
-                        if (value_truthiness(e)) return 1;
-                        break;
-                    case VAL_MAP: {
-                        struct Map* m = e.as.map;
-                        if (m) {
-                            for (size_t j = 0; j < m->count; j++) {
-                                if (value_truthiness(m->items[j].value)) return 1;
-                            }
-                        }
-                        break;
-                    }
-                    default:
-                        break;
+    case VAL_BOOL:
+        return (int)v.as.boolean ? 1 : 0;
+    case VAL_INT:
+        return v.as.i != 0;
+    case VAL_FLT:
+        return v.as.f != 0.0;
+    case VAL_STR:
+        return v.as.s != NULL && v.as.s[0] != '\0';
+    case VAL_FUNC:
+        return 1; // Functions are always truthy
+    case VAL_THR:
+        return value_thr_is_running(v);
+    case VAL_TNS: {
+        Tensor *t = v.as.tns;
+        if (!t || t->length == 0) {
+            return 0;
+        }
+        for (size_t i = 0; i < t->length; i++) {
+            Value e = t->data[i];
+            switch (e.type) {
+            case VAL_BOOL:
+                if (e.as.boolean) {
+                    return 1;
                 }
+                break;
+            case VAL_INT:
+                if (e.as.i != 0) {
+                    return 1;
+                }
+                break;
+            case VAL_FLT:
+                if (e.as.f != 0.0) {
+                    return 1;
+                }
+                break;
+            case VAL_STR:
+                if (e.as.s && e.as.s[0] != '\0') {
+                    return 1;
+                }
+                break;
+            case VAL_FUNC:
+                return 1;
+            case VAL_THR:
+                if (value_thr_is_running(e)) {
+                    return 1;
+                }
+                break;
+            case VAL_TNS:
+                if (value_truthiness(e)) {
+                    return 1;
+                }
+                break;
+            case VAL_MAP: {
+                struct Map *m = e.as.map;
+                if (m) {
+                    for (size_t j = 0; j < m->count; j++) {
+                        if (value_truthiness(m->items[j].value)) {
+                            return 1;
+                        }
+                    }
+                }
+                break;
             }
+            default:
+                break;
+            }
+        }
+        return 0;
+    }
+    case VAL_MAP: {
+        Map *m = v.as.map;
+        if (!m) {
             return 0;
         }
-        case VAL_MAP: {
-            Map* m = v.as.map;
-            if (!m) return 0;
-            return m->count > 0;
-        }
-        default:
-            return 0;
+        return m->count > 0;
+    }
+    default:
+        return 0;
     }
 }
 
@@ -830,42 +1025,57 @@ int value_truthiness(Value v) {
 
 static DeclType value_type_to_decl(ValueType vt) {
     switch (vt) {
-        case VAL_BOOL: return TYPE_BOOL;
-        case VAL_INT: return TYPE_INT;
-        case VAL_FLT: return TYPE_FLT;
-        case VAL_STR: return TYPE_STR;
-        case VAL_TNS: return TYPE_TNS;
-        case VAL_MAP: return TYPE_MAP;
-        case VAL_FUNC: return TYPE_FUNC;
-        case VAL_THR: return TYPE_THR;
-        default: return TYPE_UNKNOWN;
+    case VAL_BOOL:
+        return TYPE_BOOL;
+    case VAL_INT:
+        return TYPE_INT;
+    case VAL_FLT:
+        return TYPE_FLT;
+    case VAL_STR:
+        return TYPE_STR;
+    case VAL_TNS:
+        return TYPE_TNS;
+    case VAL_MAP:
+        return TYPE_MAP;
+    case VAL_FUNC:
+        return TYPE_FUNC;
+    case VAL_THR:
+        return TYPE_THR;
+    default:
+        return TYPE_UNKNOWN;
     }
 }
 
-static const char* decl_type_name(DeclType dt) {
+static const char *decl_type_name(DeclType dt) {
     switch (dt) {
-        case TYPE_BOOL: return "BOOL";
-        case TYPE_INT: return "INT";
-        case TYPE_FLT: return "FLT";
-        case TYPE_STR: return "STR";
-        case TYPE_TNS: return "TNS";
-        case TYPE_MAP: return "MAP";
-        case TYPE_FUNC: return "FUNC";
-        case TYPE_THR: return "THR";
-        default: return "UNKNOWN";
+    case TYPE_BOOL:
+        return "BOOL";
+    case TYPE_INT:
+        return "INT";
+    case TYPE_FLT:
+        return "FLT";
+    case TYPE_STR:
+        return "STR";
+    case TYPE_TNS:
+        return "TNS";
+    case TYPE_MAP:
+        return "MAP";
+    case TYPE_FUNC:
+        return "FUNC";
+    case TYPE_THR:
+        return "THR";
+    default:
+        return "UNKNOWN";
     }
 }
 
 /* `decl_type_to_value` removed: inverse mapping was unused. */
 
-static bool coerce_value_to_decl_type(Interpreter* interp,
-                                      Value input,
-                                      DeclType target,
-                                      Env* env,
-                                      int line,
-                                      int col,
-                                      Value* out_value) {
-    if (!out_value) return false;
+static bool coerce_value_to_decl_type(Interpreter *interp, Value input, DeclType target, Env *env, int line, int col,
+                                      Value *out_value) {
+    if (!out_value) {
+        return false;
+    }
     *out_value = value_null();
 
     if (value_type_to_decl(input.type) == target) {
@@ -873,19 +1083,31 @@ static bool coerce_value_to_decl_type(Interpreter* interp,
         return true;
     }
 
-    const char* builtin_name = NULL;
+    const char *builtin_name = NULL;
     switch (target) {
-        case TYPE_BOOL: builtin_name = "BOOL"; break;
-        case TYPE_INT: builtin_name = "INT"; break;
-        case TYPE_FLT: builtin_name = "FLT"; break;
-        case TYPE_STR: builtin_name = "STR"; break;
-        case TYPE_TNS: builtin_name = "TNS"; break;
-        default:
-            return false;
+    case TYPE_BOOL:
+        builtin_name = "BOOL";
+        break;
+    case TYPE_INT:
+        builtin_name = "INT";
+        break;
+    case TYPE_FLT:
+        builtin_name = "FLT";
+        break;
+    case TYPE_STR:
+        builtin_name = "STR";
+        break;
+    case TYPE_TNS:
+        builtin_name = "TNS";
+        break;
+    default:
+        return false;
     }
 
-    BuiltinFunction* builtin = builtin_lookup(builtin_name);
-    if (!builtin || !builtin->impl) return false;
+    BuiltinFunction *builtin = builtin_lookup(builtin_name);
+    if (!builtin || !builtin->impl) {
+        return false;
+    }
 
     Value args[1];
     args[0] = input;
@@ -904,7 +1126,7 @@ static bool coerce_value_to_decl_type(Interpreter* interp,
 
 // Compute tensor shape from AST tensor literal. Returns true on success
 // and allocates *out_shape (caller must free). On failure sets *err.
-static bool ast_tns_compute_shape(Expr* expr, size_t** out_shape, size_t* out_ndim, char** err) {
+static bool ast_tns_compute_shape(Expr *expr, size_t **out_shape, size_t *out_ndim, char **err) {
     if (!expr || expr->type != EXPR_TNS) {
         *err = strdup("Internal: expected tensor AST node");
         return false;
@@ -915,23 +1137,25 @@ static bool ast_tns_compute_shape(Expr* expr, size_t** out_shape, size_t* out_nd
         return false;
     }
 
-    Expr* first = expr->as.tns_items.items[0];
+    Expr *first = expr->as.tns_items.items[0];
     if (first->type == EXPR_TNS) {
         // All items must be EXPR_TNS and have identical shape
-        size_t* child_shape = NULL;
+        size_t *child_shape = NULL;
         size_t child_ndim = 0;
         for (size_t i = 0; i < count; i++) {
-            Expr* it = expr->as.tns_items.items[i];
+            Expr *it = expr->as.tns_items.items[i];
             if (it->type != EXPR_TNS) {
                 *err = strdup("Mixed nested and non-nested tensor elements");
                 return false;
             }
-            size_t* s = NULL; size_t nd = 0;
+            size_t *s = NULL;
+            size_t nd = 0;
             if (!ast_tns_compute_shape(it, &s, &nd, err)) {
                 return false;
             }
             if (i == 0) {
-                child_shape = s; child_ndim = nd;
+                child_shape = s;
+                child_ndim = nd;
             } else {
                 if (nd != child_ndim) {
                     free(s);
@@ -955,21 +1179,22 @@ static bool ast_tns_compute_shape(Expr* expr, size_t** out_shape, size_t* out_nd
         *out_ndim = child_ndim + 1;
         *out_shape = malloc(sizeof(size_t) * (*out_ndim));
         (*out_shape)[0] = count;
-        for (size_t k = 0; k < child_ndim; k++) (*out_shape)[k+1] = child_shape[k];
+        for (size_t k = 0; k < child_ndim; k++) {
+            (*out_shape)[k + 1] = child_shape[k];
+        }
         free(child_shape);
         return true;
-    } else {
-        // Leaf level
-        *out_ndim = 1;
-        *out_shape = malloc(sizeof(size_t));
-        (*out_shape)[0] = count;
-        return true;
     }
+    // Leaf level
+    *out_ndim = 1;
+    *out_shape = malloc(sizeof(size_t));
+    (*out_shape)[0] = count;
+    return true;
 }
 
 // ============ Error handling ============
 
-static ExecResult make_error(const char* msg, int line, int col) {
+static ExecResult make_error(const char *msg, int line, int col) {
     ExecResult res;
     res.status = EXEC_ERROR;
     res.value = value_null();
@@ -994,7 +1219,7 @@ static ExecResult make_ok(Value v) {
 }
 
 // Clear the interpreter error after handling it
-void clear_error(Interpreter* interp) {
+void clear_error(Interpreter *interp) {
     if (interp->error) {
         free(interp->error);
         interp->error = NULL;
@@ -1005,296 +1230,198 @@ void clear_error(Interpreter* interp) {
 
 // ============ Expression evaluation ============
 
-Value eval_expr(Interpreter* interp, Expr* expr, Env* env) {
-    if (!expr) return value_null();
-    
+Value eval_expr(Interpreter *interp, Expr *expr, Env *env) {
+    if (!expr) {
+        return value_null();
+    }
+
     switch (expr->type) {
-        case EXPR_BOOL:
-            return value_bool(expr->as.bool_value);
+    case EXPR_BOOL:
+        return value_bool(expr->as.bool_value);
 
-        case EXPR_INT:
-            return value_int_base(expr->as.int_value.value, expr->as.int_value.base);
-            
-        case EXPR_FLT:
-            if (expr->as.flt_value.base_is_nan) {
-                return value_flt_nan_base(expr->as.flt_value.value);
-            }
-            return value_flt_base(expr->as.flt_value.value, expr->as.flt_value.base);
-            
-        case EXPR_STR:
-            return value_str(expr->as.str_value);
-            
-        case EXPR_IDENT: {
-            Value v;
-            DeclType dtype;
-            bool initialized;
-            if (!env_get(env, expr->as.ident, &v, &dtype, &initialized)) {
-                char buf[128];
-                snprintf(buf, sizeof(buf), "Undefined identifier '%s'", expr->as.ident);
-                interp->error = strdup(buf);
-                interp->error_line = expr->line;
-                interp->error_col = expr->column;
-                return value_null();
-            }
-            if (!initialized) {
-                char buf[128];
-                snprintf(buf, sizeof(buf), "Identifier '%s' declared but not initialized", expr->as.ident);
-                interp->error = strdup(buf);
-                interp->error_line = expr->line;
-                interp->error_col = expr->column;
-                return value_null();
-            }
-            return v;
+    case EXPR_INT:
+        return value_int_base(expr->as.int_value.value, expr->as.int_value.base);
+
+    case EXPR_FLT:
+        if (expr->as.flt_value.base_is_nan) {
+            return value_flt_nan_base(expr->as.flt_value.value);
         }
+        return value_flt_base(expr->as.flt_value.value, expr->as.flt_value.base);
 
-        case EXPR_PTR: {
-            // Evaluate pointer literal by returning the pointed-to binding's value (dereference-on-read)
-            const char* name = expr->as.ptr_name;
-            Value v; DeclType dt; bool initialized;
-            if (!env_get(env, name, &v, &dt, &initialized)) {
-                char buf[128];
-                snprintf(buf, sizeof(buf), "Undefined identifier '%s'", name);
-                interp->error = strdup(buf);
-                interp->error_line = expr->line;
-                interp->error_col = expr->column;
-                return value_null();
-            }
-            if (!initialized) {
-                char buf[128];
-                snprintf(buf, sizeof(buf), "Identifier '%s' declared but not initialized", name);
-                interp->error = strdup(buf);
-                interp->error_line = expr->line;
-                interp->error_col = expr->column;
-                return value_null();
-            }
-            return v;
+    case EXPR_STR:
+        return value_str(expr->as.str_value);
+
+    case EXPR_IDENT: {
+        Value v;
+        DeclType dtype;
+        bool initialized;
+        if (!env_get(env, expr->as.ident, &v, &dtype, &initialized)) {
+            char buf[128];
+            snprintf(buf, sizeof(buf), "Undefined identifier '%s'", expr->as.ident);
+            interp->error = strdup(buf);
+            interp->error_line = expr->line;
+            interp->error_col = expr->column;
+            return value_null();
         }
+        if (!initialized) {
+            char buf[128];
+            snprintf(buf, sizeof(buf), "Identifier '%s' declared but not initialized", expr->as.ident);
+            interp->error = strdup(buf);
+            interp->error_line = expr->line;
+            interp->error_col = expr->column;
+            return value_null();
+        }
+        return v;
+    }
 
-        case EXPR_LAMBDA: {
-            // Validate lambda parameter ordering just like named functions:
-            for (size_t _pi = 0; _pi < expr->as.lambda.params.count; _pi++) {
-                Param* _p = &expr->as.lambda.params.items[_pi];
-                if (!_p) continue;
-                if (_p->default_value) continue;
-                for (size_t _pj = 0; _pj < _pi; _pj++) {
-                    if (expr->as.lambda.params.items[_pj].default_value) {
-                        interp->error = strdup("Parameters with defaults must follow positional parameters");
-                        interp->error_line = expr->line;
-                        interp->error_col = expr->column;
-                        return value_null();
-                    }
+    case EXPR_PTR: {
+        // Evaluate pointer literal by returning the pointed-to binding's value (dereference-on-read)
+        const char *name = expr->as.ptr_name;
+        Value v;
+        DeclType dt;
+        bool initialized;
+        if (!env_get(env, name, &v, &dt, &initialized)) {
+            char buf[128];
+            snprintf(buf, sizeof(buf), "Undefined identifier '%s'", name);
+            interp->error = strdup(buf);
+            interp->error_line = expr->line;
+            interp->error_col = expr->column;
+            return value_null();
+        }
+        if (!initialized) {
+            char buf[128];
+            snprintf(buf, sizeof(buf), "Identifier '%s' declared but not initialized", name);
+            interp->error = strdup(buf);
+            interp->error_line = expr->line;
+            interp->error_col = expr->column;
+            return value_null();
+        }
+        return v;
+    }
+
+    case EXPR_LAMBDA: {
+        // Validate lambda parameter ordering just like named functions:
+        for (size_t _pi = 0; _pi < expr->as.lambda.params.count; _pi++) {
+            Param *_p = &expr->as.lambda.params.items[_pi];
+            if (!_p) {
+                continue;
+            }
+            if (_p->default_value) {
+                continue;
+            }
+            for (size_t _pj = 0; _pj < _pi; _pj++) {
+                if (expr->as.lambda.params.items[_pj].default_value) {
+                    interp->error = strdup("Parameters with defaults must follow positional parameters");
+                    interp->error_line = expr->line;
+                    interp->error_col = expr->column;
+                    return value_null();
                 }
             }
-
-            Func* f = create_runtime_function(NULL,
-                                              expr->as.lambda.return_type,
-                                              &expr->as.lambda.params,
-                                              expr->as.lambda.body,
-                                              env);
-            return value_func(f);
         }
-        
-        case EXPR_CALL: {
-            // Get the callee
-            const char* func_name = NULL;
-            Func* user_func = NULL;
-            char* resolved_builtin_name = NULL;
-            
-            if (expr->as.call.callee->type == EXPR_IDENT) {
-                func_name = expr->as.call.callee->as.ident;
-                
-                // Check builtins first
-                BuiltinFunction* builtin = builtin_lookup(func_name);
-                if (!builtin) {
-                    builtin = lookup_extended_builtin(env, func_name, &resolved_builtin_name);
+
+        Func *f = create_runtime_function(NULL, expr->as.lambda.return_type, &expr->as.lambda.params,
+                                          expr->as.lambda.body, env);
+        return value_func(f);
+    }
+
+    case EXPR_CALL: {
+        // Get the callee
+        const char *func_name = NULL;
+        Func *user_func = NULL;
+        char *resolved_builtin_name = NULL;
+
+        if (expr->as.call.callee->type == EXPR_IDENT) {
+            func_name = expr->as.call.callee->as.ident;
+
+            // Check builtins first
+            BuiltinFunction *builtin = builtin_lookup(func_name);
+            if (!builtin) {
+                builtin = lookup_extended_builtin(env, func_name, &resolved_builtin_name);
+            }
+            if (builtin) {
+                int pos_argc = (int)expr->as.call.args.count;
+                int kwc = (int)expr->as.call.kw_count;
+                Value *args = NULL;
+                Expr **arg_nodes = NULL;
+                bool deferred_async_arg0 = false;
+
+                // For builtins, keywords are supported only if the builtin declares param names.
+                if (kwc > 0 && (!builtin->param_names || builtin->param_count <= 0)) {
+                    interp->error = strdup("Keyword arguments not supported for builtin function");
+                    interp->error_line = expr->line;
+                    interp->error_col = expr->column;
+                    free(resolved_builtin_name);
+                    return value_null();
                 }
-                if (builtin) {
-                    int pos_argc = (int)expr->as.call.args.count;
-                    int kwc = (int)expr->as.call.kw_count;
-                    Value* args = NULL;
-                    Expr** arg_nodes = NULL;
-                    bool deferred_async_arg0 = false;
 
-                    // For builtins, keywords are supported only if the builtin declares param names.
-                    if (kwc > 0 && (!builtin->param_names || builtin->param_count <= 0)) {
-                        interp->error = strdup("Keyword arguments not supported for builtin function");
-                        interp->error_line = expr->line;
-                        interp->error_col = expr->column;
-                        free(resolved_builtin_name);
-                        return value_null();
-                    }
-
-                    // Reject duplicate keyword names (order-independent)
-                    if (kwc > 0) {
-                        for (int k = 0; k < kwc; k++) {
-                            for (int m = 0; m < k; m++) {
-                                if (strcmp(expr->as.call.kw_names[m], expr->as.call.kw_names[k]) == 0) {
-                                    interp->error = strdup("Duplicate keyword argument");
-                                    interp->error_line = expr->line;
-                                    interp->error_col = expr->column;
-                                    free(resolved_builtin_name);
-                                    return value_null();
-                                }
-                            }
-                        }
-                    }
-
-                    // Determine required slots for args (positional plus any kw slot indices)
-                    int max_slot = pos_argc;
-                    if (kwc > 0) {
-                        for (int i = 0; i < kwc; i++) {
-                            char* k = expr->as.call.kw_names[i];
-                            int idx = builtin_param_index(builtin, k);
-                            if (idx < 0) {
-                                interp->error = strdup("Unknown keyword argument");
+                // Reject duplicate keyword names (order-independent)
+                if (kwc > 0) {
+                    for (int k = 0; k < kwc; k++) {
+                        for (int m = 0; m < k; m++) {
+                            if (strcmp(expr->as.call.kw_names[m], expr->as.call.kw_names[k]) == 0) {
+                                interp->error = strdup("Duplicate keyword argument");
                                 interp->error_line = expr->line;
                                 interp->error_col = expr->column;
                                 free(resolved_builtin_name);
                                 return value_null();
                             }
-                            if (idx + 1 > max_slot) max_slot = idx + 1;
                         }
                     }
+                }
 
-                    if (max_slot > 0) {
-                        args = safe_malloc(sizeof(Value) * max_slot);
-                        arg_nodes = safe_malloc(sizeof(Expr*) * max_slot);
-                        // initialize to nulls
-                        for (int i = 0; i < max_slot; i++) { args[i] = value_null(); arg_nodes[i] = NULL; }
-
-                        // Evaluate positional args
-                        for (int i = 0; i < pos_argc; i++) {
-                            Expr* arg_expr = expr->as.call.args.items[i];
-                            arg_nodes[i] = arg_expr;
-                            if (should_defer_async_argument_for_call(func_name, i, arg_expr)) {
-                                args[i] = make_deferred_async_handle(arg_expr, env);
-                                deferred_async_arg0 = true;
-                                continue;
-                            }
-                            if (strcmp(func_name, "EXTEND") == 0 && i == 0 && arg_expr->type == EXPR_TYPED_IDENT) {
-                                // EXTEND(EXTENSION: name) passes the symbolic extension specifier.
-                                continue;
-                            }
-                            if (((strcmp(func_name, "DEL") == 0 || strcmp(func_name, "EXIST") == 0 || strcmp(func_name, "IMPORT") == 0 || strcmp(func_name, "ASSIGN") == 0) && i == 0)
-                                || ((strcmp(func_name, "IMPORT") == 0 || strcmp(func_name, "IMPORT_PATH") == 0) && i == 1)) {
-                                // leave as null placeholder
-                                continue;
-                            }
-                            args[i] = eval_expr(interp, arg_expr, env);
-                            if (interp->error) {
-                                for (int j = 0; j <= i; j++) value_free(args[j]);
-                                free(args);
-                                free(arg_nodes);
-                                free(resolved_builtin_name);
-                                return value_null();
-                            }
+                // Determine required slots for args (positional plus any kw slot indices)
+                int max_slot = pos_argc;
+                if (kwc > 0) {
+                    for (int i = 0; i < kwc; i++) {
+                        char *k = expr->as.call.kw_names[i];
+                        int idx = builtin_param_index(builtin, k);
+                        if (idx < 0) {
+                            interp->error = strdup("Unknown keyword argument");
+                            interp->error_line = expr->line;
+                            interp->error_col = expr->column;
+                            free(resolved_builtin_name);
+                            return value_null();
                         }
-
-                        // Evaluate keyword args and place into appropriate slots
-                        for (int k = 0; k < kwc; k++) {
-                            char* name = expr->as.call.kw_names[k];
-                            Expr* valnode = expr->as.call.kw_args.items[k];
-                            int idx = builtin_param_index(builtin, name);
-                            if (idx < 0) {
-                                interp->error = strdup("Unknown keyword argument");
-                                interp->error_line = expr->line;
-                                interp->error_col = expr->column;
-                                for (int j = 0; j < max_slot; j++) value_free(args[j]);
-                                free(args);
-                                free(arg_nodes);
-                                free(resolved_builtin_name);
-                                return value_null();
-                            }
-                            // Duplicate positional/keyword or duplicate keyword->slot
-                            if (idx < max_slot && arg_nodes[idx] != NULL) {
-                                interp->error = strdup("Duplicate argument for parameter");
-                                interp->error_line = expr->line;
-                                interp->error_col = expr->column;
-                                for (int j = 0; j < max_slot; j++) value_free(args[j]);
-                                free(args);
-                                free(arg_nodes);
-                                free(resolved_builtin_name);
-                                return value_null();
-                            }
-                            // Evaluate kw expr in caller env (left-to-right preserved)
-                            Value v;
-                            if (should_defer_async_argument_for_call(func_name, idx, valnode)) {
-                                v = make_deferred_async_handle(valnode, env);
-                                deferred_async_arg0 = true;
-                            } else {
-                                v = eval_expr(interp, valnode, env);
-                                if (interp->error) {
-                                    for (int j = 0; j < max_slot; j++) value_free(args[j]);
-                                    free(args);
-                                    free(arg_nodes);
-                                    free(resolved_builtin_name);
-                                    return value_null();
-                                }
-                            }
-                            // assign into slot
-                            if (idx >= max_slot) {
-                                // should not happen
-                                for (int j = 0; j < max_slot; j++) value_free(args[j]);
-                                value_free(v);
-                                free(args);
-                                free(arg_nodes);
-                                interp->error = strdup("Internal error mapping keyword arg");
-                                interp->error_line = expr->line;
-                                interp->error_col = expr->column;
-                                free(resolved_builtin_name);
-                                return value_null();
-                            }
-                            // free placeholder null
-                            value_free(args[idx]);
-                            args[idx] = v;
-                            arg_nodes[idx] = valnode;
+                        if (idx + 1 > max_slot) {
+                            max_slot = idx + 1;
                         }
                     }
+                }
 
-                    // effective_argc should count the original positional arguments
-                    // and extend if any keyword maps beyond them. Do NOT trim placeholder
-                    // NULLs for intentionally-unevaluated positional args (e.g. DEL).
-                    int effective_argc = pos_argc;
-                    if (max_slot > effective_argc) effective_argc = max_slot;
-
-                    // Check arg count against builtin limits
-                    if (effective_argc < builtin->min_args) {
-                        char buf[128];
-                        snprintf(buf, sizeof(buf), "%s expects at least %d arguments", func_name, builtin->min_args);
-                        interp->error = strdup(buf);
-                        interp->error_line = expr->line;
-                        interp->error_col = expr->column;
-                        if (args) {
-                            for (int i = 0; i < max_slot; i++) value_free(args[i]);
-                            free(args);
-                            free(arg_nodes);
-                        }
-                        free(resolved_builtin_name);
-                        return value_null();
-                    }
-                    if (builtin->max_args >= 0 && effective_argc > builtin->max_args) {
-                        char buf[128];
-                        snprintf(buf, sizeof(buf), "%s expects at most %d arguments", func_name, builtin->max_args);
-                        interp->error = strdup(buf);
-                        interp->error_line = expr->line;
-                        interp->error_col = expr->column;
-                        if (args) {
-                            for (int i = 0; i < max_slot; i++) value_free(args[i]);
-                            free(args);
-                            free(arg_nodes);
-                        }
-                        free(resolved_builtin_name);
-                        return value_null();
+                if (max_slot > 0) {
+                    args = safe_malloc(sizeof(Value) * max_slot);
+                    arg_nodes = safe_malloc(sizeof(Expr *) * max_slot);
+                    // initialize to nulls
+                    for (int i = 0; i < max_slot; i++) {
+                        args[i] = value_null();
+                        arg_nodes[i] = NULL;
                     }
 
-                    // Call builtin
-                    Value result = builtin->impl(interp, args, effective_argc, arg_nodes, env, expr->line, expr->column);
-
-                    // Start deferred STOP/PAUSE ASYNC argument only after the builtin call completes.
-                    if (deferred_async_arg0 && args && max_slot > 0) {
-                        if (start_deferred_async_handle(interp, args[0], expr->line, expr->column) != 0) {
-                            value_free(result);
-                            for (int i = 0; i < max_slot; i++) value_free(args[i]);
+                    // Evaluate positional args
+                    for (int i = 0; i < pos_argc; i++) {
+                        Expr *arg_expr = expr->as.call.args.items[i];
+                        arg_nodes[i] = arg_expr;
+                        if (should_defer_async_argument_for_call(func_name, i, arg_expr)) {
+                            args[i] = make_deferred_async_handle(arg_expr, env);
+                            deferred_async_arg0 = true;
+                            continue;
+                        }
+                        if (strcmp(func_name, "EXTEND") == 0 && i == 0 && arg_expr->type == EXPR_TYPED_IDENT) {
+                            // EXTEND(EXTENSION: name) passes the symbolic extension specifier.
+                            continue;
+                        }
+                        if (((strcmp(func_name, "DEL") == 0 || strcmp(func_name, "EXIST") == 0 ||
+                              strcmp(func_name, "IMPORT") == 0 || strcmp(func_name, "ASSIGN") == 0) &&
+                             i == 0) ||
+                            ((strcmp(func_name, "IMPORT") == 0 || strcmp(func_name, "IMPORT_PATH") == 0) && i == 1)) {
+                            // leave as null placeholder
+                            continue;
+                        }
+                        args[i] = eval_expr(interp, arg_expr, env);
+                        if (interp->error) {
+                            for (int j = 0; j <= i; j++) {
+                                value_free(args[j]);
+                            }
                             free(args);
                             free(arg_nodes);
                             free(resolved_builtin_name);
@@ -1302,260 +1429,395 @@ Value eval_expr(Interpreter* interp, Expr* expr, Env* env) {
                         }
                     }
 
-                    // Clean up
+                    // Evaluate keyword args and place into appropriate slots
+                    for (int k = 0; k < kwc; k++) {
+                        char *name = expr->as.call.kw_names[k];
+                        Expr *valnode = expr->as.call.kw_args.items[k];
+                        int idx = builtin_param_index(builtin, name);
+                        if (idx < 0) {
+                            interp->error = strdup("Unknown keyword argument");
+                            interp->error_line = expr->line;
+                            interp->error_col = expr->column;
+                            for (int j = 0; j < max_slot; j++) {
+                                value_free(args[j]);
+                            }
+                            free(args);
+                            free(arg_nodes);
+                            free(resolved_builtin_name);
+                            return value_null();
+                        }
+                        // Duplicate positional/keyword or duplicate keyword->slot
+                        if (idx < max_slot && arg_nodes[idx] != NULL) {
+                            interp->error = strdup("Duplicate argument for parameter");
+                            interp->error_line = expr->line;
+                            interp->error_col = expr->column;
+                            for (int j = 0; j < max_slot; j++) {
+                                value_free(args[j]);
+                            }
+                            free(args);
+                            free(arg_nodes);
+                            free(resolved_builtin_name);
+                            return value_null();
+                        }
+                        // Evaluate kw expr in caller env (left-to-right preserved)
+                        Value v;
+                        if (should_defer_async_argument_for_call(func_name, idx, valnode)) {
+                            v = make_deferred_async_handle(valnode, env);
+                            deferred_async_arg0 = true;
+                        } else {
+                            v = eval_expr(interp, valnode, env);
+                            if (interp->error) {
+                                for (int j = 0; j < max_slot; j++) {
+                                    value_free(args[j]);
+                                }
+                                free(args);
+                                free(arg_nodes);
+                                free(resolved_builtin_name);
+                                return value_null();
+                            }
+                        }
+                        // assign into slot
+                        if (idx >= max_slot) {
+                            // should not happen
+                            for (int j = 0; j < max_slot; j++) {
+                                value_free(args[j]);
+                            }
+                            value_free(v);
+                            free(args);
+                            free(arg_nodes);
+                            interp->error = strdup("Internal error mapping keyword arg");
+                            interp->error_line = expr->line;
+                            interp->error_col = expr->column;
+                            free(resolved_builtin_name);
+                            return value_null();
+                        }
+                        // free placeholder null
+                        value_free(args[idx]);
+                        args[idx] = v;
+                        arg_nodes[idx] = valnode;
+                    }
+                }
+
+                // effective_argc should count the original positional arguments
+                // and extend if any keyword maps beyond them. Do NOT trim placeholder
+                // NULLs for intentionally-unevaluated positional args (e.g. DEL).
+                int effective_argc = pos_argc;
+                if (max_slot > effective_argc) {
+                    effective_argc = max_slot;
+                }
+
+                // Check arg count against builtin limits
+                if (effective_argc < builtin->min_args) {
+                    char buf[128];
+                    snprintf(buf, sizeof(buf), "%s expects at least %d arguments", func_name, builtin->min_args);
+                    interp->error = strdup(buf);
+                    interp->error_line = expr->line;
+                    interp->error_col = expr->column;
                     if (args) {
-                        for (int i = 0; i < max_slot; i++) value_free(args[i]);
+                        for (int i = 0; i < max_slot; i++) {
+                            value_free(args[i]);
+                        }
                         free(args);
                         free(arg_nodes);
                     }
-
                     free(resolved_builtin_name);
-                    return result;
-                }
-                
-                // Check user-defined functions in the shared namespace
-                Value v;
-                DeclType dtype;
-                bool initialized;
-                if (env_get(env, func_name, &v, &dtype, &initialized)) {
-                    if (initialized && v.type == VAL_FUNC) {
-                        user_func = v.as.func;
-                    }
-                    value_free(v);
-                }
-            } else {
-                // Callee is an expression (like tns[1]())
-                Value callee_val = eval_expr(interp, expr->as.call.callee, env);
-                if (interp->error) return value_null();
-                
-                if (callee_val.type != VAL_FUNC) {
-                    interp->error = strdup("Cannot call non-function value");
-                    interp->error_line = expr->line;
-                    interp->error_col = expr->column;
-                    value_free(callee_val);
                     return value_null();
                 }
-                user_func = callee_val.as.func;
-            }
+                if (builtin->max_args >= 0 && effective_argc > builtin->max_args) {
+                    char buf[128];
+                    snprintf(buf, sizeof(buf), "%s expects at most %d arguments", func_name, builtin->max_args);
+                    interp->error = strdup(buf);
+                    interp->error_line = expr->line;
+                    interp->error_col = expr->column;
+                    if (args) {
+                        for (int i = 0; i < max_slot; i++) {
+                            value_free(args[i]);
+                        }
+                        free(args);
+                        free(arg_nodes);
+                    }
+                    free(resolved_builtin_name);
+                    return value_null();
+                }
 
-            free(resolved_builtin_name);
-            
-            if (!user_func) {
-                char buf[128];
-                snprintf(buf, sizeof(buf), "Unknown function '%s'", func_name ? func_name : "<expr>");
-                interp->error = strdup(buf);
-                interp->error_line = expr->line;
-                interp->error_col = expr->column;
-                return value_null();
-            }
-            
-            // Call user-defined function
-            int pos_argc = (int)expr->as.call.args.count;
-            int kwc = (int)expr->as.call.kw_count;
+                // Call builtin
+                Value result = builtin->impl(interp, args, effective_argc, arg_nodes, env, expr->line, expr->column);
 
-            // Evaluate positional arguments first (left-to-right)
-            Value* pos_vals = NULL;
-            if (pos_argc > 0) {
-                pos_vals = safe_malloc(sizeof(Value) * pos_argc);
-                for (int i = 0; i < pos_argc; i++) {
-                    pos_vals[i] = eval_expr(interp, expr->as.call.args.items[i], env);
-                    if (interp->error) {
-                        for (int j = 0; j <= i; j++) value_free(pos_vals[j]);
-                        free(pos_vals);
+                // Start deferred STOP/PAUSE ASYNC argument only after the builtin call completes.
+                if (deferred_async_arg0 && args && max_slot > 0) {
+                    if (start_deferred_async_handle(interp, args[0], expr->line, expr->column) != 0) {
+                        value_free(result);
+                        for (int i = 0; i < max_slot; i++) {
+                            value_free(args[i]);
+                        }
+                        free(args);
+                        free(arg_nodes);
+                        free(resolved_builtin_name);
                         return value_null();
                     }
                 }
+
+                // Clean up
+                if (args) {
+                    for (int i = 0; i < max_slot; i++) {
+                        value_free(args[i]);
+                    }
+                    free(args);
+                    free(arg_nodes);
+                }
+
+                free(resolved_builtin_name);
+                return result;
             }
 
-            // Evaluate keyword argument expressions in source order
-            Value* kw_vals = NULL;
-            int* kw_used = NULL;
-            if (kwc > 0) {
-                kw_vals = safe_malloc(sizeof(Value) * kwc);
-                kw_used = calloc(kwc, sizeof(int));
-                for (int k = 0; k < kwc; k++) {
-                    // detect duplicate keyword names in source (runtime error)
-                    for (int m = 0; m < k; m++) {
-                        if (strcmp(expr->as.call.kw_names[m], expr->as.call.kw_names[k]) == 0) {
-                            interp->error = strdup("Duplicate keyword argument");
-                            interp->error_line = expr->line;
-                            interp->error_col = expr->column;
-                            for (int t = 0; t < (pos_argc); t++) value_free(pos_vals[t]);
-                            free(pos_vals);
-                            for (int t = 0; t < k; t++) value_free(kw_vals[t]);
-                            free(kw_vals);
-                            return value_null();
-                        }
+            // Check user-defined functions in the shared namespace
+            Value v;
+            DeclType dtype;
+            bool initialized;
+            if (env_get(env, func_name, &v, &dtype, &initialized)) {
+                if (initialized && v.type == VAL_FUNC) {
+                    user_func = v.as.func;
+                }
+                value_free(v);
+            }
+        } else {
+            // Callee is an expression (like tns[1]())
+            Value callee_val = eval_expr(interp, expr->as.call.callee, env);
+            if (interp->error) {
+                return value_null();
+            }
+
+            if (callee_val.type != VAL_FUNC) {
+                interp->error = strdup("Cannot call non-function value");
+                interp->error_line = expr->line;
+                interp->error_col = expr->column;
+                value_free(callee_val);
+                return value_null();
+            }
+            user_func = callee_val.as.func;
+        }
+
+        free(resolved_builtin_name);
+
+        if (!user_func) {
+            char buf[128];
+            snprintf(buf, sizeof(buf), "Unknown function '%s'", func_name ? func_name : "<expr>");
+            interp->error = strdup(buf);
+            interp->error_line = expr->line;
+            interp->error_col = expr->column;
+            return value_null();
+        }
+
+        // Call user-defined function
+        int pos_argc = (int)expr->as.call.args.count;
+        int kwc = (int)expr->as.call.kw_count;
+
+        // Evaluate positional arguments first (left-to-right)
+        Value *pos_vals = NULL;
+        if (pos_argc > 0) {
+            pos_vals = safe_malloc(sizeof(Value) * pos_argc);
+            for (int i = 0; i < pos_argc; i++) {
+                pos_vals[i] = eval_expr(interp, expr->as.call.args.items[i], env);
+                if (interp->error) {
+                    for (int j = 0; j <= i; j++) {
+                        value_free(pos_vals[j]);
                     }
-                    kw_vals[k] = eval_expr(interp, expr->as.call.kw_args.items[k], env);
-                    if (interp->error) {
-                        for (int t = 0; t < pos_argc; t++) value_free(pos_vals[t]);
+                    free(pos_vals);
+                    return value_null();
+                }
+            }
+        }
+
+        // Evaluate keyword argument expressions in source order
+        Value *kw_vals = NULL;
+        int *kw_used = NULL;
+        if (kwc > 0) {
+            kw_vals = safe_malloc(sizeof(Value) * kwc);
+            kw_used = calloc(kwc, sizeof(int));
+            for (int k = 0; k < kwc; k++) {
+                // detect duplicate keyword names in source (runtime error)
+                for (int m = 0; m < k; m++) {
+                    if (strcmp(expr->as.call.kw_names[m], expr->as.call.kw_names[k]) == 0) {
+                        interp->error = strdup("Duplicate keyword argument");
+                        interp->error_line = expr->line;
+                        interp->error_col = expr->column;
+                        for (int t = 0; t < pos_argc; t++) {
+                            value_free(pos_vals[t]);
+                        }
                         free(pos_vals);
-                        for (int t = 0; t < k; t++) value_free(kw_vals[t]);
+                        for (int t = 0; t < k; t++) {
+                            value_free(kw_vals[t]);
+                        }
                         free(kw_vals);
                         return value_null();
                     }
                 }
-            }
-
-            // Count positional-only parameters (those without a default value).
-            // Per spec: "A parameter without a default is positional; a parameter
-            // with a default is keyword-capable." Positional arguments may only
-            // bind to positional parameters.
-            int num_pos_params = 0;
-            for (size_t pi = 0; pi < user_func->params.count; pi++) {
-                if (!user_func->params.items[pi].default_value) num_pos_params++;
-                else break; // positional params must precede keyword-capable ones
-            }
-
-            if (pos_argc > num_pos_params) {
-                char buf[128];
-                snprintf(buf, sizeof(buf), "Too many positional arguments for '%s'",
-                         user_func->name ? user_func->name : "<lambda>");
-                interp->error = strdup(buf);
-                interp->error_line = expr->line;
-                interp->error_col = expr->column;
-                for (int t = 0; t < pos_argc; t++) value_free(pos_vals[t]);
-                free(pos_vals);
-                for (int t = 0; t < kwc; t++) value_free(kw_vals[t]);
-                free(kw_vals);
-                if (kw_used) free(kw_used);
-                return value_null();
-            }
-
-            // Create new environment for function call
-            Env* call_env = env_create(user_func->closure);
-
-            // Bind parameters in order, evaluating defaults in call_env after earlier params are bound
-            for (size_t i = 0; i < user_func->params.count; i++) {
-                Param* param = &user_func->params.items[i];
-                Value arg_val = value_null();
-                int arg_from_pos = -1;
-                int arg_from_kw = -1;
-                Expr* source_node = NULL;
-
-                bool provided = false;
-                // positional provided?
-                if ((int)i < pos_argc) {
-                    arg_val = pos_vals[i];
-                    arg_from_pos = (int)i;
-                    provided = true;
-                    // check if a keyword also provided for same name -> error
-                    for (int k = 0; k < kwc; k++) {
-                        if (strcmp(expr->as.call.kw_names[k], param->name) == 0) {
-                            interp->error = strdup("Duplicate argument for parameter");
-                            interp->error_line = expr->line;
-                            interp->error_col = expr->column;
-                            // cleanup
-                            for (int t = 0; t < pos_argc; t++) value_free(pos_vals[t]);
-                            free(pos_vals);
-                            for (int t = 0; t < kwc; t++) value_free(kw_vals[t]);
-                            free(kw_vals);
-                            if (kw_used) free(kw_used);
-                            env_free(call_env);
-                            return value_null();
-                        }
+                kw_vals[k] = eval_expr(interp, expr->as.call.kw_args.items[k], env);
+                if (interp->error) {
+                    for (int t = 0; t < pos_argc; t++) {
+                        value_free(pos_vals[t]);
                     }
-                } else {
-                    // check if provided as keyword
-                    int found_kw = -1;
-                    for (int k = 0; k < kwc; k++) {
-                        if (strcmp(expr->as.call.kw_names[k], param->name) == 0) { found_kw = k; break; }
-                    }
-                    if (found_kw >= 0) {
-                        // parameter must declare a default to be keyword-capable
-                        if (!param->default_value) {
-                            interp->error = strdup("Parameter is not keyword-capable");
-                            interp->error_line = expr->line;
-                            interp->error_col = expr->column;
-                            for (int t = 0; t < pos_argc; t++) value_free(pos_vals[t]);
-                            free(pos_vals);
-                            for (int t = 0; t < kwc; t++) value_free(kw_vals[t]);
-                            free(kw_vals);
-                            free(kw_used);
-                            env_free(call_env);
-                            return value_null();
-                        }
-                        arg_val = kw_vals[found_kw];
-                        arg_from_kw = found_kw;
-                        kw_used[found_kw] = 1;
-                        provided = true;
-                    } else if (param->default_value) {
-                        // evaluate default in call_env (after earlier params bound)
-                        arg_val = eval_expr(interp, param->default_value, call_env);
-                        if (interp->error) {
-                            for (int t = 0; t < pos_argc; t++) value_free(pos_vals[t]);
-                            free(pos_vals);
-                            for (int t = 0; t < kwc; t++) value_free(kw_vals[t]);
-                            free(kw_vals);
-                            env_free(call_env);
-                            return value_null();
-                        }
-                        provided = true;
-                    }
-                }
-
-                if (arg_from_pos >= 0) {
-                    source_node = expr->as.call.args.items[arg_from_pos];
-                } else if (arg_from_kw >= 0) {
-                    source_node = expr->as.call.kw_args.items[arg_from_kw];
-                }
-
-                if (!provided) {
-                    char buf[128];
-                    snprintf(buf, sizeof(buf), "Missing argument for parameter '%s'", param->name);
-                    interp->error = strdup(buf);
-                    interp->error_line = expr->line;
-                    interp->error_col = expr->column;
-                    for (int t = 0; t < pos_argc; t++) value_free(pos_vals[t]);
                     free(pos_vals);
-                    for (int t = 0; t < kwc; t++) value_free(kw_vals[t]);
+                    for (int t = 0; t < k; t++) {
+                        value_free(kw_vals[t]);
+                    }
                     free(kw_vals);
-                    env_free(call_env);
                     return value_null();
                 }
+            }
+        }
 
-                if (source_node && source_node->type == EXPR_PTR) {
-                    const char* target_name = source_node->as.ptr_name;
-                    if (!target_name) {
-                        interp->error = strdup("Invalid pointer target");
+        // Count positional-only parameters (those without a default value).
+        // Per spec: "A parameter without a default is positional; a parameter
+        // with a default is keyword-capable." Positional arguments may only
+        // bind to positional parameters.
+        int num_pos_params = 0;
+        for (size_t pi = 0; pi < user_func->params.count; pi++) {
+            if (!user_func->params.items[pi].default_value) {
+                num_pos_params++;
+            } else {
+                break; // positional params must precede keyword-capable ones
+            }
+        }
+
+        if (pos_argc > num_pos_params) {
+            char buf[128];
+            snprintf(buf, sizeof(buf), "Too many positional arguments for '%s'",
+                     user_func->name ? user_func->name : "<lambda>");
+            interp->error = strdup(buf);
+            interp->error_line = expr->line;
+            interp->error_col = expr->column;
+            for (int t = 0; t < pos_argc; t++) {
+                value_free(pos_vals[t]);
+            }
+            free(pos_vals);
+            for (int t = 0; t < kwc; t++) {
+                value_free(kw_vals[t]);
+            }
+            free(kw_vals);
+            if (kw_used) {
+                free(kw_used);
+            }
+            return value_null();
+        }
+
+        // Create new environment for function call
+        Env *call_env = env_create(user_func->closure);
+
+        // Bind parameters in order, evaluating defaults in call_env after earlier params are bound
+        for (size_t i = 0; i < user_func->params.count; i++) {
+            Param *param = &user_func->params.items[i];
+            Value arg_val = value_null();
+            int arg_from_pos = -1;
+            int arg_from_kw = -1;
+            Expr *source_node = NULL;
+
+            bool provided = false;
+            // positional provided?
+            if ((int)i < pos_argc) {
+                arg_val = pos_vals[i];
+                arg_from_pos = (int)i;
+                provided = true;
+                // check if a keyword also provided for same name -> error
+                for (int k = 0; k < kwc; k++) {
+                    if (strcmp(expr->as.call.kw_names[k], param->name) == 0) {
+                        interp->error = strdup("Duplicate argument for parameter");
                         interp->error_line = expr->line;
                         interp->error_col = expr->column;
-                        if (arg_from_pos >= 0) {
-                            value_free(pos_vals[arg_from_pos]);
-                            pos_vals[arg_from_pos] = value_null();
+                        // cleanup
+                        for (int t = 0; t < pos_argc; t++) {
+                            value_free(pos_vals[t]);
                         }
-                        if (arg_from_kw >= 0) {
-                            value_free(kw_vals[arg_from_kw]);
-                            kw_vals[arg_from_kw] = value_null();
-                        }
-                        for (int t = 0; t < pos_argc; t++) value_free(pos_vals[t]);
                         free(pos_vals);
-                        for (int t = 0; t < kwc; t++) value_free(kw_vals[t]);
+                        for (int t = 0; t < kwc; t++) {
+                            value_free(kw_vals[t]);
+                        }
+                        free(kw_vals);
+                        if (kw_used) {
+                            free(kw_used);
+                        }
+                        env_free(call_env);
+                        return value_null();
+                    }
+                }
+            } else {
+                // check if provided as keyword
+                int found_kw = -1;
+                for (int k = 0; k < kwc; k++) {
+                    if (strcmp(expr->as.call.kw_names[k], param->name) == 0) {
+                        found_kw = k;
+                        break;
+                    }
+                }
+                if (found_kw >= 0) {
+                    // parameter must declare a default to be keyword-capable
+                    if (!param->default_value) {
+                        interp->error = strdup("Parameter is not keyword-capable");
+                        interp->error_line = expr->line;
+                        interp->error_col = expr->column;
+                        for (int t = 0; t < pos_argc; t++) {
+                            value_free(pos_vals[t]);
+                        }
+                        free(pos_vals);
+                        for (int t = 0; t < kwc; t++) {
+                            value_free(kw_vals[t]);
+                        }
+                        free(kw_vals);
+                        free(kw_used);
+                        env_free(call_env);
+                        return value_null();
+                    }
+                    arg_val = kw_vals[found_kw];
+                    arg_from_kw = found_kw;
+                    kw_used[found_kw] = 1;
+                    provided = true;
+                } else if (param->default_value) {
+                    // evaluate default in call_env (after earlier params bound)
+                    arg_val = eval_expr(interp, param->default_value, call_env);
+                    if (interp->error) {
+                        for (int t = 0; t < pos_argc; t++) {
+                            value_free(pos_vals[t]);
+                        }
+                        free(pos_vals);
+                        for (int t = 0; t < kwc; t++) {
+                            value_free(kw_vals[t]);
+                        }
                         free(kw_vals);
                         env_free(call_env);
                         return value_null();
                     }
+                    provided = true;
+                }
+            }
 
-                    if (env_set_alias_cross(call_env, param->name, env, target_name, param->type, true)) {
-                        if (arg_from_pos >= 0) {
-                            value_free(pos_vals[arg_from_pos]);
-                            pos_vals[arg_from_pos] = value_null();
-                        }
-                        if (arg_from_kw >= 0) {
-                            value_free(kw_vals[arg_from_kw]);
-                            kw_vals[arg_from_kw] = value_null();
-                        }
-                        continue;
-                    }
+            if (arg_from_pos >= 0) {
+                source_node = expr->as.call.args.items[arg_from_pos];
+            } else if (arg_from_kw >= 0) {
+                source_node = expr->as.call.kw_args.items[arg_from_kw];
+            }
 
-                    if (interp->error) {
-                        free(interp->error);
-                        interp->error = NULL;
-                    }
-                    char buf[256];
-                    snprintf(buf, sizeof(buf), "Cannot bind pointer argument to parameter '%s'", param->name);
-                    interp->error = strdup(buf);
+            if (!provided) {
+                char buf[128];
+                snprintf(buf, sizeof(buf), "Missing argument for parameter '%s'", param->name);
+                interp->error = strdup(buf);
+                interp->error_line = expr->line;
+                interp->error_col = expr->column;
+                for (int t = 0; t < pos_argc; t++) {
+                    value_free(pos_vals[t]);
+                }
+                free(pos_vals);
+                for (int t = 0; t < kwc; t++) {
+                    value_free(kw_vals[t]);
+                }
+                free(kw_vals);
+                env_free(call_env);
+                return value_null();
+            }
+
+            if (source_node && source_node->type == EXPR_PTR) {
+                const char *target_name = source_node->as.ptr_name;
+                if (!target_name) {
+                    interp->error = strdup("Invalid pointer target");
                     interp->error_line = expr->line;
                     interp->error_col = expr->column;
                     if (arg_from_pos >= 0) {
@@ -1566,63 +1828,39 @@ Value eval_expr(Interpreter* interp, Expr* expr, Env* env) {
                         value_free(kw_vals[arg_from_kw]);
                         kw_vals[arg_from_kw] = value_null();
                     }
-                    for (int t = 0; t < pos_argc; t++) value_free(pos_vals[t]);
-                    free(pos_vals);
-                    for (int t = 0; t < kwc; t++) value_free(kw_vals[t]);
-                    free(kw_vals);
-                    env_free(call_env);
-                    return value_null();
-                }
-
-                Value bind_val = arg_val;
-                bool used_coercion = false;
-                if (value_type_to_decl(bind_val.type) != param->type && param->coerced) {
-                    Value coerced = value_null();
-                    if (coerce_value_to_decl_type(interp, arg_val, param->type, call_env, expr->line, expr->column, &coerced)) {
-                        bind_val = coerced;
-                        used_coercion = true;
+                    for (int t = 0; t < pos_argc; t++) {
+                        value_free(pos_vals[t]);
                     }
-                }
-
-                // Type check
-                if (value_type_to_decl(bind_val.type) != param->type) {
-                    if (interp->error) {
-                        free(interp->error);
-                        interp->error = NULL;
+                    free(pos_vals);
+                    for (int t = 0; t < kwc; t++) {
+                        value_free(kw_vals[t]);
                     }
-                    char buf[128];
-                    snprintf(buf, sizeof(buf), "Type mismatch for parameter '%s'", param->name);
-                    interp->error = strdup(buf);
-                    interp->error_line = expr->line;
-                    interp->error_col = expr->column;
-                    if (used_coercion) value_free(bind_val);
-                    if (arg_from_pos < 0 && arg_from_kw < 0) value_free(arg_val);
-                    for (int t = 0; t < pos_argc; t++) value_free(pos_vals[t]);
-                    free(pos_vals);
-                    for (int t = 0; t < kwc; t++) value_free(kw_vals[t]);
                     free(kw_vals);
                     env_free(call_env);
                     return value_null();
                 }
 
-                env_define(call_env, param->name, param->type);
-                if (!env_assign(call_env, param->name, bind_val, param->type, true)) {
-                    char buf[256];
-                    snprintf(buf, sizeof(buf), "Cannot assign to frozen identifier '%s'", param->name);
-                    interp->error = strdup(buf);
-                    interp->error_line = expr->line;
-                    interp->error_col = expr->column;
-                    if (used_coercion) value_free(bind_val);
-                    if (arg_from_pos < 0 && arg_from_kw < 0) value_free(arg_val);
-                    for (int t = 0; t < pos_argc; t++) value_free(pos_vals[t]);
-                    free(pos_vals);
-                    for (int t = 0; t < kwc; t++) value_free(kw_vals[t]);
-                    free(kw_vals);
-                    env_free(call_env);
-                    return value_null();
+                if (env_set_alias_cross(call_env, param->name, env, target_name, param->type, true)) {
+                    if (arg_from_pos >= 0) {
+                        value_free(pos_vals[arg_from_pos]);
+                        pos_vals[arg_from_pos] = value_null();
+                    }
+                    if (arg_from_kw >= 0) {
+                        value_free(kw_vals[arg_from_kw]);
+                        kw_vals[arg_from_kw] = value_null();
+                    }
+                    continue;
                 }
 
-                // Release temporary values now that env_assign copied the argument.
+                if (interp->error) {
+                    free(interp->error);
+                    interp->error = NULL;
+                }
+                char buf[256];
+                snprintf(buf, sizeof(buf), "Cannot bind pointer argument to parameter '%s'", param->name);
+                interp->error = strdup(buf);
+                interp->error_line = expr->line;
+                interp->error_col = expr->column;
                 if (arg_from_pos >= 0) {
                     value_free(pos_vals[arg_from_pos]);
                     pos_vals[arg_from_pos] = value_null();
@@ -1631,540 +1869,707 @@ Value eval_expr(Interpreter* interp, Expr* expr, Env* env) {
                     value_free(kw_vals[arg_from_kw]);
                     kw_vals[arg_from_kw] = value_null();
                 }
-                if (arg_from_pos < 0 && arg_from_kw < 0) {
-                    value_free(arg_val);
+                for (int t = 0; t < pos_argc; t++) {
+                    value_free(pos_vals[t]);
                 }
+                free(pos_vals);
+                for (int t = 0; t < kwc; t++) {
+                    value_free(kw_vals[t]);
+                }
+                free(kw_vals);
+                env_free(call_env);
+                return value_null();
+            }
+
+            Value bind_val = arg_val;
+            bool used_coercion = false;
+            if (value_type_to_decl(bind_val.type) != param->type && param->coerced) {
+                Value coerced = value_null();
+                if (coerce_value_to_decl_type(interp, arg_val, param->type, call_env, expr->line, expr->column,
+                                              &coerced)) {
+                    bind_val = coerced;
+                    used_coercion = true;
+                }
+            }
+
+            // Type check
+            if (value_type_to_decl(bind_val.type) != param->type) {
+                if (interp->error) {
+                    free(interp->error);
+                    interp->error = NULL;
+                }
+                char buf[128];
+                snprintf(buf, sizeof(buf), "Type mismatch for parameter '%s'", param->name);
+                interp->error = strdup(buf);
+                interp->error_line = expr->line;
+                interp->error_col = expr->column;
                 if (used_coercion) {
                     value_free(bind_val);
                 }
-            }
-
-            // Check for any unmatched keyword args
-            if (kwc > 0) {
-                for (int k = 0; k < kwc; k++) {
-                    if (!kw_used[k]) {
-                        interp->error = strdup("Unknown keyword argument");
-                        interp->error_line = expr->line;
-                        interp->error_col = expr->column;
-                        // cleanup
-                        for (int t = 0; t < pos_argc; t++) value_free(pos_vals[t]);
-                        free(pos_vals);
-                        for (int t = 0; t < kwc; t++) if (!kw_used[t]) value_free(kw_vals[t]);
-                        free(kw_vals);
-                        free(kw_used);
-                        env_free(call_env);
-                        return value_null();
-                    }
+                if (arg_from_pos < 0 && arg_from_kw < 0) {
+                    value_free(arg_val);
                 }
+                for (int t = 0; t < pos_argc; t++) {
+                    value_free(pos_vals[t]);
+                }
+                free(pos_vals);
+                for (int t = 0; t < kwc; t++) {
+                    value_free(kw_vals[t]);
+                }
+                free(kw_vals);
+                env_free(call_env);
+                return value_null();
             }
 
-            // free temporary evaluated argument arrays (their Value contents are now copied into env or freed by env_assign)
-            if (pos_vals) free(pos_vals);
-            if (kw_vals) free(kw_vals);
-            if (kw_used) free(kw_used);
+            env_define(call_env, param->name, param->type);
+            if (!env_assign(call_env, param->name, bind_val, param->type, true)) {
+                char buf[256];
+                snprintf(buf, sizeof(buf), "Cannot assign to frozen identifier '%s'", param->name);
+                interp->error = strdup(buf);
+                interp->error_line = expr->line;
+                interp->error_col = expr->column;
+                if (used_coercion) {
+                    value_free(bind_val);
+                }
+                if (arg_from_pos < 0 && arg_from_kw < 0) {
+                    value_free(arg_val);
+                }
+                for (int t = 0; t < pos_argc; t++) {
+                    value_free(pos_vals[t]);
+                }
+                free(pos_vals);
+                for (int t = 0; t < kwc; t++) {
+                    value_free(kw_vals[t]);
+                }
+                free(kw_vals);
+                env_free(call_env);
+                return value_null();
+            }
 
-            if (expr->as.call.callee->type == EXPR_INDEX && expr->as.call.callee->as.index.is_map) {
-                if (!bind_self_for_map_call(interp,
-                                            expr->as.call.callee->as.index.target,
-                                            env,
-                                            call_env,
-                                            expr->line,
-                                            expr->column)) {
+            // Release temporary values now that env_assign copied the argument.
+            if (arg_from_pos >= 0) {
+                value_free(pos_vals[arg_from_pos]);
+                pos_vals[arg_from_pos] = value_null();
+            }
+            if (arg_from_kw >= 0) {
+                value_free(kw_vals[arg_from_kw]);
+                kw_vals[arg_from_kw] = value_null();
+            }
+            if (arg_from_pos < 0 && arg_from_kw < 0) {
+                value_free(arg_val);
+            }
+            if (used_coercion) {
+                value_free(bind_val);
+            }
+        }
+
+        // Check for any unmatched keyword args
+        if (kwc > 0) {
+            for (int k = 0; k < kwc; k++) {
+                if (!kw_used[k]) {
+                    interp->error = strdup("Unknown keyword argument");
+                    interp->error_line = expr->line;
+                    interp->error_col = expr->column;
+                    // cleanup
+                    for (int t = 0; t < pos_argc; t++) {
+                        value_free(pos_vals[t]);
+                    }
+                    free(pos_vals);
+                    for (int t = 0; t < kwc; t++) {
+                        if (!kw_used[t]) {
+                            value_free(kw_vals[t]);
+                        }
+                    }
+                    free(kw_vals);
+                    free(kw_used);
                     env_free(call_env);
                     return value_null();
                 }
             }
-            
-            // Execute function body
-            if (trace_push_frame(interp,
-                                 user_func->name ? user_func->name : "<lambda>",
-                                 call_env,
-                                 expr->line,
-                                 expr->column,
-                                 1) != 0) {
-                env_free(call_env);
-                interp->error = strdup("Out of memory");
-                interp->error_line = expr->line;
-                interp->error_col = expr->column;
-                return value_null();
-            }
+        }
 
-            LabelMap local_labels = {0};
-            // Notify extensions about call boundaries
-            extensions_fire_event(interp, "before_call");
-            ExecResult res = exec_stmt(interp, user_func->body, call_env, &local_labels);
-            extensions_fire_event(interp, "after_call");
-            
-            // Clean up labels
-            for (size_t i = 0; i < local_labels.count; i++) value_free(local_labels.items[i].key);
-            free(local_labels.items);
-            
-            env_free(call_env);
-            
-            if (res.status == EXEC_ERROR) {
-                /* Copy the error message into the interpreter-owned slot and
-                   free the ExecResult-owned string to avoid ambiguous ownership
-                   (which previously could lead to double-free or use-after-free
-                   and cause the interpreter to hang). */
-                interp->error = res.error ? strdup(res.error) : strdup("Error");
-                interp->error_line = res.error_line;
-                interp->error_col = res.error_column;
-                free(res.error);
+        // free temporary evaluated argument arrays (their Value contents are now copied into env or freed by
+        // env_assign)
+        if (pos_vals) {
+            free(pos_vals);
+        }
+        if (kw_vals) {
+            free(kw_vals);
+        }
+        if (kw_used) {
+            free(kw_used);
+        }
+
+        if (expr->as.call.callee->type == EXPR_INDEX && expr->as.call.callee->as.index.is_map) {
+            if (!bind_self_for_map_call(interp, expr->as.call.callee->as.index.target, env, call_env, expr->line,
+                                        expr->column)) {
+                env_free(call_env);
                 return value_null();
-            }
-            
-            if (res.status == EXEC_RETURN) {
-                // Type check return value
-                if (value_type_to_decl(res.value.type) != user_func->return_type) {
-                    char buf[128];
-                    snprintf(buf, sizeof(buf), "Return type mismatch in function '%s'", user_func->name ? user_func->name : "<lambda>");
-                    interp->error = strdup(buf);
-                    interp->error_line = expr->line;
-                    interp->error_col = expr->column;
-                    value_free(res.value);
-                    return value_null();
-                }
-                trace_pop_frame(interp);
-                return res.value;
-            }
-            
-            // No explicit return - return default value
-            switch (user_func->return_type) {
-                case TYPE_BOOL:
-                    trace_pop_frame(interp);
-                    return value_bool(false);
-                case TYPE_INT:
-                    trace_pop_frame(interp);
-                    return value_int(0);
-                case TYPE_FLT:
-                    trace_pop_frame(interp);
-                    return value_flt(0.0);
-                case TYPE_STR:
-                    trace_pop_frame(interp);
-                    return value_str("");
-                case TYPE_MAP:
-                    interp->error = strdup("MAP-returning function must return a value");
-                    interp->error_line = expr->line;
-                    interp->error_col = expr->column;
-                    return value_null();
-                case TYPE_TNS:
-                    interp->error = strdup("TNS-returning function must return a value");
-                    interp->error_line = expr->line;
-                    interp->error_col = expr->column;
-                    return value_null();
-                case TYPE_FUNC:
-                    interp->error = strdup("FUNC-returning function must return a value");
-                    interp->error_line = expr->line;
-                    interp->error_col = expr->column;
-                    return value_null();
-                case TYPE_THR:
-                    interp->error = strdup("THR-returning function must return a value");
-                    interp->error_line = expr->line;
-                    interp->error_col = expr->column;
-                    return value_null();
-                default:
-                    return value_null();
             }
         }
-        case EXPR_TNS: {
-            // Compute shape
-            size_t* shape = NULL;
-            size_t ndim = 0;
-            char* serr = NULL;
-            if (!ast_tns_compute_shape(expr, &shape, &ndim, &serr)) {
-                interp->error = serr ? serr : strdup("Invalid tensor literal");
+
+        // Execute function body
+        if (trace_push_frame(interp, user_func->name ? user_func->name : "<lambda>", call_env, expr->line, expr->column,
+                             1) != 0) {
+            env_free(call_env);
+            interp->error = strdup("Out of memory");
+            interp->error_line = expr->line;
+            interp->error_col = expr->column;
+            return value_null();
+        }
+
+        LabelMap local_labels = {0};
+        // Notify extensions about call boundaries
+        extensions_fire_event(interp, "before_call");
+        ExecResult res = exec_stmt(interp, user_func->body, call_env, &local_labels);
+        extensions_fire_event(interp, "after_call");
+
+        // Clean up labels
+        for (size_t i = 0; i < local_labels.count; i++) {
+            value_free(local_labels.items[i].key);
+        }
+        free(local_labels.items);
+
+        env_free(call_env);
+
+        if (res.status == EXEC_ERROR) {
+            /* Copy the error message into the interpreter-owned slot and
+               free the ExecResult-owned string to avoid ambiguous ownership
+               (which previously could lead to double-free or use-after-free
+               and cause the interpreter to hang). */
+            interp->error = res.error ? strdup(res.error) : strdup("Error");
+            interp->error_line = res.error_line;
+            interp->error_col = res.error_column;
+            free(res.error);
+            return value_null();
+        }
+
+        if (res.status == EXEC_RETURN) {
+            // Type check return value
+            if (value_type_to_decl(res.value.type) != user_func->return_type) {
+                char buf[128];
+                snprintf(buf, sizeof(buf), "Return type mismatch in function '%s'",
+                         user_func->name ? user_func->name : "<lambda>");
+                interp->error = strdup(buf);
                 interp->error_line = expr->line;
                 interp->error_col = expr->column;
+                value_free(res.value);
                 return value_null();
             }
+            trace_pop_frame(interp);
+            return res.value;
+        }
 
-            size_t total = 1;
-            for (size_t d = 0; d < ndim; d++) total *= shape[d];
+        // No explicit return - return default value
+        switch (user_func->return_type) {
+        case TYPE_BOOL:
+            trace_pop_frame(interp);
+            return value_bool(false);
+        case TYPE_INT:
+            trace_pop_frame(interp);
+            return value_int(0);
+        case TYPE_FLT:
+            trace_pop_frame(interp);
+            return value_flt(0.0);
+        case TYPE_STR:
+            trace_pop_frame(interp);
+            return value_str("");
+        case TYPE_MAP:
+            interp->error = strdup("MAP-returning function must return a value");
+            interp->error_line = expr->line;
+            interp->error_col = expr->column;
+            return value_null();
+        case TYPE_TNS:
+            interp->error = strdup("TNS-returning function must return a value");
+            interp->error_line = expr->line;
+            interp->error_col = expr->column;
+            return value_null();
+        case TYPE_FUNC:
+            interp->error = strdup("FUNC-returning function must return a value");
+            interp->error_line = expr->line;
+            interp->error_col = expr->column;
+            return value_null();
+        case TYPE_THR:
+            interp->error = strdup("THR-returning function must return a value");
+            interp->error_line = expr->line;
+            interp->error_col = expr->column;
+            return value_null();
+        default:
+            return value_null();
+        }
+    }
+    case EXPR_TNS: {
+        // Compute shape
+        size_t *shape = NULL;
+        size_t ndim = 0;
+        char *serr = NULL;
+        if (!ast_tns_compute_shape(expr, &shape, &ndim, &serr)) {
+            interp->error = serr ? serr : strdup("Invalid tensor literal");
+            interp->error_line = expr->line;
+            interp->error_col = expr->column;
+            return value_null();
+        }
 
-            Value* items = malloc(sizeof(Value) * (total ? total : 1));
-            size_t pos = 0;
+        size_t total = 1;
+        for (size_t d = 0; d < ndim; d++) {
+            total *= shape[d];
+        }
 
-            for (size_t i = 0; i < expr->as.tns_items.count; i++) {
-                Expr* it = expr->as.tns_items.items[i];
-                if (it->type == EXPR_TNS) {
-                    Value cv = eval_expr(interp, it, env);
-                    if (interp->error) { goto tns_eval_fail; }
-                    if (cv.type != VAL_TNS) {
-                        interp->error = strdup("Nested tensor literal did not evaluate to tensor");
-                        interp->error_line = it->line;
-                        interp->error_col = it->column;
-                        value_free(cv);
-                        goto tns_eval_fail;
-                    }
-                    Tensor* ct = cv.as.tns;
-                    if (ct->ndim != (ndim ? ndim - 1 : 0)) {
+        Value *items = malloc(sizeof(Value) * (total ? total : 1));
+        size_t pos = 0;
+
+        for (size_t i = 0; i < expr->as.tns_items.count; i++) {
+            Expr *it = expr->as.tns_items.items[i];
+            if (it->type == EXPR_TNS) {
+                Value cv = eval_expr(interp, it, env);
+                if (interp->error) {
+                    goto tns_eval_fail;
+                }
+                if (cv.type != VAL_TNS) {
+                    interp->error = strdup("Nested tensor literal did not evaluate to tensor");
+                    interp->error_line = it->line;
+                    interp->error_col = it->column;
+                    value_free(cv);
+                    goto tns_eval_fail;
+                }
+                Tensor *ct = cv.as.tns;
+                if (ct->ndim != (ndim ? ndim - 1 : 0)) {
+                    interp->error = strdup("Nested tensor shape mismatch");
+                    interp->error_line = it->line;
+                    interp->error_col = it->column;
+                    value_free(cv);
+                    goto tns_eval_fail;
+                }
+                for (size_t d = 0; d < ct->ndim; d++) {
+                    if (ct->shape[d] != shape[d + 1]) {
                         interp->error = strdup("Nested tensor shape mismatch");
                         interp->error_line = it->line;
                         interp->error_col = it->column;
                         value_free(cv);
                         goto tns_eval_fail;
                     }
-                    for (size_t d = 0; d < ct->ndim; d++) {
-                        if (ct->shape[d] != shape[d+1]) {
-                            interp->error = strdup("Nested tensor shape mismatch");
-                            interp->error_line = it->line;
-                            interp->error_col = it->column;
-                            value_free(cv);
-                            goto tns_eval_fail;
-                        }
-                    }
-                    for (size_t k = 0; k < ct->length; k++) items[pos++] = value_copy(ct->data[k]);
-                    value_free(cv);
-                } else {
-                    Value v = eval_expr(interp, it, env);
-                    if (interp->error) { goto tns_eval_fail; }
-                    items[pos++] = value_copy(v);
-                    value_free(v);
                 }
-            }
-
-            if (pos != total) {
-                interp->error = strdup("Internal: tensor flatten length mismatch");
-                interp->error_line = expr->line;
-                interp->error_col = expr->column;
-                goto tns_eval_fail;
-            }
-
-            if (total == 0) {
-                interp->error = strdup("Empty tensor literal");
-                interp->error_line = expr->line;
-                interp->error_col = expr->column;
-                goto tns_eval_fail;
-            }
-
-            DeclType elem_decl = value_type_to_decl(items[0].type);
-            for (size_t j = 1; j < total; j++) {
-                if (value_type_to_decl(items[j].type) != elem_decl) {
-                    elem_decl = TYPE_UNKNOWN;
-                    break;
+                for (size_t k = 0; k < ct->length; k++) {
+                    items[pos++] = value_copy(ct->data[k]);
                 }
+                value_free(cv);
+            } else {
+                Value v = eval_expr(interp, it, env);
+                if (interp->error) {
+                    goto tns_eval_fail;
+                }
+                items[pos++] = value_copy(v);
+                value_free(v);
             }
+        }
 
-            Value out = value_tns_from_values(elem_decl, ndim, shape, items, total);
-            for (size_t j = 0; j < total; j++) value_free(items[j]);
-            free(items);
-            free(shape);
-            return out;
+        if (pos != total) {
+            interp->error = strdup("Internal: tensor flatten length mismatch");
+            interp->error_line = expr->line;
+            interp->error_col = expr->column;
+            goto tns_eval_fail;
+        }
 
-tns_eval_fail:
-            for (size_t j = 0; j < pos; j++) value_free(items[j]);
-            free(items);
-            free(shape);
+        if (total == 0) {
+            interp->error = strdup("Empty tensor literal");
+            interp->error_line = expr->line;
+            interp->error_col = expr->column;
+            goto tns_eval_fail;
+        }
+
+        DeclType elem_decl = value_type_to_decl(items[0].type);
+        for (size_t j = 1; j < total; j++) {
+            if (value_type_to_decl(items[j].type) != elem_decl) {
+                elem_decl = TYPE_UNKNOWN;
+                break;
+            }
+        }
+
+        Value out = value_tns_from_values(elem_decl, ndim, shape, items, total);
+        for (size_t j = 0; j < total; j++) {
+            value_free(items[j]);
+        }
+        free(items);
+        free(shape);
+        return out;
+
+    tns_eval_fail:
+        for (size_t j = 0; j < pos; j++) {
+            value_free(items[j]);
+        }
+        free(items);
+        free(shape);
+        return value_null();
+    }
+    case EXPR_ASYNC: {
+        // Expression form: start executing block asynchronously and return THR handle
+        Value thr_val = value_thr_new();
+        Value thr_for_worker = value_copy(thr_val);
+
+        ThrStart *start = safe_malloc(sizeof(ThrStart));
+        Interpreter *thr_interp = safe_malloc(sizeof(Interpreter));
+        *thr_interp = (Interpreter){0};
+        thr_interp->global_env = interp->global_env;
+        thr_interp->loop_depth = 0;
+        thr_interp->error = NULL;
+        thr_interp->error_line = 0;
+        thr_interp->error_col = 0;
+        thr_interp->in_try_block = false;
+        thr_interp->modules = interp->modules;
+        thr_interp->shushed = interp->shushed;
+
+        start->interp = thr_interp;
+        start->env = env;
+        start->body = expr->as.async.block;
+        start->thr_val = thr_for_worker;
+
+        /* record body/env on the Thr so restart is possible */
+        thr_for_worker.as.thr->body = start->body;
+        thr_for_worker.as.thr->env = start->env;
+        value_thr_set_started(thr_for_worker, 1);
+
+        if (thrd_create(&thr_for_worker.as.thr->thread, thr_worker, start) != thrd_success) {
+            value_thr_set_finished(thr_for_worker, 1);
+            value_free(thr_for_worker);
+            free(thr_interp);
+            free(start);
+            interp->error = strdup("Failed to start ASYNC");
+            interp->error_line = expr->line;
+            interp->error_col = expr->column;
+            value_free(thr_val);
             return value_null();
         }
-        case EXPR_ASYNC: {
-            // Expression form: start executing block asynchronously and return THR handle
-            Value thr_val = value_thr_new();
-            Value thr_for_worker = value_copy(thr_val);
-
-            ThrStart* start = safe_malloc(sizeof(ThrStart));
-            Interpreter* thr_interp = safe_malloc(sizeof(Interpreter));
-            *thr_interp = (Interpreter){0};
-            thr_interp->global_env = interp->global_env;
-            thr_interp->loop_depth = 0;
-            thr_interp->error = NULL;
-            thr_interp->error_line = 0;
-            thr_interp->error_col = 0;
-            thr_interp->in_try_block = false;
-            thr_interp->modules = interp->modules;
-            thr_interp->shushed = interp->shushed;
-
-            start->interp = thr_interp;
-            start->env = env;
-            start->body = expr->as.async.block;
-            start->thr_val = thr_for_worker;
-
-            /* record body/env on the Thr so restart is possible */
-            thr_for_worker.as.thr->body = start->body;
-            thr_for_worker.as.thr->env = start->env;
-            value_thr_set_started(thr_for_worker, 1);
-
-            if (thrd_create(&thr_for_worker.as.thr->thread, thr_worker, start) != thrd_success) {
-                value_thr_set_finished(thr_for_worker, 1);
-                value_free(thr_for_worker);
-                free(thr_interp);
-                free(start);
-                interp->error = strdup("Failed to start ASYNC");
-                interp->error_line = expr->line;
-                interp->error_col = expr->column;
-                value_free(thr_val);
+        return thr_val;
+    }
+    case EXPR_MAP: {
+        // Evaluate map literal: keys and values
+        Expr *mp = expr;
+        Value mv = value_map_new();
+        size_t count = mp->as.map_items.keys.count;
+        for (size_t i = 0; i < count; i++) {
+            Expr *kexpr = mp->as.map_items.keys.items[i];
+            Expr *vexpr = mp->as.map_items.values.items[i];
+            Value k = eval_expr(interp, kexpr, env);
+            if (interp->error) {
+                value_free(k);
+                value_free(mv);
                 return value_null();
             }
-            return thr_val;
-        }
-        case EXPR_MAP: {
-            // Evaluate map literal: keys and values
-            Expr* mp = expr;
-            Value mv = value_map_new();
-            size_t count = mp->as.map_items.keys.count;
-            for (size_t i = 0; i < count; i++) {
-                Expr* kexpr = mp->as.map_items.keys.items[i];
-                Expr* vexpr = mp->as.map_items.values.items[i];
-                Value k = eval_expr(interp, kexpr, env);
-                if (interp->error) { value_free(k); value_free(mv); return value_null(); }
-                if (!(k.type == VAL_INT || k.type == VAL_STR || k.type == VAL_FLT)) {
-                    value_free(k);
-                    value_free(mv);
-                    interp->error = strdup("Map keys must be INT, FLT or STR");
-                    interp->error_line = expr->line;
-                    interp->error_col = expr->column;
-                    return value_null();
-                }
-                // Special-cases for SELF usage inside map literal:
-                // - `SELF` as a bare identifier -> alias pointing to enclosing map
-                // - `SELF<...>` -> lookup into the enclosing map using the provided key(s)
-                if (vexpr->type == EXPR_IDENT && vexpr->as.ident && strcmp(vexpr->as.ident, "SELF") == 0) {
-                    value_map_set_self(&mv, k);
-                    value_free(k);
-                } else if (vexpr->type == EXPR_INDEX && vexpr->as.index.is_map && vexpr->as.index.target && vexpr->as.index.target->type == EXPR_IDENT
-                           && vexpr->as.index.target->as.ident && strcmp(vexpr->as.index.target->as.ident, "SELF") == 0) {
-                    // Evaluate index key(s) and perform lookup on the partially-constructed map `mv`.
-                    ExprList* idxs = &vexpr->as.index.indices;
-                    // Only single-key lookup is supported here (map keys are scalars). If multiple indices provided,
-                    // resolve nested map access by descending.
-                    Value cur = value_copy(mv);
-                    bool err = false;
-                    Value final_val = value_null();
-                    for (size_t ii = 0; ii < idxs->count; ii++) {
-                        Expr* ik = idxs->items[ii];
-                        Value ikv = eval_expr(interp, ik, env);
-                        if (interp->error) { value_free(ikv); value_free(cur); err = true; break; }
-                        if (!(ikv.type == VAL_INT || ikv.type == VAL_STR || ikv.type == VAL_FLT)) {
-                            value_free(ikv); value_free(cur);
-                            interp->error = strdup("Map index must be INT, FLT or STR");
-                            interp->error_line = ik->line;
-                            interp->error_col = ik->column;
-                            err = true; break;
-                        }
-                        int found = 0;
-                        Value got = value_map_get(cur, ikv, &found);
+            if (!(k.type == VAL_INT || k.type == VAL_STR || k.type == VAL_FLT)) {
+                value_free(k);
+                value_free(mv);
+                interp->error = strdup("Map keys must be INT, FLT or STR");
+                interp->error_line = expr->line;
+                interp->error_col = expr->column;
+                return value_null();
+            }
+            // Special-cases for SELF usage inside map literal:
+            // - `SELF` as a bare identifier -> alias pointing to enclosing map
+            // - `SELF<...>` -> lookup into the enclosing map using the provided key(s)
+            if (vexpr->type == EXPR_IDENT && vexpr->as.ident && strcmp(vexpr->as.ident, "SELF") == 0) {
+                value_map_set_self(&mv, k);
+                value_free(k);
+            } else if (vexpr->type == EXPR_INDEX && vexpr->as.index.is_map && vexpr->as.index.target &&
+                       vexpr->as.index.target->type == EXPR_IDENT && vexpr->as.index.target->as.ident &&
+                       strcmp(vexpr->as.index.target->as.ident, "SELF") == 0) {
+                // Evaluate index key(s) and perform lookup on the partially-constructed map `mv`.
+                ExprList *idxs = &vexpr->as.index.indices;
+                // Only single-key lookup is supported here (map keys are scalars). If multiple indices provided,
+                // resolve nested map access by descending.
+                Value cur = value_copy(mv);
+                bool err = false;
+                Value final_val = value_null();
+                for (size_t ii = 0; ii < idxs->count; ii++) {
+                    Expr *ik = idxs->items[ii];
+                    Value ikv = eval_expr(interp, ik, env);
+                    if (interp->error) {
                         value_free(ikv);
-                        if (!found) {
-                            value_free(cur);
-                            interp->error = strdup("Map key not found");
-                            interp->error_line = ik->line;
-                            interp->error_col = ik->column;
-                            err = true;
-                            break;
-                        }
                         value_free(cur);
-                        cur = got; // continue descending (got is a copy)
-                        if (ii + 1 == idxs->count) final_val = value_copy(cur);
+                        err = true;
+                        break;
                     }
-                    if (err) { value_free(k); value_free(mv); return value_null(); }
-                    // final_val holds the value to insert (may be null)
-                    value_map_set(&mv, k, final_val);
-                    value_free(k);
-                    value_free(final_val);
-                    value_free(cur);
-                } else {
-                    Value v = eval_expr(interp, vexpr, env);
-                    if (interp->error) { value_free(k); value_free(mv); return value_null(); }
-                    value_map_set(&mv, k, v);
-                    value_free(k);
-                    value_free(v);
-                }
-            }
-            return mv;
-        }
-        case EXPR_INDEX: {
-            // Evaluate target
-            Expr* target = expr->as.index.target;
-            Value tval = eval_expr(interp, target, env);
-            if (interp->error) return value_null();
-            size_t nidx = expr->as.index.indices.count;
-            if (nidx == 0) {
-                value_free(tval);
-                interp->error = strdup("Empty index list");
-                interp->error_line = expr->line;
-                interp->error_col = expr->column;
-                return value_null();
-            }
-            bool is_map_index = expr->as.index.is_map;
-
-            if (is_map_index) {
-                if (tval.type != VAL_MAP) {
-                    value_free(tval);
-                    interp->error = strdup("Angle-bracket indexing '<...>' is only allowed on MAP values");
-                    interp->error_line = expr->line;
-                    interp->error_col = expr->column;
-                    return value_null();
-                }
-            } else {
-                if (tval.type != VAL_TNS) {
-                    value_free(tval);
-                    interp->error = strdup("Square-bracket indexing '[...]' is only allowed on TNS values");
-                    interp->error_line = expr->line;
-                    interp->error_col = expr->column;
-                    return value_null();
-                }
-            }
-
-            if (is_map_index && tval.type == VAL_MAP) {
-                // map indexing: support nested lookups m<k1,k2>
-                Value cur = tval;
-                for (size_t i = 0; i < nidx; i++) {
-                    Expr* it = expr->as.index.indices.items[i];
-                    Value key = eval_expr(interp, it, env);
-                    if (interp->error) { value_free(cur); return value_null(); }
-                    if (!(key.type == VAL_INT || key.type == VAL_STR || key.type == VAL_FLT)) {
-                        value_free(key); value_free(cur);
+                    if (!(ikv.type == VAL_INT || ikv.type == VAL_STR || ikv.type == VAL_FLT)) {
+                        value_free(ikv);
+                        value_free(cur);
                         interp->error = strdup("Map index must be INT, FLT or STR");
-                        interp->error_line = it->line;
-                        interp->error_col = it->column;
-                        return value_null();
+                        interp->error_line = ik->line;
+                        interp->error_col = ik->column;
+                        err = true;
+                        break;
                     }
                     int found = 0;
-                    Value got = value_map_get(cur, key, &found);
-                    value_free(key);
+                    Value got = value_map_get(cur, ikv, &found);
+                    value_free(ikv);
                     if (!found) {
                         value_free(cur);
                         interp->error = strdup("Map key not found");
-                        interp->error_line = it->line;
-                        interp->error_col = it->column;
-                        return value_null();
+                        interp->error_line = ik->line;
+                        interp->error_col = ik->column;
+                        err = true;
+                        break;
                     }
-                    // If this is last index, return the found value
-                    if (i + 1 == nidx) {
-                        // free original map container if it was a copy
-                        if (cur.type == VAL_MAP) value_free(cur);
-                        return got;
+                    value_free(cur);
+                    cur = got; // continue descending (got is a copy)
+                    if (ii + 1 == idxs->count) {
+                        final_val = value_copy(cur);
                     }
-                    // Otherwise, continue descending; found must be a map
-                    if (got.type != VAL_MAP) {
-                        value_free(got);
-                        value_free(cur);
-                        interp->error = strdup("Attempted nested map indexing on non-map value");
-                        interp->error_line = it->line;
-                        interp->error_col = it->column;
-                        return value_null();
-                    }
-                    // replace cur with got and continue
-                    if (cur.type == VAL_MAP) value_free(cur);
-                    cur = got;
                 }
-                // Shouldn't reach here
+                if (err) {
+                    value_free(k);
+                    value_free(mv);
+                    return value_null();
+                }
+                // final_val holds the value to insert (may be null)
+                value_map_set(&mv, k, final_val);
+                value_free(k);
+                value_free(final_val);
                 value_free(cur);
-                return value_null();
-            }
-
-            if (tval.type != VAL_TNS) {
-                interp->error = strdup("Indexing is supported only on tensors and maps");
-                interp->error_line = expr->line;
-                interp->error_col = expr->column;
-                value_free(tval);
-                return value_null();
-            }
-            Tensor* t = tval.as.tns;
-
-            // Check whether all indices are simple integer indexes
-            bool all_int = true;
-            for (size_t i = 0; i < nidx; i++) {
-                Expr* it = expr->as.index.indices.items[i];
-                if (it->type != EXPR_INT) {
-                    all_int = false;
-                    break;
+            } else {
+                Value v = eval_expr(interp, vexpr, env);
+                if (interp->error) {
+                    value_free(k);
+                    value_free(mv);
+                    return value_null();
                 }
+                value_map_set(&mv, k, v);
+                value_free(k);
+                value_free(v);
             }
-
-            // If all are ints and count <= ndim, perform direct get
-            if (all_int) {
-                // Build 0-based idx array
-                size_t* idxs = malloc(sizeof(size_t) * nidx);
-                for (size_t i = 0; i < nidx; i++) {
-                    Expr* it = expr->as.index.indices.items[i];
-                    Value vi = eval_expr(interp, it, env);
-                    if (interp->error) {
-                        free(idxs);
-                        value_free(tval);
-                        return value_null();
-                    }
-                    if (vi.type != VAL_INT) {
-                        interp->error = strdup("Index expression must evaluate to INT");
-                        interp->error_line = it->line;
-                        interp->error_col = it->column;
-                        value_free(vi);
-                        free(idxs);
-                        value_free(tval);
-                        return value_null();
-                    }
-                    int64_t v = vi.as.i;
-                    // convert 1-based/negative to 0-based
-                    int64_t dim = (int64_t)t->shape[i];
-                    if (v < 0) v = dim + v + 1;
-                    if (v < 1 || v > dim) {
-                        interp->error = strdup("Index out of range");
-                        interp->error_line = it->line;
-                        interp->error_col = it->column;
-                        value_free(vi);
-                        free(idxs);
-                        value_free(tval);
-                        return value_null();
-                    }
-                    idxs[i] = (size_t)(v - 1);
-                    value_free(vi);
-                }
-                Value out = value_tns_get(tval, idxs, nidx);
-                free(idxs);
-                value_free(tval);
-                return out;
-            }
-
-            // Mixed case: build starts/ends arrays (1-based inclusive per value_tns_slice)
-            int64_t* starts = malloc(sizeof(int64_t) * nidx);
-            int64_t* ends = malloc(sizeof(int64_t) * nidx);
-            for (size_t i = 0; i < nidx; i++) {
-                Expr* it = expr->as.index.indices.items[i];
-                if (it->type == EXPR_WILDCARD) {
-                    starts[i] = 1;
-                    ends[i] = (int64_t)t->shape[i];
-                } else if (it->type == EXPR_RANGE) {
-                    // evaluate start and end
-                    Value vs = eval_expr(interp, it->as.range.start, env);
-                    if (interp->error) { free(starts); free(ends); value_free(tval); return value_null(); }
-                    Value ve = eval_expr(interp, it->as.range.end, env);
-                    if (interp->error) { value_free(vs); free(starts); free(ends); value_free(tval); return value_null(); }
-                    if (vs.type != VAL_INT || ve.type != VAL_INT) {
-                        interp->error = strdup("Range bounds must be INT");
-                        interp->error_line = it->line;
-                        interp->error_col = it->column;
-                        value_free(vs); value_free(ve); free(starts); free(ends); value_free(tval); return value_null();
-                    }
-                    starts[i] = vs.as.i;
-                    ends[i] = ve.as.i;
-                    value_free(vs); value_free(ve);
-                } else {
-                    // general expression: expect INT
-                    Value vi = eval_expr(interp, it, env);
-                    if (interp->error) { free(starts); free(ends); value_free(tval); return value_null(); }
-                    if (vi.type != VAL_INT) {
-                        interp->error = strdup("Index expression must evaluate to INT");
-                        interp->error_line = it->line;
-                        interp->error_col = it->column;
-                        value_free(vi); free(starts); free(ends); value_free(tval); return value_null();
-                    }
-                    starts[i] = vi.as.i;
-                    ends[i] = vi.as.i;
-                    value_free(vi);
-                }
-            }
-
-            Value out = value_tns_slice(tval, starts, ends, nidx);
-            free(starts); free(ends);
-            value_free(tval);
-            return out;
         }
-        
-        default:
-            interp->error = strdup("Unknown expression type");
+        return mv;
+    }
+    case EXPR_INDEX: {
+        // Evaluate target
+        Expr *target = expr->as.index.target;
+        Value tval = eval_expr(interp, target, env);
+        if (interp->error) {
+            return value_null();
+        }
+        size_t nidx = expr->as.index.indices.count;
+        if (nidx == 0) {
+            value_free(tval);
+            interp->error = strdup("Empty index list");
             interp->error_line = expr->line;
             interp->error_col = expr->column;
             return value_null();
+        }
+        bool is_map_index = expr->as.index.is_map;
+
+        if (is_map_index) {
+            if (tval.type != VAL_MAP) {
+                value_free(tval);
+                interp->error = strdup("Angle-bracket indexing '<...>' is only allowed on MAP values");
+                interp->error_line = expr->line;
+                interp->error_col = expr->column;
+                return value_null();
+            }
+        } else {
+            if (tval.type != VAL_TNS) {
+                value_free(tval);
+                interp->error = strdup("Square-bracket indexing '[...]' is only allowed on TNS values");
+                interp->error_line = expr->line;
+                interp->error_col = expr->column;
+                return value_null();
+            }
+        }
+
+        if (is_map_index && tval.type == VAL_MAP) {
+            // map indexing: support nested lookups m<k1,k2>
+            Value cur = tval;
+            for (size_t i = 0; i < nidx; i++) {
+                Expr *it = expr->as.index.indices.items[i];
+                Value key = eval_expr(interp, it, env);
+                if (interp->error) {
+                    value_free(cur);
+                    return value_null();
+                }
+                if (!(key.type == VAL_INT || key.type == VAL_STR || key.type == VAL_FLT)) {
+                    value_free(key);
+                    value_free(cur);
+                    interp->error = strdup("Map index must be INT, FLT or STR");
+                    interp->error_line = it->line;
+                    interp->error_col = it->column;
+                    return value_null();
+                }
+                int found = 0;
+                Value got = value_map_get(cur, key, &found);
+                value_free(key);
+                if (!found) {
+                    value_free(cur);
+                    interp->error = strdup("Map key not found");
+                    interp->error_line = it->line;
+                    interp->error_col = it->column;
+                    return value_null();
+                }
+                // If this is last index, return the found value
+                if (i + 1 == nidx) {
+                    // free original map container if it was a copy
+                    if (cur.type == VAL_MAP) {
+                        value_free(cur);
+                    }
+                    return got;
+                }
+                // Otherwise, continue descending; found must be a map
+                if (got.type != VAL_MAP) {
+                    value_free(got);
+                    value_free(cur);
+                    interp->error = strdup("Attempted nested map indexing on non-map value");
+                    interp->error_line = it->line;
+                    interp->error_col = it->column;
+                    return value_null();
+                }
+                // replace cur with got and continue
+                if (cur.type == VAL_MAP) {
+                    value_free(cur);
+                }
+                cur = got;
+            }
+            // Shouldn't reach here
+            value_free(cur);
+            return value_null();
+        }
+
+        if (tval.type != VAL_TNS) {
+            interp->error = strdup("Indexing is supported only on tensors and maps");
+            interp->error_line = expr->line;
+            interp->error_col = expr->column;
+            value_free(tval);
+            return value_null();
+        }
+        Tensor *t = tval.as.tns;
+
+        // Check whether all indices are simple integer indexes
+        bool all_int = true;
+        for (size_t i = 0; i < nidx; i++) {
+            Expr *it = expr->as.index.indices.items[i];
+            if (it->type != EXPR_INT) {
+                all_int = false;
+                break;
+            }
+        }
+
+        // If all are ints and count <= ndim, perform direct get
+        if (all_int) {
+            // Build 0-based idx array
+            size_t *idxs = malloc(sizeof(size_t) * nidx);
+            for (size_t i = 0; i < nidx; i++) {
+                Expr *it = expr->as.index.indices.items[i];
+                Value vi = eval_expr(interp, it, env);
+                if (interp->error) {
+                    free(idxs);
+                    value_free(tval);
+                    return value_null();
+                }
+                if (vi.type != VAL_INT) {
+                    interp->error = strdup("Index expression must evaluate to INT");
+                    interp->error_line = it->line;
+                    interp->error_col = it->column;
+                    value_free(vi);
+                    free(idxs);
+                    value_free(tval);
+                    return value_null();
+                }
+                int64_t v = vi.as.i;
+                // convert 1-based/negative to 0-based
+                int64_t dim = (int64_t)t->shape[i];
+                if (v < 0) {
+                    v = dim + v + 1;
+                }
+                if (v < 1 || v > dim) {
+                    interp->error = strdup("Index out of range");
+                    interp->error_line = it->line;
+                    interp->error_col = it->column;
+                    value_free(vi);
+                    free(idxs);
+                    value_free(tval);
+                    return value_null();
+                }
+                idxs[i] = (size_t)(v - 1);
+                value_free(vi);
+            }
+            Value out = value_tns_get(tval, idxs, nidx);
+            free(idxs);
+            value_free(tval);
+            return out;
+        }
+
+        // Mixed case: build starts/ends arrays (1-based inclusive per value_tns_slice)
+        int64_t *starts = malloc(sizeof(int64_t) * nidx);
+        int64_t *ends = malloc(sizeof(int64_t) * nidx);
+        for (size_t i = 0; i < nidx; i++) {
+            Expr *it = expr->as.index.indices.items[i];
+            if (it->type == EXPR_WILDCARD) {
+                starts[i] = 1;
+                ends[i] = (int64_t)t->shape[i];
+            } else if (it->type == EXPR_RANGE) {
+                // evaluate start and end
+                Value vs = eval_expr(interp, it->as.range.start, env);
+                if (interp->error) {
+                    free(starts);
+                    free(ends);
+                    value_free(tval);
+                    return value_null();
+                }
+                Value ve = eval_expr(interp, it->as.range.end, env);
+                if (interp->error) {
+                    value_free(vs);
+                    free(starts);
+                    free(ends);
+                    value_free(tval);
+                    return value_null();
+                }
+                if (vs.type != VAL_INT || ve.type != VAL_INT) {
+                    interp->error = strdup("Range bounds must be INT");
+                    interp->error_line = it->line;
+                    interp->error_col = it->column;
+                    value_free(vs);
+                    value_free(ve);
+                    free(starts);
+                    free(ends);
+                    value_free(tval);
+                    return value_null();
+                }
+                starts[i] = vs.as.i;
+                ends[i] = ve.as.i;
+                value_free(vs);
+                value_free(ve);
+            } else {
+                // general expression: expect INT
+                Value vi = eval_expr(interp, it, env);
+                if (interp->error) {
+                    free(starts);
+                    free(ends);
+                    value_free(tval);
+                    return value_null();
+                }
+                if (vi.type != VAL_INT) {
+                    interp->error = strdup("Index expression must evaluate to INT");
+                    interp->error_line = it->line;
+                    interp->error_col = it->column;
+                    value_free(vi);
+                    free(starts);
+                    free(ends);
+                    value_free(tval);
+                    return value_null();
+                }
+                starts[i] = vi.as.i;
+                ends[i] = vi.as.i;
+                value_free(vi);
+            }
+        }
+
+        Value out = value_tns_slice(tval, starts, ends, nidx);
+        free(starts);
+        free(ends);
+        value_free(tval);
+        return out;
+    }
+
+    default:
+        interp->error = strdup("Unknown expression type");
+        interp->error_line = expr->line;
+        interp->error_col = expr->column;
+        return value_null();
     }
 }
 
@@ -2175,10 +2580,10 @@ tns_eval_fail:
  * by other translation units and caused unneeded internal-declaration warnings.
  */
 
-ExecResult assign_index_chain(Interpreter* interp, Env* env, Expr* idx_expr, Value rhs, int stmt_line, int stmt_col) {
+ExecResult assign_index_chain(Interpreter *interp, Env *env, Expr *idx_expr, Value rhs, int stmt_line, int stmt_col) {
     // Collect index nodes from outermost -> innermost, and require base to be an identifier.
     size_t chain_len = 0;
-    Expr* walker = idx_expr;
+    Expr *walker = idx_expr;
     while (walker && walker->type == EXPR_INDEX) {
         chain_len++;
         walker = walker->as.index.target;
@@ -2188,7 +2593,7 @@ ExecResult assign_index_chain(Interpreter* interp, Env* env, Expr* idx_expr, Val
         return make_error("Indexed assignment base must be an identifier", stmt_line, stmt_col);
     }
 
-    const char* base_name = walker->as.ident;
+    const char *base_name = walker->as.ident;
     Value base_val = value_null();
     DeclType base_type = TYPE_UNKNOWN;
     bool base_initialized = false;
@@ -2213,7 +2618,7 @@ ExecResult assign_index_chain(Interpreter* interp, Env* env, Expr* idx_expr, Val
         base_initialized = true;
     }
 
-    Expr** nodes = malloc(sizeof(Expr*) * (chain_len ? chain_len : 1));
+    Expr **nodes = malloc(sizeof(Expr *) * (chain_len ? chain_len : 1));
     if (!nodes) {
         value_free(base_val);
         return make_error("Out of memory", stmt_line, stmt_col);
@@ -2228,12 +2633,12 @@ ExecResult assign_index_chain(Interpreter* interp, Env* env, Expr* idx_expr, Val
     }
 
     ExecResult out;
-    Value* cur = &base_val;
+    Value *cur = &base_val;
 
     // Process from innermost -> outermost
     for (int ni = (int)chain_len - 1; ni >= 0; ni--) {
-        Expr* node = nodes[ni];
-        ExprList* indices = &node->as.index.indices;
+        Expr *node = nodes[ni];
+        ExprList *indices = &node->as.index.indices;
         if (indices->count == 0) {
             out = make_error("Empty index list", node->line, node->column);
             goto cleanup;
@@ -2263,66 +2668,132 @@ ExecResult assign_index_chain(Interpreter* interp, Env* env, Expr* idx_expr, Val
         }
 
         if (cur->type == VAL_TNS) {
-            Tensor* t = cur->as.tns;
+            Tensor *t = cur->as.tns;
 
             // Allow indexing with ranges/wildcards or integers. Indices may be fewer than ndim.
             // Build per-dimension start/end (1-based inclusive) arrays for the full tensor dims.
-            int64_t* starts = malloc(sizeof(int64_t) * t->ndim);
-            int64_t* ends = malloc(sizeof(int64_t) * t->ndim);
+            int64_t *starts = malloc(sizeof(int64_t) * t->ndim);
+            int64_t *ends = malloc(sizeof(int64_t) * t->ndim);
             if (!starts || !ends) {
-                free(starts); free(ends);
+                free(starts);
+                free(ends);
                 out = make_error("Out of memory", stmt_line, stmt_col);
                 goto cleanup;
             }
 
             // default full spans
-            for (size_t i = 0; i < t->ndim; i++) { starts[i] = 1; ends[i] = (int64_t)t->shape[i]; }
+            for (size_t i = 0; i < t->ndim; i++) {
+                starts[i] = 1;
+                ends[i] = (int64_t)t->shape[i];
+            }
 
             // fill from provided indices
             for (size_t i = 0; i < indices->count; i++) {
-                Expr* it = indices->items[i];
+                Expr *it = indices->items[i];
                 if (it->type == EXPR_WILDCARD) {
-                    starts[i] = 1; ends[i] = (int64_t)t->shape[i];
+                    starts[i] = 1;
+                    ends[i] = (int64_t)t->shape[i];
                     continue;
                 }
                 if (it->type == EXPR_RANGE) {
                     // range node holds start and end expressions as children
-                    Expr* rs = it->as.range.start;
-                    Expr* re = it->as.range.end;
+                    Expr *rs = it->as.range.start;
+                    Expr *re = it->as.range.end;
                     Value vs = eval_expr(interp, rs, env);
-                    if (interp->error) { ExecResult err = make_error(interp->error, interp->error_line, interp->error_col); clear_error(interp); free(starts); free(ends); out = err; goto cleanup; }
+                    if (interp->error) {
+                        ExecResult err = make_error(interp->error, interp->error_line, interp->error_col);
+                        clear_error(interp);
+                        free(starts);
+                        free(ends);
+                        out = err;
+                        goto cleanup;
+                    }
                     Value ve = eval_expr(interp, re, env);
-                    if (interp->error) { ExecResult err = make_error(interp->error, interp->error_line, interp->error_col); clear_error(interp); value_free(vs); free(starts); free(ends); out = err; goto cleanup; }
-                    if (vs.type != VAL_INT || ve.type != VAL_INT) { value_free(vs); value_free(ve); free(starts); free(ends); out = make_error("Range endpoints must evaluate to INT", it->line, it->column); goto cleanup; }
-                    starts[i] = vs.as.i; ends[i] = ve.as.i;
-                    value_free(vs); value_free(ve);
+                    if (interp->error) {
+                        ExecResult err = make_error(interp->error, interp->error_line, interp->error_col);
+                        clear_error(interp);
+                        value_free(vs);
+                        free(starts);
+                        free(ends);
+                        out = err;
+                        goto cleanup;
+                    }
+                    if (vs.type != VAL_INT || ve.type != VAL_INT) {
+                        value_free(vs);
+                        value_free(ve);
+                        free(starts);
+                        free(ends);
+                        out = make_error("Range endpoints must evaluate to INT", it->line, it->column);
+                        goto cleanup;
+                    }
+                    starts[i] = vs.as.i;
+                    ends[i] = ve.as.i;
+                    value_free(vs);
+                    value_free(ve);
                     continue;
                 }
 
                 // single index expression
                 Value vi = eval_expr(interp, it, env);
-                if (interp->error) { ExecResult err = make_error(interp->error, interp->error_line, interp->error_col); clear_error(interp); free(starts); free(ends); out = err; goto cleanup; }
-                if (vi.type != VAL_INT) { value_free(vi); free(starts); free(ends); out = make_error("Index expression must evaluate to INT", it->line, it->column); goto cleanup; }
-                starts[i] = vi.as.i; ends[i] = vi.as.i; // fixed single element
+                if (interp->error) {
+                    ExecResult err = make_error(interp->error, interp->error_line, interp->error_col);
+                    clear_error(interp);
+                    free(starts);
+                    free(ends);
+                    out = err;
+                    goto cleanup;
+                }
+                if (vi.type != VAL_INT) {
+                    value_free(vi);
+                    free(starts);
+                    free(ends);
+                    out = make_error("Index expression must evaluate to INT", it->line, it->column);
+                    goto cleanup;
+                }
+                starts[i] = vi.as.i;
+                ends[i] = vi.as.i; // fixed single element
                 value_free(vi);
             }
 
             // Normalize negative indices and clamp; compute lengths
             size_t new_ndim = 0;
-            int* orig_to_out = malloc(sizeof(int) * t->ndim);
-            if (!orig_to_out) { free(starts); free(ends); out = make_error("Out of memory", stmt_line, stmt_col); goto cleanup; }
+            int *orig_to_out = malloc(sizeof(int) * t->ndim);
+            if (!orig_to_out) {
+                free(starts);
+                free(ends);
+                out = make_error("Out of memory", stmt_line, stmt_col);
+                goto cleanup;
+            }
             for (size_t i = 0; i < t->ndim; i++) {
                 int64_t s = starts[i];
                 int64_t e = ends[i];
                 int64_t dim = (int64_t)t->shape[i];
-                if (s < 0) s = dim + s + 1;
-                if (e < 0) e = dim + e + 1;
-                if (s < 1) s = 1;
-                if (e > dim) e = dim;
-                if (s > e) { starts[i] = 1; ends[i] = 0; orig_to_out[i] = -1; continue; }
-                starts[i] = s; ends[i] = e;
+                if (s < 0) {
+                    s = dim + s + 1;
+                }
+                if (e < 0) {
+                    e = dim + e + 1;
+                }
+                if (s < 1) {
+                    s = 1;
+                }
+                if (e > dim) {
+                    e = dim;
+                }
+                if (s > e) {
+                    starts[i] = 1;
+                    ends[i] = 0;
+                    orig_to_out[i] = -1;
+                    continue;
+                }
+                starts[i] = s;
+                ends[i] = e;
                 size_t len = (size_t)(e - s + 1);
-                if (len <= 1) orig_to_out[i] = -1; else orig_to_out[i] = (int)new_ndim++;
+                if (len <= 1) {
+                    orig_to_out[i] = -1;
+                } else {
+                    orig_to_out[i] = (int)new_ndim++;
+                }
             }
 
             if (new_ndim == 0) {
@@ -2335,7 +2806,9 @@ ExecResult assign_index_chain(Interpreter* interp, Env* env, Expr* idx_expr, Val
 
                 // type compatibility
                 if (rhs.type != VAL_TNS && value_type_to_decl(rhs.type) != t->elem_type) {
-                    free(starts); free(ends); free(orig_to_out);
+                    free(starts);
+                    free(ends);
+                    free(orig_to_out);
                     out = make_error("Element type mismatch", stmt_line, stmt_col);
                     goto cleanup;
                 }
@@ -2349,15 +2822,23 @@ ExecResult assign_index_chain(Interpreter* interp, Env* env, Expr* idx_expr, Val
                     t->data[src_offset] = value_copy(rhs);
                 }
                 mtx_unlock(&t->lock);
-                free(starts); free(ends); free(orig_to_out);
+                free(starts);
+                free(ends);
+                free(orig_to_out);
                 // Set cur to point at this element for further chaining
                 cur = &t->data[src_offset];
                 continue;
             }
 
             // Build output shape and validate RHS
-            size_t* out_shape = malloc(sizeof(size_t) * new_ndim);
-            if (!out_shape) { free(starts); free(ends); free(orig_to_out); out = make_error("Out of memory", stmt_line, stmt_col); goto cleanup; }
+            size_t *out_shape = malloc(sizeof(size_t) * new_ndim);
+            if (!out_shape) {
+                free(starts);
+                free(ends);
+                free(orig_to_out);
+                out = make_error("Out of memory", stmt_line, stmt_col);
+                goto cleanup;
+            }
             for (size_t i = 0; i < t->ndim; i++) {
                 if (orig_to_out[i] >= 0) {
                     out_shape[orig_to_out[i]] = (size_t)(ends[i] - starts[i] + 1);
@@ -2365,27 +2846,39 @@ ExecResult assign_index_chain(Interpreter* interp, Env* env, Expr* idx_expr, Val
             }
 
             if (rhs.type != VAL_TNS) {
-                free(starts); free(ends); free(orig_to_out); free(out_shape);
+                free(starts);
+                free(ends);
+                free(orig_to_out);
+                free(out_shape);
                 out = make_error("Right-hand side must be a TNS matching slice shape", node->line, node->column);
                 goto cleanup;
             }
 
-            Tensor* rt = rhs.as.tns;
+            Tensor *rt = rhs.as.tns;
             if (rt->ndim != new_ndim) {
-                free(starts); free(ends); free(orig_to_out); free(out_shape);
+                free(starts);
+                free(ends);
+                free(orig_to_out);
+                free(out_shape);
                 out = make_error("Right-hand side tensor dimensionality mismatch", node->line, node->column);
                 goto cleanup;
             }
             for (size_t d = 0; d < new_ndim; d++) {
                 if (rt->shape[d] != out_shape[d]) {
-                    free(starts); free(ends); free(orig_to_out); free(out_shape);
+                    free(starts);
+                    free(ends);
+                    free(orig_to_out);
+                    free(out_shape);
                     out = make_error("Right-hand side tensor shape mismatch", node->line, node->column);
                     goto cleanup;
                 }
             }
 
             if (rt->elem_type != t->elem_type) {
-                free(starts); free(ends); free(orig_to_out); free(out_shape);
+                free(starts);
+                free(ends);
+                free(orig_to_out);
+                free(out_shape);
                 out = make_error("Element type mismatch", stmt_line, stmt_col);
                 goto cleanup;
             }
@@ -2402,7 +2895,10 @@ ExecResult assign_index_chain(Interpreter* interp, Env* env, Expr* idx_expr, Val
                     // find orig dim for this d
                     size_t orig = 0;
                     for (size_t k = 0; k < t->ndim; k++) {
-                        if (orig_to_out[k] == (int)d) { orig = k; break; }
+                        if (orig_to_out[k] == (int)d) {
+                            orig = k;
+                            break;
+                        }
                     }
                     size_t src_pos = pos + (size_t)(starts[orig] - 1);
                     src_offset += src_pos * t->strides[orig];
@@ -2423,7 +2919,9 @@ ExecResult assign_index_chain(Interpreter* interp, Env* env, Expr* idx_expr, Val
             }
 
             free(out_shape);
-            free(starts); free(ends); free(orig_to_out);
+            free(starts);
+            free(ends);
+            free(orig_to_out);
             // After slice assignment, set cur to base (no further chaining into this node)
             cur = &base_val;
             rhs_applied_directly = true;
@@ -2432,7 +2930,7 @@ ExecResult assign_index_chain(Interpreter* interp, Env* env, Expr* idx_expr, Val
 
         if (cur->type == VAL_MAP) {
             for (size_t i = 0; i < indices->count; i++) {
-                Expr* it = indices->items[i];
+                Expr *it = indices->items[i];
                 Value key = eval_expr(interp, it, env);
                 if (interp->error) {
                     ExecResult err = make_error(interp->error, interp->error_line, interp->error_col);
@@ -2451,7 +2949,7 @@ ExecResult assign_index_chain(Interpreter* interp, Env* env, Expr* idx_expr, Val
 
                 if (last_node_in_chain && last_key_in_node) {
                     // Final destination: assign rhs here.
-                    Value* slot = value_map_get_ptr(cur, key, true);
+                    Value *slot = value_map_get_ptr(cur, key, true);
                     value_free(key);
                     if (!slot) {
                         out = make_error("Internal error assigning to map", stmt_line, stmt_col);
@@ -2468,7 +2966,7 @@ ExecResult assign_index_chain(Interpreter* interp, Env* env, Expr* idx_expr, Val
                 }
 
                 // Descend into slot.
-                Value* slot = value_map_get_ptr(cur, key, true);
+                Value *slot = value_map_get_ptr(cur, key, true);
                 value_free(key);
                 if (!slot) {
                     out = make_error("Internal error indexing map", stmt_line, stmt_col);
@@ -2517,8 +3015,10 @@ cleanup:
     return out;
 }
 
-static ExecResult exec_stmt(Interpreter* interp, Stmt* stmt, Env* env, LabelMap* labels) {
-    if (!stmt) return make_ok(value_null());
+static ExecResult exec_stmt(Interpreter *interp, Stmt *stmt, Env *env, LabelMap *labels) {
+    if (!stmt) {
+        return make_ok(value_null());
+    }
     trace_log_step(interp, stmt, env);
 
     // Run any periodic hooks that are due for this rewrite step and notify
@@ -2533,137 +3033,155 @@ static ExecResult exec_stmt(Interpreter* interp, Stmt* stmt, Env* env, LabelMap*
     }
 
     switch (stmt->type) {
-        case STMT_BLOCK:
-            return exec_stmt_list(interp, &stmt->as.block, env, labels);
+    case STMT_BLOCK:
+        return exec_stmt_list(interp, &stmt->as.block, env, labels);
 
-        case STMT_EXPR: {
-            Value v = eval_expr(interp, stmt->as.expr_stmt.expr, env);
-            if (interp->error) {
-                ExecResult err = make_error(interp->error, interp->error_line, interp->error_col);
-                clear_error(interp);
-                return err;
+    case STMT_EXPR: {
+        Value v = eval_expr(interp, stmt->as.expr_stmt.expr, env);
+        if (interp->error) {
+            ExecResult err = make_error(interp->error, interp->error_line, interp->error_col);
+            clear_error(interp);
+            return err;
+        }
+        value_free(v);
+        return make_ok(value_null());
+    }
+
+    case STMT_DECL: {
+        EnvEntry *existing = env_get_entry(env, stmt->as.decl.name);
+        if (!existing) {
+            Env *decl_env = env;
+            if (!interp->isolate_env_writes && env->parent) {
+                decl_env = env->parent;
             }
+            env_define(decl_env, stmt->as.decl.name, stmt->as.decl.decl_type);
+            return make_ok(value_null());
+        }
+
+        /* If the symbol already exists, the declared static type must match.
+           Per specification, redeclaring with a different static type is
+           a runtime error rather than a no-op. */
+        if (existing->decl_type != stmt->as.decl.decl_type) {
+            char buf[128];
+            snprintf(buf, sizeof(buf), "Type mismatch: expected %s but got %s", decl_type_name(existing->decl_type),
+                     decl_type_name(stmt->as.decl.decl_type));
+            return make_error(buf, stmt->line, stmt->column);
+        }
+
+        return make_ok(value_null());
+    }
+
+    case STMT_ASSIGN: {
+        // Special-case: RHS is a pointer literal -> create alias binding on LHS (no PTR Value type)
+        if (stmt->as.assign.value && stmt->as.assign.value->type == EXPR_PTR && stmt->as.assign.target == NULL) {
+            const char *tgt = stmt->as.assign.value->as.ptr_name;
+            if (!tgt) {
+                return make_error("Invalid pointer literal", stmt->line, stmt->column);
+            }
+            if (stmt->as.assign.has_type) {
+                DeclType expected = stmt->as.assign.decl_type;
+                if (!env_set_alias(env, stmt->as.assign.name, tgt, expected, true)) {
+                    char buf[256];
+                    snprintf(buf, sizeof(buf), "Cannot create alias '%s' -> '%s'", stmt->as.assign.name, tgt);
+                    return make_error(buf, stmt->line, stmt->column);
+                }
+            } else {
+                if (!env_set_alias(env, stmt->as.assign.name, tgt, TYPE_UNKNOWN, false)) {
+                    char buf[256];
+                    snprintf(buf, sizeof(buf), "Cannot create alias '%s' -> '%s'", stmt->as.assign.name, tgt);
+                    return make_error(buf, stmt->line, stmt->column);
+                }
+            }
+            return make_ok(value_null());
+        }
+
+        Value v = eval_expr(interp, stmt->as.assign.value, env);
+        if (interp->error) {
+            ExecResult err = make_error(interp->error, interp->error_line, interp->error_col);
+            clear_error(interp);
+            return err;
+        }
+
+        // If this assignment has an expression target (indexed assignment), handle specially
+        if (stmt->as.assign.target) {
+            if (stmt->as.assign.target->type != EXPR_INDEX) {
+                value_free(v);
+                return make_error("Can only assign to indexed targets or identifiers", stmt->line, stmt->column);
+            }
+
+            ExecResult ar;
+            if (ns_buffer_active() && !ns_buffer_is_prepare_thread()) {
+                char *buffered_error = NULL;
+                int buffered_line = 0;
+                int buffered_col = 0;
+                if (!ns_buffer_assign_index(interp, env, stmt->as.assign.target, v, stmt->line, stmt->column,
+                                            &buffered_error, &buffered_line, &buffered_col)) {
+                    ar = make_error(buffered_error ? buffered_error : "Indexed assignment failed",
+                                    buffered_line ? buffered_line : stmt->line,
+                                    buffered_col ? buffered_col : stmt->column);
+                } else {
+                    ar = make_ok(value_null());
+                }
+                free(buffered_error);
+            } else {
+                ar = assign_index_chain(interp, env, stmt->as.assign.target, v, stmt->line, stmt->column);
+            }
+            if (ar.status == EXEC_ERROR) {
+                value_free(v);
+                return ar;
+            }
+
             value_free(v);
             return make_ok(value_null());
         }
 
-        case STMT_DECL: {
-            EnvEntry* existing = env_get_entry(env, stmt->as.decl.name);
-            if (!existing) {
-                Env* decl_env = env;
-                if (!interp->isolate_env_writes && env->parent) {
-                    decl_env = env->parent;
-                }
-                env_define(decl_env, stmt->as.decl.name, stmt->as.decl.decl_type);
-                return make_ok(value_null());
-            }
+        if (stmt->as.assign.has_type) {
+            DeclType expected = stmt->as.assign.decl_type;
+            DeclType actual = value_type_to_decl(v.type);
 
-            /* If the symbol already exists, the declared static type must match.
-               Per specification, redeclaring with a different static type is
-               a runtime error rather than a no-op. */
-            if (existing->decl_type != stmt->as.decl.decl_type) {
+            if (expected != actual) {
                 char buf[128];
-                snprintf(buf, sizeof(buf), "Type mismatch: expected %s but got %s",
-                         decl_type_name(existing->decl_type), decl_type_name(stmt->as.decl.decl_type));
+                snprintf(buf, sizeof(buf), "Type mismatch: expected %s but got %s", decl_type_name(expected),
+                         value_type_name(v));
+                value_free(v);
                 return make_error(buf, stmt->line, stmt->column);
             }
 
-            return make_ok(value_null());
-        }
-
-        case STMT_ASSIGN: {
-            // Special-case: RHS is a pointer literal -> create alias binding on LHS (no PTR Value type)
-            if (stmt->as.assign.value && stmt->as.assign.value->type == EXPR_PTR && stmt->as.assign.target == NULL) {
-                const char* tgt = stmt->as.assign.value->as.ptr_name;
-                if (!tgt) return make_error("Invalid pointer literal", stmt->line, stmt->column);
-                if (stmt->as.assign.has_type) {
-                    DeclType expected = stmt->as.assign.decl_type;
-                    if (!env_set_alias(env, stmt->as.assign.name, tgt, expected, true)) {
-                        char buf[256];
-                        snprintf(buf, sizeof(buf), "Cannot create alias '%s' -> '%s'", stmt->as.assign.name, tgt);
-                        return make_error(buf, stmt->line, stmt->column);
-                    }
-                } else {
-                    if (!env_set_alias(env, stmt->as.assign.name, tgt, TYPE_UNKNOWN, false)) {
-                        char buf[256];
-                        snprintf(buf, sizeof(buf), "Cannot create alias '%s' -> '%s'", stmt->as.assign.name, tgt);
-                        return make_error(buf, stmt->line, stmt->column);
-                    }
-                }
-                return make_ok(value_null());
-            }
-
-            Value v = eval_expr(interp, stmt->as.assign.value, env);
-            if (interp->error) {
-                ExecResult err = make_error(interp->error, interp->error_line, interp->error_col);
-                clear_error(interp);
-                return err;
-            }
-
-            // If this assignment has an expression target (indexed assignment), handle specially
-            if (stmt->as.assign.target) {
-                if (stmt->as.assign.target->type != EXPR_INDEX) {
-                    value_free(v);
-                    return make_error("Can only assign to indexed targets or identifiers", stmt->line, stmt->column);
-                }
-
-                ExecResult ar;
-                if (ns_buffer_active() && !ns_buffer_is_prepare_thread()) {
-                    char* buffered_error = NULL;
-                    int buffered_line = 0;
-                    int buffered_col = 0;
-                    if (!ns_buffer_assign_index(interp, env, stmt->as.assign.target, v,
-                                                stmt->line, stmt->column,
-                                                &buffered_error, &buffered_line, &buffered_col)) {
-                        ar = make_error(buffered_error ? buffered_error : "Indexed assignment failed",
-                                        buffered_line ? buffered_line : stmt->line,
-                                        buffered_col ? buffered_col : stmt->column);
-                    } else {
-                        ar = make_ok(value_null());
-                    }
-                    free(buffered_error);
-                } else {
-                    ar = assign_index_chain(interp, env, stmt->as.assign.target, v, stmt->line, stmt->column);
-                }
-                if (ar.status == EXEC_ERROR) {
-                    value_free(v);
-                    return ar;
-                }
-
+            EnvEntry *existing = env_get_entry(env, stmt->as.assign.name);
+            if (existing && existing->decl_type != expected) {
+                char buf[128];
+                snprintf(buf, sizeof(buf), "Type mismatch: expected %s but got %s", decl_type_name(existing->decl_type),
+                         decl_type_name(expected));
                 value_free(v);
-                return make_ok(value_null());
+                return make_error(buf, stmt->line, stmt->column);
             }
-
-            if (stmt->as.assign.has_type) {
-                DeclType expected = stmt->as.assign.decl_type;
-                DeclType actual = value_type_to_decl(v.type);
-
-                if (expected != actual) {
+            Env *assign_env = env;
+            if (!interp->isolate_env_writes && !existing && env->parent) {
+                assign_env = env->parent;
+            }
+            if (!existing) {
+                env_define(assign_env, stmt->as.assign.name, expected);
+            }
+            if (!env_assign(assign_env, stmt->as.assign.name, v, expected, true)) {
+                EnvEntry *echeck = env_get_entry(assign_env, stmt->as.assign.name);
+                if (echeck && echeck->decl_type != actual) {
                     char buf[128];
                     snprintf(buf, sizeof(buf), "Type mismatch: expected %s but got %s",
-                             decl_type_name(expected), value_type_name(v));
+                             decl_type_name(echeck->decl_type), value_type_name(v));
                     value_free(v);
                     return make_error(buf, stmt->line, stmt->column);
                 }
-
-                EnvEntry* existing = env_get_entry(env, stmt->as.assign.name);
-                if (existing && existing->decl_type != expected) {
-                    char buf[128];
-                    snprintf(buf, sizeof(buf), "Type mismatch: expected %s but got %s",
-                             decl_type_name(existing->decl_type), decl_type_name(expected));
-                    value_free(v);
-                    return make_error(buf, stmt->line, stmt->column);
-                }
-                Env* assign_env = env;
-                if (!interp->isolate_env_writes && !existing && env->parent) {
-                    assign_env = env->parent;
-                }
-                if (!existing) {
-                    env_define(assign_env, stmt->as.assign.name, expected);
-                }
-                if (!env_assign(assign_env, stmt->as.assign.name, v, expected, true)) {
-                    EnvEntry* echeck = env_get_entry(assign_env, stmt->as.assign.name);
-                    if (echeck && echeck->decl_type != actual) {
+                char buf[256];
+                snprintf(buf, sizeof(buf), "Cannot assign to frozen identifier '%s'", stmt->as.assign.name);
+                value_free(v);
+                return make_error(buf, stmt->line, stmt->column);
+            }
+        } else {
+            if (!env_assign(env, stmt->as.assign.name, v, TYPE_UNKNOWN, false)) {
+                EnvEntry *echeck = env_get_entry(env, stmt->as.assign.name);
+                if (echeck) {
+                    DeclType actual = value_type_to_decl(v.type);
+                    if (echeck->decl_type != TYPE_UNKNOWN && echeck->decl_type != actual) {
                         char buf[128];
                         snprintf(buf, sizeof(buf), "Type mismatch: expected %s but got %s",
                                  decl_type_name(echeck->decl_type), value_type_name(v));
@@ -2675,599 +3193,602 @@ static ExecResult exec_stmt(Interpreter* interp, Stmt* stmt, Env* env, LabelMap*
                     value_free(v);
                     return make_error(buf, stmt->line, stmt->column);
                 }
-            } else {
-                if (!env_assign(env, stmt->as.assign.name, v, TYPE_UNKNOWN, false)) {
-                    EnvEntry* echeck = env_get_entry(env, stmt->as.assign.name);
-                    if (echeck) {
-                        DeclType actual = value_type_to_decl(v.type);
-                        if (echeck->decl_type != TYPE_UNKNOWN && echeck->decl_type != actual) {
-                            char buf[128];
-                            snprintf(buf, sizeof(buf), "Type mismatch: expected %s but got %s",
-                                     decl_type_name(echeck->decl_type), value_type_name(v));
-                            value_free(v);
-                            return make_error(buf, stmt->line, stmt->column);
-                        }
-                        char buf[256];
-                        snprintf(buf, sizeof(buf), "Cannot assign to frozen identifier '%s'", stmt->as.assign.name);
-                        value_free(v);
-                        return make_error(buf, stmt->line, stmt->column);
-                    }
-                    char buf[128];
-                    snprintf(buf, sizeof(buf), "Cannot assign to undeclared identifier '%s'", stmt->as.assign.name);
-                    value_free(v);
-                    return make_error(buf, stmt->line, stmt->column);
-                }
-            }
-            value_free(v);
-            return make_ok(value_null());
-        }
-
-        case STMT_FUNC: {
-            // Validate parameter ordering: per specification positional
-            // parameters MUST appear before any parameters with defaults.
-            // Reject function definitions which violate this rule early so
-            // callers get a clear error at definition time instead of
-            // experiencing confusing call-time failures.
-            for (size_t _pi = 0; _pi < stmt->as.func_stmt.params.count; _pi++) {
-                Param* _p = &stmt->as.func_stmt.params.items[_pi];
-                if (!_p) continue;
-                // Once we observe a parameter with a default, all subsequent
-                // parameters must also have defaults.
-                if (_p->default_value) {
-                    // mark and continue scanning remaining params to ensure
-                    // any subsequent non-defaults are detected below
-                    continue;
-                }
-                // If any earlier parameter had a default, but this one does
-                // not, that's a violation. To detect that we scan backwards
-                // from here to see if any prior param had a default.
-                for (size_t _pj = 0; _pj < _pi; _pj++) {
-                    if (stmt->as.func_stmt.params.items[_pj].default_value) {
-                        return make_error("Parameters with defaults must follow positional parameters",
-                        stmt->line, stmt->column);
-                    }
-                }
-            }
-
-            // Register user-defined function in the interpreter
-            Func* f = create_runtime_function(stmt->as.func_stmt.name,
-                                              stmt->as.func_stmt.return_type,
-                                              &stmt->as.func_stmt.params,
-                                              stmt->as.func_stmt.body,
-                                              env);
-
-            if (builtin_lookup(f->name)) {
-                free_runtime_function(f);
-                return make_error("Function name conflicts with built-in", stmt->line, stmt->column);
-            }
-
-            EnvEntry* prior = env_get_entry(env, f->name);
-            if (prior && prior->decl_type != TYPE_FUNC) {
-                free_runtime_function(f);
-                return make_error("Function name conflicts with existing symbol", stmt->line, stmt->column);
-            }
-
-            // Also expose the function as a binding in the current environment
-            // so that builtins which operate on identifiers (DEL, EXIST, etc.)
-            // can find and manipulate the function by name.
-            Value fv = value_func(f);
-            EnvEntry* existing = env_get_entry(env, f->name);
-            Env* bind_env = env;
-            if (!interp->isolate_env_writes && !existing && env->parent) {
-                bind_env = env->parent;
-            }
-            if (!env_assign(bind_env, f->name, fv, TYPE_FUNC, true)) {
-                // If we cannot assign the function into the environment, treat as error
-                return make_error("Failed to bind function name in environment", stmt->line, stmt->column);
-            }
-
-            return make_ok(value_null());
-        }
-
-        case STMT_RETURN: {
-            // RETURN is valid only inside a function. Detect function
-            // execution context by inspecting the trace stack: function
-            // call frames are pushed with has_call_location == 1.
-            if (interp->trace_stack_count == 0 ||
-                interp->trace_stack[interp->trace_stack_count - 1].has_call_location == 0) {
-                return make_error("RETURN used outside function", stmt->line, stmt->column);
-            }
-
-            // Evaluate return expression and propagate as EXEC_RETURN
-            Value v = eval_expr(interp, stmt->as.return_stmt.value, env);
-            if (interp->error) {
-                ExecResult err = make_error(interp->error, interp->error_line, interp->error_col);
-                clear_error(interp);
-                return err;
-            }
-            ExecResult res;
-            res.status = EXEC_RETURN;
-            res.value = v; // caller will own and free
-            res.break_count = 0;
-            res.jump_index = -1;
-            res.error = NULL;
-            res.error_line = 0;
-            res.error_column = 0;
-            return res;
-        }
-
-        case STMT_POP: {
-            // POP: retrieve identifier value, delete binding, and return the value
-            const char* name = stmt->as.pop_stmt.name;
-            // POP is only valid inside a function (env != global_env)
-            if (env == interp->global_env) {
-                return make_error("POP used outside function", stmt->line, stmt->column);
-            }
-
-            Value v;
-            DeclType dtype;
-            bool initialized = false;
-            if (!env_get(env, name, &v, &dtype, &initialized) || !initialized) {
-                return make_error("Cannot POP undefined or uninitialized identifier", stmt->line, stmt->column);
-            }
-
-            if (!env_delete(env, name)) {
-                value_free(v);
-                return make_error("Failed to delete identifier during POP", stmt->line, stmt->column);
-            }
-
-            ExecResult res;
-            res.status = EXEC_RETURN;
-            res.value = v; // transfer ownership to caller
-            res.break_count = 0;
-            res.jump_index = -1;
-            res.error = NULL;
-            res.error_line = 0;
-            res.error_column = 0;
-            return res;
-        }
-
-        case STMT_TRY: {
-            // Execute try block and, on error, run catch block if present
-            bool prev_in_try = interp->in_try_block;
-            interp->in_try_block = true;
-            ExecResult tres = exec_stmt(interp, stmt->as.try_stmt.try_block, env, labels);
-            interp->in_try_block = prev_in_try;
-
-            if (tres.status == EXEC_ERROR) {
-                // Determine error message
-                char* msg = NULL;
-                if (tres.error) {
-                    msg = strdup(tres.error);
-                } else if (interp->error) {
-                    msg = strdup(interp->error);
-                } else {
-                    msg = strdup("Error");
-                }
-
-                // Clear interpreter error state
-                clear_error(interp);
-
-                // If a catch block exists, execute it. For the parameterized
-                // form `CATCH(SYMBOL: name)` create a child environment so the
-                // binding is temporary and shadows any outer binding only for
-                // the duration of the catch block (per specification).
-                if (stmt->as.try_stmt.catch_block) {
-                    Env* exec_env = env; /* default: use existing env */
-                    Env* child_env = NULL;
-                    if (stmt->as.try_stmt.catch_name) {
-                        child_env = env_create(env);
-                        exec_env = child_env;
-                        if (!env_define(exec_env, stmt->as.try_stmt.catch_name, TYPE_STR)) {
-                            free(msg);
-                            env_free(child_env);
-                            return make_error("Cannot bind catch name (frozen or existing)", stmt->line, stmt->column);
-                        }
-                        if (!env_assign(exec_env, stmt->as.try_stmt.catch_name, value_str(msg), TYPE_STR, true)) {
-                            free(msg);
-                            env_free(child_env);
-                            return make_error("Cannot bind catch name (frozen)", stmt->line, stmt->column);
-                        }
-                    }
-                    free(msg);
-                    ExecResult cres = exec_stmt(interp, stmt->as.try_stmt.catch_block, exec_env, labels);
-                    if (child_env) env_free(child_env);
-                    if (cres.status == EXEC_ERROR) return cres;
-                    return cres;
-                }
-
-                free(msg);
-                // No catch -> propagate error upward
-                return tres;
-            }
-
-            // No error in try block -> normal completion
-            return tres;
-        }
-
-        case STMT_BREAK: {
-            // Evaluate break count expression
-            Value v = eval_expr(interp, stmt->as.break_stmt.value, env);
-            if (interp->error) {
-                ExecResult err = make_error(interp->error, interp->error_line, interp->error_col);
-                clear_error(interp);
-                return err;
-            }
-            if (v.type != VAL_INT) {
-                value_free(v);
-                return make_error("BREAK requires INT argument", stmt->line, stmt->column);
-            }
-            int64_t bc = v.as.i;
-            if (bc <= 0) {
-                value_free(v);
-                return make_error("BREAK count must be > 0", stmt->line, stmt->column);
-            }
-            if (bc > interp->loop_depth) {
                 char buf[128];
-                snprintf(buf, sizeof(buf), "BREAK count %lld exceeds current loop nesting depth %d", (long long)bc, interp->loop_depth);
+                snprintf(buf, sizeof(buf), "Cannot assign to undeclared identifier '%s'", stmt->as.assign.name);
                 value_free(v);
                 return make_error(buf, stmt->line, stmt->column);
             }
-            ExecResult res;
-            res.status = EXEC_BREAK;
-            res.value = value_null();
-            res.break_count = (int)bc;
-            res.jump_index = -1;
-            res.error = NULL;
-            res.error_line = 0;
-            res.error_column = 0;
+        }
+        value_free(v);
+        return make_ok(value_null());
+    }
+
+    case STMT_FUNC: {
+        // Validate parameter ordering: per specification positional
+        // parameters MUST appear before any parameters with defaults.
+        // Reject function definitions which violate this rule early so
+        // callers get a clear error at definition time instead of
+        // experiencing confusing call-time failures.
+        for (size_t _pi = 0; _pi < stmt->as.func_stmt.params.count; _pi++) {
+            Param *_p = &stmt->as.func_stmt.params.items[_pi];
+            if (!_p) {
+                continue;
+            }
+            // Once we observe a parameter with a default, all subsequent
+            // parameters must also have defaults.
+            if (_p->default_value) {
+                // mark and continue scanning remaining params to ensure
+                // any subsequent non-defaults are detected below
+                continue;
+            }
+            // If any earlier parameter had a default, but this one does
+            // not, that's a violation. To detect that we scan backwards
+            // from here to see if any prior param had a default.
+            for (size_t _pj = 0; _pj < _pi; _pj++) {
+                if (stmt->as.func_stmt.params.items[_pj].default_value) {
+                    return make_error("Parameters with defaults must follow positional parameters", stmt->line,
+                                      stmt->column);
+                }
+            }
+        }
+
+        // Register user-defined function in the interpreter
+        Func *f = create_runtime_function(stmt->as.func_stmt.name, stmt->as.func_stmt.return_type,
+                                          &stmt->as.func_stmt.params, stmt->as.func_stmt.body, env);
+
+        if (builtin_lookup(f->name)) {
+            free_runtime_function(f);
+            return make_error("Function name conflicts with built-in", stmt->line, stmt->column);
+        }
+
+        EnvEntry *prior = env_get_entry(env, f->name);
+        if (prior && prior->decl_type != TYPE_FUNC) {
+            free_runtime_function(f);
+            return make_error("Function name conflicts with existing symbol", stmt->line, stmt->column);
+        }
+
+        // Also expose the function as a binding in the current environment
+        // so that builtins which operate on identifiers (DEL, EXIST, etc.)
+        // can find and manipulate the function by name.
+        Value fv = value_func(f);
+        EnvEntry *existing = env_get_entry(env, f->name);
+        Env *bind_env = env;
+        if (!interp->isolate_env_writes && !existing && env->parent) {
+            bind_env = env->parent;
+        }
+        if (!env_assign(bind_env, f->name, fv, TYPE_FUNC, true)) {
+            // If we cannot assign the function into the environment, treat as error
+            return make_error("Failed to bind function name in environment", stmt->line, stmt->column);
+        }
+
+        return make_ok(value_null());
+    }
+
+    case STMT_RETURN: {
+        // RETURN is valid only inside a function. Detect function
+        // execution context by inspecting the trace stack: function
+        // call frames are pushed with has_call_location == 1.
+        if (interp->trace_stack_count == 0 ||
+            interp->trace_stack[interp->trace_stack_count - 1].has_call_location == 0) {
+            return make_error("RETURN used outside function", stmt->line, stmt->column);
+        }
+
+        // Evaluate return expression and propagate as EXEC_RETURN
+        Value v = eval_expr(interp, stmt->as.return_stmt.value, env);
+        if (interp->error) {
+            ExecResult err = make_error(interp->error, interp->error_line, interp->error_col);
+            clear_error(interp);
+            return err;
+        }
+        ExecResult res;
+        res.status = EXEC_RETURN;
+        res.value = v; // caller will own and free
+        res.break_count = 0;
+        res.jump_index = -1;
+        res.error = NULL;
+        res.error_line = 0;
+        res.error_column = 0;
+        return res;
+    }
+
+    case STMT_POP: {
+        // POP: retrieve identifier value, delete binding, and return the value
+        const char *name = stmt->as.pop_stmt.name;
+        // POP is only valid inside a function (env != global_env)
+        if (env == interp->global_env) {
+            return make_error("POP used outside function", stmt->line, stmt->column);
+        }
+
+        Value v;
+        DeclType dtype;
+        bool initialized = false;
+        if (!env_get(env, name, &v, &dtype, &initialized) || !initialized) {
+            return make_error("Cannot POP undefined or uninitialized identifier", stmt->line, stmt->column);
+        }
+
+        if (!env_delete(env, name)) {
             value_free(v);
-            return res;
+            return make_error("Failed to delete identifier during POP", stmt->line, stmt->column);
         }
 
-        case STMT_CONTINUE: {
-            // CONTINUE is only valid inside a loop
-            if (interp->loop_depth == 0) {
-                return make_error("CONTINUE used outside loop", stmt->line, stmt->column);
+        ExecResult res;
+        res.status = EXEC_RETURN;
+        res.value = v; // transfer ownership to caller
+        res.break_count = 0;
+        res.jump_index = -1;
+        res.error = NULL;
+        res.error_line = 0;
+        res.error_column = 0;
+        return res;
+    }
+
+    case STMT_TRY: {
+        // Execute try block and, on error, run catch block if present
+        bool prev_in_try = interp->in_try_block;
+        interp->in_try_block = true;
+        ExecResult tres = exec_stmt(interp, stmt->as.try_stmt.try_block, env, labels);
+        interp->in_try_block = prev_in_try;
+
+        if (tres.status == EXEC_ERROR) {
+            // Determine error message
+            char *msg = NULL;
+            if (tres.error) {
+                msg = strdup(tres.error);
+            } else if (interp->error) {
+                msg = strdup(interp->error);
+            } else {
+                msg = strdup("Error");
             }
 
-            ExecResult res;
-            res.status = EXEC_CONTINUE;
-            res.value = value_null();
-            res.break_count = 0;
-            res.jump_index = -1;
-            res.error = NULL;
-            res.error_line = 0;
-            res.error_column = 0;
-            return res;
+            // Clear interpreter error state
+            clear_error(interp);
+
+            // If a catch block exists, execute it. For the parameterized
+            // form `CATCH(SYMBOL: name)` create a child environment so the
+            // binding is temporary and shadows any outer binding only for
+            // the duration of the catch block (per specification).
+            if (stmt->as.try_stmt.catch_block) {
+                Env *exec_env = env; /* default: use existing env */
+                Env *child_env = NULL;
+                if (stmt->as.try_stmt.catch_name) {
+                    child_env = env_create(env);
+                    exec_env = child_env;
+                    if (!env_define(exec_env, stmt->as.try_stmt.catch_name, TYPE_STR)) {
+                        free(msg);
+                        env_free(child_env);
+                        return make_error("Cannot bind catch name (frozen or existing)", stmt->line, stmt->column);
+                    }
+                    if (!env_assign(exec_env, stmt->as.try_stmt.catch_name, value_str(msg), TYPE_STR, true)) {
+                        free(msg);
+                        env_free(child_env);
+                        return make_error("Cannot bind catch name (frozen)", stmt->line, stmt->column);
+                    }
+                }
+                free(msg);
+                ExecResult cres = exec_stmt(interp, stmt->as.try_stmt.catch_block, exec_env, labels);
+                if (child_env) {
+                    env_free(child_env);
+                }
+                if (cres.status == EXEC_ERROR) {
+                    return cres;
+                }
+                return cres;
+            }
+
+            free(msg);
+            // No catch -> propagate error upward
+            return tres;
         }
 
-        case STMT_GOTOPOINT: {
-            // Gotopoint declarations are collected in exec_stmt_list's first pass.
-            // At runtime they are effectively a no-op (the label mapping is already built).
-            return make_ok(value_null());
+        // No error in try block -> normal completion
+        return tres;
+    }
+
+    case STMT_BREAK: {
+        // Evaluate break count expression
+        Value v = eval_expr(interp, stmt->as.break_stmt.value, env);
+        if (interp->error) {
+            ExecResult err = make_error(interp->error, interp->error_line, interp->error_col);
+            clear_error(interp);
+            return err;
+        }
+        if (v.type != VAL_INT) {
+            value_free(v);
+            return make_error("BREAK requires INT argument", stmt->line, stmt->column);
+        }
+        int64_t bc = v.as.i;
+        if (bc <= 0) {
+            value_free(v);
+            return make_error("BREAK count must be > 0", stmt->line, stmt->column);
+        }
+        if (bc > interp->loop_depth) {
+            char buf[128];
+            snprintf(buf, sizeof(buf), "BREAK count %lld exceeds current loop nesting depth %d", (long long)bc,
+                     interp->loop_depth);
+            value_free(v);
+            return make_error(buf, stmt->line, stmt->column);
+        }
+        ExecResult res;
+        res.status = EXEC_BREAK;
+        res.value = value_null();
+        res.break_count = (int)bc;
+        res.jump_index = -1;
+        res.error = NULL;
+        res.error_line = 0;
+        res.error_column = 0;
+        value_free(v);
+        return res;
+    }
+
+    case STMT_CONTINUE: {
+        // CONTINUE is only valid inside a loop
+        if (interp->loop_depth == 0) {
+            return make_error("CONTINUE used outside loop", stmt->line, stmt->column);
         }
 
-        case STMT_GOTO: {
-            Value target = eval_expr(interp, stmt->as.goto_stmt.target, env);
-            if (interp->error) {
-                ExecResult err = make_error(interp->error, interp->error_line, interp->error_col);
-                clear_error(interp);
-                return err;
-            }
+        ExecResult res;
+        res.status = EXEC_CONTINUE;
+        res.value = value_null();
+        res.break_count = 0;
+        res.jump_index = -1;
+        res.error = NULL;
+        res.error_line = 0;
+        res.error_column = 0;
+        return res;
+    }
 
-            if (!(target.type == VAL_INT || target.type == VAL_STR)) {
-                value_free(target);
-                return make_error("GOTO requires INT or STR argument", stmt->line, stmt->column);
-            }
+    case STMT_GOTOPOINT: {
+        // Gotopoint declarations are collected in exec_stmt_list's first pass.
+        // At runtime they are effectively a no-op (the label mapping is already built).
+        return make_ok(value_null());
+    }
 
-            if (target.type == VAL_INT && target.as.i < 0) {
-                value_free(target);
-                return make_error("Negative GOTO target is not allowed", stmt->line, stmt->column);
-            }
+    case STMT_GOTO: {
+        Value target = eval_expr(interp, stmt->as.goto_stmt.target, env);
+        if (interp->error) {
+            ExecResult err = make_error(interp->error, interp->error_line, interp->error_col);
+            clear_error(interp);
+            return err;
+        }
 
-            int idx = label_map_find(labels, target);
+        if (!(target.type == VAL_INT || target.type == VAL_STR)) {
             value_free(target);
-
-            if (idx < 0) {
-                return make_error("Unregistered GOTO target", stmt->line, stmt->column);
-            }
-
-            ExecResult res;
-            res.status = EXEC_GOTO;
-            res.value = value_null();
-            res.break_count = 0;
-            res.jump_index = idx;
-            res.error = NULL;
-            res.error_line = 0;
-            res.error_column = 0;
-            return res;
+            return make_error("GOTO requires INT or STR argument", stmt->line, stmt->column);
         }
 
-        case STMT_THR: {
-            Value thr_val = value_thr_new();
-            Value thr_for_worker = value_copy(thr_val);
-            if (!env_assign(env, stmt->as.thr_stmt.name, thr_val, TYPE_THR, true)) {
-                value_free(thr_for_worker);
-                value_free(thr_val);
-                return make_error("Cannot assign to THR identifier", stmt->line, stmt->column);
-            }
+        if (target.type == VAL_INT && target.as.i < 0) {
+            value_free(target);
+            return make_error("Negative GOTO target is not allowed", stmt->line, stmt->column);
+        }
+
+        int idx = label_map_find(labels, target);
+        value_free(target);
+
+        if (idx < 0) {
+            return make_error("Unregistered GOTO target", stmt->line, stmt->column);
+        }
+
+        ExecResult res;
+        res.status = EXEC_GOTO;
+        res.value = value_null();
+        res.break_count = 0;
+        res.jump_index = idx;
+        res.error = NULL;
+        res.error_line = 0;
+        res.error_column = 0;
+        return res;
+    }
+
+    case STMT_THR: {
+        Value thr_val = value_thr_new();
+        Value thr_for_worker = value_copy(thr_val);
+        if (!env_assign(env, stmt->as.thr_stmt.name, thr_val, TYPE_THR, true)) {
+            value_free(thr_for_worker);
             value_free(thr_val);
+            return make_error("Cannot assign to THR identifier", stmt->line, stmt->column);
+        }
+        value_free(thr_val);
 
-            ThrStart* start = safe_malloc(sizeof(ThrStart));
-            Interpreter* thr_interp = safe_malloc(sizeof(Interpreter));
-            *thr_interp = (Interpreter){0};
-            thr_interp->global_env = interp->global_env;
-            thr_interp->loop_depth = 0;
-            thr_interp->error = NULL;
-            thr_interp->error_line = 0;
-            thr_interp->error_col = 0;
-            thr_interp->in_try_block = false;
-            thr_interp->modules = interp->modules;
-            thr_interp->shushed = interp->shushed;
+        ThrStart *start = safe_malloc(sizeof(ThrStart));
+        Interpreter *thr_interp = safe_malloc(sizeof(Interpreter));
+        *thr_interp = (Interpreter){0};
+        thr_interp->global_env = interp->global_env;
+        thr_interp->loop_depth = 0;
+        thr_interp->error = NULL;
+        thr_interp->error_line = 0;
+        thr_interp->error_col = 0;
+        thr_interp->in_try_block = false;
+        thr_interp->modules = interp->modules;
+        thr_interp->shushed = interp->shushed;
 
-            start->interp = thr_interp;
-            start->env = env;
-            start->body = stmt->as.thr_stmt.body;
-            start->thr_val = thr_for_worker;
+        start->interp = thr_interp;
+        start->env = env;
+        start->body = stmt->as.thr_stmt.body;
+        start->thr_val = thr_for_worker;
 
-            /* record body/env on the Thr so restart is possible */
-            thr_for_worker.as.thr->body = start->body;
-            thr_for_worker.as.thr->env = start->env;
-            value_thr_set_started(thr_for_worker, 1);
+        /* record body/env on the Thr so restart is possible */
+        thr_for_worker.as.thr->body = start->body;
+        thr_for_worker.as.thr->env = start->env;
+        value_thr_set_started(thr_for_worker, 1);
 
-            if (thrd_create(&thr_for_worker.as.thr->thread, thr_worker, start) != thrd_success) {
-                value_thr_set_finished(thr_for_worker, 1);
-                value_free(thr_for_worker);
-                free(thr_interp);
-                free(start);
-                return make_error("Failed to start THR", stmt->line, stmt->column);
-            }
-            return make_ok(value_null());
+        if (thrd_create(&thr_for_worker.as.thr->thread, thr_worker, start) != thrd_success) {
+            value_thr_set_finished(thr_for_worker, 1);
+            value_free(thr_for_worker);
+            free(thr_interp);
+            free(start);
+            return make_error("Failed to start THR", stmt->line, stmt->column);
+        }
+        return make_ok(value_null());
+    }
+
+    case STMT_ASYNC: {
+        Value thr_val = value_thr_new();
+        Value thr_for_worker = value_copy(thr_val);
+
+        ThrStart *start = safe_malloc(sizeof(ThrStart));
+        Interpreter *thr_interp = safe_malloc(sizeof(Interpreter));
+        *thr_interp = (Interpreter){0};
+        thr_interp->global_env = interp->global_env;
+        thr_interp->loop_depth = 0;
+        thr_interp->error = NULL;
+        thr_interp->error_line = 0;
+        thr_interp->error_col = 0;
+        thr_interp->in_try_block = false;
+        thr_interp->modules = interp->modules;
+        thr_interp->shushed = interp->shushed;
+
+        start->interp = thr_interp;
+        start->env = env;
+        start->body = stmt->as.async_stmt.body;
+        start->thr_val = thr_for_worker;
+
+        /* record body/env on the Thr so restart is possible */
+        thr_for_worker.as.thr->body = start->body;
+        thr_for_worker.as.thr->env = start->env;
+        value_thr_set_started(thr_for_worker, 1);
+
+        if (thrd_create(&thr_for_worker.as.thr->thread, thr_worker, start) != thrd_success) {
+            value_thr_set_finished(thr_for_worker, 1);
+            value_free(thr_for_worker);
+            free(thr_interp);
+            free(start);
+            return make_error("Failed to start ASYNC", stmt->line, stmt->column);
+        }
+        return make_ok(value_null());
+    }
+
+    case STMT_IF: {
+        Value cond = eval_expr(interp, stmt->as.if_stmt.condition, env);
+        if (interp->error) {
+            ExecResult err = make_error(interp->error, interp->error_line, interp->error_col);
+            clear_error(interp);
+            return err;
         }
 
-        case STMT_ASYNC: {
-            Value thr_val = value_thr_new();
-            Value thr_for_worker = value_copy(thr_val);
-
-            ThrStart* start = safe_malloc(sizeof(ThrStart));
-            Interpreter* thr_interp = safe_malloc(sizeof(Interpreter));
-            *thr_interp = (Interpreter){0};
-            thr_interp->global_env = interp->global_env;
-            thr_interp->loop_depth = 0;
-            thr_interp->error = NULL;
-            thr_interp->error_line = 0;
-            thr_interp->error_col = 0;
-            thr_interp->in_try_block = false;
-            thr_interp->modules = interp->modules;
-            thr_interp->shushed = interp->shushed;
-
-            start->interp = thr_interp;
-            start->env = env;
-            start->body = stmt->as.async_stmt.body;
-            start->thr_val = thr_for_worker;
-
-            /* record body/env on the Thr so restart is possible */
-            thr_for_worker.as.thr->body = start->body;
-            thr_for_worker.as.thr->env = start->env;
-            value_thr_set_started(thr_for_worker, 1);
-
-            if (thrd_create(&thr_for_worker.as.thr->thread, thr_worker, start) != thrd_success) {
-                value_thr_set_finished(thr_for_worker, 1);
-                value_free(thr_for_worker);
-                free(thr_interp);
-                free(start);
-                return make_error("Failed to start ASYNC", stmt->line, stmt->column);
-            }
-            return make_ok(value_null());
+        if (value_truthiness(cond)) {
+            value_free(cond);
+            return exec_stmt(interp, stmt->as.if_stmt.then_branch, env, labels);
         }
+        value_free(cond);
 
-        case STMT_IF: {
-            Value cond = eval_expr(interp, stmt->as.if_stmt.condition, env);
+        for (size_t i = 0; i < stmt->as.if_stmt.elif_conditions.count; i++) {
+            Value elif_cond = eval_expr(interp, stmt->as.if_stmt.elif_conditions.items[i], env);
             if (interp->error) {
                 ExecResult err = make_error(interp->error, interp->error_line, interp->error_col);
                 clear_error(interp);
                 return err;
             }
 
-            if (value_truthiness(cond)) {
+            if (value_truthiness(elif_cond)) {
+                value_free(elif_cond);
+                return exec_stmt(interp, stmt->as.if_stmt.elif_blocks.items[i], env, labels);
+            }
+            value_free(elif_cond);
+        }
+
+        if (stmt->as.if_stmt.else_branch) {
+            return exec_stmt(interp, stmt->as.if_stmt.else_branch, env, labels);
+        }
+
+        return make_ok(value_null());
+    }
+
+    case STMT_WHILE: {
+        interp->loop_depth++;
+        unsigned long long iteration_count = 0;
+        const unsigned long long max_iterations = 18446744073709551615ULL; // Prevent infinite loops
+
+        while (1) {
+            if (interpreter_thr_should_stop(interp)) {
+                break;
+            }
+            if (++iteration_count > max_iterations) {
+                interp->loop_depth--;
+                return make_error("Infinite loop detected", stmt->line, stmt->column);
+            }
+
+            Value cond = eval_expr(interp, stmt->as.while_stmt.condition, env);
+            if (interp->error) {
+                interp->loop_depth--;
+                ExecResult err = make_error(interp->error, interp->error_line, interp->error_col);
+                clear_error(interp);
+                return err;
+            }
+
+            if (!value_truthiness(cond)) {
                 value_free(cond);
-                return exec_stmt(interp, stmt->as.if_stmt.then_branch, env, labels);
+                break;
             }
             value_free(cond);
 
-            for (size_t i = 0; i < stmt->as.if_stmt.elif_conditions.count; i++) {
-                Value elif_cond = eval_expr(interp, stmt->as.if_stmt.elif_conditions.items[i], env);
-                if (interp->error) {
-                    ExecResult err = make_error(interp->error, interp->error_line, interp->error_col);
-                    clear_error(interp);
-                    return err;
-                }
+            ExecResult res = exec_stmt(interp, stmt->as.while_stmt.body, env, labels);
 
-                if (value_truthiness(elif_cond)) {
-                    value_free(elif_cond);
-                    return exec_stmt(interp, stmt->as.if_stmt.elif_blocks.items[i], env, labels);
-                }
-                value_free(elif_cond);
+            if (res.status == EXEC_ERROR || res.status == EXEC_RETURN || res.status == EXEC_GOTO) {
+                interp->loop_depth--;
+                return res;
             }
 
-            if (stmt->as.if_stmt.else_branch) {
-                return exec_stmt(interp, stmt->as.if_stmt.else_branch, env, labels);
-            }
-
-            return make_ok(value_null());
-        }
-
-        case STMT_WHILE: {
-            interp->loop_depth++;
-            unsigned long long iteration_count = 0;
-            const unsigned long long max_iterations = 18446744073709551615ULL; // Prevent infinite loops
-
-            while (1) {
-                if (interpreter_thr_should_stop(interp)) {
-                    break;
-                }
-                if (++iteration_count > max_iterations) {
-                    interp->loop_depth--;
-                    return make_error("Infinite loop detected", stmt->line, stmt->column);
-                }
-
-                Value cond = eval_expr(interp, stmt->as.while_stmt.condition, env);
-                if (interp->error) {
-                    interp->loop_depth--;
-                    ExecResult err = make_error(interp->error, interp->error_line, interp->error_col);
-                    clear_error(interp);
-                    return err;
-                }
-
-                if (!value_truthiness(cond)) {
-                    value_free(cond);
-                    break;
-                }
-                value_free(cond);
-
-                ExecResult res = exec_stmt(interp, stmt->as.while_stmt.body, env, labels);
-
-                if (res.status == EXEC_ERROR || res.status == EXEC_RETURN || res.status == EXEC_GOTO) {
+            if (res.status == EXEC_BREAK) {
+                if (res.break_count > 1) {
+                    res.break_count--;
                     interp->loop_depth--;
                     return res;
                 }
-
-                if (res.status == EXEC_BREAK) {
-                    if (res.break_count > 1) {
-                        res.break_count--;
-                        interp->loop_depth--;
-                        return res;
-                    }
-                    break;
-                }
+                break;
             }
-
-            interp->loop_depth--;
-            return make_ok(value_null());
         }
 
-        case STMT_FOR: {
-            interp->loop_depth++;
-            int iteration_count = 0;
-            const int max_iterations = 100000; // Prevent infinite loops
+        interp->loop_depth--;
+        return make_ok(value_null());
+    }
 
-            Value target = eval_expr(interp, stmt->as.for_stmt.target, env);
-            if (interp->error) {
-                interp->loop_depth--;
-                ExecResult err = make_error(interp->error, interp->error_line, interp->error_col);
-                clear_error(interp);
-                return err;
-            }
+    case STMT_FOR: {
+        interp->loop_depth++;
+        int iteration_count = 0;
+        const int max_iterations = 100000; // Prevent infinite loops
 
-            if (target.type != VAL_INT) {
-                value_free(target);
-                interp->loop_depth--;
-                return make_error("FOR target must be INT", stmt->line, stmt->column);
-            }
+        Value target = eval_expr(interp, stmt->as.for_stmt.target, env);
+        if (interp->error) {
+            interp->loop_depth--;
+            ExecResult err = make_error(interp->error, interp->error_line, interp->error_col);
+            clear_error(interp);
+            return err;
+        }
 
-            int64_t limit = target.as.i;
+        if (target.type != VAL_INT) {
             value_free(target);
+            interp->loop_depth--;
+            return make_error("FOR target must be INT", stmt->line, stmt->column);
+        }
 
-            /*
-             * Create a loop-local binding for the counter so it does not
-             * persist after the loop finishes. We implement this by
-             * creating a unique temporary local variable and aliasing the
-             * user-visible counter name to that temporary binding for the
-             * duration of the loop. After the loop we remove the alias and
-             * restore any previous local binding if necessary.
-             */
-            char temp_name[64];
-            int my_temp_id = ++g_for_temp_id;
-            snprintf(temp_name, sizeof(temp_name), "__for_cnt_%d_%d_%d", my_temp_id, stmt->line, stmt->column);
+        int64_t limit = target.as.i;
+        value_free(target);
 
-            /* Save any previous value (in local or parent) so we can restore local bindings */
-            Value prev_val = value_null();
-            DeclType prev_type = TYPE_UNKNOWN;
-            bool prev_initialized = false;
-            env_get(env, stmt->as.for_stmt.counter, &prev_val, &prev_type, &prev_initialized);
+        /*
+         * Create a loop-local binding for the counter so it does not
+         * persist after the loop finishes. We implement this by
+         * creating a unique temporary local variable and aliasing the
+         * user-visible counter name to that temporary binding for the
+         * duration of the loop. After the loop we remove the alias and
+         * restore any previous local binding if necessary.
+         */
+        char temp_name[64];
+        int my_temp_id = ++g_for_temp_id;
+        snprintf(temp_name, sizeof(temp_name), "__for_cnt_%d_%d_%d", my_temp_id, stmt->line, stmt->column);
 
-            /* Track whether the counter name exists in any parent env.
-               Loop-local binding must shadow the global symbol and restore it
-               after the loop, regardless of where it was originally defined.
-               We cannot rely on `env_get` alone because it doesn't distinguish
-               between current-env and parent-env bindings. */
-            bool had_global = false;
-            Value global_prev_val = value_null();
-            DeclType global_prev_type = TYPE_UNKNOWN;
-            for (Env* cursor = env; cursor && cursor->parent; cursor = cursor->parent) {
-                Env* parent = cursor->parent;
-                if (!parent) break;
-                Value tmp_val = value_null();
-                DeclType tmp_type = TYPE_UNKNOWN;
-                bool tmp_initialized = false;
-                if (env_get(parent, stmt->as.for_stmt.counter, &tmp_val, &tmp_type, &tmp_initialized)) {
-                    had_global = true;
-                    global_prev_val = tmp_val;
-                    global_prev_type = tmp_type;
-                    break;
-                }
+        /* Save any previous value (in local or parent) so we can restore local bindings */
+        Value prev_val = value_null();
+        DeclType prev_type = TYPE_UNKNOWN;
+        bool prev_initialized = false;
+        env_get(env, stmt->as.for_stmt.counter, &prev_val, &prev_type, &prev_initialized);
+
+        /* Track whether the counter name exists in any parent env.
+           Loop-local binding must shadow the global symbol and restore it
+           after the loop, regardless of where it was originally defined.
+           We cannot rely on `env_get` alone because it doesn't distinguish
+           between current-env and parent-env bindings. */
+        bool had_global = false;
+        Value global_prev_val = value_null();
+        DeclType global_prev_type = TYPE_UNKNOWN;
+        for (Env *cursor = env; cursor && cursor->parent; cursor = cursor->parent) {
+            Env *parent = cursor->parent;
+            if (!parent) {
+                break;
             }
-
-            /* Detect whether a local binding already exists (trial define) */
-            bool local_existed = true;
-            if (env_define(env, stmt->as.for_stmt.counter, TYPE_INT)) {
-                /* no local existed; clean up the probe */
-                env_delete(env, stmt->as.for_stmt.counter);
-                local_existed = false;
+            Value tmp_val = value_null();
+            DeclType tmp_type = TYPE_UNKNOWN;
+            bool tmp_initialized = false;
+            if (env_get(parent, stmt->as.for_stmt.counter, &tmp_val, &tmp_type, &tmp_initialized)) {
+                had_global = true;
+                global_prev_val = tmp_val;
+                global_prev_type = tmp_type;
+                break;
             }
+        }
 
-            /* Create the temporary target binding */
-            if (!env_define(env, temp_name, TYPE_INT)) {
-                int retries = 0;
-                while (retries < 1000 && !env_define(env, temp_name, TYPE_INT)) {
-                    my_temp_id = ++g_for_temp_id;
-                    snprintf(temp_name, sizeof(temp_name), "__for_cnt_%d_%d_%d", my_temp_id, stmt->line, stmt->column);
-                    retries++;
-                }
-                if (retries >= 1000) {
-                    value_free(prev_val);
-                    interp->loop_depth--;
-                    return make_error("Internal error setting up FOR counter", stmt->line, stmt->column);
-                }
+        /* Detect whether a local binding already exists (trial define) */
+        bool local_existed = true;
+        if (env_define(env, stmt->as.for_stmt.counter, TYPE_INT)) {
+            /* no local existed; clean up the probe */
+            env_delete(env, stmt->as.for_stmt.counter);
+            local_existed = false;
+        }
+
+        /* Create the temporary target binding */
+        if (!env_define(env, temp_name, TYPE_INT)) {
+            int retries = 0;
+            while (retries < 1000 && !env_define(env, temp_name, TYPE_INT)) {
+                my_temp_id = ++g_for_temp_id;
+                snprintf(temp_name, sizeof(temp_name), "__for_cnt_%d_%d_%d", my_temp_id, stmt->line, stmt->column);
+                retries++;
             }
-
-            /* Create a local alias `counter -> temp_name` (creates local entry if missing)
-             * This will shadow any parent binding for the duration of the loop.
-             */
-            if (!env_set_alias(env, stmt->as.for_stmt.counter, temp_name, TYPE_INT, true)) {
-                /* cleanup temp binding */
-                env_delete(env, temp_name);
+            if (retries >= 1000) {
                 value_free(prev_val);
                 interp->loop_depth--;
-                return make_error("Cannot create loop-local counter", stmt->line, stmt->column);
+                return make_error("Internal error setting up FOR counter", stmt->line, stmt->column);
+            }
+        }
+
+        /* Create a local alias `counter -> temp_name` (creates local entry if missing)
+         * This will shadow any parent binding for the duration of the loop.
+         */
+        if (!env_set_alias(env, stmt->as.for_stmt.counter, temp_name, TYPE_INT, true)) {
+            /* cleanup temp binding */
+            env_delete(env, temp_name);
+            value_free(prev_val);
+            interp->loop_depth--;
+            return make_error("Cannot create loop-local counter", stmt->line, stmt->column);
+        }
+
+        for (int64_t idx = 1; idx <= limit; idx++) {
+            if (interpreter_thr_should_stop(interp)) {
+                break;
+            }
+            if (++iteration_count > max_iterations) {
+                /* cleanup alias/temp and restore previous local if needed */
+                env_delete(env, stmt->as.for_stmt.counter);
+                env_delete(env, temp_name);
+                if (local_existed) {
+                    env_restore_local(env, stmt->as.for_stmt.counter, prev_val, prev_type, prev_initialized);
+                }
+                value_free(prev_val);
+                interp->loop_depth--;
+                return make_error("Infinite loop detected", stmt->line, stmt->column);
             }
 
-            for (int64_t idx = 1; idx <= limit; idx++) {
-                if (interpreter_thr_should_stop(interp)) {
-                    break;
+            /* Assign to the aliased counter (writes to temp_name) */
+            if (!env_assign(env, stmt->as.for_stmt.counter, value_int(idx), TYPE_INT, true)) {
+                char buf[256];
+                snprintf(buf, sizeof(buf), "Cannot assign to frozen identifier '%s'", stmt->as.for_stmt.counter);
+                /* cleanup alias and temp binding before returning */
+                env_delete(env, stmt->as.for_stmt.counter);
+                env_delete(env, temp_name);
+                if (local_existed) {
+                    env_restore_local(env, stmt->as.for_stmt.counter, prev_val, prev_type, prev_initialized);
                 }
-                if (++iteration_count > max_iterations) {
-                    /* cleanup alias/temp and restore previous local if needed */
-                    env_delete(env, stmt->as.for_stmt.counter);
-                    env_delete(env, temp_name);
-                    if (local_existed) {
-                        env_restore_local(env, stmt->as.for_stmt.counter, prev_val, prev_type, prev_initialized);
-                    }
-                    value_free(prev_val);
-                    interp->loop_depth--;
-                    return make_error("Infinite loop detected", stmt->line, stmt->column);
+                value_free(prev_val);
+                interp->loop_depth--;
+                return make_error(buf, stmt->line, stmt->column);
+            }
+
+            ExecResult res = exec_stmt(interp, stmt->as.for_stmt.body, env, labels);
+
+            if (res.status == EXEC_ERROR || res.status == EXEC_RETURN || res.status == EXEC_GOTO) {
+                /* cleanup before propagating */
+                env_delete(env, stmt->as.for_stmt.counter);
+                env_delete(env, temp_name);
+                if (local_existed) {
+                    env_restore_local(env, stmt->as.for_stmt.counter, prev_val, prev_type, prev_initialized);
                 }
+                value_free(prev_val);
+                interp->loop_depth--;
+                return res;
+            }
 
-                /* Assign to the aliased counter (writes to temp_name) */
-                if (!env_assign(env, stmt->as.for_stmt.counter, value_int(idx), TYPE_INT, true)) {
-                    char buf[256];
-                    snprintf(buf, sizeof(buf), "Cannot assign to frozen identifier '%s'", stmt->as.for_stmt.counter);
-                    /* cleanup alias and temp binding before returning */
-                    env_delete(env, stmt->as.for_stmt.counter);
-                    env_delete(env, temp_name);
-                    if (local_existed) {
-                        env_restore_local(env, stmt->as.for_stmt.counter, prev_val, prev_type, prev_initialized);
-                    }
-                    value_free(prev_val);
-                    interp->loop_depth--;
-                    return make_error(buf, stmt->line, stmt->column);
-                }
-
-                ExecResult res = exec_stmt(interp, stmt->as.for_stmt.body, env, labels);
-
-                if (res.status == EXEC_ERROR || res.status == EXEC_RETURN || res.status == EXEC_GOTO) {
-                    /* cleanup before propagating */
+            if (res.status == EXEC_BREAK) {
+                if (res.break_count > 1) {
+                    res.break_count--;
+                    /* cleanup before returning */
                     env_delete(env, stmt->as.for_stmt.counter);
                     env_delete(env, temp_name);
                     if (local_existed) {
@@ -3277,270 +3798,275 @@ static ExecResult exec_stmt(Interpreter* interp, Stmt* stmt, Env* env, LabelMap*
                     interp->loop_depth--;
                     return res;
                 }
-
-                if (res.status == EXEC_BREAK) {
-                    if (res.break_count > 1) {
-                        res.break_count--;
-                        /* cleanup before returning */
-                        env_delete(env, stmt->as.for_stmt.counter);
-                        env_delete(env, temp_name);
-                        if (local_existed) {
-                            env_restore_local(env, stmt->as.for_stmt.counter, prev_val, prev_type, prev_initialized);
-                        }
-                        value_free(prev_val);
-                        interp->loop_depth--;
-                        return res;
-                    }
-                    break;
-                }
-
-                // EXEC_CONTINUE is treated as a normal completion (loop continues)
+                break;
             }
 
-            /* Normal loop completion: remove alias and temp binding, restore local if needed */
-            env_delete(env, stmt->as.for_stmt.counter);
-            env_delete(env, temp_name);
-            if (local_existed) {
-                env_restore_local(env, stmt->as.for_stmt.counter, prev_val, prev_type, prev_initialized);
-            }
+            // EXEC_CONTINUE is treated as a normal completion (loop continues)
+        }
 
-            /* Restore global binding if the aliasing process shadowed a
-               non-local (global/parent) symbol with a non-INT type. */
-            if (had_global) {
-                env_assign(env, stmt->as.for_stmt.counter, global_prev_val, global_prev_type, false);
-                value_free(global_prev_val);
-            }
-            value_free(prev_val);
+        /* Normal loop completion: remove alias and temp binding, restore local if needed */
+        env_delete(env, stmt->as.for_stmt.counter);
+        env_delete(env, temp_name);
+        if (local_existed) {
+            env_restore_local(env, stmt->as.for_stmt.counter, prev_val, prev_type, prev_initialized);
+        }
 
+        /* Restore global binding if the aliasing process shadowed a
+           non-local (global/parent) symbol with a non-INT type. */
+        if (had_global) {
+            env_assign(env, stmt->as.for_stmt.counter, global_prev_val, global_prev_type, false);
+            value_free(global_prev_val);
+        }
+        value_free(prev_val);
+
+        interp->loop_depth--;
+        return make_ok(value_null());
+    }
+
+    case STMT_PARFOR: {
+        interp->loop_depth++;
+        int iteration_count = 0;
+        const int max_iterations = 100000;
+
+        Value target = eval_expr(interp, stmt->as.parfor_stmt.target, env);
+        if (interp->error) {
+            interp->loop_depth--;
+            ExecResult err = make_error(interp->error, interp->error_line, interp->error_col);
+            clear_error(interp);
+            return err;
+        }
+
+        if (target.type != VAL_INT) {
+            value_free(target);
+            interp->loop_depth--;
+            return make_error("PARFOR target must be INT", stmt->line, stmt->column);
+        }
+
+        int64_t limit = target.as.i;
+        value_free(target);
+
+        if (limit < 0) {
+            interp->loop_depth--;
+            return make_error("PARFOR target must be non-negative", stmt->line, stmt->column);
+        }
+
+        // Spawn worker threads for each iteration
+        size_t n = (size_t)limit;
+        if (n == 0) {
             interp->loop_depth--;
             return make_ok(value_null());
         }
+        char **errors = calloc(n, sizeof(char *));
+        int *err_lines = calloc(n, sizeof(int));
+        int *err_cols = calloc(n, sizeof(int));
+        ExecStatus *statuses = calloc(n, sizeof(ExecStatus));
+        int *break_counts = calloc(n, sizeof(int));
+        Value *thr_vals = calloc(n, sizeof(Value));
+        int stop_launch = 0;
+        mtx_t parfor_control_lock;
+        int control_lock_inited = 0;
 
-        case STMT_PARFOR: {
-            interp->loop_depth++;
-            int iteration_count = 0;
-            const int max_iterations = 100000;
+        if (mtx_init(&parfor_control_lock, 0) == thrd_success) {
+            control_lock_inited = 1;
+        }
 
-            Value target = eval_expr(interp, stmt->as.parfor_stmt.target, env);
-            if (interp->error) {
-                interp->loop_depth--;
-                ExecResult err = make_error(interp->error, interp->error_line, interp->error_col);
-                clear_error(interp);
-                return err;
-            }
-
-            if (target.type != VAL_INT) {
-                value_free(target);
-                interp->loop_depth--;
-                return make_error("PARFOR target must be INT", stmt->line, stmt->column);
-            }
-
-            int64_t limit = target.as.i;
-            value_free(target);
-
-            if (limit < 0) {
-                interp->loop_depth--;
-                return make_error("PARFOR target must be non-negative", stmt->line, stmt->column);
-            }
-
-            // Spawn worker threads for each iteration
-            size_t n = (size_t)limit;
-            if (n == 0) {
-                interp->loop_depth--;
-                return make_ok(value_null());
-            }
-            char** errors = calloc(n, sizeof(char*));
-            int* err_lines = calloc(n, sizeof(int));
-            int* err_cols = calloc(n, sizeof(int));
-            ExecStatus* statuses = calloc(n, sizeof(ExecStatus));
-            int* break_counts = calloc(n, sizeof(int));
-            Value* thr_vals = calloc(n, sizeof(Value));
-            int stop_launch = 0;
-            mtx_t parfor_control_lock;
-            int control_lock_inited = 0;
-
-            if (mtx_init(&parfor_control_lock, 0) == thrd_success) {
-                control_lock_inited = 1;
-            }
-
-            if (!errors || !err_lines || !err_cols || !statuses || !break_counts || !thr_vals || !control_lock_inited) {
-                interp->loop_depth--;
-                free(errors);
-                free(err_lines);
-                free(err_cols);
-                free(statuses);
-                free(break_counts);
-                free(thr_vals);
-                if (control_lock_inited) mtx_destroy(&parfor_control_lock);
-                return make_error("Out of memory", stmt->line, stmt->column);
-            }
-
-            for (size_t i = 0; i < n; i++) {
-                int should_stop = 0;
-                mtx_lock(&parfor_control_lock);
-                should_stop = stop_launch;
-                mtx_unlock(&parfor_control_lock);
-                if (should_stop) {
-                    break;
-                }
-
-                if (++iteration_count > max_iterations) {
-                    interp->loop_depth--;
-                    // cleanup
-                    for (size_t j = 0; j < i; j++) value_free(thr_vals[j]);
-                    free(thr_vals);
-                    for (size_t j = 0; j < n; j++) free(errors[j]);
-                    free(errors);
-                    free(err_lines);
-                    free(err_cols);
-                    free(statuses);
-                    free(break_counts);
-                    mtx_destroy(&parfor_control_lock);
-                    return make_error("Infinite loop detected", stmt->line, stmt->column);
-                }
-
-                thr_vals[i] = value_thr_new();
-
-                ParforStart* start = safe_malloc(sizeof(ParforStart));
-                Interpreter* thr_interp = safe_malloc(sizeof(Interpreter));
-                *thr_interp = (Interpreter){0};
-                thr_interp->global_env = interp->global_env;
-                thr_interp->loop_depth = interp->loop_depth;
-                thr_interp->error = NULL;
-                thr_interp->error_line = 0;
-                thr_interp->error_col = 0;
-                thr_interp->in_try_block = interp->in_try_block;
-                thr_interp->modules = interp->modules;
-                thr_interp->shushed = interp->shushed;
-                thr_interp->isolate_env_writes = true;
-
-                start->interp = thr_interp;
-                /* Create a per-iteration child env so each PARFOR iteration
-                   gets its own counter binding and does not race with others. */
-                Env* thread_env = env_create(env);
-                int64_t idx = (int64_t)i + 1; /* iterations are 1-based */
-                /* Always define the counter locally so it shadows any
-                   same-named binding in a parent env. */
-                env_define(thread_env, stmt->as.parfor_stmt.counter, TYPE_INT);
-                if (!env_assign(thread_env, stmt->as.parfor_stmt.counter, value_int(idx), TYPE_INT, false)) {
-                    char buf[256];
-                    snprintf(buf, sizeof(buf), "Cannot assign to frozen identifier '%s'", stmt->as.parfor_stmt.counter);
-                    errors[i] = strdup(buf);
-                    env_free(thread_env);
-                    free(thr_interp);
-                    free(start);
-                    /* Mark this iteration as finished and continue launching others */
-                    value_thr_set_finished(thr_vals[i], 1);
-                    continue;
-                }
-                start->env = thread_env;
-                start->body = stmt->as.parfor_stmt.body;
-                start->errors = errors;
-                start->err_lines = err_lines;
-                start->err_cols = err_cols;
-                start->index = (int)i;
-                start->counter_name = stmt->as.parfor_stmt.counter;
-                start->statuses = statuses;
-                start->break_counts = break_counts;
-                start->stop_launch = &stop_launch;
-                start->control_lock = &parfor_control_lock;
-                start->thr_val = value_copy(thr_vals[i]);
-
-                /* record body/env on Thr so restart is possible */
-                thr_vals[i].as.thr->body = start->body;
-                thr_vals[i].as.thr->env = start->env; /* points to per-iteration env */
-
-                if (thrd_create(&thr_vals[i].as.thr->thread, parfor_worker, start) != thrd_success) {
-                    /* mark finished and leave thr_vals[i] intact so later cleanup is safe */
-                    value_thr_set_finished(thr_vals[i], 1);
-                    free(thr_interp);
-                    free(start);
-                    errors[i] = strdup("Failed to start PARFOR iteration");
-                    /* continue launching others */
-                } else {
-                    /* only mark started after successful thread creation */
-                    value_thr_set_started(thr_vals[i], 1);
-                }
-            }
-
-            // Join only threads that were actually started
-            for (size_t i = 0; i < n; i++) {
-                if (thr_vals[i].type == VAL_THR && thr_vals[i].as.thr && value_thr_get_started(thr_vals[i])) {
-                    if (thrd_join(thr_vals[i].as.thr->thread, NULL) != thrd_success) {
-                        // ignore join failures but mark finished
-                    }
-                }
-            }
-
-            // Collect first error if any (and its original location)
-            char* first_err = NULL;
-            int first_err_line = 0;
-            int first_err_col = 0;
-            for (size_t i = 0; i < n; i++) {
-                if (errors[i]) { first_err = errors[i]; first_err_line = err_lines[i]; first_err_col = err_cols[i]; break; }
-            }
-
-            int first_break_count = 0;
-            for (size_t i = 0; i < n; i++) {
-                if (statuses[i] == EXEC_BREAK) {
-                    first_break_count = break_counts[i];
-                    break;
-                }
-            }
-
-            // Cleanup thr values
-            for (size_t i = 0; i < n; i++) value_free(thr_vals[i]);
-            free(thr_vals);
-            for (size_t i = 0; i < n; i++) if (errors[i] && errors[i] != first_err) free(errors[i]);
+        if (!errors || !err_lines || !err_cols || !statuses || !break_counts || !thr_vals || !control_lock_inited) {
+            interp->loop_depth--;
             free(errors);
             free(err_lines);
             free(err_cols);
             free(statuses);
             free(break_counts);
-            mtx_destroy(&parfor_control_lock);
+            free(thr_vals);
+            if (control_lock_inited) {
+                mtx_destroy(&parfor_control_lock);
+            }
+            return make_error("Out of memory", stmt->line, stmt->column);
+        }
 
-            interp->loop_depth--;
-
-            if (first_err) {
-                /* Propagate iteration error into parent interpreter state
-                 * so surrounding TRY blocks reliably observe it. */
-                if (interp->error) free(interp->error);
-                interp->error = strdup(first_err);
-                /* Prefer the original iteration error location when available */
-                interp->error_line = first_err_line ? first_err_line : stmt->line;
-                interp->error_col = first_err_col ? first_err_col : stmt->column;
-                ExecResult err = make_error(first_err, interp->error_line, interp->error_col);
-                free(first_err);
-                return err;
+        for (size_t i = 0; i < n; i++) {
+            int should_stop = 0;
+            mtx_lock(&parfor_control_lock);
+            should_stop = stop_launch;
+            mtx_unlock(&parfor_control_lock);
+            if (should_stop) {
+                break;
             }
 
-            if (first_break_count > 0) {
-                if (first_break_count > 1) {
-                    ExecResult res;
-                    res.status = EXEC_BREAK;
-                    res.value = value_null();
-                    res.break_count = first_break_count - 1;
-                    res.jump_index = -1;
-                    res.error = NULL;
-                    res.error_line = 0;
-                    res.error_column = 0;
-                    return res;
+            if (++iteration_count > max_iterations) {
+                interp->loop_depth--;
+                // cleanup
+                for (size_t j = 0; j < i; j++) {
+                    value_free(thr_vals[j]);
                 }
-                return make_ok(value_null());
+                free(thr_vals);
+                for (size_t j = 0; j < n; j++) {
+                    free(errors[j]);
+                }
+                free(errors);
+                free(err_lines);
+                free(err_cols);
+                free(statuses);
+                free(break_counts);
+                mtx_destroy(&parfor_control_lock);
+                return make_error("Infinite loop detected", stmt->line, stmt->column);
             }
 
+            thr_vals[i] = value_thr_new();
+
+            ParforStart *start = safe_malloc(sizeof(ParforStart));
+            Interpreter *thr_interp = safe_malloc(sizeof(Interpreter));
+            *thr_interp = (Interpreter){0};
+            thr_interp->global_env = interp->global_env;
+            thr_interp->loop_depth = interp->loop_depth;
+            thr_interp->error = NULL;
+            thr_interp->error_line = 0;
+            thr_interp->error_col = 0;
+            thr_interp->in_try_block = interp->in_try_block;
+            thr_interp->modules = interp->modules;
+            thr_interp->shushed = interp->shushed;
+            thr_interp->isolate_env_writes = true;
+
+            start->interp = thr_interp;
+            /* Create a per-iteration child env so each PARFOR iteration
+               gets its own counter binding and does not race with others. */
+            Env *thread_env = env_create(env);
+            int64_t idx = (int64_t)i + 1; /* iterations are 1-based */
+            /* Always define the counter locally so it shadows any
+               same-named binding in a parent env. */
+            env_define(thread_env, stmt->as.parfor_stmt.counter, TYPE_INT);
+            if (!env_assign(thread_env, stmt->as.parfor_stmt.counter, value_int(idx), TYPE_INT, false)) {
+                char buf[256];
+                snprintf(buf, sizeof(buf), "Cannot assign to frozen identifier '%s'", stmt->as.parfor_stmt.counter);
+                errors[i] = strdup(buf);
+                env_free(thread_env);
+                free(thr_interp);
+                free(start);
+                /* Mark this iteration as finished and continue launching others */
+                value_thr_set_finished(thr_vals[i], 1);
+                continue;
+            }
+            start->env = thread_env;
+            start->body = stmt->as.parfor_stmt.body;
+            start->errors = errors;
+            start->err_lines = err_lines;
+            start->err_cols = err_cols;
+            start->index = (int)i;
+            start->counter_name = stmt->as.parfor_stmt.counter;
+            start->statuses = statuses;
+            start->break_counts = break_counts;
+            start->stop_launch = &stop_launch;
+            start->control_lock = &parfor_control_lock;
+            start->thr_val = value_copy(thr_vals[i]);
+
+            /* record body/env on Thr so restart is possible */
+            thr_vals[i].as.thr->body = start->body;
+            thr_vals[i].as.thr->env = start->env; /* points to per-iteration env */
+
+            if (thrd_create(&thr_vals[i].as.thr->thread, parfor_worker, start) != thrd_success) {
+                /* mark finished and leave thr_vals[i] intact so later cleanup is safe */
+                value_thr_set_finished(thr_vals[i], 1);
+                free(thr_interp);
+                free(start);
+                errors[i] = strdup("Failed to start PARFOR iteration");
+                /* continue launching others */
+            } else {
+                /* only mark started after successful thread creation */
+                value_thr_set_started(thr_vals[i], 1);
+            }
+        }
+
+        // Join only threads that were actually started
+        for (size_t i = 0; i < n; i++) {
+            if (thr_vals[i].type == VAL_THR && thr_vals[i].as.thr && value_thr_get_started(thr_vals[i])) {
+                if (thrd_join(thr_vals[i].as.thr->thread, NULL) != thrd_success) {
+                    // ignore join failures but mark finished
+                }
+            }
+        }
+
+        // Collect first error if any (and its original location)
+        char *first_err = NULL;
+        int first_err_line = 0;
+        int first_err_col = 0;
+        for (size_t i = 0; i < n; i++) {
+            if (errors[i]) {
+                first_err = errors[i];
+                first_err_line = err_lines[i];
+                first_err_col = err_cols[i];
+                break;
+            }
+        }
+
+        int first_break_count = 0;
+        for (size_t i = 0; i < n; i++) {
+            if (statuses[i] == EXEC_BREAK) {
+                first_break_count = break_counts[i];
+                break;
+            }
+        }
+
+        // Cleanup thr values
+        for (size_t i = 0; i < n; i++) {
+            value_free(thr_vals[i]);
+        }
+        free(thr_vals);
+        for (size_t i = 0; i < n; i++) {
+            if (errors[i] && errors[i] != first_err) {
+                free(errors[i]);
+            }
+        }
+        free(errors);
+        free(err_lines);
+        free(err_cols);
+        free(statuses);
+        free(break_counts);
+        mtx_destroy(&parfor_control_lock);
+
+        interp->loop_depth--;
+
+        if (first_err) {
+            /* Propagate iteration error into parent interpreter state
+             * so surrounding TRY blocks reliably observe it. */
+            if (interp->error) {
+                free(interp->error);
+            }
+            interp->error = strdup(first_err);
+            /* Prefer the original iteration error location when available */
+            interp->error_line = first_err_line ? first_err_line : stmt->line;
+            interp->error_col = first_err_col ? first_err_col : stmt->column;
+            ExecResult err = make_error(first_err, interp->error_line, interp->error_col);
+            free(first_err);
+            return err;
+        }
+
+        if (first_break_count > 0) {
+            if (first_break_count > 1) {
+                ExecResult res;
+                res.status = EXEC_BREAK;
+                res.value = value_null();
+                res.break_count = first_break_count - 1;
+                res.jump_index = -1;
+                res.error = NULL;
+                res.error_line = 0;
+                res.error_column = 0;
+                return res;
+            }
             return make_ok(value_null());
         }
 
-        default:
-            return make_ok(value_null());
+        return make_ok(value_null());
+    }
+
+    default:
+        return make_ok(value_null());
     }
 }
 
-static ExecResult exec_stmt_list(Interpreter* interp, StmtList* list, Env* env, LabelMap* labels) {
+static ExecResult exec_stmt_list(Interpreter *interp, StmtList *list, Env *env, LabelMap *labels) {
     // First pass: collect gotopoints
     for (size_t i = 0; i < list->count; i++) {
-        Stmt* stmt = list->items[i];
+        Stmt *stmt = list->items[i];
         if (stmt->type == STMT_GOTOPOINT) {
             Value target = eval_expr(interp, stmt->as.gotopoint_stmt.target, env);
             if (interp->error) {
@@ -3558,7 +4084,7 @@ static ExecResult exec_stmt_list(Interpreter* interp, StmtList* list, Env* env, 
             value_free(target);
         }
     }
-    
+
     // Second pass: execute statements
     size_t i = 0;
     while (i < list->count) {
@@ -3566,30 +4092,32 @@ static ExecResult exec_stmt_list(Interpreter* interp, StmtList* list, Env* env, 
         ExecResult res = exec_stmt(interp, list->items[i], env, labels);
         // Notify extensions that a statement has completed (regardless of outcome)
         extensions_fire_event(interp, "after_statement");
-        
-        if (res.status == EXEC_ERROR || res.status == EXEC_RETURN || 
-            res.status == EXEC_BREAK || res.status == EXEC_CONTINUE) {
+
+        if (res.status == EXEC_ERROR || res.status == EXEC_RETURN || res.status == EXEC_BREAK ||
+            res.status == EXEC_CONTINUE) {
             return res;
         }
-        
+
         if (res.status == EXEC_GOTO) {
             if (res.jump_index >= 0 && res.jump_index < (int)list->count) {
                 i = (size_t)res.jump_index;
                 continue;
             }
-            return res;  // Propagate upward if target not in this block
+            return res; // Propagate upward if target not in this block
         }
-        
+
         i++;
     }
-    
+
     return make_ok(value_null());
 }
 
 // ============ Main entry point ============
 
-void interpreter_init(Interpreter* interp, const char* source_path, bool verbose, bool private_mode) {
-    if (!interp) return;
+void interpreter_init(Interpreter *interp, const char *source_path, bool verbose, bool private_mode) {
+    if (!interp) {
+        return;
+    }
     memset(interp, 0, sizeof(*interp));
     interp->global_env = env_create(NULL);
     interp->loop_depth = 0;
@@ -3597,8 +4125,8 @@ void interpreter_init(Interpreter* interp, const char* source_path, bool verbose
     interp->in_try_block = false;
     interp->modules = NULL;
     interp->current_thr = NULL;
-    interp->verbose = verbose ? 1 : 0;
-    interp->private_mode = private_mode ? 1 : 0;
+    interp->verbose = (int)verbose ? 1 : 0;
+    interp->private_mode = (int)private_mode ? 1 : 0;
     interp->source_path = source_path ? strdup(source_path) : NULL;
     interp->trace_stack = NULL;
     interp->trace_stack_count = 0;
@@ -3620,7 +4148,7 @@ void interpreter_init(Interpreter* interp, const char* source_path, bool verbose
     ns_buffer_init();
 
     if (source_path && source_path[0] != '\0') {
-        char* canonical = prefix_fullpath_dup(source_path);
+        char *canonical = prefix_fullpath_dup(source_path);
         if (canonical) {
             env_assign(interp->global_env, "__MODULE_SOURCE__", value_str(canonical), TYPE_STR, true);
             free(canonical);
@@ -3630,19 +4158,23 @@ void interpreter_init(Interpreter* interp, const char* source_path, bool verbose
     }
 }
 
-void interpreter_destroy(Interpreter* interp) {
-    if (!interp) return;
+void interpreter_destroy(Interpreter *interp) {
+    if (!interp) {
+        return;
+    }
 
     if (interp->global_env) {
         env_free(interp->global_env);
         interp->global_env = NULL;
     }
 
-    ModuleEntry* me = interp->modules;
+    ModuleEntry *me = interp->modules;
     while (me) {
-        ModuleEntry* next = me->next;
+        ModuleEntry *next = me->next;
         free(me->name);
-        if (me->owns_env) env_free(me->env);
+        if (me->owns_env) {
+            env_free(me->env);
+        }
         free(me);
         me = next;
     }
@@ -3658,7 +4190,9 @@ void interpreter_destroy(Interpreter* interp) {
         interp->source_path = NULL;
     }
 
-    while (interp->trace_stack_count > 0) trace_pop_frame(interp);
+    while (interp->trace_stack_count > 0) {
+        trace_pop_frame(interp);
+    }
     free(interp->trace_stack);
     interp->trace_stack = NULL;
     interp->trace_stack_capacity = 0;
@@ -3668,49 +4202,58 @@ void interpreter_destroy(Interpreter* interp) {
     mtx_destroy(&g_parfor_merge_lock);
 }
 
-ExecResult exec_program(Stmt* program, const char* source_path) {
+ExecResult exec_program(Stmt *program, const char *source_path) {
     Interpreter interp;
     interpreter_init(&interp, source_path, false, false);
-    
+
     LabelMap labels = {0};
     extensions_fire_event(&interp, "program_start");
     ExecResult res = exec_stmt_list(&interp, &program->as.block, interp.global_env, &labels);
 
     if (res.status == EXEC_ERROR) {
         extensions_fire_event(&interp, "on_error");
-        char* tb = interpreter_format_traceback(&interp, res.error, res.error_line, res.error_column);
+        char *tb = interpreter_format_traceback(&interp, res.error, res.error_line, res.error_column);
         free(res.error);
         res.error = tb;
     } else {
         extensions_fire_event(&interp, "program_end");
     }
-    
+
     // Clean up
-    for (size_t i = 0; i < labels.count; i++) value_free(labels.items[i].key);
+    for (size_t i = 0; i < labels.count; i++) {
+        value_free(labels.items[i].key);
+    }
     free(labels.items);
-    
+
     interpreter_destroy(&interp);
     return res;
 }
 
 // helper used by builtins to restart threads
-int interpreter_restart_thread(Interpreter* interp, Value thr_val, int line, int col) {
-    (void)line; (void)col;
+int interpreter_restart_thread(Interpreter *interp, Value thr_val, int line, int col) {
+    (void)line;
+    (void)col;
     if (thr_val.type != VAL_THR || !thr_val.as.thr) {
-        if (interp) interp->error = strdup("RESTART expects THR argument");
+        if (interp) {
+            interp->error = strdup("RESTART expects THR argument");
+        }
         return -1;
     }
-    Thr* th = thr_val.as.thr;
+    Thr *th = thr_val.as.thr;
     if (!th->body || !th->env) {
-        if (interp) interp->error = strdup("Cannot restart: no stored thread body/env");
+        if (interp) {
+            interp->error = strdup("Cannot restart: no stored thread body/env");
+        }
         return -1;
     }
     if (!value_thr_get_finished(thr_val)) {
-        if (interp) interp->error = strdup("Cannot restart running thread");
+        if (interp) {
+            interp->error = strdup("Cannot restart running thread");
+        }
         return -1;
     }
-    ThrStart* start = safe_malloc(sizeof(ThrStart));
-    Interpreter* thr_interp = safe_malloc(sizeof(Interpreter));
+    ThrStart *start = safe_malloc(sizeof(ThrStart));
+    Interpreter *thr_interp = safe_malloc(sizeof(Interpreter));
     *thr_interp = (Interpreter){0};
     thr_interp->global_env = interp->global_env;
     thr_interp->loop_depth = 0;
@@ -3734,7 +4277,9 @@ int interpreter_restart_thread(Interpreter* interp, Value thr_val, int line, int
         value_free(start->thr_val);
         free(thr_interp);
         free(start);
-        if (interp) interp->error = strdup("Failed to restart thread");
+        if (interp) {
+            interp->error = strdup("Failed to restart thread");
+        }
         return -1;
     }
     return 0;
@@ -3744,7 +4289,7 @@ int interpreter_restart_thread(Interpreter* interp, Value thr_val, int line, int
 // This runs `program` using the provided `interp` state and the
 // supplied `env` as the execution environment. It returns an
 // ExecResult similar to `exec_program`.
-ExecResult exec_program_in_env(Interpreter* interp, Stmt* program, Env* env) {
+ExecResult exec_program_in_env(Interpreter *interp, Stmt *program, Env *env) {
     if (!interp || !program || !env) {
         ExecResult r = make_error("Internal: invalid args to exec_program_in_env", 0, 0);
         return r;
@@ -3762,7 +4307,7 @@ ExecResult exec_program_in_env(Interpreter* interp, Stmt* program, Env* env) {
     if (res.status == EXEC_ERROR) {
         // Notify extensions about the error
         extensions_fire_event(interp, "on_error");
-        char* tb = interpreter_format_traceback(interp, res.error, res.error_line, res.error_column);
+        char *tb = interpreter_format_traceback(interp, res.error, res.error_line, res.error_column);
         free(res.error);
         res.error = tb;
     } else {
@@ -3770,7 +4315,9 @@ ExecResult exec_program_in_env(Interpreter* interp, Stmt* program, Env* env) {
         extensions_fire_event(interp, "program_end");
     }
 
-    for (size_t i = 0; i < labels.count; i++) value_free(labels.items[i].key);
+    for (size_t i = 0; i < labels.count; i++) {
+        value_free(labels.items[i].key);
+    }
     free(labels.items);
 
     return res;
@@ -3779,7 +4326,7 @@ ExecResult exec_program_in_env(Interpreter* interp, Stmt* program, Env* env) {
 // Execute a parsed function body (`program`) within an existing Interpreter
 // and Env treating the execution as a function call frame so `RETURN` is
 // permitted. `func_name` is used for traceback entries.
-ExecResult exec_program_in_env_as_function(Interpreter* interp, Stmt* program, Env* env, const char* func_name) {
+ExecResult exec_program_in_env_as_function(Interpreter *interp, Stmt *program, Env *env, const char *func_name) {
     if (!interp || !program || !env) {
         ExecResult r = make_error("Internal: invalid args to exec_program_in_env_as_function", 0, 0);
         return r;
@@ -3799,12 +4346,14 @@ ExecResult exec_program_in_env_as_function(Interpreter* interp, Stmt* program, E
     ExecResult res = exec_stmt_list(interp, &program->as.block, env, &labels);
 
     if (res.status == EXEC_ERROR) {
-        char* tb = interpreter_format_traceback(interp, res.error, res.error_line, res.error_column);
+        char *tb = interpreter_format_traceback(interp, res.error, res.error_line, res.error_column);
         free(res.error);
         res.error = tb;
     }
 
-    for (size_t i = 0; i < labels.count; i++) value_free(labels.items[i].key);
+    for (size_t i = 0; i < labels.count; i++) {
+        value_free(labels.items[i].key);
+    }
     free(labels.items);
 
     return res;

@@ -20,21 +20,22 @@ typedef struct Env Env;
 typedef struct Expr Expr;
 typedef struct prefix_ext_context prefix_ext_context;
 
-typedef Value (*prefix_operator_fn)(Interpreter* interp, Value* args, int argc, Expr** arg_nodes, Env* env, int line, int col);
-typedef void (*prefix_event_fn)(Interpreter* interp, const char* event_name);
+typedef Value (*prefix_operator_fn)(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line,
+                                    int col);
+typedef void (*prefix_event_fn)(Interpreter *interp, const char *event_name);
 typedef int (*prefix_repl_fn)(void);
 
 struct prefix_ext_context {
     int api_version;
-    const char* extension_name;
+    const char *extension_name;
 
-    int (*register_operator)(const char* name, prefix_operator_fn fn, int flags);
+    int (*register_operator)(const char *name, prefix_operator_fn fn, int flags);
     int (*register_periodic_hook)(int n, prefix_event_fn fn);
-    int (*register_event_handler)(const char* event_name, prefix_event_fn fn);
+    int (*register_event_handler)(const char *event_name, prefix_event_fn fn);
     int (*register_repl_handler)(prefix_repl_fn repl_fn);
 };
 
-typedef void (*prefix_extension_init_fn)(prefix_ext_context* ctx);
+typedef void (*prefix_extension_init_fn)(prefix_ext_context *ctx);
 
 #ifdef __cplusplus
 }

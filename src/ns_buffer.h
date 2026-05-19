@@ -25,53 +25,53 @@ struct Interpreter;
 // A single write operation enqueued in the central buffer.
 typedef struct NsOp {
     NsOpType op;
-    struct Env* env;
-    char* name;             // symbol name (owned copy)
-    Value value;            // for ASSIGN
-    DeclType decl_type;     // for DEFINE / ASSIGN / ALIAS
-    bool declare_if_missing;// for ASSIGN / ALIAS
-    char* target_name;      // for ALIAS  (owned copy)
-    struct Interpreter* interp;
-    Expr* index_expr;
+    struct Env *env;
+    char *name;              // symbol name (owned copy)
+    Value value;             // for ASSIGN
+    DeclType decl_type;      // for DEFINE / ASSIGN / ALIAS
+    bool declare_if_missing; // for ASSIGN / ALIAS
+    char *target_name;       // for ALIAS  (owned copy)
+    struct Interpreter *interp;
+    Expr *index_expr;
     int stmt_line;
     int stmt_col;
-    char* error_message;
+    char *error_message;
     int error_line;
     int error_col;
 
     // Result fields – filled by the prepare thread after execution
-    bool result_ok;         // true = success (for bool-returning ops)
-    int  result_int;        // return value  (for int-returning ops)
+    bool result_ok; // true = success (for bool-returning ops)
+    int result_int; // return value  (for int-returning ops)
 
     // Completion signalling
     bool completed;
     mtx_t completion_mtx;
     cnd_t completion_cnd;
 
-    struct NsOp* next;
+    struct NsOp *next;
 } NsOp;
 
 // Per-symbol write queue ("symbol thread" – a logical thread).
 typedef struct SymbolThread {
-    char* name;             // symbol name (owned copy)
-    NsOp* head;
-    NsOp* tail;
+    char *name; // symbol name (owned copy)
+    NsOp *head;
+    NsOp *tail;
     size_t pending_count;
-    mtx_t lock;             // protects head / tail / pending_count
-    cnd_t drain_cnd;        // signalled when pending_count reaches 0
-    struct SymbolThread* next;
+    mtx_t lock;      // protects head / tail / pending_count
+    cnd_t drain_cnd; // signalled when pending_count reaches 0
+    struct SymbolThread *next;
 } SymbolThread;
 
 // Central namespace buffer.
 typedef struct NsBuffer {
     // Central write queue
-    NsOp* queue_head;
-    NsOp* queue_tail;
+    NsOp *queue_head;
+    NsOp *queue_tail;
     mtx_t queue_mtx;
-    cnd_t queue_cnd;        // signalled when a new op is enqueued or on shutdown
+    cnd_t queue_cnd; // signalled when a new op is enqueued or on shutdown
 
     // Symbol thread registry (linked list)
-    SymbolThread* symbols;
+    SymbolThread *symbols;
     mtx_t symbols_mtx;
 
     // Global env-access mutex – held by the prepare thread during writes
@@ -80,7 +80,7 @@ typedef struct NsBuffer {
 
     // Prepare thread (hardware thread)
     thrd_t prepare_thrd;
-    volatile int running;   // using int for volatile-safe reads
+    volatile int running; // using int for volatile-safe reads
 } NsBuffer;
 
 // ---------- Public API ----------
@@ -105,7 +105,7 @@ bool ns_buffer_is_prepare_thread(void);
 // Block the calling thread until all pending writes for `name` have
 // been processed.  Then acquire the env-access lock so the caller can
 // safely read.  The caller MUST call ns_buffer_read_unlock() when done.
-void ns_buffer_read_lock(const char* name);
+void ns_buffer_read_lock(const char *name);
 
 // Release the env-access lock acquired by ns_buffer_read_lock().
 void ns_buffer_read_unlock(void);
@@ -114,20 +114,16 @@ void ns_buffer_read_unlock(void);
 // Each function enqueues the operation, blocks until completion, and
 // returns the result.
 
-bool ns_buffer_define(struct Env* env, const char* name, DeclType type);
-bool ns_buffer_assign(struct Env* env, const char* name, Value value,
-                      DeclType type, bool declare_if_missing);
-bool ns_buffer_assign_index(struct Interpreter* interp, struct Env* env,
-                            Expr* idx_expr, Value value,
-                            int stmt_line, int stmt_col,
-                            char** out_error, int* out_line, int* out_col);
-bool ns_buffer_delete(struct Env* env, const char* name);
-bool ns_buffer_set_alias(struct Env* env, const char* name,
-                         const char* target_name, DeclType type,
+bool ns_buffer_define(struct Env *env, const char *name, DeclType type);
+bool ns_buffer_assign(struct Env *env, const char *name, Value value, DeclType type, bool declare_if_missing);
+bool ns_buffer_assign_index(struct Interpreter *interp, struct Env *env, Expr *idx_expr, Value value, int stmt_line,
+                            int stmt_col, char **out_error, int *out_line, int *out_col);
+bool ns_buffer_delete(struct Env *env, const char *name);
+bool ns_buffer_set_alias(struct Env *env, const char *name, const char *target_name, DeclType type,
                          bool declare_if_missing);
-bool ns_buffer_restore_local(struct Env* env, const char* name, Value value, DeclType type, bool initialized);
-int  ns_buffer_freeze(struct Env* env, const char* name);
-int  ns_buffer_thaw(struct Env* env, const char* name);
-int  ns_buffer_permafreeze(struct Env* env, const char* name);
+bool ns_buffer_restore_local(struct Env *env, const char *name, Value value, DeclType type, bool initialized);
+int ns_buffer_freeze(struct Env *env, const char *name);
+int ns_buffer_thaw(struct Env *env, const char *name);
+int ns_buffer_permafreeze(struct Env *env, const char *name);
 
 #endif // NS_BUFFER_H

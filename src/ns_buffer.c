@@ -28,39 +28,47 @@
 #include "env.h"
 #include "interpreter.h"
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdio.h>
 
 /* ------------------------------------------------------------------ */
 /*  Global singleton                                                   */
 /* ------------------------------------------------------------------ */
 
-static NsBuffer* g_ns_buf = NULL;
+static NsBuffer *g_ns_buf = NULL;
 static _Thread_local int g_ns_prepare_thread = 0;
 
 /* ------------------------------------------------------------------ */
 /*  Helpers                                                            */
 /* ------------------------------------------------------------------ */
 
-static void* ns_alloc(size_t size) {
-    void* p = malloc(size);
-    if (!p) { fprintf(stderr, "ns_buffer: out of memory\n"); exit(1); }
+static void *ns_alloc(size_t size) {
+    void *p = malloc(size);
+    if (!p) {
+        fprintf(stderr, "ns_buffer: out of memory\n");
+        exit(1);
+    }
     memset(p, 0, size);
     return p;
 }
 
 /* Look up a SymbolThread by name.  Must be called with symbols_mtx held. */
-static SymbolThread* find_symbol_thread(NsBuffer* buf, const char* name) {
-    for (SymbolThread* st = buf->symbols; st; st = st->next)
-        if (strcmp(st->name, name) == 0) return st;
+static SymbolThread *find_symbol_thread(NsBuffer *buf, const char *name) {
+    for (SymbolThread *st = buf->symbols; st; st = st->next) {
+        if (strcmp(st->name, name) == 0) {
+            return st;
+        }
+    }
     return NULL;
 }
 
 /* Find or create a SymbolThread.  Must be called with symbols_mtx held. */
-static SymbolThread* find_or_create_symbol_thread(NsBuffer* buf, const char* name) {
-    SymbolThread* st = find_symbol_thread(buf, name);
-    if (st) return st;
+static SymbolThread *find_or_create_symbol_thread(NsBuffer *buf, const char *name) {
+    SymbolThread *st = find_symbol_thread(buf, name);
+    if (st) {
+        return st;
+    }
 
     st = ns_alloc(sizeof(SymbolThread));
     st->name = strdup(name);
@@ -84,18 +92,17 @@ static SymbolThread* find_or_create_symbol_thread(NsBuffer* buf, const char* nam
 /*  Called on the prepare thread while holding buf->env_mtx.           */
 /* ------------------------------------------------------------------ */
 
-static void execute_op(NsOp* op) {
+static void execute_op(NsOp *op) {
     switch (op->op) {
     case NS_OP_DEFINE:
         op->result_ok = env_define_direct(op->env, op->name, op->decl_type);
         break;
     case NS_OP_ASSIGN:
-        op->result_ok = env_assign_direct(op->env, op->name, op->value,
-                                          op->decl_type, op->declare_if_missing);
+        op->result_ok = env_assign_direct(op->env, op->name, op->value, op->decl_type, op->declare_if_missing);
         break;
     case NS_OP_INDEX_ASSIGN: {
-        ExecResult res = assign_index_chain(op->interp, op->env, op->index_expr,
-                                            op->value, op->stmt_line, op->stmt_col);
+        ExecResult res =
+            assign_index_chain(op->interp, op->env, op->index_expr, op->value, op->stmt_line, op->stmt_col);
         op->result_ok = (res.status == EXEC_OK);
         if (res.status == EXEC_ERROR && res.error) {
             op->error_message = strdup(res.error);
@@ -103,16 +110,16 @@ static void execute_op(NsOp* op) {
             op->error_col = res.error_column;
         }
         value_free(res.value);
-        if (res.error) free(res.error);
+        if (res.error) {
+            free(res.error);
+        }
         break;
     }
     case NS_OP_DELETE:
         op->result_ok = env_delete_direct(op->env, op->name);
         break;
     case NS_OP_ALIAS:
-        op->result_ok = env_set_alias_direct(op->env, op->name,
-                                             op->target_name, op->decl_type,
-                                             op->declare_if_missing);
+        op->result_ok = env_set_alias_direct(op->env, op->name, op->target_name, op->decl_type, op->declare_if_missing);
         break;
     case NS_OP_RESTORE:
         op->result_ok = env_restore_local_direct(op->env, op->name, op->value, op->decl_type, op->declare_if_missing);
@@ -133,35 +140,41 @@ static void execute_op(NsOp* op) {
 /*  Prepare-thread main loop                                           */
 /* ------------------------------------------------------------------ */
 
-static int prepare_thread_func(void* arg) {
-    NsBuffer* buf = (NsBuffer*)arg;
+static int prepare_thread_func(void *arg) {
+    NsBuffer *buf = (NsBuffer *)arg;
     g_ns_prepare_thread = 1;
 
     while (buf->running) {
         /* ---- Phase 1: wait for and dequeue the oldest operation ---- */
         mtx_lock(&buf->queue_mtx);
-        while (!buf->queue_head && buf->running)
+        while (!buf->queue_head && buf->running) {
             cnd_wait(&buf->queue_cnd, &buf->queue_mtx);
+        }
 
         if (!buf->running && !buf->queue_head) {
             mtx_unlock(&buf->queue_mtx);
             break;
         }
 
-        NsOp* op = buf->queue_head;
+        NsOp *op = buf->queue_head;
         buf->queue_head = op->next;
-        if (!buf->queue_head) buf->queue_tail = NULL;
+        if (!buf->queue_head) {
+            buf->queue_tail = NULL;
+        }
         op->next = NULL;
         mtx_unlock(&buf->queue_mtx);
 
         /* ---- Phase 2: dispatch to the appropriate symbol thread ---- */
         mtx_lock(&buf->symbols_mtx);
-        SymbolThread* st = find_or_create_symbol_thread(buf, op->name);
+        SymbolThread *st = find_or_create_symbol_thread(buf, op->name);
         mtx_unlock(&buf->symbols_mtx);
 
         mtx_lock(&st->lock);
-        if (st->tail) st->tail->next = op;
-        else          st->head = op;
+        if (st->tail) {
+            st->tail->next = op;
+        } else {
+            st->head = op;
+        }
         st->tail = op;
         st->pending_count++;
         mtx_unlock(&st->lock);
@@ -174,10 +187,13 @@ static int prepare_thread_func(void* arg) {
         /* ---- Phase 4: remove from symbol thread & signal drain ---- */
         mtx_lock(&st->lock);
         st->head = op->next;
-        if (!st->head) st->tail = NULL;
+        if (!st->head) {
+            st->tail = NULL;
+        }
         st->pending_count--;
-        if (st->pending_count == 0)
+        if (st->pending_count == 0) {
             cnd_broadcast(&st->drain_cnd);
+        }
         mtx_unlock(&st->lock);
 
         /* ---- Phase 5: signal the waiting writer ---- */
@@ -190,13 +206,13 @@ static int prepare_thread_func(void* arg) {
     /* ---- Drain any remaining operations on shutdown ---- */
     mtx_lock(&buf->queue_mtx);
     while (buf->queue_head) {
-        NsOp* op = buf->queue_head;
+        NsOp *op = buf->queue_head;
         buf->queue_head = op->next;
         op->next = NULL;
         mtx_unlock(&buf->queue_mtx);
 
         mtx_lock(&buf->symbols_mtx);
-        SymbolThread* st = find_or_create_symbol_thread(buf, op->name);
+        SymbolThread *st = find_or_create_symbol_thread(buf, op->name);
         mtx_unlock(&buf->symbols_mtx);
 
         mtx_lock(&buf->env_mtx);
@@ -204,8 +220,12 @@ static int prepare_thread_func(void* arg) {
         mtx_unlock(&buf->env_mtx);
 
         mtx_lock(&st->lock);
-        if (st->pending_count > 0) st->pending_count--;
-        if (st->pending_count == 0) cnd_broadcast(&st->drain_cnd);
+        if (st->pending_count > 0) {
+            st->pending_count--;
+        }
+        if (st->pending_count == 0) {
+            cnd_broadcast(&st->drain_cnd);
+        }
         mtx_unlock(&st->lock);
 
         mtx_lock(&op->completion_mtx);
@@ -226,9 +246,11 @@ static int prepare_thread_func(void* arg) {
 /* ------------------------------------------------------------------ */
 
 void ns_buffer_init(void) {
-    if (g_ns_buf) return; /* already initialised */
+    if (g_ns_buf) {
+        return; /* already initialised */
+    }
 
-    NsBuffer* buf = ns_alloc(sizeof(NsBuffer));
+    NsBuffer *buf = ns_alloc(sizeof(NsBuffer));
     buf->queue_head = buf->queue_tail = NULL;
     mtx_init(&buf->queue_mtx, 0);
     cnd_init(&buf->queue_cnd);
@@ -249,8 +271,10 @@ void ns_buffer_init(void) {
 }
 
 void ns_buffer_shutdown(void) {
-    if (!g_ns_buf) return;
-    NsBuffer* buf = g_ns_buf;
+    if (!g_ns_buf) {
+        return;
+    }
+    NsBuffer *buf = g_ns_buf;
 
     /* Signal the prepare thread to stop */
     buf->running = 0;
@@ -261,9 +285,9 @@ void ns_buffer_shutdown(void) {
     thrd_join(buf->prepare_thrd, NULL);
 
     /* Free symbol threads */
-    SymbolThread* st = buf->symbols;
+    SymbolThread *st = buf->symbols;
     while (st) {
-        SymbolThread* next = st->next;
+        SymbolThread *next = st->next;
         free(st->name);
         mtx_destroy(&st->lock);
         cnd_destroy(&st->drain_cnd);
@@ -279,31 +303,30 @@ void ns_buffer_shutdown(void) {
     g_ns_buf = NULL;
 }
 
-bool ns_buffer_active(void) {
-    return g_ns_buf != NULL && g_ns_buf->running;
-}
+bool ns_buffer_active(void) { return (g_ns_buf != NULL && g_ns_buf->running) != 0; }
 
-bool ns_buffer_is_prepare_thread(void) {
-    return g_ns_prepare_thread != 0;
-}
+bool ns_buffer_is_prepare_thread(void) { return g_ns_prepare_thread != 0; }
 
 /* ------------------------------------------------------------------ */
 /*  Public: read-side synchronisation                                  */
 /* ------------------------------------------------------------------ */
 
-void ns_buffer_read_lock(const char* name) {
-    if (!g_ns_buf || !g_ns_buf->running) return;
-    NsBuffer* buf = g_ns_buf;
+void ns_buffer_read_lock(const char *name) {
+    if (!g_ns_buf || !g_ns_buf->running) {
+        return;
+    }
+    NsBuffer *buf = g_ns_buf;
 
     /* Wait until all pending writes for this symbol are drained */
     mtx_lock(&buf->symbols_mtx);
-    SymbolThread* st = find_symbol_thread(buf, name);
+    SymbolThread *st = find_symbol_thread(buf, name);
     mtx_unlock(&buf->symbols_mtx);
 
     if (st) {
         mtx_lock(&st->lock);
-        while (st->pending_count > 0)
+        while (st->pending_count > 0) {
             cnd_wait(&st->drain_cnd, &st->lock);
+        }
         mtx_unlock(&st->lock);
     }
 
@@ -313,7 +336,9 @@ void ns_buffer_read_lock(const char* name) {
 }
 
 void ns_buffer_read_unlock(void) {
-    if (!g_ns_buf) return;
+    if (!g_ns_buf) {
+        return;
+    }
     mtx_unlock(&g_ns_buf->env_mtx);
 }
 
@@ -321,8 +346,8 @@ void ns_buffer_read_unlock(void) {
 /*  Internal: enqueue an operation and wait for completion             */
 /* ------------------------------------------------------------------ */
 
-static NsOp* make_op(NsOpType type, struct Env* env, const char* name) {
-    NsOp* op = ns_alloc(sizeof(NsOp));
+static NsOp *make_op(NsOpType type, struct Env *env, const char *name) {
+    NsOp *op = ns_alloc(sizeof(NsOp));
     op->op = type;
     op->env = env;
     op->name = strdup(name);
@@ -332,27 +357,35 @@ static NsOp* make_op(NsOpType type, struct Env* env, const char* name) {
     return op;
 }
 
-static void enqueue_op(NsOp* op) {
-    NsBuffer* buf = g_ns_buf;
+static void enqueue_op(NsOp *op) {
+    NsBuffer *buf = g_ns_buf;
     mtx_lock(&buf->queue_mtx);
-    if (buf->queue_tail) buf->queue_tail->next = op;
-    else                 buf->queue_head = op;
+    if (buf->queue_tail) {
+        buf->queue_tail->next = op;
+    } else {
+        buf->queue_head = op;
+    }
     buf->queue_tail = op;
     cnd_signal(&buf->queue_cnd);
     mtx_unlock(&buf->queue_mtx);
 }
 
-static void wait_op(NsOp* op) {
+static void wait_op(NsOp *op) {
     mtx_lock(&op->completion_mtx);
-    while (!op->completed)
+    while (!op->completed) {
         cnd_wait(&op->completion_cnd, &op->completion_mtx);
+    }
     mtx_unlock(&op->completion_mtx);
 }
 
-static void free_op(NsOp* op) {
+static void free_op(NsOp *op) {
     free(op->name);
-    if (op->target_name) free(op->target_name);
-    if (op->error_message) free(op->error_message);
+    if (op->target_name) {
+        free(op->target_name);
+    }
+    if (op->error_message) {
+        free(op->error_message);
+    }
     /* Note: op->value is NOT freed here – ownership was transferred
        to the env by the _direct function.  If the op failed we must
        still not double-free because the _direct function already
@@ -366,8 +399,8 @@ static void free_op(NsOp* op) {
 /*  Public: buffered write entry points                                */
 /* ------------------------------------------------------------------ */
 
-bool ns_buffer_define(struct Env* env, const char* name, DeclType type) {
-    NsOp* op = make_op(NS_OP_DEFINE, env, name);
+bool ns_buffer_define(struct Env *env, const char *name, DeclType type) {
+    NsOp *op = make_op(NS_OP_DEFINE, env, name);
     op->decl_type = type;
     enqueue_op(op);
     wait_op(op);
@@ -376,10 +409,9 @@ bool ns_buffer_define(struct Env* env, const char* name, DeclType type) {
     return r;
 }
 
-bool ns_buffer_assign(struct Env* env, const char* name, Value value,
-                      DeclType type, bool declare_if_missing) {
-    NsOp* op = make_op(NS_OP_ASSIGN, env, name);
-    op->value = value_copy(value);   /* transfer a copy into the op */
+bool ns_buffer_assign(struct Env *env, const char *name, Value value, DeclType type, bool declare_if_missing) {
+    NsOp *op = make_op(NS_OP_ASSIGN, env, name);
+    op->value = value_copy(value); /* transfer a copy into the op */
     op->decl_type = type;
     op->declare_if_missing = declare_if_missing;
     enqueue_op(op);
@@ -391,31 +423,43 @@ bool ns_buffer_assign(struct Env* env, const char* name, Value value,
     return r;
 }
 
-static const char* ns_index_base_name(Expr* idx_expr) {
-    Expr* walker = idx_expr;
+static const char *ns_index_base_name(Expr *idx_expr) {
+    Expr *walker = idx_expr;
     while (walker && walker->type == EXPR_INDEX) {
         walker = walker->as.index.target;
     }
-    if (!walker || walker->type != EXPR_IDENT) return NULL;
+    if (!walker || walker->type != EXPR_IDENT) {
+        return NULL;
+    }
     return walker->as.ident;
 }
 
-bool ns_buffer_assign_index(struct Interpreter* interp, struct Env* env,
-                            Expr* idx_expr, Value value,
-                            int stmt_line, int stmt_col,
-                            char** out_error, int* out_line, int* out_col) {
-    const char* base_name = ns_index_base_name(idx_expr);
-    if (out_error) *out_error = NULL;
-    if (out_line) *out_line = 0;
-    if (out_col) *out_col = 0;
+bool ns_buffer_assign_index(struct Interpreter *interp, struct Env *env, Expr *idx_expr, Value value, int stmt_line,
+                            int stmt_col, char **out_error, int *out_line, int *out_col) {
+    const char *base_name = ns_index_base_name(idx_expr);
+    if (out_error) {
+        *out_error = NULL;
+    }
+    if (out_line) {
+        *out_line = 0;
+    }
+    if (out_col) {
+        *out_col = 0;
+    }
     if (!base_name) {
-        if (out_error) *out_error = strdup("Indexed assignment base must be an identifier");
-        if (out_line) *out_line = stmt_line;
-        if (out_col) *out_col = stmt_col;
+        if (out_error) {
+            *out_error = strdup("Indexed assignment base must be an identifier");
+        }
+        if (out_line) {
+            *out_line = stmt_line;
+        }
+        if (out_col) {
+            *out_col = stmt_col;
+        }
         return false;
     }
 
-    NsOp* op = make_op(NS_OP_INDEX_ASSIGN, env, base_name);
+    NsOp *op = make_op(NS_OP_INDEX_ASSIGN, env, base_name);
     op->interp = interp;
     op->index_expr = idx_expr;
     op->value = value_copy(value);
@@ -430,15 +474,19 @@ bool ns_buffer_assign_index(struct Interpreter* interp, struct Env* env,
         if (out_error) {
             *out_error = strdup(op->error_message ? op->error_message : "Indexed assignment failed");
         }
-        if (out_line) *out_line = op->error_line ? op->error_line : stmt_line;
-        if (out_col) *out_col = op->error_col ? op->error_col : stmt_col;
+        if (out_line) {
+            *out_line = op->error_line ? op->error_line : stmt_line;
+        }
+        if (out_col) {
+            *out_col = op->error_col ? op->error_col : stmt_col;
+        }
     }
     free_op(op);
     return r;
 }
 
-bool ns_buffer_delete(struct Env* env, const char* name) {
-    NsOp* op = make_op(NS_OP_DELETE, env, name);
+bool ns_buffer_delete(struct Env *env, const char *name) {
+    NsOp *op = make_op(NS_OP_DELETE, env, name);
     enqueue_op(op);
     wait_op(op);
     bool r = op->result_ok;
@@ -446,10 +494,9 @@ bool ns_buffer_delete(struct Env* env, const char* name) {
     return r;
 }
 
-bool ns_buffer_set_alias(struct Env* env, const char* name,
-                         const char* target_name, DeclType type,
+bool ns_buffer_set_alias(struct Env *env, const char *name, const char *target_name, DeclType type,
                          bool declare_if_missing) {
-    NsOp* op = make_op(NS_OP_ALIAS, env, name);
+    NsOp *op = make_op(NS_OP_ALIAS, env, name);
     op->target_name = strdup(target_name);
     op->decl_type = type;
     op->declare_if_missing = declare_if_missing;
@@ -460,8 +507,8 @@ bool ns_buffer_set_alias(struct Env* env, const char* name,
     return r;
 }
 
-bool ns_buffer_restore_local(struct Env* env, const char* name, Value value, DeclType type, bool initialized) {
-    NsOp* op = make_op(NS_OP_RESTORE, env, name);
+bool ns_buffer_restore_local(struct Env *env, const char *name, Value value, DeclType type, bool initialized) {
+    NsOp *op = make_op(NS_OP_RESTORE, env, name);
     op->value = value_copy(value);
     op->decl_type = type;
     op->declare_if_missing = initialized;
@@ -473,8 +520,8 @@ bool ns_buffer_restore_local(struct Env* env, const char* name, Value value, Dec
     return r;
 }
 
-int ns_buffer_freeze(struct Env* env, const char* name) {
-    NsOp* op = make_op(NS_OP_FREEZE, env, name);
+int ns_buffer_freeze(struct Env *env, const char *name) {
+    NsOp *op = make_op(NS_OP_FREEZE, env, name);
     enqueue_op(op);
     wait_op(op);
     int r = op->result_int;
@@ -482,8 +529,8 @@ int ns_buffer_freeze(struct Env* env, const char* name) {
     return r;
 }
 
-int ns_buffer_thaw(struct Env* env, const char* name) {
-    NsOp* op = make_op(NS_OP_THAW, env, name);
+int ns_buffer_thaw(struct Env *env, const char *name) {
+    NsOp *op = make_op(NS_OP_THAW, env, name);
     enqueue_op(op);
     wait_op(op);
     int r = op->result_int;
@@ -491,8 +538,8 @@ int ns_buffer_thaw(struct Env* env, const char* name) {
     return r;
 }
 
-int ns_buffer_permafreeze(struct Env* env, const char* name) {
-    NsOp* op = make_op(NS_OP_PERMAFREEZE, env, name);
+int ns_buffer_permafreeze(struct Env *env, const char *name) {
+    NsOp *op = make_op(NS_OP_PERMAFREEZE, env, name);
     enqueue_op(op);
     wait_op(op);
     int r = op->result_int;

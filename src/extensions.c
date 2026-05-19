@@ -1,11 +1,11 @@
 #include "extensions.h"
-#include "prefix_extension.h"
 #include "builtins.h"
+#include "prefix_extension.h"
 
+#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <ctype.h>
 #include <sys/stat.h>
 
 #ifdef _WIN32
@@ -13,112 +13,134 @@
 typedef HMODULE DynLibHandle;
 #else
 #include <dlfcn.h>
-typedef void* DynLibHandle;
+typedef void *DynLibHandle;
 #endif
 
 typedef struct ExtensionExposure {
-    char* key;
-    struct ExtensionExposure* next;
+    char *key;
+    struct ExtensionExposure *next;
 } ExtensionExposure;
 
 typedef struct RegisteredOperator {
-    char* name;
+    char *name;
     prefix_operator_fn fn;
     int flags;
-    struct RegisteredOperator* next;
+    struct RegisteredOperator *next;
 } RegisteredOperator;
 
 typedef struct LoadedExtension {
-    char* canonical_path;
+    char *canonical_path;
     DynLibHandle handle;
     prefix_extension_init_fn init_fn;
-    RegisteredOperator* ops;
-    ExtensionExposure* exposures;
-    struct LoadedExtension* next;
+    RegisteredOperator *ops;
+    ExtensionExposure *exposures;
+    struct LoadedExtension *next;
 } LoadedExtension;
 
-static LoadedExtension* g_loaded = NULL;
-static char* g_interpreter_dir = NULL;
-static char* g_cwd_dir = NULL;
-static const char* g_loading_extension_name = NULL;
-static const char* g_loading_scope_name = NULL;
-static LoadedExtension* g_current_loading_extension = NULL;
+static LoadedExtension *g_loaded = NULL;
+static char *g_interpreter_dir = NULL;
+static char *g_cwd_dir = NULL;
+static const char *g_loading_extension_name = NULL;
+static const char *g_loading_scope_name = NULL;
+static LoadedExtension *g_current_loading_extension = NULL;
 
 // Registered event handlers and periodic hooks
 typedef struct EventHandler {
-    char* event_name;
+    char *event_name;
     prefix_event_fn fn;
-    char* owner;
-    struct EventHandler* next;
+    char *owner;
+    struct EventHandler *next;
 } EventHandler;
 
 typedef struct PeriodicHook {
     int n;
     prefix_event_fn fn;
-    char* owner;
-    struct PeriodicHook* next;
+    char *owner;
+    struct PeriodicHook *next;
 } PeriodicHook;
 
-static EventHandler* g_event_handlers = NULL;
-static PeriodicHook* g_periodic_hooks = NULL;
+static EventHandler *g_event_handlers = NULL;
+static PeriodicHook *g_periodic_hooks = NULL;
 static prefix_repl_fn g_repl_handler = NULL;
-static char* g_repl_owner = NULL;
+static char *g_repl_owner = NULL;
 
-static void set_error(char** error_out, const char* msg) {
-    if (!error_out) return;
+static void set_error(char **error_out, const char *msg) {
+    if (!error_out) {
+        return;
+    }
     free(*error_out);
     *error_out = msg ? strdup(msg) : NULL;
 }
 
-static void set_errorf(char** error_out, const char* prefix, const char* value) {
-    if (!error_out) return;
+static void set_errorf(char **error_out, const char *prefix, const char *value) {
+    if (!error_out) {
+        return;
+    }
     size_t a = prefix ? strlen(prefix) : 0;
     size_t b = value ? strlen(value) : 0;
-    char* out = malloc(a + b + 1);
-    if (!out) return;
-    if (prefix) memcpy(out, prefix, a);
-    if (value) memcpy(out + a, value, b);
+    char *out = malloc(a + b + 1);
+    if (!out) {
+        return;
+    }
+    if (prefix) {
+        memcpy(out, prefix, a);
+    }
+    if (value) {
+        memcpy(out + a, value, b);
+    }
     out[a + b] = '\0';
     free(*error_out);
     *error_out = out;
 }
 
-static int path_is_absolute(const char* path) {
-    if (!path || path[0] == '\0') return 0;
+static int path_is_absolute(const char *path) {
+    if (!path || path[0] == '\0') {
+        return 0;
+    }
 #ifdef _WIN32
-    if ((isalpha((unsigned char)path[0]) && path[1] == ':') ||
-        (path[0] == '\\' && path[1] == '\\') ||
-        path[0] == '/' || path[0] == '\\') {
+    if ((isalpha((unsigned char)path[0]) && path[1] == ':') || (path[0] == '\\' && path[1] == '\\') || path[0] == '/' ||
+        path[0] == '\\') {
         return 1;
     }
 #else
-    if (path[0] == '/') return 1;
+    if (path[0] == '/')
+        return 1;
 #endif
     return 0;
 }
 
-static int file_exists_regular(const char* path) {
+static int file_exists_regular(const char *path) {
     struct stat st;
-    if (!path) return 0;
-    if (stat(path, &st) != 0) return 0;
+    if (!path) {
+        return 0;
+    }
+    if (stat(path, &st) != 0) {
+        return 0;
+    }
     return (st.st_mode & S_IFMT) == S_IFREG;
 }
 
-static int ends_with_case_insensitive(const char* s, const char* suffix) {
-    if (!s || !suffix) return 0;
+static int ends_with_case_insensitive(const char *s, const char *suffix) {
+    if (!s || !suffix) {
+        return 0;
+    }
     size_t ls = strlen(s);
     size_t lf = strlen(suffix);
-    if (lf > ls) return 0;
-    const char* tail = s + (ls - lf);
+    if (lf > ls) {
+        return 0;
+    }
+    const char *tail = s + (ls - lf);
     for (size_t i = 0; i < lf; i++) {
         unsigned char a = (unsigned char)tail[i];
         unsigned char b = (unsigned char)suffix[i];
-        if ((unsigned char)tolower(a) != (unsigned char)tolower(b)) return 0;
+        if ((unsigned char)tolower(a) != (unsigned char)tolower(b)) {
+            return 0;
+        }
     }
     return 1;
 }
 
-static const char* platform_dynlib_suffix(void) {
+static const char *platform_dynlib_suffix(void) {
 #ifdef _WIN32
     return ".dll";
 #elif defined(__APPLE__)
@@ -128,40 +150,55 @@ static const char* platform_dynlib_suffix(void) {
 #endif
 }
 
-static int has_dynlib_suffix(const char* path) {
-    return ends_with_case_insensitive(path, ".dll") ||
-           ends_with_case_insensitive(path, ".so") ||
+static int has_dynlib_suffix(const char *path) {
+    return ends_with_case_insensitive(path, ".dll") || ends_with_case_insensitive(path, ".so") ||
            ends_with_case_insensitive(path, ".dylib");
 }
 
-static char* path_join2(const char* a, const char* b) {
-    if (!a || a[0] == '\0') return b ? strdup(b) : NULL;
-    if (!b || b[0] == '\0') return strdup(a);
+static char *path_join2(const char *a, const char *b) {
+    if (!a || a[0] == '\0') {
+        return b ? strdup(b) : NULL;
+    }
+    if (!b || b[0] == '\0') {
+        return strdup(a);
+    }
 
     size_t la = strlen(a);
     size_t lb = strlen(b);
     int need_sep = (la > 0 && a[la - 1] != '/' && a[la - 1] != '\\');
 
-    char* out = malloc(la + (size_t)need_sep + lb + 1);
-    if (!out) return NULL;
+    char *out = malloc(la + (size_t)need_sep + lb + 1);
+    if (!out) {
+        return NULL;
+    }
     memcpy(out, a, la);
     size_t p = la;
-    if (need_sep) out[p++] = '/';
+    if (need_sep) {
+        out[p++] = '/';
+    }
     memcpy(out + p, b, lb);
     out[p + lb] = '\0';
     return out;
 }
 
-static char* path_basename_no_ext_dup(const char* path) {
-    if (!path) return strdup("extension");
-    const char* base = path;
-    for (const char* p = path; *p; p++) {
-        if (*p == '/' || *p == '\\') base = p + 1;
+static char *path_basename_no_ext_dup(const char *path) {
+    if (!path) {
+        return strdup("extension");
     }
-    char* out = strdup(base);
-    if (!out) return NULL;
-    char* dot = strrchr(out, '.');
-    if (dot) *dot = '\0';
+    const char *base = path;
+    for (const char *p = path; *p; p++) {
+        if (*p == '/' || *p == '\\') {
+            base = p + 1;
+        }
+    }
+    char *out = strdup(base);
+    if (!out) {
+        return NULL;
+    }
+    char *dot = strrchr(out, '.');
+    if (dot) {
+        *dot = '\0';
+    }
     if (out[0] == '\0') {
         free(out);
         return strdup("extension");
@@ -169,12 +206,12 @@ static char* path_basename_no_ext_dup(const char* path) {
     return out;
 }
 
-static char* canonicalize_existing_path(const char* path) {
-    return prefix_fullpath_dup(path);
-}
+static char *canonicalize_existing_path(const char *path) { return prefix_fullpath_dup(path); }
 
-static char* resolve_extension_path(const char* input, const char* base_dir) {
-    if (!input || input[0] == '\0') return NULL;
+static char *resolve_extension_path(const char *input, const char *base_dir) {
+    if (!input || input[0] == '\0') {
+        return NULL;
+    }
 
     if (path_is_absolute(input) && file_exists_regular(input)) {
         return canonicalize_existing_path(input);
@@ -185,9 +222,9 @@ static char* resolve_extension_path(const char* input, const char* base_dir) {
     }
 
     if (base_dir && base_dir[0] != '\0') {
-        char* p = path_join2(base_dir, input);
+        char *p = path_join2(base_dir, input);
         if (p && file_exists_regular(p)) {
-            char* c = canonicalize_existing_path(p);
+            char *c = canonicalize_existing_path(p);
             free(p);
             return c;
         }
@@ -195,9 +232,9 @@ static char* resolve_extension_path(const char* input, const char* base_dir) {
     }
 
     if (g_cwd_dir && g_cwd_dir[0] != '\0') {
-        char* p = path_join2(g_cwd_dir, input);
+        char *p = path_join2(g_cwd_dir, input);
         if (p && file_exists_regular(p)) {
-            char* c = canonicalize_existing_path(p);
+            char *c = canonicalize_existing_path(p);
             free(p);
             return c;
         }
@@ -205,14 +242,16 @@ static char* resolve_extension_path(const char* input, const char* base_dir) {
     }
 
     if (g_interpreter_dir && g_interpreter_dir[0] != '\0') {
-        const char* ext_roots[] = { "ext/std", "ext/usr" };
+        const char *ext_roots[] = {"ext/std", "ext/usr"};
         for (size_t i = 0; i < sizeof(ext_roots) / sizeof(ext_roots[0]); i++) {
-            char* ext_dir = path_join2(g_interpreter_dir, ext_roots[i]);
-            if (!ext_dir) continue;
-            char* p = path_join2(ext_dir, input);
+            char *ext_dir = path_join2(g_interpreter_dir, ext_roots[i]);
+            if (!ext_dir) {
+                continue;
+            }
+            char *p = path_join2(ext_dir, input);
             free(ext_dir);
             if (p && file_exists_regular(p)) {
-                char* c = canonicalize_existing_path(p);
+                char *c = canonicalize_existing_path(p);
                 free(p);
                 return c;
             }
@@ -225,25 +264,27 @@ static char* resolve_extension_path(const char* input, const char* base_dir) {
        example, "image.dll") to resolve to lib/std/<name>/<file>,
        lib/usr/<name>/<file>, or their root-level equivalents. */
     if (g_interpreter_dir && g_interpreter_dir[0] != '\0') {
-        const char* lib_roots[] = { "lib/std", "lib/usr" };
+        const char *lib_roots[] = {"lib/std", "lib/usr"};
         for (size_t i = 0; i < sizeof(lib_roots) / sizeof(lib_roots[0]); i++) {
-            char* lib_dir = path_join2(g_interpreter_dir, lib_roots[i]);
-            if (!lib_dir) continue;
+            char *lib_dir = path_join2(g_interpreter_dir, lib_roots[i]);
+            if (!lib_dir) {
+                continue;
+            }
 
-            char* p1 = path_join2(lib_dir, input);
+            char *p1 = path_join2(lib_dir, input);
             if (p1 && file_exists_regular(p1)) {
-                char* c = canonicalize_existing_path(p1);
+                char *c = canonicalize_existing_path(p1);
                 free(p1);
                 free(lib_dir);
                 return c;
             }
             free(p1);
 
-            char* base = path_basename_no_ext_dup(input);
-            char* subdir = path_join2(lib_dir, base);
-            char* p2 = path_join2(subdir, input);
+            char *base = path_basename_no_ext_dup(input);
+            char *subdir = path_join2(lib_dir, base);
+            char *p2 = path_join2(subdir, input);
             if (p2 && file_exists_regular(p2)) {
-                char* c = canonicalize_existing_path(p2);
+                char *c = canonicalize_existing_path(p2);
                 free(p2);
                 free(subdir);
                 free(base);
@@ -260,11 +301,15 @@ static char* resolve_extension_path(const char* input, const char* base_dir) {
     return NULL;
 }
 
-static char* normalize_extension_spec_path(const char* spec) {
-    if (!spec) return NULL;
+static char *normalize_extension_spec_path(const char *spec) {
+    if (!spec) {
+        return NULL;
+    }
     size_t n = strlen(spec);
-    char* out = malloc(n + 2);
-    if (!out) return NULL;
+    char *out = malloc(n + 2);
+    if (!out) {
+        return NULL;
+    }
 
     size_t w = 0;
     for (size_t i = 0; i < n; i++) {
@@ -279,15 +324,21 @@ static char* normalize_extension_spec_path(const char* spec) {
     return out;
 }
 
-static char* extension_name_from_spec(const char* spec) {
-    if (!spec || spec[0] == '\0') return strdup("extension");
+static char *extension_name_from_spec(const char *spec) {
+    if (!spec || spec[0] == '\0') {
+        return strdup("extension");
+    }
 
-    char* norm = normalize_extension_spec_path(spec);
-    if (!norm) return NULL;
+    char *norm = normalize_extension_spec_path(spec);
+    if (!norm) {
+        return NULL;
+    }
 
     if (has_dynlib_suffix(norm)) {
-        char* dot = strrchr(norm, '.');
-        if (dot) *dot = '\0';
+        char *dot = strrchr(norm, '.');
+        if (dot) {
+            *dot = '\0';
+        }
     }
 
     size_t len = strlen(norm);
@@ -295,32 +346,36 @@ static char* extension_name_from_spec(const char* spec) {
         norm[len - 5] = '\0';
     }
 
-    char* name = path_basename_no_ext_dup(norm);
+    char *name = path_basename_no_ext_dup(norm);
     free(norm);
     return name;
 }
 
-static char* resolve_extension_spec_path(const char* spec, const char* base_dir) {
-    if (!spec || spec[0] == '\0') return NULL;
+static char *resolve_extension_spec_path(const char *spec, const char *base_dir) {
+    if (!spec || spec[0] == '\0') {
+        return NULL;
+    }
 
     if (has_dynlib_suffix(spec)) {
         return resolve_extension_path(spec, base_dir);
     }
 
-    char* norm = normalize_extension_spec_path(spec);
-    if (!norm) return NULL;
+    char *norm = normalize_extension_spec_path(spec);
+    if (!norm) {
+        return NULL;
+    }
 
-    const char* suffix = platform_dynlib_suffix();
+    const char *suffix = platform_dynlib_suffix();
     size_t len = strlen(norm);
 
     size_t n1 = len + strlen(suffix) + 1;
-    char* c1 = malloc(n1);
+    char *c1 = malloc(n1);
     if (!c1) {
         free(norm);
         return NULL;
     }
     snprintf(c1, n1, "%s%s", norm, suffix);
-    char* resolved = resolve_extension_path(c1, base_dir);
+    char *resolved = resolve_extension_path(c1, base_dir);
     free(c1);
     if (resolved) {
         free(norm);
@@ -328,7 +383,7 @@ static char* resolve_extension_spec_path(const char* spec, const char* base_dir)
     }
 
     size_t n2 = len + strlen("/init") + strlen(suffix) + 1;
-    char* c2 = malloc(n2);
+    char *c2 = malloc(n2);
     if (!c2) {
         free(norm);
         return NULL;
@@ -340,23 +395,31 @@ static char* resolve_extension_spec_path(const char* spec, const char* base_dir)
     return resolved;
 }
 
-static char* exposure_key_for(const char* ext_name) {
-    const char* ext = (ext_name && ext_name[0] != '\0') ? ext_name : "extension";
+static char *exposure_key_for(const char *ext_name) {
+    const char *ext = (ext_name && ext_name[0] != '\0') ? ext_name : "extension";
     return strdup(ext);
 }
 
-static int exposure_exists(LoadedExtension* le, const char* key) {
-    if (!le || !key) return 0;
-    for (ExtensionExposure* e = le->exposures; e; e = e->next) {
-        if (e->key && strcmp(e->key, key) == 0) return 1;
+static int exposure_exists(LoadedExtension *le, const char *key) {
+    if (!le || !key) {
+        return 0;
+    }
+    for (ExtensionExposure *e = le->exposures; e; e = e->next) {
+        if (e->key && strcmp(e->key, key) == 0) {
+            return 1;
+        }
     }
     return 0;
 }
 
-static int exposure_add(LoadedExtension* le, const char* key) {
-    if (!le || !key) return -1;
-    ExtensionExposure* ex = calloc(1, sizeof(ExtensionExposure));
-    if (!ex) return -1;
+static int exposure_add(LoadedExtension *le, const char *key) {
+    if (!le || !key) {
+        return -1;
+    }
+    ExtensionExposure *ex = calloc(1, sizeof(ExtensionExposure));
+    if (!ex) {
+        return -1;
+    }
     ex->key = strdup(key);
     if (!ex->key) {
         free(ex);
@@ -367,9 +430,11 @@ static int exposure_add(LoadedExtension* le, const char* key) {
     return 0;
 }
 
-static LoadedExtension* loaded_find_by_path(const char* canonical_path) {
-    if (!canonical_path) return NULL;
-    for (LoadedExtension* e = g_loaded; e; e = e->next) {
+static LoadedExtension *loaded_find_by_path(const char *canonical_path) {
+    if (!canonical_path) {
+        return NULL;
+    }
+    for (LoadedExtension *e = g_loaded; e; e = e->next) {
         if (e->canonical_path && strcmp(e->canonical_path, canonical_path) == 0) {
             return e;
         }
@@ -377,14 +442,16 @@ static LoadedExtension* loaded_find_by_path(const char* canonical_path) {
     return NULL;
 }
 
-static int ctx_register_operator(const char* name, prefix_operator_fn fn, int flags) {
-    if (!name || name[0] == '\0' || !fn) return -1;
+static int ctx_register_operator(const char *name, prefix_operator_fn fn, int flags) {
+    if (!name || name[0] == '\0' || !fn) {
+        return -1;
+    }
 
     /* Record the operator for the currently-loading extension so we can
        expose aliases later when the same extension is imported into other
        module scopes without reinitializing the library. */
     if (g_current_loading_extension) {
-        RegisteredOperator* ro = calloc(1, sizeof(RegisteredOperator));
+        RegisteredOperator *ro = calloc(1, sizeof(RegisteredOperator));
         if (ro) {
             ro->name = strdup(name);
             if (ro->name) {
@@ -398,15 +465,18 @@ static int ctx_register_operator(const char* name, prefix_operator_fn fn, int fl
         }
     }
 
-    char* final_name = NULL;
-    if ((flags & PREFIX_EXTENSION_MODULE_RESTRICTED) != 0 && g_loading_extension_name && g_loading_extension_name[0] != '\0') {
-        const char* ext_name = g_loading_extension_name;
+    char *final_name = NULL;
+    if ((flags & PREFIX_EXTENSION_MODULE_RESTRICTED) != 0 && g_loading_extension_name &&
+        g_loading_extension_name[0] != '\0') {
+        const char *ext_name = g_loading_extension_name;
 
         size_t a = strlen(ext_name);
         size_t b = strlen(name);
         size_t total = a + 1 + b + 1;
         final_name = malloc(total);
-        if (!final_name) return -1;
+        if (!final_name) {
+            return -1;
+        }
 
         size_t p = 0;
         memcpy(final_name + p, ext_name, a);
@@ -417,41 +487,61 @@ static int ctx_register_operator(const char* name, prefix_operator_fn fn, int fl
         final_name[p] = '\0';
     }
 
-    const char* reg_name = final_name ? final_name : name;
+    const char *reg_name = final_name ? final_name : name;
     int rc = builtins_register_operator(reg_name, (BuiltinImplFn)fn, 0, -1, NULL, 0);
     free(final_name);
     return rc;
 }
 
 static int ctx_register_periodic_hook(int n, prefix_event_fn fn) {
-    if (n <= 0 || !fn) return -1;
-    PeriodicHook* h = calloc(1, sizeof(PeriodicHook));
-    if (!h) return -1;
+    if (n <= 0 || !fn) {
+        return -1;
+    }
+    PeriodicHook *h = calloc(1, sizeof(PeriodicHook));
+    if (!h) {
+        return -1;
+    }
     h->n = n;
     h->fn = fn;
     h->owner = g_loading_extension_name ? strdup(g_loading_extension_name) : strdup("extension");
-    if (!h->owner) { free(h); return -1; }
+    if (!h->owner) {
+        free(h);
+        return -1;
+    }
     h->next = g_periodic_hooks;
     g_periodic_hooks = h;
     return 0;
 }
 
-static int ctx_register_event_handler(const char* event_name, prefix_event_fn fn) {
-    if (!event_name || !fn) return -1;
-    EventHandler* h = calloc(1, sizeof(EventHandler));
-    if (!h) return -1;
+static int ctx_register_event_handler(const char *event_name, prefix_event_fn fn) {
+    if (!event_name || !fn) {
+        return -1;
+    }
+    EventHandler *h = calloc(1, sizeof(EventHandler));
+    if (!h) {
+        return -1;
+    }
     h->event_name = strdup(event_name);
-    if (!h->event_name) { free(h); return -1; }
+    if (!h->event_name) {
+        free(h);
+        return -1;
+    }
     h->fn = fn;
     h->owner = g_loading_extension_name ? strdup(g_loading_extension_name) : strdup("extension");
-    if (!h->owner) { free(h->event_name); free(h); return -1; }
+    if (!h->owner) {
+        free(h->event_name);
+        free(h);
+        return -1;
+    }
     h->next = g_event_handlers;
     g_event_handlers = h;
     return 0;
 }
 
 static int ctx_register_repl_handler(prefix_repl_fn repl_fn) {
-    if (!repl_fn) return -1;
+    if (!repl_fn) {
+        return -1;
+    }
     g_repl_handler = repl_fn;
     free(g_repl_owner);
     g_repl_owner = g_loading_extension_name ? strdup(g_loading_extension_name) : strdup("extension");
@@ -462,7 +552,7 @@ static int ctx_register_repl_handler(prefix_repl_fn repl_fn) {
     return 0;
 }
 
-static DynLibHandle dyn_open_library(const char* path) {
+static DynLibHandle dyn_open_library(const char *path) {
 #ifdef _WIN32
     return LoadLibraryExA(path, NULL, 0);
 #else
@@ -470,21 +560,21 @@ static DynLibHandle dyn_open_library(const char* path) {
 #endif
 }
 
-static const char* dyn_last_error(void) {
+static const char *dyn_last_error(void) {
 #ifdef _WIN32
     static char buf[256];
     DWORD code = GetLastError();
     snprintf(buf, sizeof(buf), "win32 error %lu", (unsigned long)code);
     return buf;
 #else
-    const char* e = dlerror();
+    const char *e = dlerror();
     return e ? e : "dlopen/dlsym failed";
 #endif
 }
 
-static void* dyn_find_symbol(DynLibHandle h, const char* name) {
+static void *dyn_find_symbol(DynLibHandle h, const char *name) {
 #ifdef _WIN32
-    return (void*)GetProcAddress(h, name);
+    return (void *)GetProcAddress(h, name);
 #else
     return dlsym(h, name);
 #endif
@@ -492,70 +582,89 @@ static void* dyn_find_symbol(DynLibHandle h, const char* name) {
 
 static void dyn_close_library(DynLibHandle h) {
 #ifdef _WIN32
-    if (h) FreeLibrary(h);
+    if (h) {
+        FreeLibrary(h);
+    }
 #else
-    if (h) dlclose(h);
+    if (h)
+        dlclose(h);
 #endif
 }
 
-void extensions_set_runtime_dirs(const char* interpreter_dir, const char* cwd_dir) {
+void extensions_set_runtime_dirs(const char *interpreter_dir, const char *cwd_dir) {
     free(g_interpreter_dir);
     g_interpreter_dir = interpreter_dir ? strdup(interpreter_dir) : NULL;
     free(g_cwd_dir);
     g_cwd_dir = cwd_dir ? strdup(cwd_dir) : NULL;
 }
 
-int extensions_fire_event(Interpreter* interp, const char* event_name) {
-    if (!event_name) return 0;
+int extensions_fire_event(Interpreter *interp, const char *event_name) {
+    if (!event_name) {
+        return 0;
+    }
     int invoked = 0;
-    for (EventHandler* h = g_event_handlers; h; h = h->next) {
+    for (EventHandler *h = g_event_handlers; h; h = h->next) {
         if (h->event_name && strcmp(h->event_name, event_name) == 0) {
-            if (h->fn) h->fn(interp, event_name);
+            if (h->fn) {
+                h->fn(interp, event_name);
+            }
             invoked++;
         }
     }
     return invoked;
 }
 
-void extensions_run_periodic_hooks(Interpreter* interp) {
-    if (!interp) return;
-    if (!g_periodic_hooks) return;
+void extensions_run_periodic_hooks(Interpreter *interp) {
+    if (!interp) {
+        return;
+    }
+    if (!g_periodic_hooks) {
+        return;
+    }
     int step_index = interp->trace_next_step_index - 1;
-    if (step_index < 0) return;
-    for (PeriodicHook* p = g_periodic_hooks; p; p = p->next) {
+    if (step_index < 0) {
+        return;
+    }
+    for (PeriodicHook *p = g_periodic_hooks; p; p = p->next) {
         if (p->n > 0 && (step_index % p->n) == 0) {
-            if (p->fn) p->fn(interp, "periodic");
+            if (p->fn) {
+                p->fn(interp, "periodic");
+            }
         }
     }
 }
 
 int extensions_call_repl_handler(void) {
-    if (!g_repl_handler) return -1;
+    if (!g_repl_handler) {
+        return -1;
+    }
     return g_repl_handler();
 }
 
-static int extension_register_exposure(LoadedExtension* le,
-                                       const char* ext_name,
-                                       const char* scope_name,
-                                       char** error_out) {
+static int extension_register_exposure(LoadedExtension *le, const char *ext_name, const char *scope_name,
+                                       char **error_out) {
     if (!le || !le->init_fn) {
         set_error(error_out, "Internal extension loader error");
         return -1;
     }
 
-    char* base_key = exposure_key_for(ext_name);
+    char *base_key = exposure_key_for(ext_name);
     if (!base_key) {
         set_error(error_out, "Out of memory");
         return -1;
     }
 
-    char* scope_key = NULL;
+    char *scope_key = NULL;
     if (scope_name && scope_name[0] != '\0') {
         size_t s = strlen(scope_name);
         size_t e = strlen(ext_name);
         /* use ':' as an internal separator to form a unique exposure key */
         scope_key = malloc(s + 1 + e + 1);
-        if (!scope_key) { free(base_key); set_error(error_out, "Out of memory"); return -1; }
+        if (!scope_key) {
+            free(base_key);
+            set_error(error_out, "Out of memory");
+            return -1;
+        }
         memcpy(scope_key, scope_name, s);
         scope_key[s] = ':';
         memcpy(scope_key + s + 1, ext_name, e);
@@ -603,18 +712,26 @@ static int extension_register_exposure(LoadedExtension* le,
     /* If a scope was provided and we haven't yet exposed the extension under
        that scope, create aliases for module-restricted operators. */
     if (scope_key && !scope_exists) {
-        for (RegisteredOperator* ro = le->ops; ro; ro = ro->next) {
+        for (RegisteredOperator *ro = le->ops; ro; ro = ro->next) {
             if ((ro->flags & PREFIX_EXTENSION_MODULE_RESTRICTED) != 0) {
                 size_t s = strlen(scope_name);
                 size_t e = strlen(ext_name);
                 size_t n = strlen(ro->name);
                 size_t total = s + 1 + e + 1 + n + 1;
-                char* alias = malloc(total);
-                if (!alias) continue;
+                char *alias = malloc(total);
+                if (!alias) {
+                    continue;
+                }
                 size_t p = 0;
-                memcpy(alias + p, scope_name, s); p += s; alias[p++] = '.';
-                memcpy(alias + p, ext_name, e); p += e; alias[p++] = '.';
-                memcpy(alias + p, ro->name, n); p += n; alias[p] = '\0';
+                memcpy(alias + p, scope_name, s);
+                p += s;
+                alias[p++] = '.';
+                memcpy(alias + p, ext_name, e);
+                p += e;
+                alias[p++] = '.';
+                memcpy(alias + p, ro->name, n);
+                p += n;
+                alias[p] = '\0';
                 /* ignore registration errors for aliases */
                 builtins_register_operator(alias, (BuiltinImplFn)ro->fn, 0, -1, NULL, 0);
                 free(alias);
@@ -634,16 +751,14 @@ static int extension_register_exposure(LoadedExtension* le,
     return 0;
 }
 
-static int extensions_load_resolved(const char* resolved,
-                                    const char* ext_name,
-                                    const char* scope_name,
-                                    char** error_out) {
+static int extensions_load_resolved(const char *resolved, const char *ext_name, const char *scope_name,
+                                    char **error_out) {
     if (!resolved || !ext_name || ext_name[0] == '\0') {
         set_error(error_out, "Invalid extension load request");
         return -1;
     }
 
-    LoadedExtension* existing = loaded_find_by_path(resolved);
+    LoadedExtension *existing = loaded_find_by_path(resolved);
     if (existing) {
         return extension_register_exposure(existing, ext_name, scope_name, error_out);
     }
@@ -661,7 +776,7 @@ static int extensions_load_resolved(const char* resolved,
         return -1;
     }
 
-    LoadedExtension* le = calloc(1, sizeof(LoadedExtension));
+    LoadedExtension *le = calloc(1, sizeof(LoadedExtension));
     if (!le) {
         set_error(error_out, "Out of memory");
         dyn_close_library(handle);
@@ -694,19 +809,19 @@ static int extensions_load_resolved(const char* resolved,
     return 0;
 }
 
-int extensions_load_library(const char* path, const char* base_dir, char** error_out) {
+int extensions_load_library(const char *path, const char *base_dir, char **error_out) {
     if (!path || path[0] == '\0') {
         set_error(error_out, "Empty extension path");
         return -1;
     }
 
-    char* resolved = resolve_extension_path(path, base_dir);
+    char *resolved = resolve_extension_path(path, base_dir);
     if (!resolved) {
         set_errorf(error_out, "Extension not found: ", path);
         return -1;
     }
 
-    char* ext_name = path_basename_no_ext_dup(resolved);
+    char *ext_name = path_basename_no_ext_dup(resolved);
     if (!ext_name) {
         set_error(error_out, "Out of memory");
         free(resolved);
@@ -719,12 +834,11 @@ int extensions_load_library(const char* path, const char* base_dir, char** error
     return rc;
 }
 
-int extensions_load_named(const char* spec,
-                          const char* base_dir,
-                          const char* scope_name,
-                          char** loaded_name_out,
-                          char** error_out) {
-    if (loaded_name_out) *loaded_name_out = NULL;
+int extensions_load_named(const char *spec, const char *base_dir, const char *scope_name, char **loaded_name_out,
+                          char **error_out) {
+    if (loaded_name_out) {
+        *loaded_name_out = NULL;
+    }
 
     if (!spec || spec[0] == '\0') {
         set_error(error_out, "EXTEND: empty extension specifier");
@@ -736,14 +850,14 @@ int extensions_load_named(const char* spec,
         return -1;
     }
 
-    char* ext_name = extension_name_from_spec(spec);
+    char *ext_name = extension_name_from_spec(spec);
     if (!ext_name || ext_name[0] == '\0') {
         free(ext_name);
         set_error(error_out, "EXTEND: invalid extension name");
         return -1;
     }
 
-    char* resolved = resolve_extension_spec_path(spec, base_dir);
+    char *resolved = resolve_extension_spec_path(spec, base_dir);
     if (!resolved) {
         set_errorf(error_out, "Extension not found: ", spec);
         free(ext_name);
@@ -764,13 +878,13 @@ int extensions_load_named(const char* spec,
     return rc;
 }
 
-int extensions_expose_named(const char* ext_name, const char* scope_name, char** error_out) {
+int extensions_expose_named(const char *ext_name, const char *scope_name, char **error_out) {
     if (!ext_name || ext_name[0] == '\0') {
         set_error(error_out, "extensions_expose_named: empty extension name");
         return -1;
     }
 
-    for (LoadedExtension* le = g_loaded; le; le = le->next) {
+    for (LoadedExtension *le = g_loaded; le; le = le->next) {
         if (exposure_exists(le, ext_name)) {
             return extension_register_exposure(le, ext_name, scope_name, error_out);
         }
@@ -781,21 +895,21 @@ int extensions_expose_named(const char* ext_name, const char* scope_name, char**
 }
 
 void extensions_shutdown(void) {
-    LoadedExtension* e = g_loaded;
+    LoadedExtension *e = g_loaded;
     while (e) {
-        LoadedExtension* next = e->next;
+        LoadedExtension *next = e->next;
 
-        ExtensionExposure* ex = e->exposures;
+        ExtensionExposure *ex = e->exposures;
         while (ex) {
-            ExtensionExposure* ex_next = ex->next;
+            ExtensionExposure *ex_next = ex->next;
             free(ex->key);
             free(ex);
             ex = ex_next;
         }
 
-        RegisteredOperator* ro = e->ops;
+        RegisteredOperator *ro = e->ops;
         while (ro) {
-            RegisteredOperator* rn = ro->next;
+            RegisteredOperator *rn = ro->next;
             free(ro->name);
             free(ro);
             ro = rn;
@@ -817,9 +931,9 @@ void extensions_shutdown(void) {
     g_loading_scope_name = NULL;
 
     // Free registered event handlers
-    EventHandler* eh = g_event_handlers;
+    EventHandler *eh = g_event_handlers;
     while (eh) {
-        EventHandler* en = eh->next;
+        EventHandler *en = eh->next;
         free(eh->event_name);
         free(eh->owner);
         free(eh);
@@ -828,9 +942,9 @@ void extensions_shutdown(void) {
     g_event_handlers = NULL;
 
     // Free periodic hooks
-    PeriodicHook* ph = g_periodic_hooks;
+    PeriodicHook *ph = g_periodic_hooks;
     while (ph) {
-        PeriodicHook* pn = ph->next;
+        PeriodicHook *pn = ph->next;
         free(ph->owner);
         free(ph);
         ph = pn;
