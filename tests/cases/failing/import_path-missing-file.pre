@@ -1,4 +1,4 @@
-IMPORT(path)
+IMPORT("path")
 
 STR tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
 STR missing_path = JOIN(tests_dir, "/helpers/import_path_missing_target.pre")

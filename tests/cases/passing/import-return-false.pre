@@ -1,2 +1,2 @@
-ASSERT(EQ(TYPE(IMPORT(path)), "BOOL"))
-REFUTE(IMPORT(path))
+ASSERT(EQ(TYPE(IMPORT("path")), "BOOL"))
+REFUTE(IMPORT("path"))

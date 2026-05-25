@@ -18,7 +18,7 @@ FUNC STR identify(){
   Set-Content -Path $pointerPath -Encoding Ascii -Value 'this companion pointer file must be ignored by IMPORT'
 
   Set-Content -Path $programPath -Encoding Ascii -Value @"
-IMPORT($moduleName)
+IMPORT("$moduleName")
 
 ASSERT(EQ($moduleName.identify(), "source"))
 "@

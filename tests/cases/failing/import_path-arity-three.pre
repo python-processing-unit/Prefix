@@ -1,1 +1,1 @@
-IMPORT_PATH("g:/missing.pre", helper, extra)
+IMPORT_PATH("g:/missing.pre", "helper", extra)

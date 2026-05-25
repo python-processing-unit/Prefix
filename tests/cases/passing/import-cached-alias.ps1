@@ -25,8 +25,8 @@ FUNC STR marker_text(){
 "@
 
   Set-Content -Path $programPath -Encoding Ascii -Value @"
-IMPORT($moduleName)
-IMPORT($moduleName, again)
+IMPORT("$moduleName")
+IMPORT("$moduleName", "again")
 
 ASSERT(EQ($moduleName.marker_text(), "loaded"))
 ASSERT(EQ(again.marker_text(), "loaded"))

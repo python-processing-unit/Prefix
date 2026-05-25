@@ -18,7 +18,7 @@ FUNC STR identify(){
 '@
 
   Set-Content -Path $programPath -Encoding Ascii -Value @"
-IMPORT($packageName)
+IMPORT("$packageName")
 
 ASSERT(EQ($packageName.identify(), "package"))
 "@

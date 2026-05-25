@@ -29,7 +29,7 @@ FUNC BOOL call_imported_main(){
   $moduleLiteral = $modulePath.Replace('\', '\\')
 
   Set-Content -Path $programPath -Encoding Ascii -Value @"
-IMPORT_PATH("$moduleLiteral", helper)
+IMPORT_PATH("$moduleLiteral", "helper")
 
 FUNC BOOL local_main(){
     RETURN(MAIN())

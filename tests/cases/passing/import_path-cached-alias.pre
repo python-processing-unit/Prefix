@@ -1,4 +1,4 @@
-IMPORT(path)
+IMPORT("path")
 
 STR tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
 STR helper_path = JOIN(tests_dir, "/helpers/import_path_cache_target.pre")
@@ -9,7 +9,7 @@ IF(EXISTFILE(marker_path)){
 }
 
 REFUTE(IMPORT_PATH(helper_path))
-REFUTE(IMPORT_PATH(helper_path, again))
+REFUTE(IMPORT_PATH(helper_path, "again"))
 
 STR default_view = import_path_cache_target.marker_text()
 STR alias_view = again.marker_text()

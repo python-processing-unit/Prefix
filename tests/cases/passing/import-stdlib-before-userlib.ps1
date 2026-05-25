@@ -23,7 +23,7 @@ FUNC STR identify(){
 '@
 
   Set-Content -Path $programPath -Encoding Ascii -Value @"
-IMPORT($moduleName)
+IMPORT("$moduleName")
 
 ASSERT(EQ($moduleName.identify(), "stdlib"))
 "@

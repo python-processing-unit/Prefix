@@ -21,7 +21,7 @@ FUNC BOOL imported_main(){
   $moduleLiteral = $modulePath.Replace('\', '\\')
 
   Set-Content -Path $programPath -Encoding Ascii -Value @"
-IMPORT_PATH("$moduleLiteral", helper)
+IMPORT_PATH("$moduleLiteral", "helper")
 
 ASSERT(NOT(helper.imported_main()))
 "@

@@ -23,7 +23,7 @@ FUNC BOOL read_top_result(){
   $moduleLiteral = $modulePath.Replace('\', '\\')
 
   Set-Content -Path $programPath -Encoding Ascii -Value @"
-IMPORT_PATH("$moduleLiteral", helper)
+IMPORT_PATH("$moduleLiteral", "helper")
 
 ASSERT(NOT(helper.read_top_result()))
 ASSERT(EQ(TYPE(helper.read_top_result()), "BOOL"))

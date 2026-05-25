@@ -1,12 +1,12 @@
-IMPORT(path)
+IMPORT("path")
 
 STR tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
 STR helper_path = JOIN(tests_dir, "/helpers/export_target.pre")
 
-REFUTE(IMPORT_PATH(helper_path, helper))
+REFUTE(IMPORT_PATH(helper_path, "helper"))
 
 INT value = 0d42
-BOOL result = EXPORT(value, helper)
+BOOL result = EXPORT("value", "helper")
 
 ASSERT(EQ(TYPE(result), "BOOL"))
 REFUTE(result)

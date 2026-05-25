@@ -18,7 +18,7 @@ FUNC STR identify(){
 '@
 
   Set-Content -Path $programPath -Encoding Ascii -Value @"
-IMPORT($packageName)
+IMPORT("$packageName")
 "@
 
   $result = Invoke-PrefixProgramWithInput -ProgramPath $programPath -InputText ''

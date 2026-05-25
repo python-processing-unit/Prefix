@@ -8,7 +8,7 @@ EXTEND(EXTENSION: win32)
 
 EXTEND(EXTENSION: image)
 
-IMPORT(path)
+IMPORT("path")
 
 FUNC TNS LOAD(STR img_path){
     STR ext = path.EXTNAME(img_path)

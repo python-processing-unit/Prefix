@@ -13,7 +13,7 @@ INT hidden = 0d7
 '@
 
   Set-Content -Path $programPath -Encoding Ascii -Value @"
-IMPORT($moduleName)
+IMPORT("$moduleName")
 
 ASSERT(EQ(hidden, 0d7))
 "@

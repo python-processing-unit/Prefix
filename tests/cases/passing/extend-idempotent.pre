@@ -1,9 +1,9 @@
-IMPORT(path)
+IMPORT("path")
 
 STR tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
 STR helper_path = JOIN(tests_dir, "/helpers/extend_core_twice.pre")
 
-REFUTE(IMPORT_PATH(helper_path, helper))
+REFUTE(IMPORT_PATH(helper_path, "helper"))
 REFUTE(helper.first_result)
 REFUTE(helper.second_result)
 ASSERT(EQ(TST_EXT_INIT_COUNT(), 0d1))

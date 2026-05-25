@@ -6955,10 +6955,10 @@ static Value builtin_import_path(Interpreter *interp, Value *args, int argc, Exp
     const char *alias = NULL;
     char *alias_dup = NULL;
     if (argc >= 2) {
-        if (arg_nodes[1]->type != EXPR_IDENT) {
-            RUNTIME_ERROR(interp, "IMPORT_PATH second argument must be an identifier (alias)", line, col);
+        if (args[1].type != VAL_STR) {
+            RUNTIME_ERROR(interp, "IMPORT_PATH second argument must be STR (alias)", line, col);
         }
-        alias = arg_nodes[1]->as.ident;
+        alias = args[1].as.s ? args[1].as.s : "";
     } else {
         // Derive alias from basename of path (strip directories and extension)
         const char *p = inpath + strlen(inpath);
@@ -8514,12 +8514,15 @@ static Value builtin_permafreeze(Interpreter *interp, Value *args, int argc, Exp
 }
 
 static Value builtin_export(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
-    (void)args;
-    if (argc != 2 || arg_nodes[0]->type != EXPR_IDENT || arg_nodes[1]->type != EXPR_IDENT) {
-        RUNTIME_ERROR(interp, "EXPORT expects two identifiers", line, col);
+    (void)arg_nodes;
+    if (argc != 2) {
+        RUNTIME_ERROR(interp, "EXPORT expects two STR arguments (symbol, module)", line, col);
     }
-    const char *sym = arg_nodes[0]->as.ident;
-    const char *module = arg_nodes[1]->as.ident;
+    if (args[0].type != VAL_STR || args[1].type != VAL_STR) {
+        RUNTIME_ERROR(interp, "EXPORT expects STR symbol and STR module", line, col);
+    }
+    const char *sym = args[0].as.s ? args[0].as.s : "";
+    const char *module = args[1].as.s ? args[1].as.s : "";
 
     // Find the symbol in caller environment
     EnvEntry *entry = env_get_entry(env, sym);
@@ -9974,18 +9977,21 @@ static int module_export_bindings(Interpreter *interp, Env *caller_env, Env *mod
 
 // Stubs for operations requiring TNS/MAP/THD
 static Value builtin_import(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
-    (void)args;
-    (void)argc;
-    if (argc < 1 || arg_nodes[0]->type != EXPR_IDENT) {
-        RUNTIME_ERROR(interp, "IMPORT expects a module identifier", line, col);
+    (void)arg_nodes;
+    (void)env;
+    if (argc < 1) {
+        RUNTIME_ERROR(interp, "IMPORT expects a module name STR", line, col);
     }
-    const char *modname = arg_nodes[0]->as.ident;
+    if (args[0].type != VAL_STR) {
+        RUNTIME_ERROR(interp, "IMPORT first argument must be STR", line, col);
+    }
+    const char *modname = args[0].as.s ? args[0].as.s : "";
     const char *alias = NULL;
     if (argc >= 2) {
-        if (arg_nodes[1]->type != EXPR_IDENT) {
-            RUNTIME_ERROR(interp, "IMPORT second argument must be an identifier (alias)", line, col);
+        if (args[1].type != VAL_STR) {
+            RUNTIME_ERROR(interp, "IMPORT second argument must be STR (alias)", line, col);
         }
-        alias = arg_nodes[1]->as.ident;
+        alias = args[1].as.s ? args[1].as.s : "";
     } else {
         alias = modname;
     }
