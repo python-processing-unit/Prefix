@@ -556,72 +556,6 @@ static Expr *parse_typed_ident_expr(Parser *parser) {
     return expr_typed_ident(dtype, name, type_tok.line, type_tok.column);
 }
 
-static Expr *parse_extension_spec_expr(Parser *parser) {
-    Token type_tok = parser->current_token;
-
-    if (type_tok.type == TOKEN_IDENT && type_tok.literal && strcmp(type_tok.literal, "EXTENSION") == 0 &&
-        parser->next_token.type == TOKEN_COLON) {
-        advance(parser);
-        consume(parser, TOKEN_COLON, "Expected ':' after EXTENSION");
-
-        if (parser->current_token.type != TOKEN_IDENT) {
-            report_error(parser, "Expected extension specifier after EXTENSION:");
-            return NULL;
-        }
-    } else if (parser->current_token.type != TOKEN_IDENT) {
-        report_error(parser, "Expected extension specifier");
-        return NULL;
-    }
-
-    char *name = parser->current_token.literal;
-    advance(parser);
-
-    while (parser->current_token.type == TOKEN_DOT) {
-        advance(parser); // consume first dot
-
-        int is_package_sep = 0;
-        if (parser->current_token.type == TOKEN_DOT) {
-            is_package_sep = 1;
-            advance(parser); // consume second dot
-        }
-
-        if (parser->current_token.type != TOKEN_IDENT) {
-            report_error(parser, "Expected identifier after extension separator");
-            return NULL;
-        }
-
-        const char *part = parser->current_token.literal;
-        size_t cur_len = strlen(name);
-        size_t part_len = strlen(part);
-        size_t sep_len = is_package_sep ? 2 : 1;
-        size_t new_len = cur_len + sep_len + part_len + 1;
-        char *tmp = realloc(name, new_len);
-        if (!tmp) {
-            fprintf(stderr, "Out of memory\n");
-            exit(1);
-        }
-        name = tmp;
-        if (is_package_sep) {
-            name[cur_len] = '.';
-            name[cur_len + 1] = '.';
-            if (part_len) {
-                memcpy(name + cur_len + 2, part, part_len);
-            }
-            name[cur_len + 2 + part_len] = '\0';
-        } else {
-            name[cur_len] = '.';
-            if (part_len) {
-                memcpy(name + cur_len + 1, part, part_len);
-            }
-            name[cur_len + 1 + part_len] = '\0';
-        }
-
-        advance(parser);
-    }
-
-    return expr_typed_ident(TYPE_UNKNOWN, name, type_tok.line, type_tok.column);
-}
-
 static Expr *parse_primary(Parser *parser) {
     Token token = parser->current_token;
     // Recognize FLT literal names `INF` and `NaN` as primary expressions
@@ -830,15 +764,8 @@ static Expr *parse_call(Parser *parser) {
                          call->as.call.kw_count == 0 && is_type_token(parser->current_token.type) &&
                          (parser->next_token.type == TOKEN_IDENT || parser->next_token.type == TOKEN_COLON)) != 0;
 
-                    bool is_extend_specifier =
-                        (call->as.call.callee->type == EXPR_IDENT &&
-                         strcmp(call->as.call.callee->as.ident, "EXTEND") == 0 && call->as.call.args.count == 0 &&
-                         call->as.call.kw_count == 0 && parser->current_token.type == TOKEN_IDENT &&
-                         parser->next_token.type != TOKEN_EQUALS) != 0;
-
-                    if (is_typed_assign_target || is_extend_specifier) {
-                        Expr *arg = (int)is_extend_specifier ? parse_extension_spec_expr(parser)
-                                                             : parse_typed_ident_expr(parser);
+                    if (is_typed_assign_target) {
+                        Expr *arg = parse_typed_ident_expr(parser);
                         if (!arg) {
                             return NULL;
                         }
