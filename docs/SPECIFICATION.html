@@ -685,7 +685,7 @@ Built-in operators are pre-defined callable entities provided by the interpreter
 
 The subsections below use a type-annotation convention. A type annotation is written as `TYPE name`, where `TYPE` is followed by one or more space characters and then the annotated name. A union notation such as `INT|FLT` restricts an argument to any one of the listed types. `ANY` denotes any runtime type (`BOOL`, `INT`, `FLT`, `STR`, `TNS`, `MAP`, `FUNC`, or `THR`), including extension-defined types when extensions are active, unless the signature narrows the set explicitly. `SYMBOL` is a pseudo-type indicating that the argument MUST be a plain unquoted identifier; such operators receive the symbol name rather than its runtime value.
 
-`MODULE` is a pseudo-type indicating that the argument MUST be a plain unquoted module identifier or a package-qualified module name using the language's `..` separator. A comma-separated signature such as `+, -, *` denotes a family of distinct operators that share the same argument rules and differ only in the named operation.
+A comma-separated signature such as `+, -, *` denotes a family of distinct operators that share the same argument rules and differ only in the named operation.
 
 `INT` and `FLT` are not interoperable. Unless an operator explicitly permits or requires type mixing, all numeric operands MUST share the same numeric type; supplying mismatched types MUST raise a runtime error. The numeric base of an operation's result MUST be the highest base present among its numeric operands.
 
