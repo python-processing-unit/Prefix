@@ -4,9 +4,9 @@
 ! The returned tensor layout is [column][row][channel] (width, height, channel)
 ! in user code. Channels are ordered r, g, b, a and values are 0..255.
 
-EXTEND(EXTENSION: win32)
+EXTEND("win32")
 
-EXTEND(EXTENSION: image)
+EXTEND("image")
 
 IMPORT("path")
 

@@ -9736,20 +9736,15 @@ static Value builtin_exit(Interpreter *interp, Value *args, int argc, Expr **arg
 }
 
 static Value builtin_extend(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
-    if (argc < 1 || !arg_nodes || !arg_nodes[0]) {
-        RUNTIME_ERROR(interp, "EXTEND expects EXTENSION: name", line, col);
+    (void)arg_nodes;
+
+    if (argc < 1 || !args) {
+        RUNTIME_ERROR(interp, "EXTEND expects STR argument", line, col);
     }
 
-    const char *spec = NULL;
-    Expr *spec_node = arg_nodes[0];
+    EXPECT_STR(args[0], "EXTEND", interp, line, col);
 
-    if (spec_node->type == EXPR_TYPED_IDENT) {
-        spec = spec_node->as.typed_ident.name;
-    } else if (spec_node->type == EXPR_IDENT) {
-        spec = spec_node->as.ident;
-    } else if (args && args[0].type == VAL_STR) {
-        spec = args[0].as.s;
-    }
+    const char *spec = args[0].as.s;
 
     if (!spec || spec[0] == '\0') {
         RUNTIME_ERROR(interp, "EXTEND expects a non-empty extension specifier", line, col);

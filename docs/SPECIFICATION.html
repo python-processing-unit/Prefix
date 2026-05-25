@@ -647,7 +647,7 @@ The extension context MUST provide registration surfaces equivalent to the follo
 
 The interpreter MUST NOT load `.prex` pointer files.
 
-Runtime extension loading from Prefix source MUST use `EXTEND(EXTENSION ext)`, defined in [9.1.8](#918-function-and-module-operators). The `ext` specifier MUST exclude the platform filename suffix (`.dll`, `.so`, `.dylib`) and MAY use package semantics with `..`. When `ext` names a package, the loader MUST attempt `ext..init`.
+Runtime extension loading from Prefix source MUST use `EXTEND(STR ext)`, defined in [9.1.8](#918-function-and-module-operators). The `ext` specifier MUST exclude the platform filename suffix (`.dll`, `.so`, `.dylib`) and MAY use package semantics with `..`. When `ext` names a package, the loader MUST attempt `ext..init`.
 
 `EXTEND` MUST resolve extension libraries using the same extension search roots used by compiled-library loading: the calling module directory when available, then current working directory, then interpreter `ext/std`, `ext/usr`, `lib/std`, and `lib/usr` roots with bundled roots consulted before user roots.
 
@@ -686,8 +686,6 @@ Built-in operators are pre-defined callable entities provided by the interpreter
 The subsections below use a type-annotation convention. A type annotation is written as `TYPE name`, where `TYPE` is followed by one or more space characters and then the annotated name. A union notation such as `INT|FLT` restricts an argument to any one of the listed types. `ANY` denotes any runtime type (`BOOL`, `INT`, `FLT`, `STR`, `TNS`, `MAP`, `FUNC`, or `THR`), including extension-defined types when extensions are active, unless the signature narrows the set explicitly. `SYMBOL` is a pseudo-type indicating that the argument MUST be a plain unquoted identifier; such operators receive the symbol name rather than its runtime value.
 
 `MODULE` is a pseudo-type indicating that the argument MUST be a plain unquoted module identifier or a package-qualified module name using the language's `..` separator. A comma-separated signature such as `+, -, *` denotes a family of distinct operators that share the same argument rules and differ only in the named operation.
-
-`EXTENSION` is a pseudo-type indicating that the argument MUST be a plain unquoted extension specifier used by `EXTEND`, excluding the platform filename suffix and optionally using package-style `..` separators.
 
 `INT` and `FLT` are not interoperable. Unless an operator explicitly permits or requires type mixing, all numeric operands MUST share the same numeric type; supplying mismatched types MUST raise a runtime error. The numeric base of an operation's result MUST be the highest base present among its numeric operands.
 
@@ -847,7 +845,7 @@ Built-in operator names MUST be matched case-sensitively and MUST be written in 
 
 - `BOOL MAIN()` = MUST return `TRUE` when the call site is in the primary program source and `FALSE` when the call site is executing from imported module code. The result MUST depend on the source location of the call expression rather than on the dynamic caller stack.
 
-- `BOOL EXTEND(EXTENSION ext)` = MUST load the compiled extension designated by `ext`. The specifier `ext` MUST exclude the platform filename suffix and MAY use package-style `..` separators. If `ext` resolves to a package, the loader MUST attempt `ext..init`. Relative extension names MUST resolve using the calling module's source directory when available, then the current working directory, then the configured extension roots `ext/std`, `ext/usr`, `lib/std`, and `lib/usr` (with bundled roots searched before user roots). Repeating an `EXTEND` request for an already-loaded extension exposure MUST be idempotent. On success, `EXTEND` MUST return `FALSE`.
+-- `BOOL EXTEND(STR ext)` = MUST load the compiled extension designated by `ext`. The specifier `ext` MUST exclude the platform filename suffix and MAY use package-style `..` separators. If `ext` resolves to a package, the loader MUST attempt `ext..init`. Relative extension names MUST resolve using the calling module's source directory when available, then the current working directory, then the configured extension roots `ext/std`, `ext/usr`, `lib/std`, and `lib/usr` (with bundled roots searched before user roots). Repeating an `EXTEND` request for an already-loaded extension exposure MUST be idempotent. On success, `EXTEND` MUST return `FALSE`.
 
   Operators registered with the module-restriction flag (for example `PREFIX_EXTENSION_MODULE_RESTRICTED`) MUST be exposed only under the extending module's namespace. Importing that module MUST expose the extension namespace qualifier under the importing module's qualified name. `PREFIX_EXTENSION_ASMODULE` by itself MUST NOT restrict an operator to the extending module's namespace or cause that qualified exposure. Extension side effects outside operator registration (for example process-global hooks or host-side state) remain global.
 

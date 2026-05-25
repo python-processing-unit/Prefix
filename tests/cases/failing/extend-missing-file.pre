@@ -1,1 +1,1 @@
-EXTEND(prefix_missing_extension_target)
+EXTEND("prefix_missing_extension_target")

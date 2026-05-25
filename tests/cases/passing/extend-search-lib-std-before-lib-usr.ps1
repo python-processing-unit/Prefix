@@ -21,7 +21,7 @@ try {
   Add-StagedProbe $libUsrProbe
 
   Set-Content -Path $programPath -Encoding Ascii -Value @'
-BOOL loaded = EXTEND(search_probe)
+BOOL loaded = EXTEND("search_probe")
 REFUTE(loaded)
 PRINT(TST_SEARCH_PROBE_PATH())
 '@
