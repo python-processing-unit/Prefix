@@ -82,7 +82,7 @@ FUNC TNS FLIP_H(TNS img){
 FUNC TNS INVERT(TNS img){
     TNS return = M-(TNS(SHAPE(img), 0xFF), img)
     return[# , # , 0d4] = img[# , # , 0d4] ! Preserve alpha
-    POP(return)
+    POP("return")
 }
 
 FUNC TNS RECT(TNS img, INT x, INT y, INT width, INT height, TNS color, INT fill, INT thickness){

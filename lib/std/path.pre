@@ -15,14 +15,14 @@ FUNC STR BASEPATH(STR path){ ! returns directory portion of path
         RETURN("")
     }
     STR dir = REPLACE(npath, JOIN("/", base), "")
-    POP(dir)
+    POP("dir")
 }
 
 FUNC STR BASENAME(STR path){ ! returns filename portion of path
     TNS tpath = SPLIT(NORMALIZE_PATH(path), "/")
     STR basename = tpath[MAX(TLEN(tpath, 0d1), 0d1)]
     DEL(tpath)
-    POP(basename)
+    POP("basename")
 }
 
 FUNC TNS SPLITEXT(STR path){ ! returns [name without ext, ext]
@@ -34,7 +34,7 @@ FUNC TNS SPLITEXT(STR path){ ! returns [name without ext, ext]
     IF(EQ(TLEN(parts, 0d1), 0d1)){
         DEL(base)
         TNS result = [npath, ""]
-        POP(result)
+        POP("result")
     }
     ! Extension is the last segment (1-based indexing)
     STR ext = parts[ TLEN(parts, 0d1) ]
@@ -54,7 +54,7 @@ FUNC TNS SPLITEXT(STR path){ ! returns [name without ext, ext]
     DEL(dir)
     DEL(name)
     TNS result = [delex, ext]
-    POP(result)
+    POP("result")
 }
 
 FUNC STR EXTNAME(STR path){ ! returns extension portion of path
@@ -77,7 +77,7 @@ FUNC STR TEMPFILE(STR local_path){
     }
     STR final_path = JOIN(temp, local_path)
     DEL(temp)
-    POP(final_path)
+    POP("final_path")
 }
 
 STR interpreter = ARGV()[0d1]

@@ -207,7 +207,7 @@ struct Stmt {
             Expr *target;
         } goto_stmt;
         struct {
-            char *name;
+            Expr *expr;
         } pop_stmt;
         struct {
             Expr *target;
@@ -244,7 +244,7 @@ Stmt *stmt_for(char *counter, Expr *target, Stmt *body, int line, int column);
 Stmt *stmt_parfor(char *counter, Expr *target, Stmt *body, int line, int column);
 Stmt *stmt_func(char *name, DeclType ret, Stmt *body, int line, int column);
 Stmt *stmt_return(Expr *value, int line, int column);
-Stmt *stmt_pop(char *name, int line, int column);
+Stmt *stmt_pop(Expr *expr, int line, int column);
 Stmt *stmt_break(Expr *value, int line, int column);
 Stmt *stmt_continue(int line, int column);
 Stmt *stmt_thr(char *name, Stmt *body, int line, int column);
