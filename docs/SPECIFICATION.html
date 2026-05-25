@@ -968,7 +968,7 @@ And example statement node shapes include:
 {"n":"ParForStatement","loc":<loc>,"counter":"<identifier>","target_expr":<Expr>,"block":<Stmt>}
 {"n":"FuncDef","loc":<loc>,"name":"<identifier>","params":[{"n":"Param","type":"<TYPE>","coerced":<bool>,"name":"<identifier>","default":<Expr-or-null>},...],"return_type":"<TYPE>","body":<Stmt>}
 {"n":"ReturnStatement","loc":<loc>,"expression":<Expr-or-null>}
-{"n":"PopStatement","loc":<loc>,"expression":{"n":"Identifier","loc":<loc>,"name":"<identifier>"}}
+{"n":"PopStatement","loc":<loc>,"expression":{"n":"Literal","loc":<loc>,"value":"<string>","literal_type":"STR"}}
 {"n":"BreakStatement","loc":<loc>,"expression":<Expr>}
 {"n":"GotoStatement","loc":<loc>,"expression":<Expr>}
 {"n":"GotopointStatement","loc":<loc>,"expression":<Expr>}
@@ -1074,7 +1074,7 @@ Named function definitions MUST use the `FUNC` statement form with an explicit r
 
 The statement `RETURN(expression)` MUST terminate the innermost enclosing function immediately and produce the supplied value as that function's result. The returned value MUST satisfy the function's declared return type, and using `RETURN` outside a function MUST raise a runtime error.
 
-The statement `POP(SYMBOL name)` MUST be valid only inside a function body. It MUST retrieve the current value bound to `name`, delete that binding from the environment, and then return the retrieved value as though `RETURN(name)` had executed immediately before the deletion. Using `POP` outside a function, or applying it to an unreadable binding, MUST raise a runtime error.
+The statement `POP(STR name)` MUST be valid only inside a function body. The `name` expression MUST evaluate to a `STR` whose contents are the identifier name to operate on. `POP` MUST retrieve the current value bound to the named identifier, delete that binding from the environment, and then return the retrieved value as though `RETURN(<that identifier>)` had executed immediately before the deletion. Using `POP` outside a function, or applying it when the `name` expression does not evaluate to a `STR`, or when the named binding is unreadable, MUST raise a runtime error.
 
 ---
 

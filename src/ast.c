@@ -306,12 +306,12 @@ Stmt *stmt_return(Expr *value, int line, int column) {
     return stmt;
 }
 
-Stmt *stmt_pop(char *name, int line, int column) {
+Stmt *stmt_pop(Expr *expr, int line, int column) {
     Stmt *stmt = ast_alloc(sizeof(Stmt));
     stmt->type = STMT_POP;
     stmt->line = line;
     stmt->column = column;
-    stmt->as.pop_stmt.name = name;
+    stmt->as.pop_stmt.expr = expr;
     return stmt;
 }
 
@@ -533,7 +533,7 @@ void free_stmt(Stmt *stmt) {
         free_expr(stmt->as.return_stmt.value);
         break;
     case STMT_POP:
-        free(stmt->as.pop_stmt.name);
+        free_expr(stmt->as.pop_stmt.expr);
         break;
     case STMT_BREAK:
         free_expr(stmt->as.break_stmt.value);

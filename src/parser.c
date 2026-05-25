@@ -1187,14 +1187,12 @@ static Stmt *parse_statement(Parser *parser) {
         Token tok = parser->current_token;
         advance(parser);
         consume(parser, TOKEN_LPAREN, "Expected '(' after POP");
-        if (parser->current_token.type != TOKEN_IDENT) {
-            report_error(parser, "POP expects an identifier");
+        Expr *expr = parse_expression(parser);
+        if (!expr) {
             return NULL;
         }
-        char *name = parser->current_token.literal;
-        advance(parser);
-        consume(parser, TOKEN_RPAREN, "Expected ')' after POP identifier");
-        return stmt_pop(name, tok.line, tok.column);
+        consume(parser, TOKEN_RPAREN, "Expected ')' after POP expression");
+        return stmt_pop(expr, tok.line, tok.column);
     }
     case TOKEN_BREAK: {
         Token tok = parser->current_token;

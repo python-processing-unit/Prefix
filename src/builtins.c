@@ -2630,15 +2630,7 @@ static void ser_stmt(JsonBuf *jb, SerCtx *ctx, Interpreter *interp, Stmt *stmt) 
         json_obj_field(jb, &first, "loc");
         ser_loc(jb, stmt->line, stmt->column);
         json_obj_field(jb, &first, "expression");
-        jb_append_char(jb, '{');
-        bool ef = true;
-        json_obj_field(jb, &ef, "n");
-        jb_append_json_string(jb, "Identifier");
-        json_obj_field(jb, &ef, "loc");
-        ser_loc(jb, stmt->line, stmt->column);
-        json_obj_field(jb, &ef, "name");
-        jb_append_json_string(jb, stmt->as.pop_stmt.name ? stmt->as.pop_stmt.name : "");
-        jb_append_char(jb, '}');
+        ser_expr(jb, ctx, interp, stmt->as.pop_stmt.expr);
         jb_append_char(jb, '}');
         return;
     }
@@ -3464,13 +3456,8 @@ static Stmt *deser_stmt(JsonValue *obj, UnserCtx *ctx, Interpreter *interp, cons
         return stmt_return(ex, line, col);
     }
     if (strcmp(name, "PopStatement") == 0) {
-        JsonValue *ex = json_obj_get(obj, "expression");
-        if (ex && ex->type == JSON_OBJ) {
-            JsonValue *nm = json_obj_get(ex, "name");
-            const char *name_s = (nm && nm->type == JSON_STR) ? nm->as.str : "";
-            return stmt_pop(strdup(name_s), line, col);
-        }
-        return stmt_pop(strdup(""), line, col);
+        Expr *ex = deser_expr(json_obj_get(obj, "expression"), ctx, interp, err);
+        return stmt_pop(ex, line, col);
     }
     if (strcmp(name, "BreakStatement") == 0) {
         Expr *ex = deser_expr(json_obj_get(obj, "expression"), ctx, interp, err);

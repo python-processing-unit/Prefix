@@ -3287,25 +3287,44 @@ static ExecResult exec_stmt(Interpreter *interp, Stmt *stmt, Env *env, LabelMap 
     }
 
     case STMT_POP: {
-        // POP: retrieve identifier value, delete binding, and return the value
-        const char *name = stmt->as.pop_stmt.name;
+        // POP: evaluate expression that yields the symbol name (STR),
+        // delete the binding with that name, and return the retrieved value.
         // POP is only valid inside a function (env != global_env)
         if (env == interp->global_env) {
             return make_error("POP used outside function", stmt->line, stmt->column);
         }
 
+        Value name_val = eval_expr(interp, stmt->as.pop_stmt.expr, env);
+        if (interp->error) {
+            ExecResult err = make_error(interp->error, interp->error_line, interp->error_col);
+            clear_error(interp);
+            return err;
+        }
+
+        if (name_val.type != VAL_STR) {
+            value_free(name_val);
+            return make_error("POP requires a STR argument", stmt->line, stmt->column);
+        }
+
+        const char *name_c = name_val.as.s ? name_val.as.s : "";
+        char *name = strdup(name_c);
+        value_free(name_val);
+
         Value v;
         DeclType dtype;
         bool initialized = false;
         if (!env_get(env, name, &v, &dtype, &initialized) || !initialized) {
+            free(name);
             return make_error("Cannot POP undefined or uninitialized identifier", stmt->line, stmt->column);
         }
 
         if (!env_delete(env, name)) {
+            free(name);
             value_free(v);
             return make_error("Failed to delete identifier during POP", stmt->line, stmt->column);
         }
 
+        free(name);
         ExecResult res;
         res.status = EXEC_RETURN;
         res.value = v; // transfer ownership to caller
