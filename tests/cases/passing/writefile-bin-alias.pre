@@ -1,4 +1,4 @@
-IMPORT(path)
+IMPORT("path")
 
 STR p = path.TEMPFILE("prefix-writefile-bin.bin")
 

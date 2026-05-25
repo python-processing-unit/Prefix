@@ -1,1 +1,1 @@
-IMPORT(path, LAMBDA BOOL: (){})
+IMPORT("path", LAMBDA BOOL: (){})

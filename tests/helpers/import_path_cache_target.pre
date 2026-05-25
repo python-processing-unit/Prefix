@@ -1,4 +1,4 @@
-IMPORT(path)
+IMPORT("path")
 
 STR marker = path.TEMPFILE("prefix-import-path-cache-target.txt")
 

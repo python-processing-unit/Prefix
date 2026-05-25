@@ -30,7 +30,7 @@ FUNC STR marker_text(){
 
   Set-Content -Path $programPath -Encoding Ascii -Value @"
 IMPORT_PATH("$extensionlessLiteral")
-IMPORT_PATH("$moduleLiteral", again)
+IMPORT_PATH("$moduleLiteral", "again")
 
 ASSERT(EQ($moduleName.marker_text(), "loaded"))
 ASSERT(EQ(again.marker_text(), "loaded"))

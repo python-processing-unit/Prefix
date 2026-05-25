@@ -1,4 +1,4 @@
-IMPORT(path)
+IMPORT("path")
 
 STR p = path.TEMPFILE("prefix-readfile-utf16-replacement.bin")
 

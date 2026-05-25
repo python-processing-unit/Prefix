@@ -1,8 +1,8 @@
-IMPORT(path)
+IMPORT("path")
 
 STR tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
 STR helper_path = JOIN(tests_dir, "/helpers/extend_core_once.pre")
 
-IMPORT_PATH(helper_path, helper)
+IMPORT_PATH(helper_path, "helper")
 
 TST_EXT_RESTRICTED()

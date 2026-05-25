@@ -19,7 +19,7 @@ FUNC INT read_shared(){
   Set-Content -Path $programPath -Encoding Ascii -Value @"
 INT shared = 0d11
 
-IMPORT($moduleName, helper)
+IMPORT("$moduleName", "helper")
 
 ASSERT(EQ(helper.read_shared(), 0d7))
 ASSERT(EQ(shared, 0d11))

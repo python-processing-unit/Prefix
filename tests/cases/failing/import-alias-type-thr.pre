@@ -1,1 +1,1 @@
-IMPORT(path, ASYNC{})
+IMPORT("path", ASYNC{})
