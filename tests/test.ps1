@@ -190,7 +190,7 @@ while ($true) {
     $completed = $resultsQueue.Count
     if ($completed -gt 0 -or $completed -eq 0) {
         $remaining = $total - $completed
-        $message = "${completed}/${total} test completed, ${remaining} remaining."
+        $message = "${completed}/${total} tests completed, ${remaining} remaining."
         $pad = if ($message.Length -lt $lastDisplayedLength) { ' ' * ($lastDisplayedLength - $message.Length) } else { '' }
         $lastDisplayedLength = $message.Length
         Write-Host -NoNewline "`r$message$pad"
