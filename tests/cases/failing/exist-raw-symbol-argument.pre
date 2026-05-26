@@ -1,0 +1,2 @@
+BOOL x = TRUE
+EXIST(x)

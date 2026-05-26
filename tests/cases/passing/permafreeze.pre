@@ -28,7 +28,7 @@ TRY{
     deletion_failed = TRUE
 }
 ASSERT(deletion_failed)
-ASSERT(EXIST(locked_value))
+ASSERT(EXIST("locked_value"))
 
 BOOL thaw_failed = FALSE
 TRY{

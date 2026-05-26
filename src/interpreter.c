@@ -1406,7 +1406,7 @@ Value eval_expr(Interpreter *interp, Expr *expr, Env *env) {
                             deferred_async_arg0 = true;
                             continue;
                         }
-                        if ((strcmp(func_name, "EXIST") == 0 || strcmp(func_name, "ASSIGN") == 0) && i == 0) {
+                        if (strcmp(func_name, "ASSIGN") == 0 && i == 0) {
                             // leave as null placeholder for identifier-like targets
                             continue;
                         }
@@ -1493,7 +1493,7 @@ Value eval_expr(Interpreter *interp, Expr *expr, Env *env) {
 
                 // effective_argc should count the original positional arguments
                 // and extend if any keyword maps beyond them. Do NOT trim placeholder
-                // NULLs for intentionally-unevaluated positional args (e.g. EXIST or ASSIGN).
+                // NULLs for intentionally-unevaluated positional args (e.g. ASSIGN).
                 int effective_argc = pos_argc;
                 if (max_slot > effective_argc) {
                     effective_argc = max_slot;
