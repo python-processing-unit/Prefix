@@ -8568,11 +8568,12 @@ static Value builtin_thaw(Interpreter *interp, Value *args, int argc, Expr **arg
 
 static Value builtin_permafreeze(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line,
                                  int col) {
-    (void)args;
-    if (argc != 1 || arg_nodes[0]->type != EXPR_IDENT) {
-        RUNTIME_ERROR(interp, "PERMAFREEZE expects an identifier", line, col);
+    (void)arg_nodes;
+    if (argc != 1) {
+        RUNTIME_ERROR(interp, "PERMAFREEZE expects 1 argument", line, col);
     }
-    const char *name = arg_nodes[0]->as.ident;
+    EXPECT_STR(args[0], "PERMAFREEZE", interp, line, col);
+    const char *name = args[0].as.s ? args[0].as.s : "";
     int r = env_permafreeze(env, name);
     if (r != 0) {
         char buf[128];
@@ -8663,11 +8664,12 @@ static Value builtin_frozen(Interpreter *interp, Value *args, int argc, Expr **a
 
 static Value builtin_permafrozen(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line,
                                  int col) {
-    (void)args;
-    if (argc != 1 || arg_nodes[0]->type != EXPR_IDENT) {
-        RUNTIME_ERROR(interp, "PERMAFROZEN expects an identifier", line, col);
+    (void)arg_nodes;
+    if (argc != 1) {
+        RUNTIME_ERROR(interp, "PERMAFROZEN expects 1 argument", line, col);
     }
-    const char *name = arg_nodes[0]->as.ident;
+    EXPECT_STR(args[0], "PERMAFROZEN", interp, line, col);
+    const char *name = args[0].as.s ? args[0].as.s : "";
     int p = env_permafrozen(env, name);
     return value_bool(p != 0);
 }
