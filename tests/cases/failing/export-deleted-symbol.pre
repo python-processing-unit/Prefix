@@ -6,5 +6,5 @@ STR helper_path = JOIN(tests_dir, "/helpers/export_target.pre")
 REFUTE(IMPORT_PATH(helper_path, "helper"))
 
 INT value = 0d1
-DEL(value)
+DEL("value")
 EXPORT("value", "helper")

@@ -1,2 +1,2 @@
 BOOL x
-DEL(x)
+DEL("x")

@@ -20,6 +20,6 @@ ASSERT(outer_visible())
 ASSERT(inner_visible())
 REFUTE(missing_visible())
 
-DEL(outer)
+DEL("outer")
 REFUTE(EXIST(outer))
 REFUTE(outer_visible())

@@ -8301,13 +8301,73 @@ static Value builtin_signature(Interpreter *interp, Value *args, int argc, Expr 
 
 // ============ Variable management ============
 
-static Value builtin_del(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
-    (void)args;
-    if (argc != 1) {
-        RUNTIME_ERROR(interp, "DEL expects an identifier", line, col);
+static Expr *parse_del_target_expr(Interpreter *interp, const char *src, Stmt **out_program, int line, int col) {
+    Lexer lex;
+    Parser parser;
+    Stmt *program;
+    Stmt *stmt;
+
+    if (out_program) {
+        *out_program = NULL;
     }
 
-    Expr *target = arg_nodes[0];
+    lexer_init(&lex, src ? src : "", "<DEL>");
+    parser_init(&parser, &lex);
+    program = parser_parse(&parser);
+
+    if (parser.had_error || !program) {
+        char *msg = strdup(parser.error_msg ? parser.error_msg : "DEL: invalid target string");
+        int err_line = parser.error_line ? parser.error_line : line;
+        int err_col = parser.error_col ? parser.error_col : col;
+        if (program) {
+            free_stmt(program);
+        }
+        free(parser.error_msg);
+        interp->error = msg;
+        interp->error_line = err_line;
+        interp->error_col = err_col;
+        return NULL;
+    }
+
+    free(parser.error_msg);
+
+    if (program->type != STMT_BLOCK || program->as.block.count != 1) {
+        free_stmt(program);
+        interp->error = strdup("DEL target must be a single identifier or indexed identifier");
+        interp->error_line = line;
+        interp->error_col = col;
+        return NULL;
+    }
+
+    stmt = program->as.block.items[0];
+    if (!stmt || stmt->type != STMT_EXPR || !stmt->as.expr_stmt.expr) {
+        free_stmt(program);
+        interp->error = strdup("DEL target must be a single identifier or indexed identifier");
+        interp->error_line = stmt ? stmt->line : line;
+        interp->error_col = stmt ? stmt->column : col;
+        return NULL;
+    }
+
+    if (out_program) {
+        *out_program = program;
+    } else {
+        free_stmt(program);
+    }
+    return stmt->as.expr_stmt.expr;
+}
+
+static Value builtin_del(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
+    (void)arg_nodes;
+    Stmt *target_program = NULL;
+    if (argc != 1) {
+        RUNTIME_ERROR(interp, "DEL expects STR argument", line, col);
+    }
+    EXPECT_STR(args[0], "DEL", interp, line, col);
+
+    Expr *target = parse_del_target_expr(interp, args[0].as.s, &target_program, line, col);
+    if (!target) {
+        return value_null();
+    }
 
     /* Case 1: plain identifier – delete the binding */
     if (target->type == EXPR_IDENT) {
@@ -8316,22 +8376,26 @@ static Value builtin_del(Interpreter *interp, Value *args, int argc, Expr **arg_
         if (!entry || !entry->initialized) {
             char buf[128];
             snprintf(buf, sizeof(buf), "Cannot delete undefined identifier '%s'", name);
+            free_stmt(target_program);
             RUNTIME_ERROR(interp, buf, line, col);
         }
         if (entry->frozen || entry->permafrozen) {
             char buf[128];
             snprintf(buf, sizeof(buf), "Cannot delete frozen identifier '%s'", name);
+            free_stmt(target_program);
             RUNTIME_ERROR(interp, buf, line, col);
         }
         if (!env_delete(env, name)) {
             char buf[128];
             snprintf(buf, sizeof(buf), "Cannot delete identifier '%s'", name);
+            free_stmt(target_program);
             RUNTIME_ERROR(interp, buf, line, col);
         }
+        free_stmt(target_program);
         return value_bool(false);
     }
 
-    /* Case 2: indexed expression – support deleting map entries like DEL(m<k>) or DEL(m<k1,k2>) */
+    /* Case 2: indexed expression – support deleting map entries like DEL("m<k>") or DEL("m<k1,k2>") */
     if (target->type == EXPR_INDEX) {
         /* collect chain of index nodes (possibly nested) */
         size_t chain_len = 0;
@@ -8341,7 +8405,8 @@ static Value builtin_del(Interpreter *interp, Value *args, int argc, Expr **arg_
             walker = walker->as.index.target;
         }
         if (!walker || walker->type != EXPR_IDENT) {
-            RUNTIME_ERROR(interp, "DEL expects an identifier or indexed identifier", line, col);
+            free_stmt(target_program);
+            RUNTIME_ERROR(interp, "DEL target must be an identifier or indexed identifier", line, col);
         }
 
         const char *base_name = walker->as.ident;
@@ -8351,11 +8416,13 @@ static Value builtin_del(Interpreter *interp, Value *args, int argc, Expr **arg_
         if (!env_get(env, base_name, &base_val, &base_type, &base_initialized) || !base_initialized) {
             char buf[128];
             snprintf(buf, sizeof(buf), "Cannot delete mapping from undefined identifier '%s'", base_name);
+            free_stmt(target_program);
             RUNTIME_ERROR(interp, buf, line, col);
         }
 
         Expr **nodes = malloc(sizeof(Expr *) * (chain_len ? chain_len : 1));
         if (!nodes) {
+            free_stmt(target_program);
             value_free(base_val);
             RUNTIME_ERROR(interp, "Out of memory", line, col);
         }
@@ -8373,12 +8440,14 @@ static Value builtin_del(Interpreter *interp, Value *args, int argc, Expr **arg_
             ExprList *indices = &node->as.index.indices;
             if (indices->count == 0) {
                 free(nodes);
+                free_stmt(target_program);
                 value_free(base_val);
                 RUNTIME_ERROR(interp, "Empty index list", line, col);
             }
 
             if (cur->type != VAL_MAP) {
                 free(nodes);
+                free_stmt(target_program);
                 value_free(base_val);
                 RUNTIME_ERROR(interp, "Attempted map deletion on non-map value", node->line, node->column);
             }
@@ -8388,17 +8457,22 @@ static Value builtin_del(Interpreter *interp, Value *args, int argc, Expr **arg_
                 Value key = eval_expr(interp, it, env);
                 if (interp->error) {
                     /* propagate evaluation error */
-                    char *em = interp->error;
+                    char *em = strdup(interp->error ? interp->error : "DEL target evaluation failed");
                     int el = interp->error_line;
                     int ec = interp->error_col;
                     clear_error(interp);
                     free(nodes);
+                    free_stmt(target_program);
                     value_free(base_val);
-                    RUNTIME_ERROR(interp, em, el, ec);
+                    interp->error = em;
+                    interp->error_line = el;
+                    interp->error_col = ec;
+                    return value_null();
                 }
                 if (!(key.type == VAL_INT || key.type == VAL_STR || key.type == VAL_FLT)) {
                     value_free(key);
                     free(nodes);
+                    free_stmt(target_program);
                     value_free(base_val);
                     RUNTIME_ERROR(interp, "Map index must be INT, FLT or STR", it->line, it->column);
                 }
@@ -8413,10 +8487,12 @@ static Value builtin_del(Interpreter *interp, Value *args, int argc, Expr **arg_
                     /* write back modified base into environment */
                     if (!env_assign(env, base_name, base_val, TYPE_UNKNOWN, false)) {
                         free(nodes);
+                        free_stmt(target_program);
                         value_free(base_val);
                         RUNTIME_ERROR(interp, "Cannot write back to identifier (frozen?)", line, col);
                     }
                     free(nodes);
+                    free_stmt(target_program);
                     value_free(base_val);
                     return value_bool(false);
                 }
@@ -8427,11 +8503,13 @@ static Value builtin_del(Interpreter *interp, Value *args, int argc, Expr **arg_
                 if (!slot) {
                     /* intermediate missing -> nothing to delete (no-op) */
                     free(nodes);
+                    free_stmt(target_program);
                     value_free(base_val);
                     return value_bool(false);
                 }
                 if (slot->type != VAL_MAP) {
                     free(nodes);
+                    free_stmt(target_program);
                     value_free(base_val);
                     RUNTIME_ERROR(interp, "Attempted nested map indexing on non-map value", it->line, it->column);
                 }
@@ -8442,11 +8520,13 @@ static Value builtin_del(Interpreter *interp, Value *args, int argc, Expr **arg_
 
         /* unreachable, but keep cleanup */
         free(nodes);
+        free_stmt(target_program);
         value_free(base_val);
         return value_bool(false);
     }
 
-    RUNTIME_ERROR(interp, "DEL expects an identifier", line, col);
+    free_stmt(target_program);
+    RUNTIME_ERROR(interp, "DEL target must be an identifier or indexed identifier", line, col);
 }
 
 static Value builtin_freeze(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
