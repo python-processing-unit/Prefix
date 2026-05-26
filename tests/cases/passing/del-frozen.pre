@@ -8,11 +8,11 @@ TRY{
     frozen_delete_failed = TRUE
 }
 ASSERT(frozen_delete_failed)
-ASSERT(EXIST(frozen_symbol))
+ASSERT(EXIST("frozen_symbol"))
 
 REFUTE(THAW(frozen_symbol))
 REFUTE(DEL("frozen_symbol"))
-REFUTE(EXIST(frozen_symbol))
+REFUTE(EXIST("frozen_symbol"))
 
 BOOL permafrozen_symbol = TRUE
 REFUTE(PERMAFREEZE(permafrozen_symbol))
@@ -24,4 +24,4 @@ TRY{
     permafrozen_delete_failed = TRUE
 }
 ASSERT(permafrozen_delete_failed)
-ASSERT(EXIST(permafrozen_symbol))
+ASSERT(EXIST("permafrozen_symbol"))

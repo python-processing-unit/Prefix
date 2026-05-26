@@ -11,5 +11,5 @@ FOR(i, 0d3){
 }
 ASSERT(EQ(outer, 0d1))
 ASSERT(EQ(inner, 0d1))
-REFUTE(EXIST(i))
-REFUTE(EXIST(j))
+REFUTE(EXIST("i"))
+REFUTE(EXIST("j"))

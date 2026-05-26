@@ -8670,16 +8670,14 @@ static Value builtin_permafrozen(Interpreter *interp, Value *args, int argc, Exp
 }
 
 static Value builtin_exist(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
-    (void)args;
-    (void)interp;
-    (void)line;
-    (void)col;
+    (void)arg_nodes;
 
-    if (argc != 1 || arg_nodes[0]->type != EXPR_IDENT) {
-        return value_bool(false);
+    if (argc != 1) {
+        RUNTIME_ERROR(interp, "EXIST expects 1 argument", line, col);
     }
+    EXPECT_STR(args[0], "EXIST", interp, line, col);
 
-    const char *name = arg_nodes[0]->as.ident;
+    const char *name = args[0].as.s ? args[0].as.s : "";
     return value_bool(env_exists(env, name));
 }
 

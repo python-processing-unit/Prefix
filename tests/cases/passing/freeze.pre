@@ -28,7 +28,7 @@ TRY{
     deletion_failed = TRUE
 }
 ASSERT(deletion_failed)
-ASSERT(EXIST(frozen_value))
+ASSERT(EXIST("frozen_value"))
 
 REFUTE(THAW(frozen_value))
 REFUTE(FROZEN(frozen_value))

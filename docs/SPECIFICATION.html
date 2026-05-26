@@ -701,7 +701,7 @@ Built-in operator names MUST be matched case-sensitively and MUST be written in 
 
 - `ANY ASSIGN(target, ANY value)` = MUST evaluate `value`, assign it to `target`, and return the assigned value. `target` MAY be a plain identifier, a tensor indexed target, or a map indexed target. If a plain identifier has not yet been declared, the typed form `ASSIGN(TYPE name, value)` MUST be used. The typed form MUST NOT be used with indexed targets.
 
-- `BOOL EXIST(SYMBOL name)` = MUST return `TRUE` if `name` resolves to a visible readable binding in the current lexical environment chain and `FALSE` otherwise.
+- `BOOL EXIST(STR name)` = MUST evaluate `name`, require the result to be a `STR`, and return `TRUE` if that string's contents resolve to a visible readable binding in the current lexical environment chain and `FALSE` otherwise.
 
 - `BOOL ISBOOL/ISINT/ISFLT/ISSTR/ISTNS/ISMAP/ISFUNC/ISTHR(ANY value)` = MUST return `TRUE` if the runtime type of `value` is respectively `BOOL`, `INT`, `FLT`, `STR`, `TNS`, `MAP`, `FUNC`, or `THR`, and `FALSE` otherwise.
 
