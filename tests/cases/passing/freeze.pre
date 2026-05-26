@@ -2,7 +2,7 @@ BOOL frozen_value = TRUE
 
 REFUTE(FREEZE("frozen_value"))
 ASSERT(FROZEN("frozen_value"))
-REFUTE(PERMAFROZEN(frozen_value))
+REFUTE(PERMAFROZEN("frozen_value"))
 
 BOOL freeze_undefined_failed = FALSE
 TRY{

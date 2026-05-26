@@ -15,7 +15,7 @@ REFUTE(DEL("frozen_symbol"))
 REFUTE(EXIST("frozen_symbol"))
 
 BOOL permafrozen_symbol = TRUE
-REFUTE(PERMAFREEZE(permafrozen_symbol))
+REFUTE(PERMAFREEZE("permafrozen_symbol"))
 
 BOOL permafrozen_delete_failed = FALSE
 TRY{
