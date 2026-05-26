@@ -2,7 +2,7 @@ BOOL caught = FALSE
 
 TRY{
     THR worker = ASYNC{
-        FREEZE(not_declared)
+        FREEZE("not_declared")
     }
 } CATCH {
     caught = TRUE
@@ -15,7 +15,7 @@ REFUTE(caught)
 BOOL caught_await = FALSE
 
 THR worker2 = ASYNC{
-    FREEZE(not_declared)
+    FREEZE("not_declared")
 }
 
 TRY{

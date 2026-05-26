@@ -1,5 +1,5 @@
 BOOL frozen_symbol = TRUE
-REFUTE(FREEZE(frozen_symbol))
+REFUTE(FREEZE("frozen_symbol"))
 
 BOOL frozen_delete_failed = FALSE
 TRY{
@@ -10,7 +10,7 @@ TRY{
 ASSERT(frozen_delete_failed)
 ASSERT(EXIST("frozen_symbol"))
 
-REFUTE(THAW(frozen_symbol))
+REFUTE(THAW("frozen_symbol"))
 REFUTE(DEL("frozen_symbol"))
 REFUTE(EXIST("frozen_symbol"))
 

@@ -1,4 +1,4 @@
 INT t = 0d1
-FREEZE(t)
+FREEZE("t")
 
 INT p = @t

@@ -1,12 +1,12 @@
 BOOL frozen_value = TRUE
 
-REFUTE(FREEZE(frozen_value))
-ASSERT(FROZEN(frozen_value))
+REFUTE(FREEZE("frozen_value"))
+ASSERT(FROZEN("frozen_value"))
 REFUTE(PERMAFROZEN(frozen_value))
 
 BOOL freeze_undefined_failed = FALSE
 TRY{
-    FREEZE(not_declared)
+    FREEZE("not_declared")
 } CATCH {
     freeze_undefined_failed = TRUE
 }
@@ -30,7 +30,7 @@ TRY{
 ASSERT(deletion_failed)
 ASSERT(EXIST("frozen_value"))
 
-REFUTE(THAW(frozen_value))
-REFUTE(FROZEN(frozen_value))
+REFUTE(THAW("frozen_value"))
+REFUTE(FROZEN("frozen_value"))
 frozen_value = FALSE
 ASSERT(EQ(frozen_value, FALSE))

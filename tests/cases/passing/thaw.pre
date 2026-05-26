@@ -1,19 +1,19 @@
 BOOL thaw_value = TRUE
 
-REFUTE(THAW(thaw_value))
+REFUTE(THAW("thaw_value"))
 ASSERT(thaw_value)
 
-REFUTE(FREEZE(thaw_value))
-ASSERT(FROZEN(thaw_value))
-REFUTE(THAW(thaw_value))
-REFUTE(FROZEN(thaw_value))
+REFUTE(FREEZE("thaw_value"))
+ASSERT(FROZEN("thaw_value"))
+REFUTE(THAW("thaw_value"))
+REFUTE(FROZEN("thaw_value"))
 
 thaw_value = FALSE
 ASSERT(EQ(thaw_value, FALSE))
 
 BOOL thaw_undefined_failed = FALSE
 TRY{
-    THAW(not_declared)
+    THAW("not_declared")
 } CATCH {
     thaw_undefined_failed = TRUE
 }

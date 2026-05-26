@@ -709,9 +709,9 @@ Built-in operator names MUST be matched case-sensitively and MUST be written in 
 
 - `STR SIGNATURE(SYMBOL name)` = MUST return a textual signature for `name`. If `name` denotes a user-defined function, the result MUST use the canonical function-signature form of this specification. For any other visible binding, the result MUST be `TYPE name`.
 
-- `BOOL FREEZE(SYMBOL name)`, `BOOL THAW(SYMBOL name)`, and `BOOL PERMAFREEZE(SYMBOL name)` = MUST modify the mutability state of the binding designated by `name`. `FREEZE` MUST prevent reassignment and deletion until thawed. `PERMAFREEZE` MUST permanently prevent reassignment, deletion, and later thawing. `THAW` MUST clear a non-permanent freeze, MUST raise a runtime error when applied to a permanently frozen binding, and MUST otherwise succeed as a no-op when applied to a binding that is not currently frozen. `FREEZE`, `THAW`, and `PERMAFREEZE` MUST each return `FALSE` on success and MUST raise a runtime error if `name` is undefined.
+-- `BOOL FREEZE(STR name)`, `BOOL THAW(STR name)`, and `BOOL PERMAFREEZE(SYMBOL name)` = MUST modify the mutability state of the binding designated by `name`. `FREEZE` MUST prevent reassignment and deletion until thawed. `PERMAFREEZE` MUST permanently prevent reassignment, deletion, and later thawing. `THAW` MUST clear a non-permanent freeze, MUST raise a runtime error when applied to a permanently frozen binding, and MUST otherwise succeed as a no-op when applied to a binding that is not currently frozen. `FREEZE`, `THAW`, and `PERMAFREEZE` MUST each return `FALSE` on success and MUST raise a runtime error if `name` is undefined.
 
-- `BOOL FROZEN(SYMBOL name)` and `BOOL PERMAFROZEN(SYMBOL name)` = MUST report the freeze state of `name`. `FROZEN` MUST return `TRUE` for any frozen or permanently frozen binding and `FALSE` otherwise. `PERMAFROZEN` MUST return `TRUE` only for permanently frozen bindings and `FALSE` otherwise. If `name` is undefined, both operators MUST return `FALSE`.
+-- `BOOL FROZEN(STR name)` and `BOOL PERMAFROZEN(SYMBOL name)` = MUST report the freeze state of `name`. `FROZEN` MUST return `TRUE` for any frozen or permanently frozen binding and `FALSE` otherwise. `PERMAFROZEN` MUST return `TRUE` only for permanently frozen bindings and `FALSE` otherwise. If `name` is undefined, both operators MUST return `FALSE`.
 
 ---
 
