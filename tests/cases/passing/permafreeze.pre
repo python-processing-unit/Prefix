@@ -1,7 +1,7 @@
 BOOL locked_value = TRUE
 
 REFUTE(PERMAFREEZE(locked_value))
-ASSERT(FROZEN(locked_value))
+ASSERT(FROZEN("locked_value"))
 ASSERT(PERMAFROZEN(locked_value))
 
 BOOL permafreeze_undefined_failed = FALSE
@@ -32,7 +32,7 @@ ASSERT(EXIST("locked_value"))
 
 BOOL thaw_failed = FALSE
 TRY{
-    THAW(locked_value)
+    THAW("locked_value")
 } CATCH {
     thaw_failed = TRUE
 }

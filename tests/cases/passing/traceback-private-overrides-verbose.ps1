@@ -6,7 +6,7 @@ try {
   $programPath = Join-Path $tempDir 'program.pre'
 
   Set-Content -Path $programPath -Encoding Ascii -Value @'
-FREEZE(not_declared)
+FREEZE("not_declared")
 '@
 
   # Pass both -verbose and -private; private should suppress snapshots

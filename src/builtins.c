@@ -8530,11 +8530,12 @@ static Value builtin_del(Interpreter *interp, Value *args, int argc, Expr **arg_
 }
 
 static Value builtin_freeze(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
-    (void)args;
-    if (argc != 1 || arg_nodes[0]->type != EXPR_IDENT) {
-        RUNTIME_ERROR(interp, "FREEZE expects an identifier", line, col);
+    (void)arg_nodes;
+    if (argc != 1) {
+        RUNTIME_ERROR(interp, "FREEZE expects 1 argument", line, col);
     }
-    const char *name = arg_nodes[0]->as.ident;
+    EXPECT_STR(args[0], "FREEZE", interp, line, col);
+    const char *name = args[0].as.s ? args[0].as.s : "";
     int r = env_freeze(env, name);
     if (r != 0) {
         char buf[128];
@@ -8545,11 +8546,12 @@ static Value builtin_freeze(Interpreter *interp, Value *args, int argc, Expr **a
 }
 
 static Value builtin_thaw(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
-    (void)args;
-    if (argc != 1 || arg_nodes[0]->type != EXPR_IDENT) {
-        RUNTIME_ERROR(interp, "THAW expects an identifier", line, col);
+    (void)arg_nodes;
+    if (argc != 1) {
+        RUNTIME_ERROR(interp, "THAW expects 1 argument", line, col);
     }
-    const char *name = arg_nodes[0]->as.ident;
+    EXPECT_STR(args[0], "THAW", interp, line, col);
+    const char *name = args[0].as.s ? args[0].as.s : "";
     int r = env_thaw(env, name);
     if (r == -1) {
         char buf[128];
@@ -8649,11 +8651,12 @@ static Value builtin_export(Interpreter *interp, Value *args, int argc, Expr **a
 }
 
 static Value builtin_frozen(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
-    (void)args;
-    if (argc != 1 || arg_nodes[0]->type != EXPR_IDENT) {
-        RUNTIME_ERROR(interp, "FROZEN expects an identifier", line, col);
+    (void)arg_nodes;
+    if (argc != 1) {
+        RUNTIME_ERROR(interp, "FROZEN expects 1 argument", line, col);
     }
-    const char *name = arg_nodes[0]->as.ident;
+    EXPECT_STR(args[0], "FROZEN", interp, line, col);
+    const char *name = args[0].as.s ? args[0].as.s : "";
     int st = env_frozen_state(env, name);
     return value_bool(st != 0);
 }

@@ -6,7 +6,7 @@ try {
   $programPath = Join-Path $tempDir 'program.pre'
 
   Set-Content -Path $programPath -Encoding Ascii -Value @'
-FREEZE(not_declared)
+FREEZE("not_declared")
 '@
 
   $result = Invoke-PrefixWithArguments -Arguments @('-private', $programPath)

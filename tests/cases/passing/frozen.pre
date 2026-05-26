@@ -1,11 +1,11 @@
 BOOL normal_value = TRUE
-REFUTE(FROZEN(normal_value))
+REFUTE(FROZEN("normal_value"))
 
-REFUTE(FREEZE(normal_value))
-ASSERT(FROZEN(normal_value))
-REFUTE(THAW(normal_value))
-REFUTE(FROZEN(normal_value))
+REFUTE(FREEZE("normal_value"))
+ASSERT(FROZEN("normal_value"))
+REFUTE(THAW("normal_value"))
+REFUTE(FROZEN("normal_value"))
 
 REFUTE(PERMAFREEZE(normal_value))
-ASSERT(FROZEN(normal_value))
+ASSERT(FROZEN("normal_value"))
 ASSERT(PERMAFROZEN(normal_value))
