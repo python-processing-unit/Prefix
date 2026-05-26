@@ -23,7 +23,7 @@ ASSERT(EQ(frozen_value, TRUE))
 
 BOOL deletion_failed = FALSE
 TRY{
-    DEL(frozen_value)
+    DEL("frozen_value")
 } CATCH {
     deletion_failed = TRUE
 }

@@ -96,7 +96,7 @@ A symbol MAY be declared without a value using `TYPE name`. Such a declaration r
 
 The first assignment to a symbol MUST use a typed form such as `TYPE name = expression`, with one or more spaces between the type and name and optional spaces around `=`. Subsequent assignments MAY omit the type annotation, but the symbol's type MUST remain unchanged for the lifetime of that name, including after deletion and re-assignment.
 
-Assignments to undeclared identifiers without a type annotation MUST raise a runtime error. A binding MUST remain allocated until it is deleted with `DEL(name)`.
+Assignments to undeclared identifiers without a type annotation MUST raise a runtime error. A binding MUST remain allocated until it is deleted with `DEL("name")`.
 
 The built-in `ASSIGN(target, expression)` MUST provide expression-position assignment. The `target` MAY be a plain identifier or an indexed target. If the identifier does not yet exist, the typed form `ASSIGN(TYPE name, expression)` MUST be used, and that typed form is valid only for plain identifiers.
 
@@ -695,9 +695,9 @@ Built-in operator names MUST be matched case-sensitively and MUST be written in 
 
 #### 9.1.1 Symbol and type operators
 
-- `BOOL DEL(SYMBOL name)` = MUST delete the readable runtime binding designated by `name`. Deletion MUST preserve the symbol's recorded static type as defined in [5.1](#51-declarations-bindings-and-lifetime). Deleting an undeclared, never-assigned, or already-deleted symbol MUST raise a runtime error. Deleting a frozen or permanently frozen binding MUST raise a runtime error. On success, `DEL` MUST return `FALSE`.
+- `BOOL DEL(STR target)` = MUST evaluate `target`, require the result to be a `STR`, and parse that string as exactly one Prefix target expression. The parsed target MUST be either a plain identifier such as `name` or an indexed identifier such as `name<key>` or `name<k1, k2, ...>`. If the parsed target is a plain identifier, `DEL` MUST delete the readable runtime binding designated by that identifier. Deletion MUST preserve the symbol's recorded static type as defined in [5.1](#51-declarations-bindings-and-lifetime). Deleting an undeclared, never-assigned, or already-deleted symbol MUST raise a runtime error. Deleting a frozen or permanently frozen binding MUST raise a runtime error.
 
-- `BOOL DEL(target<key>)` or `BOOL DEL(target<k1, k2, ...>)` = MUST delete the map entry identified by the final key in the chain of map indices. `target` MUST resolve to a `MAP` value and all intermediate lookups MUST resolve to nested `MAP` values; indexing a non-`MAP` MUST raise a runtime error. If an intermediate key does not exist, the operation MUST be a no-op. After deletion the modified map MUST be written back to the environment. `DEL` in indexed form MUST return `FALSE` whether it deleted an entry or completed as a no-op.
+- When the parsed `DEL` target is indexed, the base target MUST resolve to a `MAP` value and all intermediate lookups MUST resolve to nested `MAP` values; indexing a non-`MAP` MUST raise a runtime error. The map entry identified by the final key in the chain MUST be deleted. If an intermediate key does not exist, the operation MUST be a no-op. After deletion the modified map MUST be written back to the environment. `DEL` MUST return `FALSE` on success, including indexed no-op cases.
 
 - `ANY ASSIGN(target, ANY value)` = MUST evaluate `value`, assign it to `target`, and return the assigned value. `target` MAY be a plain identifier, a tensor indexed target, or a map indexed target. If a plain identifier has not yet been declared, the typed form `ASSIGN(TYPE name, value)` MUST be used. The typed form MUST NOT be used with indexed targets.
 

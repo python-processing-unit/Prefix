@@ -19,7 +19,7 @@ FUNC TNS SQUARE(INT freq, INT ms, INT amp, INT sr){
     INT frames = /(*(sr, ms), MS_DEN)
     TNS shape = [frames]
     TNS out = TNS(shape, 0d0)
-    DEL(shape)
+    DEL("shape")
     INT period = CDIV(sr, freq)
     IF(LTE(period, 0d0)){ RETURN(out) }
     INT half = /(period, 0d2)
@@ -29,11 +29,11 @@ FUNC TNS SQUARE(INT freq, INT ms, INT amp, INT sr){
         IF(GTE(pos, half)){ v = NEG(amp) }
         out[idx] = AUDIO_CLAMP(v)
     }
-    DEL(frames)
-    DEL(period)
-    DEL(half)
-    DEL(pos)
-    DEL(v)
+    DEL("frames")
+    DEL("period")
+    DEL("half")
+    DEL("pos")
+    DEL("v")
     RETURN(out)
 }
 
@@ -44,7 +44,7 @@ FUNC TNS SAWTOOTH(INT freq, INT ms, INT amp, INT sr){
     INT frames = /(*(sr, ms), MS_DEN)
     TNS shape = [frames]
     TNS out = TNS(shape, 0d0)
-    DEL(shape)
+    DEL("shape")
     INT period = CDIV(sr, freq)
     IF(LTE(period, 0d0)){ RETURN(out) }
     PARFOR(idx, frames){
@@ -54,12 +54,12 @@ FUNC TNS SAWTOOTH(INT freq, INT ms, INT amp, INT sr){
         INT v = -(tmp, amp)
         out[idx] = AUDIO_CLAMP(v)
     }
-    DEL(frames)
-    DEL(period)
-    DEL(pos)
-    DEL(num)
-    DEL(tmp)
-    DEL(v)
+    DEL("frames")
+    DEL("period")
+    DEL("pos")
+    DEL("num")
+    DEL("tmp")
+    DEL("v")
     RETURN(out)
 }
 
@@ -70,7 +70,7 @@ FUNC TNS TRIANGLE(INT freq, INT ms, INT amp, INT sr){
     INT frames = /(*(sr, ms), MS_DEN)
     TNS shape = [frames]
     TNS out = TNS(shape, 0d0)
-    DEL(shape)
+    DEL("shape")
     INT period = CDIV(sr, freq)
     IF(LTE(period, 0d0)){ RETURN(out) }
     INT half = /(period, 0d2)
@@ -89,14 +89,14 @@ FUNC TNS TRIANGLE(INT freq, INT ms, INT amp, INT sr){
         }
         out[idx] = AUDIO_CLAMP(v)
     }
-    DEL(frames)
-    DEL(period)
-    DEL(half)
-    DEL(pos)
-    DEL(v)
-    DEL(num)
-    DEL(tmp)
-    DEL(t)
+    DEL("frames")
+    DEL("period")
+    DEL("half")
+    DEL("pos")
+    DEL("v")
+    DEL("num")
+    DEL("tmp")
+    DEL("t")
     RETURN(out)
 }
 
@@ -108,7 +108,7 @@ FUNC TNS SINE(INT freq, INT ms, INT amp, INT sr){
     TNS shape = [frames]
     TNS base = SAWTOOTH(freq, ms, amp, sr)
     TNS out = TNS(shape, 0d0)
-    DEL(shape)
+    DEL("shape")
     PARFOR(idx, frames){
         INT previ = idx
         IF(GT(idx, 0d1)){ previ = -(idx, 0d1) }
@@ -121,13 +121,13 @@ FUNC TNS SINE(INT freq, INT ms, INT amp, INT sr){
         INT v = /(sum, 0d3)
         out[idx] = AUDIO_CLAMP(v)
     }
-    DEL(frames)
-    DEL(previ)
-    DEL(nexti)
-    DEL(a)
-    DEL(b)
-    DEL(c)
-    DEL(sum)
+    DEL("frames")
+    DEL("previ")
+    DEL("nexti")
+    DEL("a")
+    DEL("b")
+    DEL("c")
+    DEL("sum")
     RETURN(out)
 }
 
@@ -140,7 +140,7 @@ FUNC TNS PULSE(INT freq, INT ms, INT amp, INT sr, INT duty){
     INT frames = /(*(sr, ms), MS_DEN)
     TNS shape = [frames]
     TNS out = TNS(shape, 0d0)
-    DEL(shape)
+    DEL("shape")
     INT period = CDIV(sr, freq)
     IF(LTE(period, 0d0)){ RETURN(out) }
     INT thresh = /(*(period, duty), 0d100)
@@ -150,11 +150,11 @@ FUNC TNS PULSE(INT freq, INT ms, INT amp, INT sr, INT duty){
         IF(GTE(pos, thresh)){ v = NEG(amp) }
         out[idx] = AUDIO_CLAMP(v)
     }
-    DEL(frames)
-    DEL(period)
-    DEL(thresh)
-    DEL(pos)
-    DEL(v)
+    DEL("frames")
+    DEL("period")
+    DEL("thresh")
+    DEL("pos")
+    DEL("v")
     RETURN(out)
 }
 
@@ -224,12 +224,12 @@ FUNC TNS ENVELOPE_ADSR( ^
         }
         out[idx] = AUDIO_CLAMP(v)
     }
-    DEL(slen)
-    DEL(frames)
-    DEL(a)
-    DEL(d)
-    DEL(r)
-    DEL(s_len)
+    DEL("slen")
+    DEL("frames")
+    DEL("a")
+    DEL("d")
+    DEL("r")
+    DEL("s_len")
     RETURN(out)
 }
 
@@ -260,14 +260,14 @@ FUNC TNS LOWPASS(TNS inp, INT cutoff, INT sr){
         IF(GTE(count, 0d1)){ avg = /(sum, count) }
         out[idx] = AUDIO_CLAMP(avg)
     }
-    DEL(slen)
-    DEL(frames)
-    DEL(period)
-    DEL(start)
-    DEL(j)
-    DEL(sum)
-    DEL(count)
-    DEL(avg)
+    DEL("slen")
+    DEL("frames")
+    DEL("period")
+    DEL("start")
+    DEL("j")
+    DEL("sum")
+    DEL("count")
+    DEL("avg")
     RETURN(out)
 }
 
@@ -285,8 +285,8 @@ FUNC TNS HIGHPASS(TNS inp, INT cutoff, INT sr){
         INT b = low[i1]
         out[i1] = AUDIO_CLAMP(-(a, b))
     }
-    DEL(slen)
-    DEL(frames)
-    DEL(low)
+    DEL("slen")
+    DEL("frames")
+    DEL("low")
     RETURN(out)
 }
