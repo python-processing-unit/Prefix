@@ -38,7 +38,7 @@ TRY{
     runtime_errors = +(runtime_errors, 0d1)
 }
 
-FUNC missing_lambda_return = LAMBDA FUNC: (){}
+FUNC missing_lambda_return = LAMBDA FUNC (){}
 TRY{
     missing_lambda_return()
 } CATCH(err){

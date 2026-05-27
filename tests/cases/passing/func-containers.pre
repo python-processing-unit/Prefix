@@ -1,15 +1,15 @@
-TNS func_slots = [LAMBDA INT: (INT left, INT right){ RETURN(+(left, right)) }]
+TNS func_slots = [LAMBDA INT (INT left, INT right){ RETURN(+(left, right)) }]
 ASSERT(EQ(func_slots[0d1](0d2, 0d3), 0d5))
 
 MAP func_map = <"sum" = func_slots[0d1]>
 ASSERT(EQ(func_map<"sum">(0d3, 0d4), 0d7))
 
 MAP method_map = < ^
-    "install" = LAMBDA FUNC: (){ ^
-        SELF<"tag"> = LAMBDA INT: (){ RETURN(0d7) } ^
+    "install" = LAMBDA FUNC (){ ^
+        SELF<"tag"> = LAMBDA INT (){ RETURN(0d7) } ^
         RETURN(SELF<"tag">) ^
     }, ^
-    "seed" = LAMBDA INT: (){ RETURN(0d1) } ^
+    "seed" = LAMBDA INT (){ RETURN(0d1) } ^
 >
 MAP method_copy = method_map
 MAP method_alias = @method_map
