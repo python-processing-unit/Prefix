@@ -135,7 +135,10 @@ static bool require_space_only_gap(Parser *parser, const Token *left, const Toke
     int gap_start_col;
     int gap_end_col;
 
-    if (!left || !right || right->type != TOKEN_IDENT) {
+    /* Allow the right token to be an identifier or the '(' that begins a
+       parameter list. This lets constructs like `LAMBDA INT (INT x)` use
+       the same space-only gap rules as typed function declarations. */
+    if (!left || !right || (right->type != TOKEN_IDENT && right->type != TOKEN_LPAREN)) {
         report_error(parser, message);
         return false;
     }
@@ -632,14 +635,22 @@ static Expr *parse_primary(Parser *parser) {
     }
     if (match(parser, TOKEN_LAMBDA)) {
         Token lambda_tok = token;
-        /* LAMBDA R: ( params ) { body } */
+        /* LAMBDA R ( params ) { body }  -- also accept legacy 'R: (' */
         if (!is_type_token(parser->current_token.type)) {
             report_error(parser, "Expected return type after LAMBDA");
             return NULL;
         }
         DeclType ret = parse_type_name(parser->current_token.literal);
-        advance(parser);
-        consume(parser, TOKEN_COLON, "Expected ':' after return type");
+
+        /* Enforce the spec-compliant space-separated form `INT (` and
+           explicitly reject the legacy colon form `INT: (`. Use the same
+           space-only gap rules as for named function declarations so
+           that line-continuations and comments are handled consistently. */
+        if (!require_space_only_gap(parser, &parser->current_token, &parser->next_token, k_type_name_gap_error)) {
+            return NULL;
+        }
+        advance(parser); /* consume return type -> current_token becomes '(' */
+
         consume(parser, TOKEN_LPAREN, "Expected '(' after LAMBDA parameter list");
 
         ParamList params = {0};

@@ -1,0 +1,1 @@
+ASSIGN(f, LAMBDA INT: (INT x) { RETURN(x) })
