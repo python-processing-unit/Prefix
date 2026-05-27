@@ -1,0 +1,2 @@
+ASSIGN(FUNC f, LAMBDA INT (INT x) { RETURN(x) })
+ASSERT(EQ(f(0d2), 0d2))
