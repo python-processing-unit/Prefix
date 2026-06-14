@@ -29,6 +29,7 @@ typedef struct NsOp {
     char *name;              // symbol name (owned copy)
     Value value;             // for ASSIGN
     DeclType decl_type;      // for DEFINE / ASSIGN / ALIAS
+    int decl_base;           // for DEFINE / ASSIGN / ALIAS (named INT/FLT base)
     bool declare_if_missing; // for ASSIGN / ALIAS
     char *target_name;       // for ALIAS  (owned copy)
     struct Interpreter *interp;
@@ -114,14 +115,16 @@ void ns_buffer_read_unlock(void);
 // Each function enqueues the operation, blocks until completion, and
 // returns the result.
 
-bool ns_buffer_define(struct Env *env, const char *name, DeclType type);
-bool ns_buffer_assign(struct Env *env, const char *name, Value value, DeclType type, bool declare_if_missing);
+bool ns_buffer_define(struct Env *env, const char *name, DeclType type, int base);
+bool ns_buffer_assign(struct Env *env, const char *name, Value value, DeclType type, int type_base,
+                      bool declare_if_missing);
 bool ns_buffer_assign_index(struct Interpreter *interp, struct Env *env, Expr *idx_expr, Value value, int stmt_line,
                             int stmt_col, char **out_error, int *out_line, int *out_col);
 bool ns_buffer_delete(struct Env *env, const char *name);
-bool ns_buffer_set_alias(struct Env *env, const char *name, const char *target_name, DeclType type,
+bool ns_buffer_set_alias(struct Env *env, const char *name, const char *target_name, DeclType type, int type_base,
                          bool declare_if_missing);
-bool ns_buffer_restore_local(struct Env *env, const char *name, Value value, DeclType type, bool initialized);
+bool ns_buffer_restore_local(struct Env *env, const char *name, Value value, DeclType type, int type_base,
+                             bool initialized);
 int ns_buffer_freeze(struct Env *env, const char *name);
 int ns_buffer_thaw(struct Env *env, const char *name);
 int ns_buffer_permafreeze(struct Env *env, const char *name);

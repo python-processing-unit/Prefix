@@ -9,6 +9,7 @@ typedef struct Env Env;
 typedef struct EnvEntry {
     char *name;
     DeclType decl_type;
+    int decl_base; // 0 = parent INT/FLT, 2..64 = named base
     Value value;
     bool initialized;
     bool frozen;
@@ -33,9 +34,9 @@ Env *env_create(Env *parent);
 void env_retain(Env *env);
 void env_free(Env *env);
 
-bool env_define(Env *env, const char *name, DeclType type);
-bool env_assign(Env *env, const char *name, Value value, DeclType type, bool declare_if_missing);
-bool env_get(Env *env, const char *name, Value *out_value, DeclType *out_type, bool *out_initialized);
+bool env_define(Env *env, const char *name, DeclType type, int base);
+bool env_assign(Env *env, const char *name, Value value, DeclType type, int type_base, bool declare_if_missing);
+bool env_get(Env *env, const char *name, Value *out_value, DeclType *out_type, int *out_base, bool *out_initialized);
 bool env_delete(Env *env, const char *name);
 bool env_exists(Env *env, const char *name);
 // Return a per-thread snapshot of the EnvEntry for the given name, searching parents.
@@ -47,12 +48,13 @@ EnvEntry *env_get_entry(Env *env, const char *name);
 
 // Create or update an alias (pointer) binding: `name` will become an alias to `target_name`.
 // If declare_if_missing is true, `name` will be defined if absent. Returns true on success.
-bool env_set_alias(Env *env, const char *name, const char *target_name, DeclType type, bool declare_if_missing);
+bool env_set_alias(Env *env, const char *name, const char *target_name, DeclType type, int type_base,
+                   bool declare_if_missing);
 // Create or update an alias where the alias target should be resolved in a
 // specific environment (target_env). This supports pointer args binding
 // where the pointed-to symbol is visible in the caller's environment.
 bool env_set_alias_cross(Env *env, const char *name, Env *target_env, const char *target_name, DeclType type,
-                         bool declare_if_missing);
+                         int type_base, bool declare_if_missing);
 
 // Accessors for EnvEntry opaque use from other translation units
 // Returns true if the entry is initialized
@@ -79,10 +81,11 @@ int env_permafrozen(Env *env, const char *name);
 // env.c / ns_buffer.c.  Public callers should use the non-_direct
 // versions above, which route through the write buffer when active.
 
-bool env_define_direct(Env *env, const char *name, DeclType type);
-bool env_assign_direct(Env *env, const char *name, Value value, DeclType type, bool declare_if_missing);
+bool env_define_direct(Env *env, const char *name, DeclType type, int base);
+bool env_assign_direct(Env *env, const char *name, Value value, DeclType type, int type_base, bool declare_if_missing);
 bool env_delete_direct(Env *env, const char *name);
-bool env_set_alias_direct(Env *env, const char *name, const char *target_name, DeclType type, bool declare_if_missing);
+bool env_set_alias_direct(Env *env, const char *name, const char *target_name, DeclType type, int type_base,
+                          bool declare_if_missing);
 int env_freeze_direct(Env *env, const char *name);
 int env_thaw_direct(Env *env, const char *name);
 int env_permafreeze_direct(Env *env, const char *name);
@@ -91,7 +94,7 @@ int env_permafreeze_direct(Env *env, const char *name);
 // update the local entry (creating it if absent) to have `type` and, if
 // `initialized` is true, set its value to a copy of `value` and mark it
 // initialized; otherwise leave it uninitialized. Returns true on success.
-bool env_restore_local(Env *env, const char *name, Value value, DeclType type, bool initialized);
-bool env_restore_local_direct(Env *env, const char *name, Value value, DeclType type, bool initialized);
+bool env_restore_local(Env *env, const char *name, Value value, DeclType type, int type_base, bool initialized);
+bool env_restore_local_direct(Env *env, const char *name, Value value, DeclType type, int type_base, bool initialized);
 
 #endif // ENV_H

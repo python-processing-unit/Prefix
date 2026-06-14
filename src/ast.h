@@ -20,6 +20,7 @@ typedef struct Stmt Stmt;
 
 typedef struct Param {
     DeclType type;
+    int num_base; // 0 = parent INT/FLT, 2..64 = named base
     char *name;
     bool coerced;
     Expr *default_value; // optional
@@ -74,12 +75,9 @@ struct Expr {
         char *ident;
         struct {
             DeclType decl_type;
+            int decl_base; // 0 = parent INT/FLT, 2..64 = named base
             char *name;
         } typed_ident;
-        char *ptr_name;
-        struct {
-            Stmt *block;
-        } async;
         struct {
             Expr *callee;
             ExprList args;
@@ -89,24 +87,29 @@ struct Expr {
             size_t kw_capacity;
         } call;
         struct {
-            Expr *target;
-            ExprList indices;
-            bool is_map; /* true if angle-bracket indexing '<...>' was used */
-        } index;
+            Stmt *block;
+        } async;
         struct {
-            Expr *start;
-            Expr *end;
-        } range;
+            ParamList params;
+            DeclType return_type;
+            int return_base; // 0 = parent INT/FLT, 2..64 = named base
+            Stmt *body;
+        } lambda;
+        ExprList tns_items;
         struct {
             ExprList keys;
             ExprList values;
         } map_items;
         struct {
-            ParamList params;
-            DeclType return_type;
-            Stmt *body;
-        } lambda;
-        ExprList tns_items;
+            Expr *target;
+            ExprList indices;
+            bool is_map;
+        } index;
+        struct {
+            Expr *start;
+            Expr *end;
+        } range;
+        char *ptr_name;
     } as;
 };
 
@@ -150,12 +153,14 @@ struct Stmt {
         struct {
             bool has_type;
             DeclType decl_type;
+            int decl_base; // 0 = parent INT/FLT, 2..64 = named base
             char *name;
             Expr *target;
             Expr *value;
         } assign;
         struct {
             DeclType decl_type;
+            int decl_base; // 0 = parent INT/FLT, 2..64 = named base
             char *name;
         } decl;
         struct {
@@ -183,6 +188,7 @@ struct Stmt {
             char *name;
             ParamList params;
             DeclType return_type;
+            int return_base; // 0 = parent INT/FLT, 2..64 = named base
             Stmt *body;
         } func_stmt;
         struct {
@@ -221,7 +227,7 @@ Expr *expr_flt(double value, int base, int base_is_nan, int line, int column);
 Expr *expr_str(char *value, int line, int column);
 Expr *expr_ptr(char *name, int line, int column);
 Expr *expr_ident(char *name, int line, int column);
-Expr *expr_typed_ident(DeclType decl_type, char *name, int line, int column);
+Expr *expr_typed_ident(DeclType decl_type, int decl_base, char *name, int line, int column);
 Expr *expr_call(Expr *callee, int line, int column);
 void call_kw_add(Expr *call, char *name, Expr *value);
 Expr *expr_tns(int line, int column);
@@ -230,19 +236,20 @@ Expr *expr_map(int line, int column);
 Expr *expr_index(Expr *target, int line, int column, bool is_map);
 Expr *expr_range(Expr *start, Expr *end, int line, int column);
 Expr *expr_wildcard(int line, int column);
-Expr *expr_lambda(ParamList params, DeclType return_type, Stmt *body, int line, int column);
+Expr *expr_lambda(ParamList params, DeclType return_type, int return_base, Stmt *body, int line, int column);
 void expr_list_add(ExprList *list, Expr *expr);
 
 Stmt *stmt_block(int line, int column);
 Stmt *stmt_async(Stmt *body, int line, int column);
 Stmt *stmt_expr(Expr *expr, int line, int column);
-Stmt *stmt_assign(bool has_type, DeclType decl_type, char *name, Expr *target, Expr *value, int line, int column);
-Stmt *stmt_decl(DeclType decl_type, char *name, int line, int column);
+Stmt *stmt_assign(bool has_type, DeclType decl_type, int decl_base, char *name, Expr *target, Expr *value, int line,
+                  int column);
+Stmt *stmt_decl(DeclType decl_type, int decl_base, char *name, int line, int column);
 Stmt *stmt_if(Expr *cond, Stmt *then_branch, int line, int column);
 Stmt *stmt_while(Expr *cond, Stmt *body, int line, int column);
 Stmt *stmt_for(char *counter, Expr *target, Stmt *body, int line, int column);
 Stmt *stmt_parfor(char *counter, Expr *target, Stmt *body, int line, int column);
-Stmt *stmt_func(char *name, DeclType ret, Stmt *body, int line, int column);
+Stmt *stmt_func(char *name, DeclType ret, int return_base, Stmt *body, int line, int column);
 Stmt *stmt_return(Expr *value, int line, int column);
 Stmt *stmt_pop(Expr *expr, int line, int column);
 Stmt *stmt_break(Expr *value, int line, int column);

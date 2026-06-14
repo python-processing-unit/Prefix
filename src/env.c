@@ -80,6 +80,7 @@ static void env_entry_snap_from_raw(EnvEntry *dst, const EnvEntry *src) {
 
     dst->name = src->name ? strdup(src->name) : NULL;
     dst->decl_type = src->decl_type;
+    dst->decl_base = src->decl_base;
     dst->initialized = src->initialized;
     dst->frozen = src->frozen;
     dst->permafrozen = src->permafrozen;
@@ -170,7 +171,8 @@ static EnvEntry *env_find_local(Env *env, const char *name) {
 
 static EnvEntry *env_get_entry_raw(Env *env, const char *name) { return env_get_entry_raw_with_env(env, name, NULL); }
 
-static bool env_get_raw(Env *env, const char *name, Value *out_value, DeclType *out_type, bool *out_initialized) {
+static bool env_get_raw(Env *env, const char *name, Value *out_value, DeclType *out_type, int *out_base,
+                        bool *out_initialized) {
     for (Env *e = env; e != NULL; e = e->parent) {
         EnvEntry *entry = env_find_local(e, name);
         if (entry) {
@@ -193,6 +195,9 @@ static bool env_get_raw(Env *env, const char *name, Value *out_value, DeclType *
             }
             if (out_type) {
                 *out_type = cur->decl_type;
+            }
+            if (out_base) {
+                *out_base = cur->decl_base;
             }
             if (out_initialized) {
                 *out_initialized = cur->initialized;
@@ -235,35 +240,12 @@ static int env_permafrozen_raw(Env *env, const char *name) {
     return (int)entry->permafrozen ? 1 : 0;
 }
 
-static DeclType env_decl_type_from_value(Value value) {
-    switch (value.type) {
-    case VAL_BOOL:
-        return TYPE_BOOL;
-    case VAL_INT:
-        return TYPE_INT;
-    case VAL_FLT:
-        return TYPE_FLT;
-    case VAL_STR:
-        return TYPE_STR;
-    case VAL_TNS:
-        return TYPE_TNS;
-    case VAL_MAP:
-        return TYPE_MAP;
-    case VAL_FUNC:
-        return TYPE_FUNC;
-    case VAL_THR:
-        return TYPE_THR;
-    default:
-        return TYPE_UNKNOWN;
-    }
-}
-
 /* ================================================================== */
 /*  Direct (unbuffered) write implementations                          */
 /*  Called by the prepare thread or when the buffer is inactive.       */
 /* ================================================================== */
 
-bool env_define_direct(Env *env, const char *name, DeclType type) {
+bool env_define_direct(Env *env, const char *name, DeclType type, int base) {
     if (env_find_local(env, name) != NULL) {
         return false;
     }
@@ -279,6 +261,7 @@ bool env_define_direct(Env *env, const char *name, DeclType type) {
     EnvEntry *entry = &env->entries[env->count++];
     entry->name = strdup(name);
     entry->decl_type = type;
+    entry->decl_base = base;
     entry->initialized = false;
     entry->frozen = false;
     entry->permafrozen = false;
@@ -288,7 +271,7 @@ bool env_define_direct(Env *env, const char *name, DeclType type) {
     return true;
 }
 
-bool env_assign_direct(Env *env, const char *name, Value value, DeclType type, bool declare_if_missing) {
+bool env_assign_direct(Env *env, const char *name, Value value, DeclType type, int type_base, bool declare_if_missing) {
     for (Env *e = env; e != NULL; e = e->parent) {
         EnvEntry *entry = env_find_local(e, name);
         if (entry) {
@@ -301,12 +284,11 @@ bool env_assign_direct(Env *env, const char *name, Value value, DeclType type, b
                 if (!target) {
                     return false;
                 }
-                if (type != TYPE_UNKNOWN && target->decl_type != type) {
+                if (type != TYPE_UNKNOWN && !decl_type_equal(target->decl_type, target->decl_base, type, type_base)) {
                     return false;
                 }
-                DeclType actual_type = env_decl_type_from_value(value);
-                if (target->decl_type != TYPE_UNKNOWN && actual_type != TYPE_UNKNOWN &&
-                    target->decl_type != actual_type) {
+                if (target->decl_type != TYPE_UNKNOWN &&
+                    !decl_type_accepts_value(target->decl_type, target->decl_base, value)) {
                     return false;
                 }
                 if (target->frozen || target->permafrozen) {
@@ -325,12 +307,12 @@ bool env_assign_direct(Env *env, const char *name, Value value, DeclType type, b
                 return false;
             }
 
-            if (type != TYPE_UNKNOWN && entry->decl_type != type) {
+            if (type != TYPE_UNKNOWN && !decl_type_equal(entry->decl_type, entry->decl_base, type, type_base)) {
                 return false;
             }
 
-            DeclType actual_type = env_decl_type_from_value(value);
-            if (entry->decl_type != TYPE_UNKNOWN && actual_type != TYPE_UNKNOWN && entry->decl_type != actual_type) {
+            if (entry->decl_type != TYPE_UNKNOWN &&
+                !decl_type_accepts_value(entry->decl_type, entry->decl_base, value)) {
                 return false;
             }
 
@@ -348,11 +330,10 @@ bool env_assign_direct(Env *env, const char *name, Value value, DeclType type, b
     if (type == TYPE_UNKNOWN) {
         return false;
     }
-    DeclType actual_type = env_decl_type_from_value(value);
-    if (actual_type != TYPE_UNKNOWN && actual_type != type) {
+    if (!decl_type_accepts_value(type, type_base, value)) {
         return false;
     }
-    if (!env_define_direct(env, name, type)) {
+    if (!env_define_direct(env, name, type, type_base)) {
         return false;
     }
     EnvEntry *entry = env_find_local(env, name);
@@ -386,8 +367,8 @@ bool env_delete_direct(Env *env, const char *name) {
     }
     return false;
 }
-
-bool env_set_alias_direct(Env *env, const char *name, const char *target_name, DeclType type, bool declare_if_missing) {
+bool env_set_alias_direct(Env *env, const char *name, const char *target_name, DeclType type, int type_base,
+                          bool declare_if_missing) {
     if (!env || !name || !target_name) {
         return false;
     }
@@ -423,7 +404,7 @@ bool env_set_alias_direct(Env *env, const char *name, const char *target_name, D
     }
 
     /* Type compatibility */
-    if (type != TYPE_UNKNOWN && type != cur->decl_type) {
+    if (type != TYPE_UNKNOWN && !decl_type_equal(type, type_base, cur->decl_type, cur->decl_base)) {
         return false;
     }
 
@@ -436,7 +417,7 @@ bool env_set_alias_direct(Env *env, const char *name, const char *target_name, D
             return false;
         }
         /* create now */
-        if (!env_define_direct(env, name, type)) {
+        if (!env_define_direct(env, name, type, type_base)) {
             return false;
         }
         entry = env_find_local(env, name);
@@ -452,6 +433,7 @@ bool env_set_alias_direct(Env *env, const char *name, const char *target_name, D
 
     /* Overwrite declared type with target's type */
     entry->decl_type = cur->decl_type;
+    entry->decl_base = cur->decl_base;
 
     /* Clear any stored value and set alias */
     if (entry->initialized) {
@@ -472,7 +454,7 @@ bool env_set_alias_direct(Env *env, const char *name, const char *target_name, D
 }
 
 bool env_set_alias_cross(Env *env, const char *name, Env *target_env, const char *target_name, DeclType type,
-                         bool declare_if_missing) {
+                         int type_base, bool declare_if_missing) {
     if (!env || !name || !target_env || !target_name) {
         return false;
     }
@@ -508,7 +490,7 @@ bool env_set_alias_cross(Env *env, const char *name, Env *target_env, const char
     }
 
     /* Type compatibility */
-    if (type != TYPE_UNKNOWN && type != cur->decl_type) {
+    if (type != TYPE_UNKNOWN && !decl_type_equal(type, type_base, cur->decl_type, cur->decl_base)) {
         return false;
     }
 
@@ -521,7 +503,7 @@ bool env_set_alias_cross(Env *env, const char *name, Env *target_env, const char
             return false;
         }
         /* create now */
-        if (!env_define_direct(env, name, type)) {
+        if (!env_define_direct(env, name, type, type_base)) {
             return false;
         }
         entry = env_find_local(env, name);
@@ -537,6 +519,7 @@ bool env_set_alias_cross(Env *env, const char *name, Env *target_env, const char
 
     /* Overwrite declared type with target's type */
     entry->decl_type = cur->decl_type;
+    entry->decl_base = cur->decl_base;
 
     /* Clear any stored value and set alias */
     if (entry->initialized) {
@@ -554,14 +537,14 @@ bool env_set_alias_cross(Env *env, const char *name, Env *target_env, const char
     return true;
 }
 
-bool env_restore_local_direct(Env *env, const char *name, Value value, DeclType type, bool initialized) {
+bool env_restore_local_direct(Env *env, const char *name, Value value, DeclType type, int type_base, bool initialized) {
     if (!env || !name) {
         return false;
     }
 
     EnvEntry *entry = env_find_local(env, name);
     if (!entry) {
-        if (!env_define_direct(env, name, type)) {
+        if (!env_define_direct(env, name, type, type_base)) {
             return false;
         }
         entry = env_find_local(env, name);
@@ -577,6 +560,7 @@ bool env_restore_local_direct(Env *env, const char *name, Value value, DeclType 
 
     /* Overwrite declared type */
     entry->decl_type = type;
+    entry->decl_base = type_base;
 
     /* Remove any aliasing */
     if (entry->alias_target) {
@@ -603,11 +587,11 @@ bool env_restore_local_direct(Env *env, const char *name, Value value, DeclType 
     return true;
 }
 
-bool env_restore_local(Env *env, const char *name, Value value, DeclType type, bool initialized) {
+bool env_restore_local(Env *env, const char *name, Value value, DeclType type, int type_base, bool initialized) {
     if (ns_buffer_active() && !ns_buffer_is_prepare_thread()) {
-        return ns_buffer_restore_local(env, name, value, type, initialized);
+        return ns_buffer_restore_local(env, name, value, type, type_base, initialized);
     }
-    return env_restore_local_direct(env, name, value, type, initialized);
+    return env_restore_local_direct(env, name, value, type, type_base, initialized);
 }
 
 int env_freeze_direct(Env *env, const char *name) {
@@ -646,18 +630,18 @@ int env_permafreeze_direct(Env *env, const char *name) {
 /*  Route through the namespace buffer when active; otherwise direct.  */
 /* ================================================================== */
 
-bool env_define(Env *env, const char *name, DeclType type) {
+bool env_define(Env *env, const char *name, DeclType type, int base) {
     if (ns_buffer_active() && !ns_buffer_is_prepare_thread()) {
-        return ns_buffer_define(env, name, type);
+        return ns_buffer_define(env, name, type, base);
     }
-    return env_define_direct(env, name, type);
+    return env_define_direct(env, name, type, base);
 }
 
-bool env_assign(Env *env, const char *name, Value value, DeclType type, bool declare_if_missing) {
+bool env_assign(Env *env, const char *name, Value value, DeclType type, int type_base, bool declare_if_missing) {
     if (ns_buffer_active() && !ns_buffer_is_prepare_thread()) {
-        return ns_buffer_assign(env, name, value, type, declare_if_missing);
+        return ns_buffer_assign(env, name, value, type, type_base, declare_if_missing);
     }
-    return env_assign_direct(env, name, value, type, declare_if_missing);
+    return env_assign_direct(env, name, value, type, type_base, declare_if_missing);
 }
 
 bool env_delete(Env *env, const char *name) {
@@ -666,12 +650,12 @@ bool env_delete(Env *env, const char *name) {
     }
     return env_delete_direct(env, name);
 }
-
-bool env_set_alias(Env *env, const char *name, const char *target_name, DeclType type, bool declare_if_missing) {
+bool env_set_alias(Env *env, const char *name, const char *target_name, DeclType type, int type_base,
+                   bool declare_if_missing) {
     if (ns_buffer_active() && !ns_buffer_is_prepare_thread()) {
-        return ns_buffer_set_alias(env, name, target_name, type, declare_if_missing);
+        return ns_buffer_set_alias(env, name, target_name, type, type_base, declare_if_missing);
     }
-    return env_set_alias_direct(env, name, target_name, type, declare_if_missing);
+    return env_set_alias_direct(env, name, target_name, type, type_base, declare_if_missing);
 }
 
 int env_freeze(Env *env, const char *name) {
@@ -725,14 +709,14 @@ EnvEntry *env_get_entry(Env *env, const char *name) {
     return snap;
 }
 
-bool env_get(Env *env, const char *name, Value *out_value, DeclType *out_type, bool *out_initialized) {
+bool env_get(Env *env, const char *name, Value *out_value, DeclType *out_type, int *out_base, bool *out_initialized) {
     if (ns_buffer_active() && !ns_buffer_is_prepare_thread()) {
         ns_buffer_read_lock(name);
-        bool r = env_get_raw(env, name, out_value, out_type, out_initialized);
+        bool r = env_get_raw(env, name, out_value, out_type, out_base, out_initialized);
         ns_buffer_read_unlock();
         return r;
     }
-    return env_get_raw(env, name, out_value, out_type, out_initialized);
+    return env_get_raw(env, name, out_value, out_type, out_base, out_initialized);
 }
 
 bool env_exists(Env *env, const char *name) {

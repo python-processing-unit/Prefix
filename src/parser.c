@@ -108,6 +108,62 @@ static DeclType parse_type_name(const char *name) {
     return TYPE_UNKNOWN;
 }
 
+// Forward declarations for type annotation parsing
+static bool is_type_token(PTokenType type);
+static int parse_prefixed_int_literal(const char *text, int64_t *out_value, int *out_base);
+
+typedef struct {
+    DeclType type;
+    int base;      // 0 = parent, 2..64 = named INT/FLT base
+    Token end_tok; // last token of the annotation (type name or closing '}')
+} TypeAnnotation;
+
+static TypeAnnotation parse_type_annotation(Parser *parser) {
+    TypeAnnotation ta = {TYPE_UNKNOWN, 0, {0}};
+    if (!is_type_token(parser->current_token.type)) {
+        return ta;
+    }
+    ta.type = parse_type_name(parser->current_token.literal);
+    ta.end_tok = parser->current_token;
+    advance(parser); // consume type name
+
+    if (ta.type == TYPE_INT || ta.type == TYPE_FLT) {
+        if (match(parser, TOKEN_LBRACE)) {
+            // Parse base as an INT literal
+            Token lit = parser->current_token;
+            int64_t base_val = 0;
+            int lit_base = 2;
+            if (lit.type != TOKEN_NUMBER || !parse_prefixed_int_literal(lit.literal, &base_val, &lit_base)) {
+                if (lit.type == TOKEN_RBRACE) {
+                    report_error(parser, "INT{} requires a base number inside braces");
+                } else {
+                    report_error(parser, "Expected INT literal for base");
+                }
+                ta.type = TYPE_UNKNOWN;
+                return ta;
+            }
+            if (base_val < 2 || base_val > 64) {
+                report_error(parser, "Base must be between 2 and 64");
+                ta.type = TYPE_UNKNOWN;
+                return ta;
+            }
+            ta.base = (int)base_val;
+            advance(parser); // consume number
+            if (parser->current_token.type != TOKEN_RBRACE) {
+                report_error(parser, "Expected '}' after base");
+                ta.type = TYPE_UNKNOWN;
+                return ta;
+            }
+            ta.end_tok = parser->current_token;
+            advance(parser); // consume '}'
+        }
+    } else if (match(parser, TOKEN_LBRACE)) {
+        report_error(parser, "Base annotation is only valid for INT and FLT");
+        ta.type = TYPE_UNKNOWN;
+    }
+    return ta;
+}
+
 static const char *k_type_name_gap_error = "Type annotations require one or more spaces between type and name";
 
 static size_t token_source_width(const Token *token) {
@@ -298,15 +354,6 @@ static bool require_space_only_gap(Parser *parser, const Token *left, const Toke
     }
 
     free(line_text);
-    return true;
-}
-
-static bool advance_to_annotated_name(Parser *parser, const char *message) {
-    if (!require_space_only_gap(parser, &parser->current_token, &parser->next_token, message)) {
-        return false;
-    }
-
-    advance(parser);
     return true;
 }
 
@@ -501,13 +548,37 @@ static bool is_type_token(PTokenType type) {
 }
 
 static bool starts_named_type_annotation(Parser *parser) {
-    return (is_type_token(parser->current_token.type) &&
-            (parser->next_token.type == TOKEN_IDENT || parser->next_token.type == TOKEN_COLON)) != 0;
+    if (!is_type_token(parser->current_token.type)) {
+        return false;
+    }
+    if (parser->next_token.type == TOKEN_IDENT || parser->next_token.type == TOKEN_COLON) {
+        return true;
+    }
+    // Named number types: INT{base} or FLT{base} followed by a name
+    if (parser->next_token.type == TOKEN_LBRACE) {
+        DeclType t = parse_type_name(parser->current_token.literal);
+        if (t == TYPE_INT || t == TYPE_FLT) {
+            return true;
+        }
+    }
+    return false;
 }
 
 static bool looks_like_func_definition(Parser *parser) {
-    return (parser->current_token.type == TOKEN_FUNC && is_type_token(parser->next_token.type) &&
-            (parser->lookahead2_token.type == TOKEN_IDENT || parser->lookahead2_token.type == TOKEN_COLON)) != 0;
+    if (parser->current_token.type != TOKEN_FUNC || !is_type_token(parser->next_token.type)) {
+        return false;
+    }
+    if (parser->lookahead2_token.type == TOKEN_IDENT || parser->lookahead2_token.type == TOKEN_COLON) {
+        return true;
+    }
+    // Named number return type: FUNC INT{base} name(...)
+    if (parser->lookahead2_token.type == TOKEN_LBRACE) {
+        DeclType t = parse_type_name(parser->next_token.literal);
+        if (t == TYPE_INT || t == TYPE_FLT) {
+            return true;
+        }
+    }
+    return false;
 }
 
 static bool parse_param_list(Parser *parser, ParamList *params) {
@@ -527,12 +598,16 @@ static bool parse_param_list(Parser *parser, ParamList *params) {
             }
             return false;
         }
-        DeclType ptype = parse_type_name(parser->current_token.literal);
-        if (!advance_to_annotated_name(parser, k_type_name_gap_error)) {
+        TypeAnnotation ptype = parse_type_annotation(parser);
+        if (ptype.type == TYPE_UNKNOWN) {
+            return false;
+        }
+        if (!require_space_only_gap(parser, &ptype.end_tok, &parser->current_token, k_type_name_gap_error)) {
             return false;
         }
         Param param;
-        param.type = ptype;
+        param.type = ptype.type;
+        param.num_base = ptype.base;
         param.name = parser->current_token.literal;
         param.coerced = coerced;
         param.default_value = NULL;
@@ -550,13 +625,16 @@ static bool parse_param_list(Parser *parser, ParamList *params) {
 
 static Expr *parse_typed_ident_expr(Parser *parser) {
     Token type_tok = parser->current_token;
-    DeclType dtype = parse_type_name(type_tok.literal);
-    if (!advance_to_annotated_name(parser, k_type_name_gap_error)) {
+    TypeAnnotation ta = parse_type_annotation(parser);
+    if (ta.type == TYPE_UNKNOWN) {
+        return NULL;
+    }
+    if (!require_space_only_gap(parser, &ta.end_tok, &parser->current_token, k_type_name_gap_error)) {
         return NULL;
     }
     char *name = parser->current_token.literal;
     advance(parser);
-    return expr_typed_ident(dtype, name, type_tok.line, type_tok.column);
+    return expr_typed_ident(ta.type, ta.base, name, type_tok.line, type_tok.column);
 }
 
 static Expr *parse_primary(Parser *parser) {
@@ -640,16 +718,18 @@ static Expr *parse_primary(Parser *parser) {
             report_error(parser, "Expected return type after LAMBDA");
             return NULL;
         }
-        DeclType ret = parse_type_name(parser->current_token.literal);
+        TypeAnnotation ret = parse_type_annotation(parser);
+        if (ret.type == TYPE_UNKNOWN) {
+            return NULL;
+        }
 
         /* Enforce the spec-compliant space-separated form `INT (` and
            explicitly reject the legacy colon form `INT: (`. Use the same
            space-only gap rules as for named function declarations so
            that line-continuations and comments are handled consistently. */
-        if (!require_space_only_gap(parser, &parser->current_token, &parser->next_token, k_type_name_gap_error)) {
+        if (!require_space_only_gap(parser, &ret.end_tok, &parser->current_token, k_type_name_gap_error)) {
             return NULL;
         }
-        advance(parser); /* consume return type -> current_token becomes '(' */
 
         consume(parser, TOKEN_LPAREN, "Expected '(' after LAMBDA parameter list");
 
@@ -660,7 +740,7 @@ static Expr *parse_primary(Parser *parser) {
 
         consume(parser, TOKEN_RPAREN, "Expected ')' after parameters");
         Stmt *body = parse_block(parser);
-        return expr_lambda(params, ret, body, lambda_tok.line, lambda_tok.column);
+        return expr_lambda(params, ret.type, ret.base, body, lambda_tok.line, lambda_tok.column);
     }
     if (parser->current_token.type == TOKEN_IDENT) {
         Token idtok = parser->current_token;
@@ -773,7 +853,8 @@ static Expr *parse_call(Parser *parser) {
                         (call->as.call.callee->type == EXPR_IDENT &&
                          strcmp(call->as.call.callee->as.ident, "ASSIGN") == 0 && call->as.call.args.count == 0 &&
                          call->as.call.kw_count == 0 && is_type_token(parser->current_token.type) &&
-                         (parser->next_token.type == TOKEN_IDENT || parser->next_token.type == TOKEN_COLON)) != 0;
+                         (parser->next_token.type == TOKEN_IDENT || parser->next_token.type == TOKEN_COLON ||
+                          parser->next_token.type == TOKEN_LBRACE)) != 0;
 
                     if (is_typed_assign_target) {
                         Expr *arg = parse_typed_ident_expr(parser);
@@ -1041,8 +1122,11 @@ static Stmt *parse_func(Parser *parser) {
         report_error(parser, "Expected return type after FUNC");
         return NULL;
     }
-    DeclType ret = parse_type_name(parser->current_token.literal);
-    if (!advance_to_annotated_name(parser, k_type_name_gap_error)) {
+    TypeAnnotation ret = parse_type_annotation(parser);
+    if (ret.type == TYPE_UNKNOWN) {
+        return NULL;
+    }
+    if (!require_space_only_gap(parser, &ret.end_tok, &parser->current_token, k_type_name_gap_error)) {
         return NULL;
     }
     char *name = parser->current_token.literal;
@@ -1055,7 +1139,7 @@ static Stmt *parse_func(Parser *parser) {
     }
     consume(parser, TOKEN_RPAREN, "Expected ')' after parameters");
     Stmt *body = parse_block(parser);
-    Stmt *stmt = stmt_func(name, ret, body, tok.line, tok.column);
+    Stmt *stmt = stmt_func(name, ret.type, ret.base, body, tok.line, tok.column);
     stmt->as.func_stmt.params = params;
     return stmt;
 }
@@ -1069,8 +1153,11 @@ static Stmt *parse_statement(Parser *parser) {
     // Handle typed declarations where the type token may be a keyword like THR.
     if (starts_named_type_annotation(parser)) {
         Token type_tok = parser->current_token;
-        DeclType dtype = parse_type_name(type_tok.literal);
-        if (!advance_to_annotated_name(parser, k_type_name_gap_error)) {
+        TypeAnnotation ta = parse_type_annotation(parser);
+        if (ta.type == TYPE_UNKNOWN) {
+            return NULL;
+        }
+        if (!require_space_only_gap(parser, &ta.end_tok, &parser->current_token, k_type_name_gap_error)) {
             return NULL;
         }
         char *name = parser->current_token.literal;
@@ -1155,7 +1242,7 @@ static Stmt *parse_statement(Parser *parser) {
                 if (!expr) {
                     return NULL;
                 }
-                return stmt_assign(true, dtype, NULL, base, expr, type_tok.line, type_tok.column);
+                return stmt_assign(true, ta.type, ta.base, NULL, base, expr, type_tok.line, type_tok.column);
             }
             report_error(parser, "Expected '=' after typed indexed target");
             return NULL;
@@ -1166,9 +1253,9 @@ static Stmt *parse_statement(Parser *parser) {
             if (!expr) {
                 return NULL;
             }
-            return stmt_assign(true, dtype, name, NULL, expr, type_tok.line, type_tok.column);
+            return stmt_assign(true, ta.type, ta.base, name, NULL, expr, type_tok.line, type_tok.column);
         }
-        return stmt_decl(dtype, name, type_tok.line, type_tok.column);
+        return stmt_decl(ta.type, ta.base, name, type_tok.line, type_tok.column);
     }
     switch (parser->current_token.type) {
     case TOKEN_IF:
@@ -1295,8 +1382,11 @@ static Stmt *parse_statement(Parser *parser) {
 
     if (starts_named_type_annotation(parser)) {
         Token type_tok = parser->current_token;
-        DeclType dtype = parse_type_name(type_tok.literal);
-        if (!advance_to_annotated_name(parser, k_type_name_gap_error)) {
+        TypeAnnotation ta = parse_type_annotation(parser);
+        if (ta.type == TYPE_UNKNOWN) {
+            return NULL;
+        }
+        if (!require_space_only_gap(parser, &ta.end_tok, &parser->current_token, k_type_name_gap_error)) {
             return NULL;
         }
         char *name = parser->current_token.literal;
@@ -1306,9 +1396,9 @@ static Stmt *parse_statement(Parser *parser) {
             if (!expr) {
                 return NULL;
             }
-            return stmt_assign(true, dtype, name, NULL, expr, type_tok.line, type_tok.column);
+            return stmt_assign(true, ta.type, ta.base, name, NULL, expr, type_tok.line, type_tok.column);
         }
-        return stmt_decl(dtype, name, type_tok.line, type_tok.column);
+        return stmt_decl(ta.type, ta.base, name, type_tok.line, type_tok.column);
     }
 
     if (parser->current_token.type == TOKEN_IDENT && parser->next_token.type == TOKEN_EQUALS) {
@@ -1319,7 +1409,7 @@ static Stmt *parse_statement(Parser *parser) {
         if (!expr) {
             return NULL;
         }
-        return stmt_assign(false, TYPE_UNKNOWN, name_tok.literal, NULL, expr, name_tok.line, name_tok.column);
+        return stmt_assign(false, TYPE_UNKNOWN, 0, name_tok.literal, NULL, expr, name_tok.line, name_tok.column);
     }
 
     Expr *expr = parse_expression(parser);
@@ -1336,7 +1426,7 @@ static Stmt *parse_statement(Parser *parser) {
             return NULL;
         }
         // Create an assign stmt with the expression as target
-        return stmt_assign(false, TYPE_UNKNOWN, NULL, expr, rhs, expr->line, expr->column);
+        return stmt_assign(false, TYPE_UNKNOWN, 0, NULL, expr, rhs, expr->line, expr->column);
     }
 
     return stmt_expr(expr, expr->line, expr->column);
