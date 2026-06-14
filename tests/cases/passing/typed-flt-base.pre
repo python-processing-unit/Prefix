@@ -1,0 +1,15 @@
+FLT{0d2} a = 0b10.1
+ASSERT(EQ(a, 0b10.1))
+ASSERT(EQ(BASE(a), 0d2))
+
+FLT{0d16} b = 0x1.A
+ASSERT(EQ(b, 0x1.A))
+ASSERT(EQ(BASE(b), 0d16))
+
+FLT{0d10} c = 0d3.14
+ASSERT(EQ(c, 0d3.14))
+ASSERT(EQ(BASE(c), 0d10))
+
+FLT{0d64} d = 0s0.5
+ASSERT(EQ(d, 0s0.5))
+ASSERT(EQ(BASE(d), 0d64))

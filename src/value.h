@@ -120,6 +120,18 @@ Value value_alias(Value v);
 Value value_deep_copy(Value v);
 void value_free(Value v);
 
+// Numeric base helpers for named INT/FLT types
+int value_num_base(Value v);
+DeclType value_to_decl_type(Value v);
 const char *value_type_name(Value v);
+
+// Strict declared-type equality (bases matter for named numbers).
+bool decl_type_equal(DeclType a, int base_a, DeclType b, int base_b);
+
+// Whether a declared type accepts a value (parent INT/FLT accept any base).
+bool decl_type_accepts_value(DeclType expected, int expected_base, Value value);
+
+// Format a type name including base for INT/FLT. Returns buf.
+const char *decl_type_name_base(DeclType type, int base, char *buf, size_t buf_size);
 
 #endif // VALUE_H

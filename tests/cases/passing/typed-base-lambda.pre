@@ -1,0 +1,11 @@
+FUNC add_binary = LAMBDA INT{0d2} (INT{0d2} a, INT{0d2} b) {
+    RETURN(+(a, b))
+}
+ASSERT(EQ(add_binary(0b101, 0b110), 0b1011))
+ASSERT(EQ(SIGNATURE(add_binary), "INT{0d2} add_binary(INT{0d2} a, INT{0d2} b)"))
+
+FUNC scale_hex = LAMBDA FLT{0d16} (~FLT{0d16} x) {
+    RETURN(*(x, 0x2.0))
+}
+ASSERT(EQ(scale_hex(0d2.5), 0x5.0))
+ASSERT(EQ(BASE(scale_hex(0d2.5)), 0d16))

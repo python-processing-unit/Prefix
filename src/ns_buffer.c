@@ -95,10 +95,11 @@ static SymbolThread *find_or_create_symbol_thread(NsBuffer *buf, const char *nam
 static void execute_op(NsOp *op) {
     switch (op->op) {
     case NS_OP_DEFINE:
-        op->result_ok = env_define_direct(op->env, op->name, op->decl_type);
+        op->result_ok = env_define_direct(op->env, op->name, op->decl_type, op->decl_base);
         break;
     case NS_OP_ASSIGN:
-        op->result_ok = env_assign_direct(op->env, op->name, op->value, op->decl_type, op->declare_if_missing);
+        op->result_ok =
+            env_assign_direct(op->env, op->name, op->value, op->decl_type, op->decl_base, op->declare_if_missing);
         break;
     case NS_OP_INDEX_ASSIGN: {
         ExecResult res =
@@ -119,10 +120,12 @@ static void execute_op(NsOp *op) {
         op->result_ok = env_delete_direct(op->env, op->name);
         break;
     case NS_OP_ALIAS:
-        op->result_ok = env_set_alias_direct(op->env, op->name, op->target_name, op->decl_type, op->declare_if_missing);
+        op->result_ok = env_set_alias_direct(op->env, op->name, op->target_name, op->decl_type, op->decl_base,
+                                             op->declare_if_missing);
         break;
     case NS_OP_RESTORE:
-        op->result_ok = env_restore_local_direct(op->env, op->name, op->value, op->decl_type, op->declare_if_missing);
+        op->result_ok = env_restore_local_direct(op->env, op->name, op->value, op->decl_type, op->decl_base,
+                                                 op->declare_if_missing);
         break;
     case NS_OP_FREEZE:
         op->result_int = env_freeze_direct(op->env, op->name);
@@ -399,9 +402,10 @@ static void free_op(NsOp *op) {
 /*  Public: buffered write entry points                                */
 /* ------------------------------------------------------------------ */
 
-bool ns_buffer_define(struct Env *env, const char *name, DeclType type) {
+bool ns_buffer_define(struct Env *env, const char *name, DeclType type, int base) {
     NsOp *op = make_op(NS_OP_DEFINE, env, name);
     op->decl_type = type;
+    op->decl_base = base;
     enqueue_op(op);
     wait_op(op);
     bool r = op->result_ok;
@@ -409,10 +413,12 @@ bool ns_buffer_define(struct Env *env, const char *name, DeclType type) {
     return r;
 }
 
-bool ns_buffer_assign(struct Env *env, const char *name, Value value, DeclType type, bool declare_if_missing) {
+bool ns_buffer_assign(struct Env *env, const char *name, Value value, DeclType type, int type_base,
+                      bool declare_if_missing) {
     NsOp *op = make_op(NS_OP_ASSIGN, env, name);
     op->value = value_copy(value); /* transfer a copy into the op */
     op->decl_type = type;
+    op->decl_base = type_base;
     op->declare_if_missing = declare_if_missing;
     enqueue_op(op);
     wait_op(op);
@@ -494,11 +500,12 @@ bool ns_buffer_delete(struct Env *env, const char *name) {
     return r;
 }
 
-bool ns_buffer_set_alias(struct Env *env, const char *name, const char *target_name, DeclType type,
+bool ns_buffer_set_alias(struct Env *env, const char *name, const char *target_name, DeclType type, int type_base,
                          bool declare_if_missing) {
     NsOp *op = make_op(NS_OP_ALIAS, env, name);
     op->target_name = strdup(target_name);
     op->decl_type = type;
+    op->decl_base = type_base;
     op->declare_if_missing = declare_if_missing;
     enqueue_op(op);
     wait_op(op);
@@ -507,10 +514,12 @@ bool ns_buffer_set_alias(struct Env *env, const char *name, const char *target_n
     return r;
 }
 
-bool ns_buffer_restore_local(struct Env *env, const char *name, Value value, DeclType type, bool initialized) {
+bool ns_buffer_restore_local(struct Env *env, const char *name, Value value, DeclType type, int type_base,
+                             bool initialized) {
     NsOp *op = make_op(NS_OP_RESTORE, env, name);
     op->value = value_copy(value);
     op->decl_type = type;
+    op->decl_base = type_base;
     op->declare_if_missing = initialized;
     enqueue_op(op);
     wait_op(op);

@@ -61,12 +61,13 @@ Expr *expr_ident(char *name, int line, int column) {
     return expr;
 }
 
-Expr *expr_typed_ident(DeclType decl_type, char *name, int line, int column) {
+Expr *expr_typed_ident(DeclType decl_type, int decl_base, char *name, int line, int column) {
     Expr *expr = ast_alloc(sizeof(Expr));
     expr->type = EXPR_TYPED_IDENT;
     expr->line = line;
     expr->column = column;
     expr->as.typed_ident.decl_type = decl_type;
+    expr->as.typed_ident.decl_base = decl_base;
     expr->as.typed_ident.name = name;
     return expr;
 }
@@ -145,13 +146,14 @@ Expr *expr_wildcard(int line, int column) {
     return expr;
 }
 
-Expr *expr_lambda(ParamList params, DeclType return_type, Stmt *body, int line, int column) {
+Expr *expr_lambda(ParamList params, DeclType return_type, int return_base, Stmt *body, int line, int column) {
     Expr *expr = ast_alloc(sizeof(Expr));
     expr->type = EXPR_LAMBDA;
     expr->line = line;
     expr->column = column;
     expr->as.lambda.params = params;
     expr->as.lambda.return_type = return_type;
+    expr->as.lambda.return_base = return_base;
     expr->as.lambda.body = body;
     return expr;
 }
@@ -221,25 +223,28 @@ Stmt *stmt_expr(Expr *expr, int line, int column) {
     return stmt;
 }
 
-Stmt *stmt_assign(bool has_type, DeclType decl_type, char *name, Expr *target, Expr *value, int line, int column) {
+Stmt *stmt_assign(bool has_type, DeclType decl_type, int decl_base, char *name, Expr *target, Expr *value, int line,
+                  int column) {
     Stmt *stmt = ast_alloc(sizeof(Stmt));
     stmt->type = STMT_ASSIGN;
     stmt->line = line;
     stmt->column = column;
     stmt->as.assign.has_type = has_type;
     stmt->as.assign.decl_type = decl_type;
+    stmt->as.assign.decl_base = decl_base;
     stmt->as.assign.name = name;
     stmt->as.assign.target = target;
     stmt->as.assign.value = value;
     return stmt;
 }
 
-Stmt *stmt_decl(DeclType decl_type, char *name, int line, int column) {
+Stmt *stmt_decl(DeclType decl_type, int decl_base, char *name, int line, int column) {
     Stmt *stmt = ast_alloc(sizeof(Stmt));
     stmt->type = STMT_DECL;
     stmt->line = line;
     stmt->column = column;
     stmt->as.decl.decl_type = decl_type;
+    stmt->as.decl.decl_base = decl_base;
     stmt->as.decl.name = name;
     return stmt;
 }
@@ -286,13 +291,14 @@ Stmt *stmt_parfor(char *counter, Expr *target, Stmt *body, int line, int column)
     return stmt;
 }
 
-Stmt *stmt_func(char *name, DeclType ret, Stmt *body, int line, int column) {
+Stmt *stmt_func(char *name, DeclType ret, int return_base, Stmt *body, int line, int column) {
     Stmt *stmt = ast_alloc(sizeof(Stmt));
     stmt->type = STMT_FUNC;
     stmt->line = line;
     stmt->column = column;
     stmt->as.func_stmt.name = name;
     stmt->as.func_stmt.return_type = ret;
+    stmt->as.func_stmt.return_base = return_base;
     stmt->as.func_stmt.body = body;
     return stmt;
 }

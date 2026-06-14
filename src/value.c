@@ -967,3 +967,100 @@ const char *value_type_name(Value v) {
         return "NULL";
     }
 }
+
+int value_num_base(Value v) {
+    if (v.type == VAL_INT || v.type == VAL_FLT) {
+        return v.num_base;
+    }
+    return 0;
+}
+
+DeclType value_to_decl_type(Value v) {
+    switch (v.type) {
+    case VAL_BOOL:
+        return TYPE_BOOL;
+    case VAL_INT:
+        return TYPE_INT;
+    case VAL_FLT:
+        return TYPE_FLT;
+    case VAL_STR:
+        return TYPE_STR;
+    case VAL_TNS:
+        return TYPE_TNS;
+    case VAL_MAP:
+        return TYPE_MAP;
+    case VAL_FUNC:
+        return TYPE_FUNC;
+    case VAL_THR:
+        return TYPE_THR;
+    default:
+        return TYPE_UNKNOWN;
+    }
+}
+
+bool decl_type_equal(DeclType a, int base_a, DeclType b, int base_b) {
+    if (a != b) {
+        return false;
+    }
+    if (a == TYPE_INT || a == TYPE_FLT) {
+        if (base_a != 0 && base_b != 0 && base_a != base_b) {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool decl_type_accepts_value(DeclType expected, int expected_base, Value value) {
+    DeclType actual = value_to_decl_type(value);
+    if (expected != actual) {
+        return false;
+    }
+    if (expected == TYPE_INT || expected == TYPE_FLT) {
+        int actual_base = value_num_base(value);
+        if (expected_base != 0 && actual_base != 0 && expected_base != actual_base) {
+            return false;
+        }
+    }
+    return true;
+}
+
+const char *decl_type_name_base(DeclType type, int base, char *buf, size_t buf_size) {
+    const char *name = "UNKNOWN";
+    switch (type) {
+    case TYPE_BOOL:
+        name = "BOOL";
+        break;
+    case TYPE_INT:
+        name = "INT";
+        break;
+    case TYPE_FLT:
+        name = "FLT";
+        break;
+    case TYPE_STR:
+        name = "STR";
+        break;
+    case TYPE_TNS:
+        name = "TNS";
+        break;
+    case TYPE_MAP:
+        name = "MAP";
+        break;
+    case TYPE_FUNC:
+        name = "FUNC";
+        break;
+    case TYPE_THR:
+        name = "THR";
+        break;
+    default:
+        name = "UNKNOWN";
+        break;
+    }
+    if ((type == TYPE_INT || type == TYPE_FLT) && base != 0) {
+        char base_buf[32];
+        snprintf(base_buf, sizeof(base_buf), "0d%d", base);
+        snprintf(buf, buf_size, "%s{%s}", name, base_buf);
+    } else {
+        snprintf(buf, buf_size, "%s", name);
+    }
+    return buf;
+}

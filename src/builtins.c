@@ -113,7 +113,7 @@ static bool writeback_first_ptr(Interpreter *interp, Expr **arg_nodes, Env *env,
              * merge step can distinguish explicit declarations (non-UNKNOWN)
              * from these ephemeral locals and skip merging them back.
              */
-            if (!env_define(env, name, TYPE_UNKNOWN)) {
+            if (!env_define(env, name, TYPE_UNKNOWN, 0)) {
                 char buf[128];
                 snprintf(buf, sizeof(buf), "%s writeback failed", rule);
                 interp->error = strdup(buf);
@@ -123,7 +123,7 @@ static bool writeback_first_ptr(Interpreter *interp, Expr **arg_nodes, Env *env,
             }
         }
     }
-    if (!env_assign(env, name, result, TYPE_UNKNOWN, false)) {
+    if (!env_assign(env, name, result, TYPE_UNKNOWN, 0, false)) {
         char buf[128];
         snprintf(buf, sizeof(buf), "%s writeback failed", rule);
         interp->error = strdup(buf);
@@ -165,7 +165,7 @@ static bool writeback_ptr_node(Interpreter *interp, Expr *node, Env *env, Value 
             /* Create an implicit local entry (TYPE_UNKNOWN) so iterations
              * can write to a per-iteration copy without affecting parent.
              */
-            if (!env_define(env, name, TYPE_UNKNOWN)) {
+            if (!env_define(env, name, TYPE_UNKNOWN, 0)) {
                 char buf[128];
                 snprintf(buf, sizeof(buf), "%s writeback failed", rule);
                 interp->error = strdup(buf);
@@ -175,7 +175,7 @@ static bool writeback_ptr_node(Interpreter *interp, Expr *node, Env *env, Value 
             }
         }
     }
-    if (!env_assign(env, name, result, TYPE_UNKNOWN, false)) {
+    if (!env_assign(env, name, result, TYPE_UNKNOWN, 0, false)) {
         char buf[128];
         snprintf(buf, sizeof(buf), "%s writeback failed", rule);
         interp->error = strdup(buf);
@@ -3257,7 +3257,7 @@ static Expr *deser_expr(JsonValue *obj, UnserCtx *ctx, Interpreter *interp, cons
         JsonValue *nm = json_obj_get(obj, "name");
         const char *t = (typev && typev->type == JSON_STR) ? typev->as.str : "";
         const char *s = (nm && nm->type == JSON_STR) ? nm->as.str : "";
-        return expr_typed_ident(decl_type_from_name(t), strdup(s), line, col);
+        return expr_typed_ident(decl_type_from_name(t), 0, strdup(s), line, col);
     }
     if (strcmp(name, "PointerExpression") == 0) {
         JsonValue *nm = json_obj_get(obj, "target");
@@ -3357,23 +3357,27 @@ static Stmt *deser_stmt(JsonValue *obj, UnserCtx *ctx, Interpreter *interp, cons
     if (strcmp(name, "Assignment") == 0) {
         JsonValue *tgt = json_obj_get(obj, "target");
         JsonValue *dt = json_obj_get(obj, "declared_type");
+        JsonValue *db = json_obj_get(obj, "declared_base");
         JsonValue *expr = json_obj_get(obj, "expression");
         const char *tname = (tgt && tgt->type == JSON_STR) ? tgt->as.str : "";
         DeclType dtype = TYPE_UNKNOWN;
+        int dbase = (db && db->type == JSON_NUM) ? (int)db->as.num : 0;
         bool has_type = false;
         if (dt && dt->type == JSON_STR) {
             dtype = decl_type_from_name(dt->as.str);
             has_type = true;
         }
         Expr *ex = deser_expr(expr, ctx, interp, err);
-        return stmt_assign(has_type, dtype, strdup(tname), NULL, ex, line, col);
+        return stmt_assign(has_type, dtype, dbase, strdup(tname), NULL, ex, line, col);
     }
     if (strcmp(name, "Declaration") == 0) {
         JsonValue *nm = json_obj_get(obj, "name");
         JsonValue *dt = json_obj_get(obj, "declared_type");
+        JsonValue *db = json_obj_get(obj, "declared_base");
         const char *nms = (nm && nm->type == JSON_STR) ? nm->as.str : "";
         DeclType dtype = decl_type_from_name((dt && dt->type == JSON_STR) ? dt->as.str : NULL);
-        return stmt_decl(dtype, strdup(nms), line, col);
+        int dbase = (db && db->type == JSON_NUM) ? (int)db->as.num : 0;
+        return stmt_decl(dtype, dbase, strdup(nms), line, col);
     }
     if (strcmp(name, "ExpressionStatement") == 0) {
         Expr *ex = deser_expr(json_obj_get(obj, "expression"), ctx, interp, err);
@@ -3427,10 +3431,12 @@ static Stmt *deser_stmt(JsonValue *obj, UnserCtx *ctx, Interpreter *interp, cons
         JsonValue *nm = json_obj_get(obj, "name");
         JsonValue *params = json_obj_get(obj, "params");
         JsonValue *ret = json_obj_get(obj, "return_type");
+        JsonValue *ret_base = json_obj_get(obj, "return_base");
         Stmt *body = deser_stmt(json_obj_get(obj, "body"), ctx, interp, err);
         const char *fn = (nm && nm->type == JSON_STR) ? nm->as.str : "";
         DeclType rt = decl_type_from_name((ret && ret->type == JSON_STR) ? ret->as.str : NULL);
-        Stmt *st = stmt_func(strdup(fn), rt, body, line, col);
+        int rt_base = (ret_base && ret_base->type == JSON_NUM) ? (int)ret_base->as.num : 0;
+        Stmt *st = stmt_func(strdup(fn), rt, rt_base, body, line, col);
         if (params && params->type == JSON_ARR) {
             for (size_t i = 0; i < params->as.arr.count; i++) {
                 JsonValue *p = params->as.arr.items[i];
@@ -3439,11 +3445,13 @@ static Stmt *deser_stmt(JsonValue *obj, UnserCtx *ctx, Interpreter *interp, cons
                 }
                 JsonValue *pname = json_obj_get(p, "name");
                 JsonValue *ptype = json_obj_get(p, "type");
+                JsonValue *pbase = json_obj_get(p, "base");
                 JsonValue *pcoerced = json_obj_get(p, "coerced");
                 JsonValue *pdef = json_obj_get(p, "default");
                 Param pr;
                 pr.name = strdup((pname && pname->type == JSON_STR) ? pname->as.str : "");
                 pr.type = decl_type_from_name((ptype && ptype->type == JSON_STR) ? ptype->as.str : NULL);
+                pr.num_base = (pbase && pbase->type == JSON_NUM) ? (int)pbase->as.num : 0;
                 pr.coerced = (((pcoerced && pcoerced->type == JSON_BOOL) ? (pcoerced->as.boolean != 0) : false) != 0);
                 pr.default_value = deser_default_expr(pdef, ctx, interp, err);
                 param_list_add(&st->as.func_stmt.params, pr);
@@ -3494,7 +3502,7 @@ static Stmt *deser_stmt(JsonValue *obj, UnserCtx *ctx, Interpreter *interp, cons
     if (strcmp(name, "TensorSetStatement") == 0) {
         Expr *target = deser_expr(json_obj_get(obj, "target"), ctx, interp, err);
         Expr *value = deser_expr(json_obj_get(obj, "value"), ctx, interp, err);
-        return stmt_assign(false, TYPE_UNKNOWN, NULL, target, value, line, col);
+        return stmt_assign(false, TYPE_UNKNOWN, 0, NULL, target, value, line, col);
     }
     return NULL;
 }
@@ -3540,7 +3548,7 @@ static Env *deser_env(JsonValue *obj, UnserCtx *ctx, Interpreter *interp, const 
                 JsonPair *p = &declared->as.obj.items[i];
                 DeclType dt = decl_type_from_name(p->value && p->value->type == JSON_STR ? p->value->as.str : NULL);
                 if (!env_find_local_entry(env, p->key)) {
-                    env_define(env, p->key, dt);
+                    env_define(env, p->key, dt, 0);
                 }
             }
         }
@@ -3551,7 +3559,7 @@ static Env *deser_env(JsonValue *obj, UnserCtx *ctx, Interpreter *interp, const 
                 JsonPair *p = &values->as.obj.items[i];
                 JsonValue *vv = p->value;
                 if (!env_find_local_entry(env, p->key)) {
-                    env_define(env, p->key, TYPE_UNKNOWN);
+                    env_define(env, p->key, TYPE_UNKNOWN, 0);
                 }
                 EnvEntry *entry = env_find_local_entry(env, p->key);
                 if (vv && vv->type == JSON_OBJ) {
@@ -3592,7 +3600,7 @@ static Env *deser_env(JsonValue *obj, UnserCtx *ctx, Interpreter *interp, const 
                 if (it && it->type == JSON_STR) {
                     EnvEntry *e = env_find_local_entry(env, it->as.str);
                     if (!e) {
-                        env_define(env, it->as.str, TYPE_UNKNOWN);
+                        env_define(env, it->as.str, TYPE_UNKNOWN, 0);
                         e = env_find_local_entry(env, it->as.str);
                     }
                     if (e) {
@@ -3609,7 +3617,7 @@ static Env *deser_env(JsonValue *obj, UnserCtx *ctx, Interpreter *interp, const 
                 if (it && it->type == JSON_STR) {
                     EnvEntry *e = env_find_local_entry(env, it->as.str);
                     if (!e) {
-                        env_define(env, it->as.str, TYPE_UNKNOWN);
+                        env_define(env, it->as.str, TYPE_UNKNOWN, 0);
                         e = env_find_local_entry(env, it->as.str);
                     }
                     if (e) {
@@ -3831,6 +3839,7 @@ static Value deser_val(JsonValue *obj, UnserCtx *ctx, Interpreter *interp, const
             memset(fn, 0, sizeof(Func));
             fn->name = strdup(name);
             fn->return_type = ret == TYPE_UNKNOWN ? TYPE_INT : ret;
+            fn->return_base = 0;
             fn->body = stmt_block(1, 1);
             fn->closure = env_create(NULL);
             if (id) {
@@ -3851,6 +3860,7 @@ static Value deser_val(JsonValue *obj, UnserCtx *ctx, Interpreter *interp, const
                     Param pr;
                     pr.name = strdup((pn && pn->type == JSON_STR) ? pn->as.str : "");
                     pr.type = decl_type_from_name((pt && pt->type == JSON_STR) ? pt->as.str : NULL);
+                    pr.num_base = 0;
                     pr.coerced = (((pc && pc->type == JSON_BOOL) ? (pc->as.boolean != 0) : false) != 0);
                     pr.default_value = deser_default_expr(pd, ctx, interp, err);
                     param_list_add(&fn->params, pr);
@@ -3872,8 +3882,10 @@ static Value deser_val(JsonValue *obj, UnserCtx *ctx, Interpreter *interp, const
         if (nm && nm->type == JSON_STR) {
             Value existing = value_null();
             DeclType dt = TYPE_UNKNOWN;
+            int base = 0;
             bool initialized = false;
-            if (interp && interp->global_env && env_get(interp->global_env, nm->as.str, &existing, &dt, &initialized)) {
+            if (interp && interp->global_env &&
+                env_get(interp->global_env, nm->as.str, &existing, &dt, &base, &initialized)) {
                 if (initialized && existing.type == VAL_FUNC && existing.as.func) {
                     if (id) {
                         unser_func_set(ctx, id, existing.as.func);
@@ -3895,6 +3907,7 @@ static Value deser_val(JsonValue *obj, UnserCtx *ctx, Interpreter *interp, const
         memset(fn, 0, sizeof(Func));
         fn->name = strdup(nm_s);
         fn->return_type = TYPE_INT;
+        fn->return_base = 0;
         fn->closure = env_create(NULL);
 
         Stmt *block = stmt_block(1, 1);
@@ -7043,7 +7056,7 @@ static Value builtin_import_path(Interpreter *interp, Value *args, int argc, Exp
 
     EnvEntry *scope_entry = env_get_entry(mod_env, "__MODULE_SCOPE__");
     if (!scope_entry || !scope_entry->initialized || scope_entry->value.type != VAL_STR) {
-        env_assign(mod_env, "__MODULE_SCOPE__", value_str(alias), TYPE_STR, true);
+        env_assign(mod_env, "__MODULE_SCOPE__", value_str(alias), TYPE_STR, 0, true);
     }
 
     // If not already loaded, execute module source once.
@@ -7073,7 +7086,7 @@ static Value builtin_import_path(Interpreter *interp, Value *args, int argc, Exp
                 srcbuf[len] = '\0';
                 fclose(f);
 
-                env_assign(mod_env, "__MODULE_SOURCE__", value_str(cache_key), TYPE_STR, true);
+                env_assign(mod_env, "__MODULE_SOURCE__", value_str(cache_key), TYPE_STR, 0, true);
 
                 Lexer lex;
                 lexer_init(&lex, srcbuf, found_path);
@@ -7110,7 +7123,7 @@ static Value builtin_import_path(Interpreter *interp, Value *args, int argc, Exp
                     return value_null();
                 }
 
-                env_assign(mod_env, "__MODULE_LOADED__", value_int(1), TYPE_INT, true);
+                env_assign(mod_env, "__MODULE_LOADED__", value_int(1), TYPE_INT, 0, true);
                 free(srcbuf);
             } else {
                 fclose(f);
@@ -7132,7 +7145,7 @@ static Value builtin_import_path(Interpreter *interp, Value *args, int argc, Exp
     // Ensure the module name itself exists in caller env
     EnvEntry *alias_entry = env_get_entry(env, alias);
     if (!alias_entry) {
-        if (!env_assign(env, alias, value_str(""), TYPE_STR, true)) {
+        if (!env_assign(env, alias, value_str(""), TYPE_STR, 0, true)) {
             if (alias_dup) {
                 free(alias_dup);
             }
@@ -8182,7 +8195,8 @@ static Value builtin_signature(Interpreter *interp, Value *args, int argc, Expr 
                 RUNTIME_ERROR(interp, "Out of memory", line, col);
             }
             buf[0] = '\0';
-            const char *rname = decl_type_name(f->return_type);
+            char rtype_buf[64];
+            const char *rname = decl_type_name_base(f->return_type, f->return_base, rtype_buf, sizeof(rtype_buf));
             if (strcmp(rname, "UNKNOWN") == 0) {
                 rname = "ANY";
             }
@@ -8192,7 +8206,8 @@ static Value builtin_signature(Interpreter *interp, Value *args, int argc, Expr 
             strcat(buf, "(");
             for (size_t i = 0; i < f->params.count; i++) {
                 Param p = f->params.items[i];
-                const char *tname = decl_type_name(p.type);
+                char ptype_buf[64];
+                const char *tname = decl_type_name_base(p.type, p.num_base, ptype_buf, sizeof(ptype_buf));
                 if (strcmp(tname, "UNKNOWN") == 0) {
                     tname = "ANY";
                 }
@@ -8258,35 +8273,10 @@ static Value builtin_signature(Interpreter *interp, Value *args, int argc, Expr 
     if (!entry) {
         RUNTIME_ERROR(interp, "SIGNATURE: identifier not found or uninitialized", line, col);
     }
-    const char *tname = "UNKNOWN";
-    switch (entry->decl_type) {
-    case TYPE_BOOL:
-        tname = "BOOL";
-        break;
-    case TYPE_INT:
-        tname = "INT";
-        break;
-    case TYPE_FLT:
-        tname = "FLT";
-        break;
-    case TYPE_STR:
-        tname = "STR";
-        break;
-    case TYPE_TNS:
-        tname = "TNS";
-        break;
-    case TYPE_MAP:
-        tname = "MAP";
-        break;
-    case TYPE_FUNC:
-        tname = "FUNC";
-        break;
-    case TYPE_THR:
-        tname = "THR";
-        break;
-    default:
-        tname = value_type_name(entry->value);
-        break;
+    char var_type_buf[64];
+    const char *tname = decl_type_name_base(entry->decl_type, entry->decl_base, var_type_buf, sizeof(var_type_buf));
+    if (strcmp(tname, "UNKNOWN") == 0) {
+        tname = "ANY";
     }
     size_t len = strlen(tname) + 2 + strlen(name) + 1;
     char *res = malloc(len + 1);
@@ -8412,8 +8402,9 @@ static Value builtin_del(Interpreter *interp, Value *args, int argc, Expr **arg_
         const char *base_name = walker->as.ident;
         Value base_val = value_null();
         DeclType base_type = TYPE_UNKNOWN;
+        int base_type_base = 0;
         bool base_initialized = false;
-        if (!env_get(env, base_name, &base_val, &base_type, &base_initialized) || !base_initialized) {
+        if (!env_get(env, base_name, &base_val, &base_type, &base_type_base, &base_initialized) || !base_initialized) {
             char buf[128];
             snprintf(buf, sizeof(buf), "Cannot delete mapping from undefined identifier '%s'", base_name);
             free_stmt(target_program);
@@ -8485,7 +8476,7 @@ static Value builtin_del(Interpreter *interp, Value *args, int argc, Expr **arg_
                     value_map_delete(cur, key);
                     value_free(key);
                     /* write back modified base into environment */
-                    if (!env_assign(env, base_name, base_val, TYPE_UNKNOWN, false)) {
+                    if (!env_assign(env, base_name, base_val, TYPE_UNKNOWN, 0, false)) {
                         free(nodes);
                         free_stmt(target_program);
                         value_free(base_val);
@@ -8611,7 +8602,7 @@ static Value builtin_export(Interpreter *interp, Value *args, int argc, Expr **a
     }
 
     // Assign into module's env under the plain symbol name
-    if (!env_assign(mod_env, sym, entry->value, entry->decl_type, true)) {
+    if (!env_assign(mod_env, sym, entry->value, entry->decl_type, entry->decl_base, true)) {
         RUNTIME_ERROR(interp, "EXPORT failed to assign into module", line, col);
     }
 
@@ -8641,7 +8632,7 @@ static Value builtin_export(Interpreter *interp, Value *args, int argc, Expr **a
             RUNTIME_ERROR(interp, "Out of memory", line, col);
         }
         snprintf(qualified, len, "%s.%s", module, sym);
-        if (!env_assign(env, qualified, entry->value, entry->decl_type, true)) {
+        if (!env_assign(env, qualified, entry->value, entry->decl_type, entry->decl_base, true)) {
             free(qualified);
             RUNTIME_ERROR(interp, "EXPORT failed to assign qualified name", line, col);
         }
@@ -9544,50 +9535,25 @@ static Value builtin_assign(Interpreter *interp, Value *args, int argc, Expr **a
     if (target->type == EXPR_TYPED_IDENT) {
         const char *name = target->as.typed_ident.name;
         DeclType expected = target->as.typed_ident.decl_type;
-        DeclType actual;
+        int expected_base = target->as.typed_ident.decl_base;
 
-        switch (rhs.type) {
-        case VAL_BOOL:
-            actual = TYPE_BOOL;
-            break;
-        case VAL_INT:
-            actual = TYPE_INT;
-            break;
-        case VAL_FLT:
-            actual = TYPE_FLT;
-            break;
-        case VAL_STR:
-            actual = TYPE_STR;
-            break;
-        case VAL_TNS:
-            actual = TYPE_TNS;
-            break;
-        case VAL_MAP:
-            actual = TYPE_MAP;
-            break;
-        case VAL_FUNC:
-            actual = TYPE_FUNC;
-            break;
-        case VAL_THR:
-            actual = TYPE_THR;
-            break;
-        default:
-            actual = TYPE_UNKNOWN;
-            break;
-        }
-
-        if (expected != actual) {
+        if (!decl_type_accepts_value(expected, expected_base, rhs)) {
+            char expected_buf[32];
             char buf[128];
-            snprintf(buf, sizeof(buf), "Type mismatch: expected %s but got %s", decl_type_name(expected),
+            snprintf(buf, sizeof(buf), "Type mismatch: expected %s but got %s",
+                     decl_type_name_base(expected, expected_base, expected_buf, sizeof(expected_buf)),
                      value_type_name(rhs));
             RUNTIME_ERROR(interp, buf, line, col);
         }
 
         EnvEntry *existing = env_get_entry(env, name);
-        if (existing && existing->decl_type != expected) {
+        if (existing && !decl_type_equal(existing->decl_type, existing->decl_base, expected, expected_base)) {
+            char expected_buf[32];
+            char existing_buf[32];
             char buf[128];
-            snprintf(buf, sizeof(buf), "Type mismatch: expected %s but got %s", decl_type_name(existing->decl_type),
-                     decl_type_name(expected));
+            snprintf(buf, sizeof(buf), "Type mismatch: expected %s but got %s",
+                     decl_type_name_base(existing->decl_type, existing->decl_base, existing_buf, sizeof(existing_buf)),
+                     decl_type_name_base(expected, expected_base, expected_buf, sizeof(expected_buf)));
             RUNTIME_ERROR(interp, buf, line, col);
         }
 
@@ -9596,9 +9562,9 @@ static Value builtin_assign(Interpreter *interp, Value *args, int argc, Expr **a
             assign_env = env->parent;
         }
         if (!existing) {
-            env_define(assign_env, name, expected);
+            env_define(assign_env, name, expected, expected_base);
         }
-        if (!env_assign(assign_env, name, rhs, expected, true)) {
+        if (!env_assign(assign_env, name, rhs, expected, expected_base, true)) {
             char buf[256];
             snprintf(buf, sizeof(buf), "ASSIGN: cannot assign to target '%s'", name);
             RUNTIME_ERROR(interp, buf, line, col);
@@ -9651,7 +9617,7 @@ static Value builtin_assign(Interpreter *interp, Value *args, int argc, Expr **a
             }
         }
 
-        if (!env_assign(env, name, rhs, TYPE_UNKNOWN, false)) {
+        if (!env_assign(env, name, rhs, TYPE_UNKNOWN, 0, false)) {
             RUNTIME_ERROR(interp, "ASSIGN: cannot assign to target (frozen?)", line, col);
         }
         return value_copy(rhs);
@@ -9843,7 +9809,7 @@ static Value builtin_extend(Interpreter *interp, Value *args, int argc, Expr **a
 
     // Expose the extension namespace symbol in the current module environment.
     if (loaded_name && loaded_name[0] != '\0') {
-        (void)env_assign(env, loaded_name, value_str(""), TYPE_STR, true);
+        (void)env_assign(env, loaded_name, value_str(""), TYPE_STR, 0, true);
 
         EnvEntry *namespaces_entry = env_get_entry(env, "__EXTEND_NAMES__");
         const char *existing_namespaces = (namespaces_entry && namespaces_entry->initialized &&
@@ -9896,7 +9862,7 @@ static Value builtin_extend(Interpreter *interp, Value *args, int argc, Expr **a
                 combined[loaded_len + 1] = '|';
                 combined[loaded_len + 2] = '\0';
             }
-            (void)env_assign(env, "__EXTEND_NAMES__", value_str(combined), TYPE_STR, true);
+            (void)env_assign(env, "__EXTEND_NAMES__", value_str(combined), TYPE_STR, 0, true);
             free(combined);
         }
     }
@@ -9928,7 +9894,7 @@ static int module_export_bindings(Interpreter *interp, Env *caller_env, Env *mod
             return -1;
         }
         snprintf(qualified, qlen, "%s.%s", alias, e->name);
-        if (!env_assign(caller_env, qualified, e->value, e->decl_type, true)) {
+        if (!env_assign(caller_env, qualified, e->value, e->decl_type, e->decl_base, true)) {
             free(qualified);
             if (interp->error) {
                 free(interp->error);
@@ -9988,7 +9954,7 @@ static int module_export_bindings(Interpreter *interp, Env *caller_env, Env *mod
             }
             snprintf(ns_qualified, ns_qual_len, "%s.%s", alias, ns);
             if (!env_get_entry(caller_env, ns_qualified)) {
-                if (!env_assign(caller_env, ns_qualified, value_str(""), TYPE_STR, true)) {
+                if (!env_assign(caller_env, ns_qualified, value_str(""), TYPE_STR, 0, true)) {
                     free(ns_qualified);
                     free(ns);
                     if (interp->error) {
@@ -10017,7 +9983,7 @@ static int module_export_bindings(Interpreter *interp, Env *caller_env, Env *mod
                     return -1;
                 }
                 snprintf(qualified, qlen, "%s.%s", ns_qualified, e->name);
-                if (!env_assign(caller_env, qualified, e->value, e->decl_type, true)) {
+                if (!env_assign(caller_env, qualified, e->value, e->decl_type, e->decl_base, true)) {
                     free(qualified);
                     free(ns_qualified);
                     free(ns);
@@ -10266,7 +10232,7 @@ static Value builtin_import(Interpreter *interp, Value *args, int argc, Expr **a
 
     EnvEntry *scope_entry = env_get_entry(mod_env, "__MODULE_SCOPE__");
     if (!scope_entry || !scope_entry->initialized || scope_entry->value.type != VAL_STR) {
-        env_assign(mod_env, "__MODULE_SCOPE__", value_str(modname), TYPE_STR, true);
+        env_assign(mod_env, "__MODULE_SCOPE__", value_str(modname), TYPE_STR, 0, true);
     }
 
     EnvEntry *marker = env_get_entry(mod_env, "__MODULE_LOADED__");
@@ -10291,7 +10257,7 @@ static Value builtin_import(Interpreter *interp, Value *args, int argc, Expr **a
                 srcbuf[len] = '\0';
                 fclose(f);
 
-                env_assign(mod_env, "__MODULE_SOURCE__", value_str(cache_key), TYPE_STR, true);
+                env_assign(mod_env, "__MODULE_SOURCE__", value_str(cache_key), TYPE_STR, 0, true);
 
                 Lexer lex;
                 lexer_init(&lex, srcbuf, found_path);
@@ -10320,7 +10286,7 @@ static Value builtin_import(Interpreter *interp, Value *args, int argc, Expr **a
                     return value_null();
                 }
 
-                env_assign(mod_env, "__MODULE_LOADED__", value_int(1), TYPE_INT, true);
+                env_assign(mod_env, "__MODULE_LOADED__", value_int(1), TYPE_INT, 0, true);
                 free(srcbuf);
             } else {
                 fclose(f);
@@ -10338,7 +10304,7 @@ static Value builtin_import(Interpreter *interp, Value *args, int argc, Expr **a
     // Ensure the module name itself exists in caller env (avoid undefined identifier errors)
     EnvEntry *alias_entry = env_get_entry(env, alias);
     if (!alias_entry) {
-        if (!env_assign(env, alias, value_str(""), TYPE_STR, true)) {
+        if (!env_assign(env, alias, value_str(""), TYPE_STR, 0, true)) {
             RUNTIME_ERROR(interp, "IMPORT failed to assign module name", line, col);
         }
     }
@@ -11020,8 +10986,8 @@ static int parallel_worker(void *arg) {
             return 0;
         }
 
-        env_define(call_env, param->name, param->type);
-        if (!env_assign(call_env, param->name, bind_val, param->type, true)) {
+        env_define(call_env, param->name, param->type, param->num_base);
+        if (!env_assign(call_env, param->name, bind_val, param->type, param->num_base, true)) {
             char buf[256];
             snprintf(buf, sizeof(buf), "Cannot assign to frozen identifier '%s'", param->name);
             ps->errors[ps->index] = strdup(buf);

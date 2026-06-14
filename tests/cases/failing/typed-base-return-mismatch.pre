@@ -1,0 +1,4 @@
+FUNC INT{0d2} make_binary(INT x) {
+    RETURN(x)
+}
+make_binary(0d5)

@@ -19,6 +19,7 @@ typedef struct {
 struct Func {
     char *name;
     DeclType return_type;
+    int return_base; // 0 = parent INT/FLT, 2..64 = named base
     ParamList params;
     Stmt *body;
     Env *closure;

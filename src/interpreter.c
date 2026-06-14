@@ -172,15 +172,15 @@ static bool bind_self_for_map_call(Interpreter *interp, Expr *target_expr, Env *
         Value base_val = value_null();
         bool initialized = false;
 
-        if (!env_get(caller_env, base_expr->as.ident, &base_val, NULL, &initialized) || !initialized) {
+        if (!env_get(caller_env, base_expr->as.ident, &base_val, NULL, NULL, &initialized) || !initialized) {
             return true;
         }
 
         if (raw_entry && raw_entry->alias_target && base_val.type == VAL_MAP) {
-            env_define(call_env, "SELF", TYPE_MAP);
+            env_define(call_env, "SELF", TYPE_MAP, 0);
             if (!env_set_alias_cross(call_env, "SELF",
                                      raw_entry->alias_target_env ? raw_entry->alias_target_env : caller_env,
-                                     raw_entry->alias_target, TYPE_MAP, true)) {
+                                     raw_entry->alias_target, TYPE_MAP, 0, true)) {
                 value_free(base_val);
                 if (interp->error) {
                     free(interp->error);
@@ -200,8 +200,8 @@ static bool bind_self_for_map_call(Interpreter *interp, Expr *target_expr, Env *
             return true;
         }
 
-        env_define(call_env, "SELF", TYPE_MAP);
-        if (!env_assign(call_env, "SELF", base_val, TYPE_MAP, true)) {
+        env_define(call_env, "SELF", TYPE_MAP, 0);
+        if (!env_assign(call_env, "SELF", base_val, TYPE_MAP, 0, true)) {
             value_free(base_val);
             if (interp->error) {
                 free(interp->error);
@@ -225,8 +225,8 @@ static bool bind_self_for_map_call(Interpreter *interp, Expr *target_expr, Env *
         return true;
     }
 
-    env_define(call_env, "SELF", TYPE_MAP);
-    if (!env_assign(call_env, "SELF", base_val, TYPE_MAP, true)) {
+    env_define(call_env, "SELF", TYPE_MAP, 0);
+    if (!env_assign(call_env, "SELF", base_val, TYPE_MAP, 0, true)) {
         value_free(base_val);
         if (interp->error) {
             free(interp->error);
@@ -504,7 +504,8 @@ static int parfor_merge_iteration_env(ParforStart *start, char **merge_error) {
         }
 
         if (entry->alias_target) {
-            if (!env_set_alias(parent_env, entry->name, entry->alias_target, entry->decl_type, true)) {
+            if (!env_set_alias(parent_env, entry->name, entry->alias_target, entry->decl_type, entry->decl_base,
+                               true)) {
                 char buf[256];
                 snprintf(buf, sizeof(buf), "PARFOR merge failed for alias '%s'", entry->name);
                 if (merge_error) {
@@ -525,22 +526,22 @@ static int parfor_merge_iteration_env(ParforStart *start, char **merge_error) {
         }
 
         if (!env_get_entry(parent_env, entry->name)) {
-            env_define(parent_env, entry->name, entry->decl_type);
-        }
+            env_define(parent_env, entry->name, entry->decl_type, entry->decl_base);
 
-        if (entry->initialized) {
-            Value merged = value_copy(entry->value);
-            if (!env_assign(parent_env, entry->name, merged, entry->decl_type, true)) {
-                value_free(merged);
-                char buf[256];
-                snprintf(buf, sizeof(buf), "PARFOR merge failed for identifier '%s'", entry->name);
-                if (merge_error) {
-                    *merge_error = strdup(buf);
+            if (entry->initialized) {
+                Value merged = value_copy(entry->value);
+                if (!env_assign(parent_env, entry->name, merged, entry->decl_type, entry->decl_base, true)) {
+                    value_free(merged);
+                    char buf[256];
+                    snprintf(buf, sizeof(buf), "PARFOR merge failed for identifier '%s'", entry->name);
+                    if (merge_error) {
+                        *merge_error = strdup(buf);
+                    }
+                    mtx_unlock(&g_parfor_merge_lock);
+                    return -1;
                 }
-                mtx_unlock(&g_parfor_merge_lock);
-                return -1;
+                value_free(merged);
             }
-            value_free(merged);
         }
     }
     mtx_unlock(&g_parfor_merge_lock);
@@ -665,11 +666,12 @@ static void *safe_malloc(size_t size) {
     return ptr;
 }
 
-static Func *create_runtime_function(const char *name, DeclType return_type, ParamList *src_params, Stmt *body,
-                                     Env *closure) {
+static Func *create_runtime_function(const char *name, DeclType return_type, int return_base, ParamList *src_params,
+                                     Stmt *body, Env *closure) {
     Func *f = safe_malloc(sizeof(Func));
     f->name = name ? strdup(name) : NULL;
     f->return_type = return_type;
+    f->return_base = return_base;
     f->body = body;
     f->params.count = src_params ? src_params->count : 0;
     f->params.items = NULL;
@@ -678,6 +680,7 @@ static Func *create_runtime_function(const char *name, DeclType return_type, Par
         f->params.items = safe_malloc(sizeof(Param) * src_params->count);
         for (size_t i = 0; i < src_params->count; i++) {
             f->params.items[i].type = src_params->items[i].type;
+            f->params.items[i].num_base = src_params->items[i].num_base;
             f->params.items[i].name = strdup(src_params->items[i].name);
             f->params.items[i].coerced = src_params->items[i].coerced;
             f->params.items[i].default_value = src_params->items[i].default_value;
@@ -1023,29 +1026,6 @@ int value_truthiness(Value v) {
 
 // ============ Type conversion helpers ============
 
-static DeclType value_type_to_decl(ValueType vt) {
-    switch (vt) {
-    case VAL_BOOL:
-        return TYPE_BOOL;
-    case VAL_INT:
-        return TYPE_INT;
-    case VAL_FLT:
-        return TYPE_FLT;
-    case VAL_STR:
-        return TYPE_STR;
-    case VAL_TNS:
-        return TYPE_TNS;
-    case VAL_MAP:
-        return TYPE_MAP;
-    case VAL_FUNC:
-        return TYPE_FUNC;
-    case VAL_THR:
-        return TYPE_THR;
-    default:
-        return TYPE_UNKNOWN;
-    }
-}
-
 static const char *decl_type_name(DeclType dt) {
     switch (dt) {
     case TYPE_BOOL:
@@ -1071,14 +1051,31 @@ static const char *decl_type_name(DeclType dt) {
 
 /* `decl_type_to_value` removed: inverse mapping was unused. */
 
-static bool coerce_value_to_decl_type(Interpreter *interp, Value input, DeclType target, Env *env, int line, int col,
-                                      Value *out_value) {
+static Value value_with_base(Value v, int base) {
+    if (v.type == VAL_INT) {
+        return value_int_base(v.as.i, base);
+    }
+    if (v.type == VAL_FLT) {
+        if (v.num_base_nan) {
+            return value_flt_nan_base(v.as.f);
+        }
+        return value_flt_base(v.as.f, base);
+    }
+    return value_copy(v);
+}
+
+static bool coerce_value_to_decl_type(Interpreter *interp, Value input, DeclType target, int target_base, Env *env,
+                                      int line, int col, Value *out_value) {
     if (!out_value) {
         return false;
     }
     *out_value = value_null();
 
-    if (value_type_to_decl(input.type) == target) {
+    if (value_to_decl_type(input) == target) {
+        if ((target == TYPE_INT || target == TYPE_FLT) && target_base != 0 && value_num_base(input) != target_base) {
+            *out_value = value_with_base(input, target_base);
+            return true;
+        }
         *out_value = value_copy(input);
         return true;
     }
@@ -1115,9 +1112,15 @@ static bool coerce_value_to_decl_type(Interpreter *interp, Value input, DeclType
     if (interp->error) {
         return false;
     }
-    if (value_type_to_decl(converted.type) != target) {
+    if (value_to_decl_type(converted) != target) {
         value_free(converted);
         return false;
+    }
+
+    if ((target == TYPE_INT || target == TYPE_FLT) && target_base != 0) {
+        Value rebased = value_with_base(converted, target_base);
+        value_free(converted);
+        converted = rebased;
     }
 
     *out_value = converted;
@@ -1255,7 +1258,7 @@ Value eval_expr(Interpreter *interp, Expr *expr, Env *env) {
         Value v;
         DeclType dtype;
         bool initialized;
-        if (!env_get(env, expr->as.ident, &v, &dtype, &initialized)) {
+        if (!env_get(env, expr->as.ident, &v, &dtype, NULL, &initialized)) {
             char buf[128];
             snprintf(buf, sizeof(buf), "Undefined identifier '%s'", expr->as.ident);
             interp->error = strdup(buf);
@@ -1280,7 +1283,7 @@ Value eval_expr(Interpreter *interp, Expr *expr, Env *env) {
         Value v;
         DeclType dt;
         bool initialized;
-        if (!env_get(env, name, &v, &dt, &initialized)) {
+        if (!env_get(env, name, &v, &dt, NULL, &initialized)) {
             char buf[128];
             snprintf(buf, sizeof(buf), "Undefined identifier '%s'", name);
             interp->error = strdup(buf);
@@ -1319,8 +1322,8 @@ Value eval_expr(Interpreter *interp, Expr *expr, Env *env) {
             }
         }
 
-        Func *f = create_runtime_function(NULL, expr->as.lambda.return_type, &expr->as.lambda.params,
-                                          expr->as.lambda.body, env);
+        Func *f = create_runtime_function(NULL, expr->as.lambda.return_type, expr->as.lambda.return_base,
+                                          &expr->as.lambda.params, expr->as.lambda.body, env);
         return value_func(f);
     }
 
@@ -1567,7 +1570,7 @@ Value eval_expr(Interpreter *interp, Expr *expr, Env *env) {
             Value v;
             DeclType dtype;
             bool initialized;
-            if (env_get(env, func_name, &v, &dtype, &initialized)) {
+            if (env_get(env, func_name, &v, &dtype, NULL, &initialized)) {
                 if (initialized && v.type == VAL_FUNC) {
                     user_func = v.as.func;
                 }
@@ -1833,7 +1836,7 @@ Value eval_expr(Interpreter *interp, Expr *expr, Env *env) {
                     return value_null();
                 }
 
-                if (env_set_alias_cross(call_env, param->name, env, target_name, param->type, true)) {
+                if (env_set_alias_cross(call_env, param->name, env, target_name, param->type, param->num_base, true)) {
                     if (arg_from_pos >= 0) {
                         value_free(pos_vals[arg_from_pos]);
                         pos_vals[arg_from_pos] = value_null();
@@ -1876,17 +1879,17 @@ Value eval_expr(Interpreter *interp, Expr *expr, Env *env) {
 
             Value bind_val = arg_val;
             bool used_coercion = false;
-            if (value_type_to_decl(bind_val.type) != param->type && param->coerced) {
+            if (!decl_type_accepts_value(param->type, param->num_base, bind_val) && param->coerced) {
                 Value coerced = value_null();
-                if (coerce_value_to_decl_type(interp, arg_val, param->type, call_env, expr->line, expr->column,
-                                              &coerced)) {
+                if (coerce_value_to_decl_type(interp, arg_val, param->type, param->num_base, call_env, expr->line,
+                                              expr->column, &coerced)) {
                     bind_val = coerced;
                     used_coercion = true;
                 }
             }
 
             // Type check
-            if (value_type_to_decl(bind_val.type) != param->type) {
+            if (!decl_type_accepts_value(param->type, param->num_base, bind_val)) {
                 if (interp->error) {
                     free(interp->error);
                     interp->error = NULL;
@@ -1914,8 +1917,8 @@ Value eval_expr(Interpreter *interp, Expr *expr, Env *env) {
                 return value_null();
             }
 
-            env_define(call_env, param->name, param->type);
-            if (!env_assign(call_env, param->name, bind_val, param->type, true)) {
+            env_define(call_env, param->name, param->type, param->num_base);
+            if (!env_assign(call_env, param->name, bind_val, param->type, param->num_base, true)) {
                 char buf[256];
                 snprintf(buf, sizeof(buf), "Cannot assign to frozen identifier '%s'", param->name);
                 interp->error = strdup(buf);
@@ -2039,7 +2042,7 @@ Value eval_expr(Interpreter *interp, Expr *expr, Env *env) {
 
         if (res.status == EXEC_RETURN) {
             // Type check return value
-            if (value_type_to_decl(res.value.type) != user_func->return_type) {
+            if (!decl_type_accepts_value(user_func->return_type, user_func->return_base, res.value)) {
                 char buf[128];
                 snprintf(buf, sizeof(buf), "Return type mismatch in function '%s'",
                          user_func->name ? user_func->name : "<lambda>");
@@ -2060,10 +2063,10 @@ Value eval_expr(Interpreter *interp, Expr *expr, Env *env) {
             return value_bool(false);
         case TYPE_INT:
             trace_pop_frame(interp);
-            return value_int(0);
+            return value_int_base(0, user_func->return_base != 0 ? user_func->return_base : 2);
         case TYPE_FLT:
             trace_pop_frame(interp);
-            return value_flt(0.0);
+            return value_flt_base(0.0, user_func->return_base != 0 ? user_func->return_base : 2);
         case TYPE_STR:
             trace_pop_frame(interp);
             return value_str("");
@@ -2170,9 +2173,9 @@ Value eval_expr(Interpreter *interp, Expr *expr, Env *env) {
             goto tns_eval_fail;
         }
 
-        DeclType elem_decl = value_type_to_decl(items[0].type);
+        DeclType elem_decl = value_to_decl_type(items[0]);
         for (size_t j = 1; j < total; j++) {
-            if (value_type_to_decl(items[j].type) != elem_decl) {
+            if (value_to_decl_type(items[j]) != elem_decl) {
                 elem_decl = TYPE_UNKNOWN;
                 break;
             }
@@ -2591,7 +2594,7 @@ ExecResult assign_index_chain(Interpreter *interp, Env *env, Expr *idx_expr, Val
     DeclType base_type = TYPE_UNKNOWN;
     bool base_initialized = false;
 
-    if (!env_get(env, base_name, &base_val, &base_type, &base_initialized)) {
+    if (!env_get(env, base_name, &base_val, &base_type, NULL, &base_initialized)) {
         char buf[256];
         snprintf(buf, sizeof(buf), "Cannot assign to undeclared identifier '%s'", base_name);
         return make_error(buf, stmt_line, stmt_col);
@@ -2601,7 +2604,7 @@ ExecResult assign_index_chain(Interpreter *interp, Env *env, Expr *idx_expr, Val
     // and persist that into the environment via env_assign.
     if (!base_initialized || base_val.type == VAL_NULL) {
         Value nm = value_map_new();
-        if (!env_assign(env, base_name, nm, TYPE_UNKNOWN, false)) {
+        if (!env_assign(env, base_name, nm, TYPE_UNKNOWN, 0, false)) {
             value_free(nm);
             value_free(base_val);
             return make_error("Cannot assign to identifier (frozen?)", stmt_line, stmt_col);
@@ -2798,7 +2801,7 @@ ExecResult assign_index_chain(Interpreter *interp, Env *env, Expr *idx_expr, Val
                 }
 
                 // type compatibility
-                if (rhs.type != VAL_TNS && value_type_to_decl(rhs.type) != t->elem_type) {
+                if (rhs.type != VAL_TNS && value_to_decl_type(rhs) != t->elem_type) {
                     free(starts);
                     free(ends);
                     free(orig_to_out);
@@ -2948,7 +2951,7 @@ ExecResult assign_index_chain(Interpreter *interp, Env *env, Expr *idx_expr, Val
                         out = make_error("Internal error assigning to map", stmt_line, stmt_col);
                         goto cleanup;
                     }
-                    if (slot->type != VAL_NULL && value_type_to_decl(slot->type) != value_type_to_decl(rhs.type)) {
+                    if (slot->type != VAL_NULL && value_to_decl_type(*slot) != value_to_decl_type(rhs)) {
                         out = make_error("Map entry type mismatch", stmt_line, stmt_col);
                         goto cleanup;
                     }
@@ -2983,7 +2986,7 @@ ExecResult assign_index_chain(Interpreter *interp, Env *env, Expr *idx_expr, Val
 
     // If we get here, the chain ended after resolving to a tensor element (e.g. a<1> = rhs)
     if (!rhs_applied_directly) {
-        if (cur->type != VAL_NULL && value_type_to_decl(cur->type) != value_type_to_decl(rhs.type)) {
+        if (cur->type != VAL_NULL && value_to_decl_type(*cur) != value_to_decl_type(rhs)) {
             out = make_error("Element type mismatch", stmt_line, stmt_col);
             goto cleanup;
         }
@@ -3000,7 +3003,7 @@ cleanup:
     // If assignment succeeded, write back the possibly-modified base value
     // into the environment so that atomic container semantics persist.
     if (out.status == EXEC_OK) {
-        if (!env_assign(env, base_name, base_val, TYPE_UNKNOWN, false)) {
+        if (!env_assign(env, base_name, base_val, TYPE_UNKNOWN, 0, false)) {
             out = make_error("Cannot write back to identifier (frozen?)", stmt_line, stmt_col);
         }
     }
@@ -3047,17 +3050,21 @@ static ExecResult exec_stmt(Interpreter *interp, Stmt *stmt, Env *env, LabelMap 
             if (!interp->isolate_env_writes && env->parent) {
                 decl_env = env->parent;
             }
-            env_define(decl_env, stmt->as.decl.name, stmt->as.decl.decl_type);
+            env_define(decl_env, stmt->as.decl.name, stmt->as.decl.decl_type, stmt->as.decl.decl_base);
             return make_ok(value_null());
         }
 
         /* If the symbol already exists, the declared static type must match.
            Per specification, redeclaring with a different static type is
            a runtime error rather than a no-op. */
-        if (existing->decl_type != stmt->as.decl.decl_type) {
+        if (!decl_type_equal(existing->decl_type, existing->decl_base, stmt->as.decl.decl_type,
+                             stmt->as.decl.decl_base)) {
             char buf[128];
-            snprintf(buf, sizeof(buf), "Type mismatch: expected %s but got %s", decl_type_name(existing->decl_type),
-                     decl_type_name(stmt->as.decl.decl_type));
+            char exp_buf[32];
+            char got_buf[32];
+            decl_type_name_base(existing->decl_type, existing->decl_base, got_buf, sizeof(got_buf));
+            decl_type_name_base(stmt->as.decl.decl_type, stmt->as.decl.decl_base, exp_buf, sizeof(exp_buf));
+            snprintf(buf, sizeof(buf), "Type mismatch: expected %s but got %s", got_buf, exp_buf);
             return make_error(buf, stmt->line, stmt->column);
         }
 
@@ -3073,13 +3080,14 @@ static ExecResult exec_stmt(Interpreter *interp, Stmt *stmt, Env *env, LabelMap 
             }
             if (stmt->as.assign.has_type) {
                 DeclType expected = stmt->as.assign.decl_type;
-                if (!env_set_alias(env, stmt->as.assign.name, tgt, expected, true)) {
+                int expected_base = stmt->as.assign.decl_base;
+                if (!env_set_alias(env, stmt->as.assign.name, tgt, expected, expected_base, true)) {
                     char buf[256];
                     snprintf(buf, sizeof(buf), "Cannot create alias '%s' -> '%s'", stmt->as.assign.name, tgt);
                     return make_error(buf, stmt->line, stmt->column);
                 }
             } else {
-                if (!env_set_alias(env, stmt->as.assign.name, tgt, TYPE_UNKNOWN, false)) {
+                if (!env_set_alias(env, stmt->as.assign.name, tgt, TYPE_UNKNOWN, 0, false)) {
                     char buf[256];
                     snprintf(buf, sizeof(buf), "Cannot create alias '%s' -> '%s'", stmt->as.assign.name, tgt);
                     return make_error(buf, stmt->line, stmt->column);
@@ -3130,21 +3138,25 @@ static ExecResult exec_stmt(Interpreter *interp, Stmt *stmt, Env *env, LabelMap 
 
         if (stmt->as.assign.has_type) {
             DeclType expected = stmt->as.assign.decl_type;
-            DeclType actual = value_type_to_decl(v.type);
+            int expected_base = stmt->as.assign.decl_base;
 
-            if (expected != actual) {
+            if (!decl_type_accepts_value(expected, expected_base, v)) {
                 char buf[128];
-                snprintf(buf, sizeof(buf), "Type mismatch: expected %s but got %s", decl_type_name(expected),
-                         value_type_name(v));
+                char exp_buf[32];
+                decl_type_name_base(expected, expected_base, exp_buf, sizeof(exp_buf));
+                snprintf(buf, sizeof(buf), "Type mismatch: expected %s but got %s", exp_buf, value_type_name(v));
                 value_free(v);
                 return make_error(buf, stmt->line, stmt->column);
             }
 
             EnvEntry *existing = env_get_entry(env, stmt->as.assign.name);
-            if (existing && existing->decl_type != expected) {
+            if (existing && !decl_type_equal(existing->decl_type, existing->decl_base, expected, expected_base)) {
                 char buf[128];
-                snprintf(buf, sizeof(buf), "Type mismatch: expected %s but got %s", decl_type_name(existing->decl_type),
-                         decl_type_name(expected));
+                char exp_buf[32];
+                char got_buf[32];
+                decl_type_name_base(existing->decl_type, existing->decl_base, got_buf, sizeof(got_buf));
+                decl_type_name_base(expected, expected_base, exp_buf, sizeof(exp_buf));
+                snprintf(buf, sizeof(buf), "Type mismatch: expected %s but got %s", got_buf, exp_buf);
                 value_free(v);
                 return make_error(buf, stmt->line, stmt->column);
             }
@@ -3153,14 +3165,15 @@ static ExecResult exec_stmt(Interpreter *interp, Stmt *stmt, Env *env, LabelMap 
                 assign_env = env->parent;
             }
             if (!existing) {
-                env_define(assign_env, stmt->as.assign.name, expected);
+                env_define(assign_env, stmt->as.assign.name, expected, expected_base);
             }
-            if (!env_assign(assign_env, stmt->as.assign.name, v, expected, true)) {
+            if (!env_assign(assign_env, stmt->as.assign.name, v, expected, expected_base, true)) {
                 EnvEntry *echeck = env_get_entry(assign_env, stmt->as.assign.name);
-                if (echeck && echeck->decl_type != actual) {
+                if (echeck && !decl_type_accepts_value(echeck->decl_type, echeck->decl_base, v)) {
                     char buf[128];
-                    snprintf(buf, sizeof(buf), "Type mismatch: expected %s but got %s",
-                             decl_type_name(echeck->decl_type), value_type_name(v));
+                    char exp_buf[32];
+                    decl_type_name_base(echeck->decl_type, echeck->decl_base, exp_buf, sizeof(exp_buf));
+                    snprintf(buf, sizeof(buf), "Type mismatch: expected %s but got %s", exp_buf, value_type_name(v));
                     value_free(v);
                     return make_error(buf, stmt->line, stmt->column);
                 }
@@ -3170,10 +3183,10 @@ static ExecResult exec_stmt(Interpreter *interp, Stmt *stmt, Env *env, LabelMap 
                 return make_error(buf, stmt->line, stmt->column);
             }
         } else {
-            if (!env_assign(env, stmt->as.assign.name, v, TYPE_UNKNOWN, false)) {
+            if (!env_assign(env, stmt->as.assign.name, v, TYPE_UNKNOWN, 0, false)) {
                 EnvEntry *echeck = env_get_entry(env, stmt->as.assign.name);
                 if (echeck) {
-                    DeclType actual = value_type_to_decl(v.type);
+                    DeclType actual = value_to_decl_type(v);
                     if (echeck->decl_type != TYPE_UNKNOWN && echeck->decl_type != actual) {
                         char buf[128];
                         snprintf(buf, sizeof(buf), "Type mismatch: expected %s but got %s",
@@ -3227,7 +3240,8 @@ static ExecResult exec_stmt(Interpreter *interp, Stmt *stmt, Env *env, LabelMap 
 
         // Register user-defined function in the interpreter
         Func *f = create_runtime_function(stmt->as.func_stmt.name, stmt->as.func_stmt.return_type,
-                                          &stmt->as.func_stmt.params, stmt->as.func_stmt.body, env);
+                                          stmt->as.func_stmt.return_base, &stmt->as.func_stmt.params,
+                                          stmt->as.func_stmt.body, env);
 
         if (builtin_lookup(f->name)) {
             free_runtime_function(f);
@@ -3249,7 +3263,7 @@ static ExecResult exec_stmt(Interpreter *interp, Stmt *stmt, Env *env, LabelMap 
         if (!interp->isolate_env_writes && !existing && env->parent) {
             bind_env = env->parent;
         }
-        if (!env_assign(bind_env, f->name, fv, TYPE_FUNC, true)) {
+        if (!env_assign(bind_env, f->name, fv, TYPE_FUNC, 0, true)) {
             // If we cannot assign the function into the environment, treat as error
             return make_error("Failed to bind function name in environment", stmt->line, stmt->column);
         }
@@ -3311,7 +3325,7 @@ static ExecResult exec_stmt(Interpreter *interp, Stmt *stmt, Env *env, LabelMap 
         Value v;
         DeclType dtype;
         bool initialized = false;
-        if (!env_get(env, name, &v, &dtype, &initialized) || !initialized) {
+        if (!env_get(env, name, &v, &dtype, NULL, &initialized) || !initialized) {
             free(name);
             return make_error("Cannot POP undefined or uninitialized identifier", stmt->line, stmt->column);
         }
@@ -3365,12 +3379,12 @@ static ExecResult exec_stmt(Interpreter *interp, Stmt *stmt, Env *env, LabelMap 
                 if (stmt->as.try_stmt.catch_name) {
                     child_env = env_create(env);
                     exec_env = child_env;
-                    if (!env_define(exec_env, stmt->as.try_stmt.catch_name, TYPE_STR)) {
+                    if (!env_define(exec_env, stmt->as.try_stmt.catch_name, TYPE_STR, 0)) {
                         free(msg);
                         env_free(child_env);
                         return make_error("Cannot bind catch name (frozen or existing)", stmt->line, stmt->column);
                     }
-                    if (!env_assign(exec_env, stmt->as.try_stmt.catch_name, value_str(msg), TYPE_STR, true)) {
+                    if (!env_assign(exec_env, stmt->as.try_stmt.catch_name, value_str(msg), TYPE_STR, 0, true)) {
                         free(msg);
                         env_free(child_env);
                         return make_error("Cannot bind catch name (frozen)", stmt->line, stmt->column);
@@ -3494,7 +3508,7 @@ static ExecResult exec_stmt(Interpreter *interp, Stmt *stmt, Env *env, LabelMap 
     case STMT_THR: {
         Value thr_val = value_thr_new();
         Value thr_for_worker = value_copy(thr_val);
-        if (!env_assign(env, stmt->as.thr_stmt.name, thr_val, TYPE_THR, true)) {
+        if (!env_assign(env, stmt->as.thr_stmt.name, thr_val, TYPE_THR, 0, true)) {
             value_free(thr_for_worker);
             value_free(thr_val);
             return make_error("Cannot assign to THR identifier", stmt->line, stmt->column);
@@ -3692,7 +3706,7 @@ static ExecResult exec_stmt(Interpreter *interp, Stmt *stmt, Env *env, LabelMap 
         Value prev_val = value_null();
         DeclType prev_type = TYPE_UNKNOWN;
         bool prev_initialized = false;
-        env_get(env, stmt->as.for_stmt.counter, &prev_val, &prev_type, &prev_initialized);
+        env_get(env, stmt->as.for_stmt.counter, &prev_val, &prev_type, NULL, &prev_initialized);
 
         /* Track whether the counter name exists in any parent env.
            Loop-local binding must shadow the global symbol and restore it
@@ -3710,7 +3724,7 @@ static ExecResult exec_stmt(Interpreter *interp, Stmt *stmt, Env *env, LabelMap 
             Value tmp_val = value_null();
             DeclType tmp_type = TYPE_UNKNOWN;
             bool tmp_initialized = false;
-            if (env_get(parent, stmt->as.for_stmt.counter, &tmp_val, &tmp_type, &tmp_initialized)) {
+            if (env_get(parent, stmt->as.for_stmt.counter, &tmp_val, &tmp_type, NULL, &tmp_initialized)) {
                 had_global = true;
                 global_prev_val = tmp_val;
                 global_prev_type = tmp_type;
@@ -3720,16 +3734,16 @@ static ExecResult exec_stmt(Interpreter *interp, Stmt *stmt, Env *env, LabelMap 
 
         /* Detect whether a local binding already exists (trial define) */
         bool local_existed = true;
-        if (env_define(env, stmt->as.for_stmt.counter, TYPE_INT)) {
+        if (env_define(env, stmt->as.for_stmt.counter, TYPE_INT, 0)) {
             /* no local existed; clean up the probe */
             env_delete(env, stmt->as.for_stmt.counter);
             local_existed = false;
         }
 
         /* Create the temporary target binding */
-        if (!env_define(env, temp_name, TYPE_INT)) {
+        if (!env_define(env, temp_name, TYPE_INT, 0)) {
             int retries = 0;
-            while (retries < 1000 && !env_define(env, temp_name, TYPE_INT)) {
+            while (retries < 1000 && !env_define(env, temp_name, TYPE_INT, 0)) {
                 my_temp_id = ++g_for_temp_id;
                 snprintf(temp_name, sizeof(temp_name), "__for_cnt_%d_%d_%d", my_temp_id, stmt->line, stmt->column);
                 retries++;
@@ -3744,7 +3758,7 @@ static ExecResult exec_stmt(Interpreter *interp, Stmt *stmt, Env *env, LabelMap 
         /* Create a local alias `counter -> temp_name` (creates local entry if missing)
          * This will shadow any parent binding for the duration of the loop.
          */
-        if (!env_set_alias(env, stmt->as.for_stmt.counter, temp_name, TYPE_INT, true)) {
+        if (!env_set_alias(env, stmt->as.for_stmt.counter, temp_name, TYPE_INT, 0, true)) {
             /* cleanup temp binding */
             env_delete(env, temp_name);
             value_free(prev_val);
@@ -3761,7 +3775,7 @@ static ExecResult exec_stmt(Interpreter *interp, Stmt *stmt, Env *env, LabelMap 
                 env_delete(env, stmt->as.for_stmt.counter);
                 env_delete(env, temp_name);
                 if (local_existed) {
-                    env_restore_local(env, stmt->as.for_stmt.counter, prev_val, prev_type, prev_initialized);
+                    env_restore_local(env, stmt->as.for_stmt.counter, prev_val, prev_type, 0, prev_initialized);
                 }
                 value_free(prev_val);
                 interp->loop_depth--;
@@ -3769,14 +3783,14 @@ static ExecResult exec_stmt(Interpreter *interp, Stmt *stmt, Env *env, LabelMap 
             }
 
             /* Assign to the aliased counter (writes to temp_name) */
-            if (!env_assign(env, stmt->as.for_stmt.counter, value_int(idx), TYPE_INT, true)) {
+            if (!env_assign(env, stmt->as.for_stmt.counter, value_int(idx), TYPE_INT, 0, true)) {
                 char buf[256];
                 snprintf(buf, sizeof(buf), "Cannot assign to frozen identifier '%s'", stmt->as.for_stmt.counter);
                 /* cleanup alias and temp binding before returning */
                 env_delete(env, stmt->as.for_stmt.counter);
                 env_delete(env, temp_name);
                 if (local_existed) {
-                    env_restore_local(env, stmt->as.for_stmt.counter, prev_val, prev_type, prev_initialized);
+                    env_restore_local(env, stmt->as.for_stmt.counter, prev_val, prev_type, 0, prev_initialized);
                 }
                 value_free(prev_val);
                 interp->loop_depth--;
@@ -3790,7 +3804,7 @@ static ExecResult exec_stmt(Interpreter *interp, Stmt *stmt, Env *env, LabelMap 
                 env_delete(env, stmt->as.for_stmt.counter);
                 env_delete(env, temp_name);
                 if (local_existed) {
-                    env_restore_local(env, stmt->as.for_stmt.counter, prev_val, prev_type, prev_initialized);
+                    env_restore_local(env, stmt->as.for_stmt.counter, prev_val, prev_type, 0, prev_initialized);
                 }
                 value_free(prev_val);
                 interp->loop_depth--;
@@ -3804,7 +3818,7 @@ static ExecResult exec_stmt(Interpreter *interp, Stmt *stmt, Env *env, LabelMap 
                     env_delete(env, stmt->as.for_stmt.counter);
                     env_delete(env, temp_name);
                     if (local_existed) {
-                        env_restore_local(env, stmt->as.for_stmt.counter, prev_val, prev_type, prev_initialized);
+                        env_restore_local(env, stmt->as.for_stmt.counter, prev_val, prev_type, 0, prev_initialized);
                     }
                     value_free(prev_val);
                     interp->loop_depth--;
@@ -3820,13 +3834,13 @@ static ExecResult exec_stmt(Interpreter *interp, Stmt *stmt, Env *env, LabelMap 
         env_delete(env, stmt->as.for_stmt.counter);
         env_delete(env, temp_name);
         if (local_existed) {
-            env_restore_local(env, stmt->as.for_stmt.counter, prev_val, prev_type, prev_initialized);
+            env_restore_local(env, stmt->as.for_stmt.counter, prev_val, prev_type, 0, prev_initialized);
         }
 
         /* Restore global binding if the aliasing process shadowed a
            non-local (global/parent) symbol with a non-INT type. */
         if (had_global) {
-            env_assign(env, stmt->as.for_stmt.counter, global_prev_val, global_prev_type, false);
+            env_assign(env, stmt->as.for_stmt.counter, global_prev_val, global_prev_type, 0, false);
             value_free(global_prev_val);
         }
         value_free(prev_val);
@@ -3946,8 +3960,8 @@ static ExecResult exec_stmt(Interpreter *interp, Stmt *stmt, Env *env, LabelMap 
             int64_t idx = (int64_t)i + 1; /* iterations are 1-based */
             /* Always define the counter locally so it shadows any
                same-named binding in a parent env. */
-            env_define(thread_env, stmt->as.parfor_stmt.counter, TYPE_INT);
-            if (!env_assign(thread_env, stmt->as.parfor_stmt.counter, value_int(idx), TYPE_INT, false)) {
+            env_define(thread_env, stmt->as.parfor_stmt.counter, TYPE_INT, 0);
+            if (!env_assign(thread_env, stmt->as.parfor_stmt.counter, value_int(idx), TYPE_INT, 0, false)) {
                 char buf[256];
                 snprintf(buf, sizeof(buf), "Cannot assign to frozen identifier '%s'", stmt->as.parfor_stmt.counter);
                 errors[i] = strdup(buf);
@@ -4162,10 +4176,9 @@ void interpreter_init(Interpreter *interp, const char *source_path, bool verbose
     if (source_path && source_path[0] != '\0') {
         char *canonical = prefix_fullpath_dup(source_path);
         if (canonical) {
-            env_assign(interp->global_env, "__MODULE_SOURCE__", value_str(canonical), TYPE_STR, true);
-            free(canonical);
+            env_assign(interp->global_env, "__MODULE_SOURCE__", value_str(canonical), TYPE_STR, 0, true);
         } else {
-            env_assign(interp->global_env, "__MODULE_SOURCE__", value_str(source_path), TYPE_STR, true);
+            env_assign(interp->global_env, "__MODULE_SOURCE__", value_str(source_path), TYPE_STR, 0, true);
         }
     }
 }

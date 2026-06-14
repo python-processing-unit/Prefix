@@ -1,0 +1,15 @@
+INT{0d2} a = 0b1010
+ASSERT(EQ(a, 0b1010))
+ASSERT(EQ(BASE(a), 0d2))
+
+INT{0d16} b = 0x2A
+ASSERT(EQ(b, 0x2A))
+ASSERT(EQ(BASE(b), 0d16))
+
+INT{0d10} c = 0d42
+ASSERT(EQ(c, 0d42))
+ASSERT(EQ(BASE(c), 0d10))
+
+INT{0d64} d = 0s6
+ASSERT(EQ(d, 0s6))
+ASSERT(EQ(BASE(d), 0d64))
