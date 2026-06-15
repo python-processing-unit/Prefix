@@ -9404,14 +9404,26 @@ static Value builtin_valuein(Interpreter *interp, Value *args, int argc, Expr **
     return value_bool(false);
 }
 
+static int match_read_metadata(Map *tpl, int *typing, int *recurse, int *shape, int explicit_typing,
+                               int explicit_recurse, int explicit_shape);
+
 // Helper: recursive match implementation
-static int match_map_internal(Map *m, Map *tpl, int typing, int recurse, int shape) {
+static int match_map_internal(Map *m, Map *tpl, int typing, int recurse, int shape, int explicit_typing,
+                              int explicit_recurse, int explicit_shape) {
     if (!tpl) {
         return 1;
+    }
+    if (!match_read_metadata(tpl, &typing, &recurse, &shape, explicit_typing, explicit_recurse, explicit_shape)) {
+        return 0;
     }
     for (size_t i = 0; i < tpl->count; i++) {
         Value tkey = tpl->items[i].key;
         Value tval = tpl->items[i].value;
+        if (tkey.type == VAL_STR && tkey.as.s && strcmp(tkey.as.s, "match") == 0) {
+            if (tval.type == VAL_MAP && tval.as.map) {
+                continue;
+            }
+        }
         // find key in m
         int found = 0;
         Value got = value_map_get((Value){.type = VAL_MAP, .as.map = m}, tkey, &found);
@@ -9453,7 +9465,8 @@ static int match_map_internal(Map *m, Map *tpl, int typing, int recurse, int sha
         if (recurse && mval.type == VAL_MAP && tval.type == VAL_MAP) {
             Map *mm = mval.as.map;
             Map *tt = tval.as.map;
-            int ok = match_map_internal(mm, tt, typing, recurse, shape);
+            int ok =
+                match_map_internal(mm, tt, typing, recurse, shape, explicit_typing, explicit_recurse, explicit_shape);
             value_free(mval);
             if (!ok) {
                 return 0;
@@ -9462,6 +9475,55 @@ static int match_map_internal(Map *m, Map *tpl, int typing, int recurse, int sha
             value_free(mval);
         }
     }
+    return 1;
+}
+
+static int match_read_metadata(Map *tpl, int *typing, int *recurse, int *shape, int explicit_typing,
+                               int explicit_recurse, int explicit_shape) {
+    Value match_key = value_str("match");
+    int found = 0;
+    Value match_value = value_map_get((Value){.type = VAL_MAP, .as.map = tpl}, match_key, &found);
+    value_free(match_key);
+    if (!found) {
+        return 1;
+    }
+    if (match_value.type != VAL_MAP) {
+        value_free(match_value);
+        return 1;
+    }
+    if (!match_value.as.map) {
+        value_free(match_value);
+        return 0;
+    }
+
+    Map *metadata = match_value.as.map;
+    for (size_t i = 0; i < metadata->count; i++) {
+        Value subkey = metadata->items[i].key;
+        Value subval = metadata->items[i].value;
+        int *target = NULL;
+        int explicit = 0;
+        if (subkey.type == VAL_STR && subkey.as.s && strcmp(subkey.as.s, "typing") == 0) {
+            target = typing;
+            explicit = explicit_typing;
+        } else if (subkey.type == VAL_STR && subkey.as.s && strcmp(subkey.as.s, "recurse") == 0) {
+            target = recurse;
+            explicit = explicit_recurse;
+        } else if (subkey.type == VAL_STR && subkey.as.s && strcmp(subkey.as.s, "shape") == 0) {
+            target = shape;
+            explicit = explicit_shape;
+        } else {
+            value_free(match_value);
+            return 0;
+        }
+        if (subval.type != VAL_INT) {
+            value_free(match_value);
+            return 0;
+        }
+        if (!explicit) {
+            *target = subval.as.i ? 1 : 0;
+        }
+    }
+    value_free(match_value);
     return 1;
 }
 
@@ -9476,21 +9538,27 @@ static Value builtin_match(Interpreter *interp, Value *args, int argc, Expr **ar
     int typing = 0;
     int recurse = 0;
     int shape = 0;
+    int explicit_typing = 0;
+    int explicit_recurse = 0;
+    int explicit_shape = 0;
     if (argc >= 3 && args[2].type != VAL_NULL) {
         EXPECT_INT(args[2], "MATCH", interp, line, col);
         typing = args[2].as.i ? 1 : 0;
+        explicit_typing = 1;
     }
     if (argc >= 4 && args[3].type != VAL_NULL) {
         EXPECT_INT(args[3], "MATCH", interp, line, col);
         recurse = args[3].as.i ? 1 : 0;
+        explicit_recurse = 1;
     }
     if (argc >= 5 && args[4].type != VAL_NULL) {
         EXPECT_INT(args[4], "MATCH", interp, line, col);
         shape = args[4].as.i ? 1 : 0;
+        explicit_shape = 1;
     }
     Map *m = args[0].as.map;
     Map *tpl = args[1].as.map;
-    int ok = match_map_internal(m, tpl, typing, recurse, shape);
+    int ok = match_map_internal(m, tpl, typing, recurse, shape, explicit_typing, explicit_recurse, explicit_shape);
     return value_bool(ok != 0);
 }
 
