@@ -41,7 +41,6 @@ static LoadedExtension *g_loaded = NULL;
 static char *g_interpreter_dir = NULL;
 static char *g_cwd_dir = NULL;
 static const char *g_loading_extension_name = NULL;
-static const char *g_loading_scope_name = NULL;
 static LoadedExtension *g_current_loading_extension = NULL;
 
 // Registered event handlers and periodic hooks
@@ -62,7 +61,6 @@ typedef struct PeriodicHook {
 static EventHandler *g_event_handlers = NULL;
 static PeriodicHook *g_periodic_hooks = NULL;
 static prefix_repl_fn g_repl_handler = NULL;
-static char *g_repl_owner = NULL;
 
 static void set_error(char **error_out, const char *msg) {
     if (!error_out) {
@@ -543,12 +541,6 @@ static int ctx_register_repl_handler(prefix_repl_fn repl_fn) {
         return -1;
     }
     g_repl_handler = repl_fn;
-    free(g_repl_owner);
-    g_repl_owner = g_loading_extension_name ? strdup(g_loading_extension_name) : strdup("extension");
-    if (!g_repl_owner) {
-        // keep handler but owner strdup failed; set to NULL
-        g_repl_owner = NULL;
-    }
     return 0;
 }
 
@@ -695,11 +687,9 @@ static int extension_register_exposure(LoadedExtension *le, const char *ext_name
     if (!base_exists) {
         g_current_loading_extension = le;
         g_loading_extension_name = ext_name;
-        g_loading_scope_name = (scope_name && scope_name[0] != '\0') ? scope_name : NULL;
         le->init_fn(&ctx);
         g_current_loading_extension = NULL;
         g_loading_extension_name = NULL;
-        g_loading_scope_name = NULL;
 
         if (exposure_add(le, base_key) != 0) {
             free(base_key);
@@ -928,7 +918,6 @@ void extensions_shutdown(void) {
     g_cwd_dir = NULL;
 
     g_loading_extension_name = NULL;
-    g_loading_scope_name = NULL;
 
     // Free registered event handlers
     EventHandler *eh = g_event_handlers;
@@ -951,8 +940,6 @@ void extensions_shutdown(void) {
     }
     g_periodic_hooks = NULL;
 
-    // Repl handler owner
-    free(g_repl_owner);
-    g_repl_owner = NULL;
+    // Repl handler reset
     g_repl_handler = NULL;
 }
