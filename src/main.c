@@ -300,7 +300,7 @@ int main(int argc, char **argv) {
 
     char cwd_buf[4096];
     const char *cwd = NULL;
-    if (prefix_getcwd(cwd_buf, sizeof(cwd_buf))) {
+    if (_getcwd(cwd_buf, sizeof(cwd_buf))) {
         cwd = cwd_buf;
     }
     char *exe_dir = path_dirname_dup((argc > 0) ? argv[0] : NULL);
@@ -464,7 +464,7 @@ int main(int argc, char **argv) {
         }
         if (last_slash) {
             *last_slash = '\0';
-            prefix_chdir(dir);
+            _chdir(dir);
         }
         free(dir);
     }

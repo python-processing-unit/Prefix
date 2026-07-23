@@ -58,22 +58,6 @@ static inline int prefix_stricmp(const char *lhs, const char *rhs) {
     }
 }
 
-static inline char *prefix_getcwd(char *buffer, size_t size) {
-#ifdef _WIN32
-    return _getcwd(buffer, (int)size);
-#else
-    return getcwd(buffer, size);
-#endif
-}
-
-static inline int prefix_chdir(const char *path) {
-#ifdef _WIN32
-    return _chdir(path);
-#else
-    return chdir(path);
-#endif
-}
-
 static inline char *prefix_fullpath_dup(const char *path) {
     if (!path || path[0] == '\0') {
         return NULL;
