@@ -57,14 +57,6 @@ bool env_set_alias(Env *env, const char *name, const char *target_name, DeclType
 bool env_set_alias_cross(Env *env, const char *name, Env *target_env, const char *target_name, DeclType type,
                          int type_base, bool declare_if_missing);
 
-// Accessors for EnvEntry opaque use from other translation units
-// Returns true if the entry is initialized
-bool env_entry_initialized(EnvEntry *entry);
-// Returns a copy of the entry's value (caller owns the returned Value)
-Value env_entry_value_copy(EnvEntry *entry);
-// Returns frozen state: -1 permafrozen, 1 frozen, 0 not frozen or not found
-int env_entry_frozen_state_local(EnvEntry *entry);
-
 // Symbol freezing API
 // Returns 0 on success, -1 if the identifier was not found.
 int env_freeze(Env *env, const char *name);

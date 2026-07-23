@@ -43,7 +43,6 @@ EXPORTS
     builtins_init
     builtins_set_argv
     builtin_lookup
-    is_builtin
     builtins_register_operator
     builtins_reset_dynamic
     env_create
@@ -57,9 +56,6 @@ EXPORTS
     env_get_entry
     env_set_alias
     env_set_alias_cross
-    env_entry_initialized
-    env_entry_value_copy
-    env_entry_frozen_state_local
     env_freeze
     env_thaw
     env_permafreeze
