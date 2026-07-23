@@ -1,0 +1,2 @@
+FUNC MAP{<"x" = 0d1>} bad_return() { RETURN(<"y" = 0d2>); }
+bad_return()

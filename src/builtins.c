@@ -113,7 +113,7 @@ static bool writeback_first_ptr(Interpreter *interp, Expr **arg_nodes, Env *env,
              * merge step can distinguish explicit declarations (non-UNKNOWN)
              * from these ephemeral locals and skip merging them back.
              */
-            if (!env_define(env, name, TYPE_UNKNOWN, 0)) {
+            if (!env_define(env, name, TYPE_UNKNOWN, 0, value_null())) {
                 char buf[128];
                 snprintf(buf, sizeof(buf), "%s writeback failed", rule);
                 interp->error = strdup(buf);
@@ -165,7 +165,7 @@ static bool writeback_ptr_node(Interpreter *interp, Expr *node, Env *env, Value 
             /* Create an implicit local entry (TYPE_UNKNOWN) so iterations
              * can write to a per-iteration copy without affecting parent.
              */
-            if (!env_define(env, name, TYPE_UNKNOWN, 0)) {
+            if (!env_define(env, name, TYPE_UNKNOWN, 0, value_null())) {
                 char buf[128];
                 snprintf(buf, sizeof(buf), "%s writeback failed", rule);
                 interp->error = strdup(buf);
@@ -2080,6 +2080,24 @@ static void ser_env(JsonBuf *jb, SerCtx *ctx, Interpreter *interp, Env *env, Thr
     }
     jb_append_char(jb, '}');
 
+    /* Serialize MAP templates */
+    json_obj_field(jb, &def_first, "templates");
+    jb_append_char(jb, '{');
+    bool tmpl_first = true;
+    for (size_t i = 0; i < env->count; i++) {
+        EnvEntry *entry = &env->entries[i];
+        if (entry->decl_type == TYPE_MAP && entry->template.type == VAL_MAP) {
+            if (!tmpl_first) {
+                jb_append_char(jb, ',');
+            }
+            tmpl_first = false;
+            jb_append_json_string(jb, entry->name);
+            jb_append_char(jb, ':');
+            ser_value(jb, ctx, interp, entry->template);
+        }
+    }
+    jb_append_char(jb, '}');
+
     json_obj_field(jb, &def_first, "frozen");
     jb_append_char(jb, '[');
     bool fr_first = true;
@@ -3257,7 +3275,7 @@ static Expr *deser_expr(JsonValue *obj, UnserCtx *ctx, Interpreter *interp, cons
         JsonValue *nm = json_obj_get(obj, "name");
         const char *t = (typev && typev->type == JSON_STR) ? typev->as.str : "";
         const char *s = (nm && nm->type == JSON_STR) ? nm->as.str : "";
-        return expr_typed_ident(decl_type_from_name(t), 0, strdup(s), line, col);
+        return expr_typed_ident(decl_type_from_name(t), 0, strdup(s), NULL, line, col);
     }
     if (strcmp(name, "PointerExpression") == 0) {
         JsonValue *nm = json_obj_get(obj, "target");
@@ -3368,7 +3386,7 @@ static Stmt *deser_stmt(JsonValue *obj, UnserCtx *ctx, Interpreter *interp, cons
             has_type = true;
         }
         Expr *ex = deser_expr(expr, ctx, interp, err);
-        return stmt_assign(has_type, dtype, dbase, strdup(tname), NULL, ex, line, col);
+        return stmt_assign(has_type, dtype, dbase, strdup(tname), NULL, ex, NULL, line, col);
     }
     if (strcmp(name, "Declaration") == 0) {
         JsonValue *nm = json_obj_get(obj, "name");
@@ -3377,7 +3395,7 @@ static Stmt *deser_stmt(JsonValue *obj, UnserCtx *ctx, Interpreter *interp, cons
         const char *nms = (nm && nm->type == JSON_STR) ? nm->as.str : "";
         DeclType dtype = decl_type_from_name((dt && dt->type == JSON_STR) ? dt->as.str : NULL);
         int dbase = (db && db->type == JSON_NUM) ? (int)db->as.num : 0;
-        return stmt_decl(dtype, dbase, strdup(nms), line, col);
+        return stmt_decl(dtype, dbase, strdup(nms), NULL, line, col);
     }
     if (strcmp(name, "ExpressionStatement") == 0) {
         Expr *ex = deser_expr(json_obj_get(obj, "expression"), ctx, interp, err);
@@ -3436,7 +3454,7 @@ static Stmt *deser_stmt(JsonValue *obj, UnserCtx *ctx, Interpreter *interp, cons
         const char *fn = (nm && nm->type == JSON_STR) ? nm->as.str : "";
         DeclType rt = decl_type_from_name((ret && ret->type == JSON_STR) ? ret->as.str : NULL);
         int rt_base = (ret_base && ret_base->type == JSON_NUM) ? (int)ret_base->as.num : 0;
-        Stmt *st = stmt_func(strdup(fn), rt, rt_base, body, line, col);
+        Stmt *st = stmt_func(strdup(fn), rt, rt_base, NULL, body, line, col);
         if (params && params->type == JSON_ARR) {
             for (size_t i = 0; i < params->as.arr.count; i++) {
                 JsonValue *p = params->as.arr.items[i];
@@ -3502,7 +3520,7 @@ static Stmt *deser_stmt(JsonValue *obj, UnserCtx *ctx, Interpreter *interp, cons
     if (strcmp(name, "TensorSetStatement") == 0) {
         Expr *target = deser_expr(json_obj_get(obj, "target"), ctx, interp, err);
         Expr *value = deser_expr(json_obj_get(obj, "value"), ctx, interp, err);
-        return stmt_assign(false, TYPE_UNKNOWN, 0, NULL, target, value, line, col);
+        return stmt_assign(false, TYPE_UNKNOWN, 0, NULL, target, value, NULL, line, col);
     }
     return NULL;
 }
@@ -3548,7 +3566,7 @@ static Env *deser_env(JsonValue *obj, UnserCtx *ctx, Interpreter *interp, const 
                 JsonPair *p = &declared->as.obj.items[i];
                 DeclType dt = decl_type_from_name(p->value && p->value->type == JSON_STR ? p->value->as.str : NULL);
                 if (!env_find_local_entry(env, p->key)) {
-                    env_define(env, p->key, dt, 0);
+                    env_define(env, p->key, dt, 0, value_null());
                 }
             }
         }
@@ -3559,7 +3577,7 @@ static Env *deser_env(JsonValue *obj, UnserCtx *ctx, Interpreter *interp, const 
                 JsonPair *p = &values->as.obj.items[i];
                 JsonValue *vv = p->value;
                 if (!env_find_local_entry(env, p->key)) {
-                    env_define(env, p->key, TYPE_UNKNOWN, 0);
+                    env_define(env, p->key, TYPE_UNKNOWN, 0, value_null());
                 }
                 EnvEntry *entry = env_find_local_entry(env, p->key);
                 if (vv && vv->type == JSON_OBJ) {
@@ -3593,6 +3611,22 @@ static Env *deser_env(JsonValue *obj, UnserCtx *ctx, Interpreter *interp, const 
             }
         }
 
+        /* Deserialize MAP templates */
+        JsonValue *templates = json_obj_get(def, "templates");
+        if (templates && templates->type == JSON_OBJ) {
+            for (size_t i = 0; i < templates->as.obj.count; i++) {
+                JsonPair *p = &templates->as.obj.items[i];
+                EnvEntry *entry = env_find_local_entry(env, p->key);
+                if (entry) {
+                    Value tmpl = deser_val(p->value, ctx, interp, err);
+                    if (*err == NULL) {
+                        value_free(entry->template);
+                        entry->template = tmpl;
+                    }
+                }
+            }
+        }
+
         JsonValue *frozen = json_obj_get(def, "frozen");
         if (frozen && frozen->type == JSON_ARR) {
             for (size_t i = 0; i < frozen->as.arr.count; i++) {
@@ -3600,7 +3634,7 @@ static Env *deser_env(JsonValue *obj, UnserCtx *ctx, Interpreter *interp, const 
                 if (it && it->type == JSON_STR) {
                     EnvEntry *e = env_find_local_entry(env, it->as.str);
                     if (!e) {
-                        env_define(env, it->as.str, TYPE_UNKNOWN, 0);
+                        env_define(env, it->as.str, TYPE_UNKNOWN, 0, value_null());
                         e = env_find_local_entry(env, it->as.str);
                     }
                     if (e) {
@@ -3617,7 +3651,7 @@ static Env *deser_env(JsonValue *obj, UnserCtx *ctx, Interpreter *interp, const 
                 if (it && it->type == JSON_STR) {
                     EnvEntry *e = env_find_local_entry(env, it->as.str);
                     if (!e) {
-                        env_define(env, it->as.str, TYPE_UNKNOWN, 0);
+                        env_define(env, it->as.str, TYPE_UNKNOWN, 0, value_null());
                         e = env_find_local_entry(env, it->as.str);
                     }
                     if (e) {
@@ -8174,6 +8208,78 @@ static Value builtin_type(Interpreter *interp, Value *args, int argc, Expr **arg
     return value_str(value_type_name(args[0]));
 }
 
+// Format a MAP value as its canonical literal form "<key = val, ...>"
+// Returns a newly allocated string that the caller must free.
+static char *map_template_to_str(Value v) {
+    if (v.type != VAL_MAP || !v.as.map) {
+        return strdup("<>");
+    }
+    Map *m = v.as.map;
+    JsonBuf jb;
+    jb_init(&jb);
+    jb_append_char(&jb, '<');
+    for (size_t i = 0; i < m->count; i++) {
+        Value key = m->items[i].key;
+        Value val = m->items[i].value;
+        if (i > 0) {
+            jb_append_str(&jb, ", ");
+        }
+        if (key.type == VAL_STR) {
+            jb_append_char(&jb, '"');
+            if (key.as.s) {
+                for (const char *c = key.as.s; *c; c++) {
+                    if (*c == '"' || *c == '\\') {
+                        jb_append_char(&jb, '\\');
+                    }
+                    jb_append_char(&jb, *c);
+                }
+            }
+            jb_append_char(&jb, '"');
+        } else if (key.type == VAL_INT) {
+            char *s = int_to_base_prefixed_str(key.as.i, numeric_base_of(key));
+            jb_append_str(&jb, s);
+            free(s);
+        } else if (key.type == VAL_FLT) {
+            char *s = flt_to_base_prefixed_str(key.as.f, numeric_base_of(key), key.num_base_nan);
+            jb_append_str(&jb, s);
+            free(s);
+        } else {
+            jb_append_str(&jb, value_type_name(key));
+        }
+        jb_append_str(&jb, " = ");
+        if (val.type == VAL_STR) {
+            jb_append_char(&jb, '"');
+            if (val.as.s) {
+                for (const char *c = val.as.s; *c; c++) {
+                    if (*c == '"' || *c == '\\') {
+                        jb_append_char(&jb, '\\');
+                    }
+                    jb_append_char(&jb, *c);
+                }
+            }
+            jb_append_char(&jb, '"');
+        } else if (val.type == VAL_INT) {
+            char *s = int_to_base_prefixed_str(val.as.i, numeric_base_of(val));
+            jb_append_str(&jb, s);
+            free(s);
+        } else if (val.type == VAL_FLT) {
+            char *s = flt_to_base_prefixed_str(val.as.f, numeric_base_of(val), val.num_base_nan);
+            jb_append_str(&jb, s);
+            free(s);
+        } else if (val.type == VAL_BOOL) {
+            jb_append_str(&jb, val.as.boolean ? "TRUE" : "FALSE");
+        } else if (val.type == VAL_MAP) {
+            char *inner = map_template_to_str(val);
+            jb_append_str(&jb, inner);
+            free(inner);
+        } else {
+            jb_append_str(&jb, value_type_name(val));
+        }
+    }
+    jb_append_char(&jb, '>');
+    return jb.data;
+}
+
 // SIGNATURE(SYMBOL: sym):STR
 static Value builtin_signature(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line,
                                int col) {
@@ -8201,6 +8307,13 @@ static Value builtin_signature(Interpreter *interp, Value *args, int argc, Expr 
                 rname = "ANY";
             }
             strcat(buf, rname);
+            if (f->return_template_value.type == VAL_MAP) {
+                char *ts = map_template_to_str(f->return_template_value);
+                strcat(buf, "{");
+                strcat(buf, ts);
+                strcat(buf, "}");
+                free(ts);
+            }
             strcat(buf, " ");
             strcat(buf, f->name ? f->name : name);
             strcat(buf, "(");
@@ -8218,6 +8331,13 @@ static Value builtin_signature(Interpreter *interp, Value *args, int argc, Expr 
                     strcat(buf, "~");
                 }
                 strcat(buf, tname);
+                if (f->param_template_values && f->param_template_values[i].type == VAL_MAP) {
+                    char *ts = map_template_to_str(f->param_template_values[i]);
+                    strcat(buf, "{");
+                    strcat(buf, ts);
+                    strcat(buf, "}");
+                    free(ts);
+                }
                 strcat(buf, " ");
                 strcat(buf, p.name ? p.name : "");
                 if (p.default_value != NULL) {
@@ -8273,17 +8393,34 @@ static Value builtin_signature(Interpreter *interp, Value *args, int argc, Expr 
     if (!entry) {
         RUNTIME_ERROR(interp, "SIGNATURE: identifier not found or uninitialized", line, col);
     }
-    char var_type_buf[64];
+    char var_type_buf[128];
     const char *tname = decl_type_name_base(entry->decl_type, entry->decl_base, var_type_buf, sizeof(var_type_buf));
     if (strcmp(tname, "UNKNOWN") == 0) {
         tname = "ANY";
     }
-    size_t len = strlen(tname) + 2 + strlen(name) + 1;
+    // Build template string for MAP if template is present
+    char *template_str = NULL;
+    if (entry->decl_type == TYPE_MAP && entry->template.type == VAL_MAP) {
+        char *inner = map_template_to_str(entry->template);
+        size_t ilen = strlen(inner);
+        template_str = malloc(ilen + 3);
+        if (template_str) {
+            template_str[0] = '{';
+            memcpy(template_str + 1, inner, ilen);
+            template_str[1 + ilen] = '}';
+            template_str[2 + ilen] = '\0';
+        }
+        free(inner);
+    }
+    const char *tmpl = template_str ? template_str : "";
+    size_t len = strlen(tname) + strlen(tmpl) + 2 + strlen(name) + 1;
     char *res = malloc(len + 1);
     if (!res) {
+        free(template_str);
         RUNTIME_ERROR(interp, "Out of memory", line, col);
     }
-    snprintf(res, len + 1, "%s %s", tname, name);
+    snprintf(res, len + 1, "%s%s %s", tname, tmpl, name);
+    free(template_str);
     Value out = value_str(res);
     free(res);
     return out;
@@ -9630,7 +9767,24 @@ static Value builtin_assign(Interpreter *interp, Value *args, int argc, Expr **a
             assign_env = env->parent;
         }
         if (!existing) {
-            env_define(assign_env, name, expected, expected_base);
+            Value tmpl = value_null();
+            if (target->as.typed_ident.template_expr) {
+                tmpl = eval_expr(interp, target->as.typed_ident.template_expr, env);
+                if (interp->error) {
+                    char *err = interp->error;
+                    int err_line = interp->error_line;
+                    int err_col = interp->error_col;
+                    clear_error(interp);
+                    value_free(tmpl);
+                    RUNTIME_ERROR(interp, err, err_line, err_col);
+                }
+                if (tmpl.type != VAL_MAP) {
+                    value_free(tmpl);
+                    RUNTIME_ERROR(interp, "MAP template must evaluate to a MAP", line, col);
+                }
+            }
+            env_define(assign_env, name, expected, expected_base, tmpl);
+            value_free(tmpl);
         }
         if (!env_assign(assign_env, name, rhs, expected, expected_base, true)) {
             char buf[256];
@@ -11054,7 +11208,7 @@ static int parallel_worker(void *arg) {
             return 0;
         }
 
-        env_define(call_env, param->name, param->type, param->num_base);
+        env_define(call_env, param->name, param->type, param->num_base, value_null());
         if (!env_assign(call_env, param->name, bind_val, param->type, param->num_base, true)) {
             char buf[256];
             snprintf(buf, sizeof(buf), "Cannot assign to frozen identifier '%s'", param->name);

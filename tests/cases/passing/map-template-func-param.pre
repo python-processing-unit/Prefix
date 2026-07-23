@@ -1,0 +1,7 @@
+! MAP template in function parameter
+FUNC MAP test(MAP{<"x" = 0d1>} m) {
+    RETURN(m)
+}
+MAP candidate = <"x" = 0d5>
+MAP result = test(candidate)
+ASSERT(EQ(result<"x">, 0d5))

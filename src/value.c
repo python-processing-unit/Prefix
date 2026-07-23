@@ -1064,3 +1064,73 @@ const char *decl_type_name_base(DeclType type, int base, char *buf, size_t buf_s
     }
     return buf;
 }
+
+// Internal helper for value_map_matches to get value while holding lock.
+// Caller must hold the map lock before calling.
+static Value value_map_get_locked(Value mapval, Value key, int *found) {
+    Value out = value_null();
+    if (!mapval.as.map) {
+        if (found) {
+            *found = 0;
+        }
+        return out;
+    }
+    Map *m = mapval.as.map;
+    int idx = map_find_index(m, key);
+    if (idx < 0) {
+        if (found) {
+            *found = 0;
+        }
+        return out;
+    }
+    if (found) {
+        *found = 1;
+    }
+    return value_copy(m->items[idx].value);
+}
+
+// Minimal match implementation for env-check path (defaults: typing=0, recurse=0, shape=0).
+// Supports "match" metadata override from the template.
+// Thread-safe: acquires locks on both maps during comparison.
+bool value_map_matches(Value map, Value templ) {
+    if (map.type != VAL_MAP || templ.type != VAL_MAP) {
+        return false;
+    }
+    Map *m = map.as.map;
+    Map *t = templ.as.map;
+    if (!m || !t) {
+        return m == t;
+    }
+
+    // Acquire locks in consistent order to avoid deadlock
+    Map *first = m < t ? m : t;
+    Map *second = m < t ? t : m;
+    mtx_lock(&first->lock);
+    mtx_lock(&second->lock);
+
+    bool result = true;
+    for (size_t i = 0; i < t->count; i++) {
+        Value tkey = t->items[i].key;
+        Value tval = t->items[i].value;
+        if (tkey.type == VAL_STR && tkey.as.s && tval.type == VAL_MAP && tval.as.map &&
+            strcmp(tkey.as.s, "match") == 0) {
+            continue;
+        }
+        int found = 0;
+        Value mval = value_map_get_locked(map, tkey, &found);
+        if (!found) {
+            result = false;
+            if (mval.type != VAL_NULL) {
+                value_free(mval);
+            }
+            break;
+        }
+        if (mval.type != VAL_NULL) {
+            value_free(mval);
+        }
+    }
+
+    mtx_unlock(&second->lock);
+    mtx_unlock(&first->lock);
+    return result;
+}
