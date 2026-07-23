@@ -44,12 +44,11 @@ static _Thread_local int g_ns_prepare_thread = 0;
 /* ------------------------------------------------------------------ */
 
 static void *ns_alloc(size_t size) {
-    void *p = malloc(size);
+    void *p = calloc(1, size);
     if (!p) {
         fprintf(stderr, "ns_buffer: out of memory\n");
         exit(1);
     }
-    memset(p, 0, size);
     return p;
 }
 
