@@ -15,25 +15,11 @@
 #include <unistd.h>
 #endif
 
-static inline int prefix_stricmp(const char *lhs, const char *rhs) {
-    unsigned char left;
-    unsigned char right;
-
-    if (!lhs) {
-        lhs = "";
-    }
-    if (!rhs) {
-        rhs = "";
-    }
-
-    for (;;) {
-        left = (unsigned char)tolower((unsigned char)*lhs++);
-        right = (unsigned char)tolower((unsigned char)*rhs++);
-        if (left != right || left == '\0') {
-            return (int)left - (int)right;
-        }
-    }
-}
+#ifdef _WIN32
+#define prefix_stricmp _stricmp
+#else
+#define prefix_stricmp strcasecmp
+#endif
 
 static inline char *prefix_fullpath_dup(const char *path) {
     if (!path || path[0] == '\0') {
