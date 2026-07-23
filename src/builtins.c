@@ -11723,8 +11723,6 @@ BuiltinFunction *builtin_lookup(const char *name) {
     return builtin_lookup_dynamic(name);
 }
 
-bool is_builtin(const char *name) { return builtin_lookup(name) != NULL; }
-
 #ifdef __clang__
 #pragma clang diagnostic pop
 #endif
