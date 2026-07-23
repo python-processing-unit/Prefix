@@ -78,7 +78,6 @@ EXPORTS
     extensions_shutdown
     interpreter_init
     interpreter_destroy
-    exec_program
     exec_program_in_env
     exec_program_in_env_as_function
     interpreter_format_traceback
