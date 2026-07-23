@@ -15,29 +15,6 @@
 #include <unistd.h>
 #endif
 
-#ifndef PREFIX_HAVE_PORTABLE_STRDUP
-/* Portable strdup fallback implemented as a static inline so all
- * translation units include a safe implementation without relying on
- * platform-specific libc extensions. We then map `strdup` to this
- * implementation when no macro is present. */
-static inline char *prefix_portable_strdup(const char *s) {
-    if (!s) {
-        return NULL;
-    }
-    size_t n = strlen(s) + 1;
-    char *r = (char *)malloc(n);
-    if (!r) {
-        return NULL;
-    }
-    memcpy(r, s, n);
-    return r;
-}
-#ifndef strdup
-#define strdup prefix_portable_strdup
-#endif
-#define PREFIX_HAVE_PORTABLE_STRDUP 1
-#endif
-
 static inline int prefix_stricmp(const char *lhs, const char *rhs) {
     unsigned char left;
     unsigned char right;
@@ -66,16 +43,16 @@ static inline char *prefix_fullpath_dup(const char *path) {
 #ifdef _WIN32
     char full[_MAX_PATH];
     if (_fullpath(full, path, _MAX_PATH)) {
-        return prefix_portable_strdup(full);
+        return strdup(full);
     }
 #else
     char full[PATH_MAX];
     if (realpath(path, full)) {
-        return prefix_portable_strdup(full);
+        return strdup(full);
     }
 #endif
 
-    return prefix_portable_strdup(path);
+    return strdup(path);
 }
 
 // Common definitions for Prefix-C
