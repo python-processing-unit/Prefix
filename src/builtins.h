@@ -31,9 +31,6 @@ void builtins_set_argv(int argc, char **argv);
 // Lookup a builtin by name, returns NULL if not found
 BuiltinFunction *builtin_lookup(const char *name);
 
-// Check if a name is a builtin
-bool is_builtin(const char *name);
-
 // Register a runtime builtin operator (used by extensions).
 // Returns 0 on success, -1 on failure (duplicate/invalid input/oom).
 int builtins_register_operator(const char *name, BuiltinImplFn impl, int min_args, int max_args,
