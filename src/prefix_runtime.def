@@ -110,8 +110,6 @@ EXPORTS
     ns_buffer_permafreeze
     parser_init
     parser_parse
-    token_type_to_string
-    free_token
     value_tns_new
     value_tns_from_values
     value_tns_get

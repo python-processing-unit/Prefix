@@ -63,7 +63,4 @@ typedef struct {
     int column;
 } Token;
 
-const char *token_type_to_string(PTokenType type);
-void free_token(Token *token);
-
 #endif // TOKEN_H
