@@ -105,14 +105,8 @@ typedef struct Interpreter {
 void interpreter_init(Interpreter *interp, const char *source_path, bool verbose, bool private_mode);
 void interpreter_destroy(Interpreter *interp);
 
-// Main entry point
-ExecResult exec_program(Stmt *program, const char *source_path);
-
-// Execute a parsed program (`Stmt*`) within an existing interpreter
-// and environment. This runs the program using the provided `interp`
-// state and the supplied `env` (which may be the current frame or
-// the global environment). Returns an ExecResult similar to
-// `exec_program`.
+// Main entry point — execute a parsed program within an existing interpreter
+// and environment. Runs using the provided `interp` state and `env`.
 ExecResult exec_program_in_env(Interpreter *interp, Stmt *program, Env *env);
 
 // Execute a parsed function body (`program`) within an interpreter and

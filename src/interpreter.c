@@ -4438,33 +4438,6 @@ void interpreter_destroy(Interpreter *interp) {
     mtx_destroy(&g_parfor_merge_lock);
 }
 
-ExecResult exec_program(Stmt *program, const char *source_path) {
-    Interpreter interp;
-    interpreter_init(&interp, source_path, false, false);
-
-    LabelMap labels = {0};
-    extensions_fire_event(&interp, "program_start");
-    ExecResult res = exec_stmt_list(&interp, &program->as.block, interp.global_env, &labels);
-
-    if (res.status == EXEC_ERROR) {
-        extensions_fire_event(&interp, "on_error");
-        char *tb = interpreter_format_traceback(&interp, res.error, res.error_line, res.error_column);
-        free(res.error);
-        res.error = tb;
-    } else {
-        extensions_fire_event(&interp, "program_end");
-    }
-
-    // Clean up
-    for (size_t i = 0; i < labels.count; i++) {
-        value_free(labels.items[i].key);
-    }
-    free(labels.items);
-
-    interpreter_destroy(&interp);
-    return res;
-}
-
 // helper used by builtins to restart threads
 int interpreter_restart_thread(Interpreter *interp, Value thr_val, int line, int col) {
     (void)line;
@@ -4522,9 +4495,7 @@ int interpreter_restart_thread(Interpreter *interp, Value thr_val, int line, int
 }
 
 // Execute a parsed program within an existing Interpreter and Env.
-// This runs `program` using the provided `interp` state and the
-// supplied `env` as the execution environment. It returns an
-// ExecResult similar to `exec_program`.
+// Runs `program` using the provided `interp` state and `env`.
 ExecResult exec_program_in_env(Interpreter *interp, Stmt *program, Env *env) {
     if (!interp || !program || !env) {
         ExecResult r = make_error("Internal: invalid args to exec_program_in_env", 0, 0);
