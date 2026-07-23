@@ -118,26 +118,6 @@ static int file_exists_regular(const char *path) {
     return (st.st_mode & S_IFMT) == S_IFREG;
 }
 
-static int ends_with_case_insensitive(const char *s, const char *suffix) {
-    if (!s || !suffix) {
-        return 0;
-    }
-    size_t ls = strlen(s);
-    size_t lf = strlen(suffix);
-    if (lf > ls) {
-        return 0;
-    }
-    const char *tail = s + (ls - lf);
-    for (size_t i = 0; i < lf; i++) {
-        unsigned char a = (unsigned char)tail[i];
-        unsigned char b = (unsigned char)suffix[i];
-        if ((unsigned char)tolower(a) != (unsigned char)tolower(b)) {
-            return 0;
-        }
-    }
-    return 1;
-}
-
 static const char *platform_dynlib_suffix(void) {
 #ifdef _WIN32
     return ".dll";
@@ -204,25 +184,23 @@ static char *path_basename_no_ext_dup(const char *path) {
     return out;
 }
 
-static char *canonicalize_existing_path(const char *path) { return prefix_fullpath_dup(path); }
-
 static char *resolve_extension_path(const char *input, const char *base_dir) {
     if (!input || input[0] == '\0') {
         return NULL;
     }
 
     if (path_is_absolute(input) && file_exists_regular(input)) {
-        return canonicalize_existing_path(input);
+        return prefix_fullpath_dup(input);
     }
 
     if (file_exists_regular(input)) {
-        return canonicalize_existing_path(input);
+        return prefix_fullpath_dup(input);
     }
 
     if (base_dir && base_dir[0] != '\0') {
         char *p = path_join2(base_dir, input);
         if (p && file_exists_regular(p)) {
-            char *c = canonicalize_existing_path(p);
+            char *c = prefix_fullpath_dup(p);
             free(p);
             return c;
         }
@@ -232,7 +210,7 @@ static char *resolve_extension_path(const char *input, const char *base_dir) {
     if (g_cwd_dir && g_cwd_dir[0] != '\0') {
         char *p = path_join2(g_cwd_dir, input);
         if (p && file_exists_regular(p)) {
-            char *c = canonicalize_existing_path(p);
+            char *c = prefix_fullpath_dup(p);
             free(p);
             return c;
         }
@@ -249,7 +227,7 @@ static char *resolve_extension_path(const char *input, const char *base_dir) {
             char *p = path_join2(ext_dir, input);
             free(ext_dir);
             if (p && file_exists_regular(p)) {
-                char *c = canonicalize_existing_path(p);
+                char *c = prefix_fullpath_dup(p);
                 free(p);
                 return c;
             }
@@ -271,7 +249,7 @@ static char *resolve_extension_path(const char *input, const char *base_dir) {
 
             char *p1 = path_join2(lib_dir, input);
             if (p1 && file_exists_regular(p1)) {
-                char *c = canonicalize_existing_path(p1);
+                char *c = prefix_fullpath_dup(p1);
                 free(p1);
                 free(lib_dir);
                 return c;
@@ -282,7 +260,7 @@ static char *resolve_extension_path(const char *input, const char *base_dir) {
             char *subdir = path_join2(lib_dir, base);
             char *p2 = path_join2(subdir, input);
             if (p2 && file_exists_regular(p2)) {
-                char *c = canonicalize_existing_path(p2);
+                char *c = prefix_fullpath_dup(p2);
                 free(p2);
                 free(subdir);
                 free(base);

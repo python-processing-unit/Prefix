@@ -673,8 +673,6 @@ static unsigned char *enc_utf8_to_cp1252(const char *s, size_t *out_sz, int is_w
     return out;
 }
 
-static char *canonicalize_existing_path(const char *path) { return prefix_fullpath_dup(path); }
-
 static char *module_source_dir_dup(Env *env) {
     if (!env) {
         return NULL;
@@ -7039,7 +7037,7 @@ static Value builtin_import_path(Interpreter *interp, Value *args, int argc, Exp
         }
     }
 
-    char *canonical_path = found_path ? canonicalize_existing_path(found_path) : NULL;
+    char *canonical_path = found_path ? prefix_fullpath_dup(found_path) : NULL;
     const char *cache_key = canonical_path ? canonical_path : inpath;
 
     // If the path did not resolve to an existing file/dir and the module
@@ -10405,7 +10403,7 @@ static Value builtin_import(Interpreter *interp, Value *args, int argc, Expr **a
         }
     }
 
-    char *canonical_path = found_path ? canonicalize_existing_path(found_path) : NULL;
+    char *canonical_path = found_path ? prefix_fullpath_dup(found_path) : NULL;
     const char *cache_key = canonical_path ? canonical_path : modname;
 
     /* If we couldn't locate a file for the requested module and there is no

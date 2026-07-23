@@ -15,26 +15,6 @@
 #include "lexer.h"
 #include "parser.h"
 
-static int ends_with_case_insensitive(const char *s, const char *suffix) {
-    if (!s || !suffix) {
-        return 0;
-    }
-    size_t ls = strlen(s);
-    size_t lf = strlen(suffix);
-    if (lf > ls) {
-        return 0;
-    }
-    const char *tail = s + (ls - lf);
-    for (size_t i = 0; i < lf; i++) {
-        unsigned char a = (unsigned char)tail[i];
-        unsigned char b = (unsigned char)suffix[i];
-        if ((unsigned char)tolower(a) != (unsigned char)tolower(b)) {
-            return 0;
-        }
-    }
-    return 1;
-}
-
 static int is_extension_arg(const char *arg) {
     if (!arg) {
         return 0;
@@ -68,8 +48,6 @@ static char *path_dirname_dup(const char *path) {
     out[n] = '\0';
     return out;
 }
-
-static int load_extension_input(const char *arg, char **err_out) { return extensions_load_library(arg, NULL, err_out); }
 
 static int buf_append(char **buf, size_t *len, size_t *cap, const char *s) {
     if (!buf || !len || !cap || !s) {
@@ -130,16 +108,12 @@ static int is_exit_meta_command(const char *text) {
         return 0;
     }
     const char *p = text;
-    while (*p == ' ' || *p == '\t' || *p == '\r' || *p == '\n') {
-        p++;
-    }
+    p += strspn(p, " \t\r\n");
     if (strncmp(p, ".exit", 5) != 0) {
         return 0;
     }
     p += 5;
-    while (*p == ' ' || *p == '\t' || *p == '\r' || *p == '\n') {
-        p++;
-    }
+    p += strspn(p, " \t\r\n");
     return *p == '\0';
 }
 
@@ -340,7 +314,7 @@ int main(int argc, char **argv) {
 
         if (is_extension_arg(arg)) {
             char *err = NULL;
-            if (load_extension_input(arg, &err) != 0) {
+            if (extensions_load_library(arg, NULL, &err) != 0) {
                 fprintf(stderr, "%s\n", err ? err : "Failed to load extension");
                 free(err);
                 extensions_shutdown();
