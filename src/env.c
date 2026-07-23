@@ -780,34 +780,3 @@ int env_permafrozen(Env *env, const char *name) {
     }
     return env_permafrozen_raw(env, name);
 }
-
-/* ================================================================== */
-/*  EnvEntry accessors (operate on already-obtained pointers)          */
-/* ================================================================== */
-
-bool env_entry_initialized(EnvEntry *entry) {
-    if (!entry) {
-        return false;
-    }
-    return entry->initialized;
-}
-
-Value env_entry_value_copy(EnvEntry *entry) {
-    if (!entry) {
-        return value_null();
-    }
-    return value_copy(entry->value);
-}
-
-int env_entry_frozen_state_local(EnvEntry *entry) {
-    if (!entry) {
-        return 0;
-    }
-    if (entry->permafrozen) {
-        return -1;
-    }
-    if (entry->frozen) {
-        return 1;
-    }
-    return 0;
-}
