@@ -1,0 +1,34 @@
+! MATCH() builtin with named MAP using "match" metadata subkey
+! The named MAP template's "match" subkey is ignored by env validation
+! But MATCH() recognizes it for typing/shape/recurse control
+MAP{<"val" = 0d1, "y" = 0d2, "match" = <"typing" = 0d1>>} var
+var = <"val" = 0d42, "y" = 0d99>
+
+! MATCH with typing=1 should succeed (all value types match)
+ASSERT(MATCH(var, <"match" = <"typing" = 0d1>, "val" = 0d99, "y" = 0d88>))
+
+! MATCH with typing=1 should fail (value types mismatch)
+REFUTE(MATCH(var, <"match" = <"typing" = 0d1>, "val" = "str", "y" = 0d88>))
+
+! Named MAP variable without "match" subkey, MATCH with typing=1
+MAP{<"a" = 0d1, "b" = "hi">} var2
+var2 = <"a" = 0d7, "b" = "world">
+ASSERT(MATCH(var2, <"match" = <"typing" = 0d1>, "a" = 0d9, "b" = "x">))
+REFUTE(MATCH(var2, <"match" = <"typing" = 0d1>, "a" = "wrong", "b" = "x">))
+
+! Named MAP with explicit MATCH recurse
+MAP{<"outer" = <"inner" = 0d1>>} var3
+var3 = <"outer" = <"inner" = 0d42>>
+ASSERT(MATCH(var3, <"match" = <"recurse" = 0d1, "typing" = 0d1>, "outer" = <"inner" = 0d1>>))
+REFUTE(MATCH(var3, <"match" = <"recurse" = 0d1, "typing" = 0d1>, "outer" = <"inner" = "str">>))
+
+! Named MAP with MATCH shape check
+MAP{<"t" = [0d1, 0d2]>} var4
+var4 = <"t" = [0d5, 0d6]>
+ASSERT(MATCH(var4, <"match" = <"shape" = 0d1>, "t" = [0d0, 0d0]>))
+REFUTE(MATCH(var4, <"match" = <"shape" = 0d1>, "t" = [0d0]>))
+
+! Named MAP variable that has "match" as a regular key (not metadata)
+MAP{<"match" = "regular", "x" = 0d1>} var5
+var5 = <"match" = "regular", "x" = 0d99>
+ASSERT(MATCH(var5, <"match" = "regular", "x" = 0d1>))

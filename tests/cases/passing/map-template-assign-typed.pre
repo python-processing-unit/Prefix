@@ -1,0 +1,4 @@
+! ASSIGN with typed ident + template
+ASSIGN(MAP{<"count" = 0d0>} cnt, <"count" = 0d99>)
+ASSERT(ISMAP(cnt))
+ASSERT(EQ(cnt<"count">, 0d99))

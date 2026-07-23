@@ -40,6 +40,8 @@ typedef struct NsOp {
     int error_line;
     int error_col;
 
+    Value template; // for DEFINE (MAP template)
+
     // Result fields – filled by the prepare thread after execution
     bool result_ok; // true = success (for bool-returning ops)
     int result_int; // return value  (for int-returning ops)
@@ -115,7 +117,7 @@ void ns_buffer_read_unlock(void);
 // Each function enqueues the operation, blocks until completion, and
 // returns the result.
 
-bool ns_buffer_define(struct Env *env, const char *name, DeclType type, int base);
+bool ns_buffer_define(struct Env *env, const char *name, DeclType type, int base, Value template);
 bool ns_buffer_assign(struct Env *env, const char *name, Value value, DeclType type, int type_base,
                       bool declare_if_missing);
 bool ns_buffer_assign_index(struct Interpreter *interp, struct Env *env, Expr *idx_expr, Value value, int stmt_line,

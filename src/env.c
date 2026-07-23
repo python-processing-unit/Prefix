@@ -55,6 +55,8 @@ static void env_entry_snap_clear(EnvEntry *e) {
         e->alias_target = NULL;
     }
     e->alias_target_env = NULL;
+    value_free(e->template);
+    e->template = value_null();
     value_free(e->value);
     e->value = value_null();
     e->decl_type = TYPE_UNKNOWN;
@@ -86,6 +88,7 @@ static void env_entry_snap_from_raw(EnvEntry *dst, const EnvEntry *src) {
     dst->permafrozen = src->permafrozen;
     dst->alias_target = src->alias_target ? strdup(src->alias_target) : NULL;
     dst->alias_target_env = src->alias_target_env;
+    dst->template = value_alias(src->template);
     dst->value = value_copy(src->value);
 }
 
@@ -145,6 +148,7 @@ void env_free(Env *env) {
     }
     for (size_t i = 0; i < env->count; i++) {
         free(env->entries[i].name);
+        value_free(env->entries[i].template);
         if (env->entries[i].initialized) {
             value_free(env->entries[i].value);
         }
@@ -245,7 +249,7 @@ static int env_permafrozen_raw(Env *env, const char *name) {
 /*  Called by the prepare thread or when the buffer is inactive.       */
 /* ================================================================== */
 
-bool env_define_direct(Env *env, const char *name, DeclType type, int base) {
+bool env_define_direct(Env *env, const char *name, DeclType type, int base, Value template) {
     if (env_find_local(env, name) != NULL) {
         return false;
     }
@@ -262,6 +266,7 @@ bool env_define_direct(Env *env, const char *name, DeclType type, int base) {
     entry->name = strdup(name);
     entry->decl_type = type;
     entry->decl_base = base;
+    entry->template = value_alias(template);
     entry->initialized = false;
     entry->frozen = false;
     entry->permafrozen = false;
@@ -291,6 +296,12 @@ bool env_assign_direct(Env *env, const char *name, Value value, DeclType type, i
                     !decl_type_accepts_value(target->decl_type, target->decl_base, value)) {
                     return false;
                 }
+                // Template check on alias target
+                if (target->decl_type == TYPE_MAP && target->template.type == VAL_MAP && value.type == VAL_MAP) {
+                    if (!value_map_matches(value, target->template)) {
+                        return false;
+                    }
+                }
                 if (target->frozen || target->permafrozen) {
                     return false;
                 }
@@ -316,6 +327,13 @@ bool env_assign_direct(Env *env, const char *name, Value value, DeclType type, i
                 return false;
             }
 
+            // Template check on direct entry
+            if (entry->decl_type == TYPE_MAP && entry->template.type == VAL_MAP && value.type == VAL_MAP) {
+                if (!value_map_matches(value, entry->template)) {
+                    return false;
+                }
+            }
+
             if (entry->initialized) {
                 value_free(entry->value);
             }
@@ -333,7 +351,7 @@ bool env_assign_direct(Env *env, const char *name, Value value, DeclType type, i
     if (!decl_type_accepts_value(type, type_base, value)) {
         return false;
     }
-    if (!env_define_direct(env, name, type, type_base)) {
+    if (!env_define_direct(env, name, type, type_base, value_null())) {
         return false;
     }
     EnvEntry *entry = env_find_local(env, name);
@@ -360,6 +378,8 @@ bool env_delete_direct(Env *env, const char *name) {
                 entry->alias_target = NULL;
                 entry->alias_target_env = NULL;
             }
+            value_free(entry->template);
+            entry->template = value_null();
             entry->initialized = false;
             entry->value = value_null();
             return true;
@@ -417,7 +437,7 @@ bool env_set_alias_direct(Env *env, const char *name, const char *target_name, D
             return false;
         }
         /* create now */
-        if (!env_define_direct(env, name, type, type_base)) {
+        if (!env_define_direct(env, name, type, type_base, value_null())) {
             return false;
         }
         entry = env_find_local(env, name);
@@ -434,6 +454,10 @@ bool env_set_alias_direct(Env *env, const char *name, const char *target_name, D
     /* Overwrite declared type with target's type */
     entry->decl_type = cur->decl_type;
     entry->decl_base = cur->decl_base;
+
+    /* Free template before overwriting */
+    value_free(entry->template);
+    entry->template = value_null();
 
     /* Clear any stored value and set alias */
     if (entry->initialized) {
@@ -503,7 +527,7 @@ bool env_set_alias_cross(Env *env, const char *name, Env *target_env, const char
             return false;
         }
         /* create now */
-        if (!env_define_direct(env, name, type, type_base)) {
+        if (!env_define_direct(env, name, type, type_base, value_null())) {
             return false;
         }
         entry = env_find_local(env, name);
@@ -520,6 +544,10 @@ bool env_set_alias_cross(Env *env, const char *name, Env *target_env, const char
     /* Overwrite declared type with target's type */
     entry->decl_type = cur->decl_type;
     entry->decl_base = cur->decl_base;
+
+    /* Free template before overwriting */
+    value_free(entry->template);
+    entry->template = value_null();
 
     /* Clear any stored value and set alias */
     if (entry->initialized) {
@@ -544,7 +572,7 @@ bool env_restore_local_direct(Env *env, const char *name, Value value, DeclType 
 
     EnvEntry *entry = env_find_local(env, name);
     if (!entry) {
-        if (!env_define_direct(env, name, type, type_base)) {
+        if (!env_define_direct(env, name, type, type_base, value_null())) {
             return false;
         }
         entry = env_find_local(env, name);
@@ -568,6 +596,10 @@ bool env_restore_local_direct(Env *env, const char *name, Value value, DeclType 
         entry->alias_target = NULL;
         entry->alias_target_env = NULL;
     }
+
+    /* Free the template before overwriting */
+    value_free(entry->template);
+    entry->template = value_null();
 
     /* Replace stored value if present */
     if (entry->initialized) {
@@ -630,11 +662,11 @@ int env_permafreeze_direct(Env *env, const char *name) {
 /*  Route through the namespace buffer when active; otherwise direct.  */
 /* ================================================================== */
 
-bool env_define(Env *env, const char *name, DeclType type, int base) {
+bool env_define(Env *env, const char *name, DeclType type, int base, Value template) {
     if (ns_buffer_active() && !ns_buffer_is_prepare_thread()) {
-        return ns_buffer_define(env, name, type, base);
+        return ns_buffer_define(env, name, type, base, template);
     }
-    return env_define_direct(env, name, type, base);
+    return env_define_direct(env, name, type, base, template);
 }
 
 bool env_assign(Env *env, const char *name, Value value, DeclType type, int type_base, bool declare_if_missing) {

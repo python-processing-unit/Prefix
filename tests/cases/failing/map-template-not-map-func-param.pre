@@ -1,0 +1,2 @@
+FUNC MAP func_with_bad_param(MAP{0d1} p) { RETURN(p); }
+func_with_bad_param(<>)

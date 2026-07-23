@@ -1,0 +1,12 @@
+! Named MAP template with "match" key as a regular literal (not metadata MAP)
+! When "match"'s value is a STR (not a MAP), it's treated as a required key
+MAP{<"x" = 0d1, "match" = "literal">} has_literal_match
+! This should pass: "match" = "literal" is a regular required key
+has_literal_match = <"x" = 0d42, "match" = "literal">
+ASSERT(EQ(has_literal_match<"x">, 0d42))
+ASSERT(EQ(has_literal_match<"match">, "literal"))
+
+! Assignment missing the "match" literal key should fail
+MAP{<"y" = 0d1, "match" = "needed">} needs_match
+! This should fail because "match" key is missing
+needs_match = <"y" = 0d99>

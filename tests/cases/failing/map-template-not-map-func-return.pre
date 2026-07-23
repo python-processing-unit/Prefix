@@ -1,0 +1,2 @@
+FUNC MAP{0d1} bad_func() { RETURN(<>); }
+bad_func()

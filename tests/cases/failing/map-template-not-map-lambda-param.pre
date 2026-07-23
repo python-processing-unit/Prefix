@@ -1,0 +1,2 @@
+MAP g = FUNC MAP (MAP{0d1} p) { RETURN(p); }
+g(<>)

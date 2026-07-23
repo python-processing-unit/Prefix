@@ -19,8 +19,10 @@ typedef struct {
 struct Func {
     char *name;
     DeclType return_type;
-    int return_base; // 0 = parent INT/FLT, 2..64 = named base
+    int return_base;             // 0 = parent INT/FLT, 2..64 = named base
+    Value return_template_value; // MAP return template, .type==VAL_NULL if none
     ParamList params;
+    Value *param_template_values; // evaluated MAP templates for each param, NULL if none. length = params.count
     Stmt *body;
     Env *closure;
 };

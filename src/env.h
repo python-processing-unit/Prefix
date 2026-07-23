@@ -9,7 +9,8 @@ typedef struct Env Env;
 typedef struct EnvEntry {
     char *name;
     DeclType decl_type;
-    int decl_base; // 0 = parent INT/FLT, 2..64 = named base
+    int decl_base;  // 0 = parent INT/FLT, 2..64 = named base
+    Value template; // NEW: MAP template value, .type==VAL_NULL if none
     Value value;
     bool initialized;
     bool frozen;
@@ -34,7 +35,7 @@ Env *env_create(Env *parent);
 void env_retain(Env *env);
 void env_free(Env *env);
 
-bool env_define(Env *env, const char *name, DeclType type, int base);
+bool env_define(Env *env, const char *name, DeclType type, int base, Value template);
 bool env_assign(Env *env, const char *name, Value value, DeclType type, int type_base, bool declare_if_missing);
 bool env_get(Env *env, const char *name, Value *out_value, DeclType *out_type, int *out_base, bool *out_initialized);
 bool env_delete(Env *env, const char *name);
@@ -81,7 +82,7 @@ int env_permafrozen(Env *env, const char *name);
 // env.c / ns_buffer.c.  Public callers should use the non-_direct
 // versions above, which route through the write buffer when active.
 
-bool env_define_direct(Env *env, const char *name, DeclType type, int base);
+bool env_define_direct(Env *env, const char *name, DeclType type, int base, Value template);
 bool env_assign_direct(Env *env, const char *name, Value value, DeclType type, int type_base, bool declare_if_missing);
 bool env_delete_direct(Env *env, const char *name);
 bool env_set_alias_direct(Env *env, const char *name, const char *target_name, DeclType type, int type_base,

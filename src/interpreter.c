@@ -177,7 +177,7 @@ static bool bind_self_for_map_call(Interpreter *interp, Expr *target_expr, Env *
         }
 
         if (raw_entry && raw_entry->alias_target && base_val.type == VAL_MAP) {
-            env_define(call_env, "SELF", TYPE_MAP, 0);
+            env_define(call_env, "SELF", TYPE_MAP, 0, value_null());
             if (!env_set_alias_cross(call_env, "SELF",
                                      raw_entry->alias_target_env ? raw_entry->alias_target_env : caller_env,
                                      raw_entry->alias_target, TYPE_MAP, 0, true)) {
@@ -200,7 +200,7 @@ static bool bind_self_for_map_call(Interpreter *interp, Expr *target_expr, Env *
             return true;
         }
 
-        env_define(call_env, "SELF", TYPE_MAP, 0);
+        env_define(call_env, "SELF", TYPE_MAP, 0, value_null());
         if (!env_assign(call_env, "SELF", base_val, TYPE_MAP, 0, true)) {
             value_free(base_val);
             if (interp->error) {
@@ -225,7 +225,7 @@ static bool bind_self_for_map_call(Interpreter *interp, Expr *target_expr, Env *
         return true;
     }
 
-    env_define(call_env, "SELF", TYPE_MAP, 0);
+    env_define(call_env, "SELF", TYPE_MAP, 0, value_null());
     if (!env_assign(call_env, "SELF", base_val, TYPE_MAP, 0, true)) {
         value_free(base_val);
         if (interp->error) {
@@ -526,7 +526,7 @@ static int parfor_merge_iteration_env(ParforStart *start, char **merge_error) {
         }
 
         if (!env_get_entry(parent_env, entry->name)) {
-            env_define(parent_env, entry->name, entry->decl_type, entry->decl_base);
+            env_define(parent_env, entry->name, entry->decl_type, entry->decl_base, value_null());
 
             if (entry->initialized) {
                 Value merged = value_copy(entry->value);
@@ -666,12 +666,14 @@ static void *safe_malloc(size_t size) {
     return ptr;
 }
 
-static Func *create_runtime_function(const char *name, DeclType return_type, int return_base, ParamList *src_params,
+static Func *create_runtime_function(const char *name, DeclType return_type, int return_base,
+                                     Value return_template_value, ParamList *src_params, Value *param_template_values,
                                      Stmt *body, Env *closure) {
     Func *f = safe_malloc(sizeof(Func));
     f->name = name ? strdup(name) : NULL;
     f->return_type = return_type;
     f->return_base = return_base;
+    f->return_template_value = value_alias(return_template_value);
     f->body = body;
     f->params.count = src_params ? src_params->count : 0;
     f->params.items = NULL;
@@ -684,6 +686,14 @@ static Func *create_runtime_function(const char *name, DeclType return_type, int
             f->params.items[i].name = strdup(src_params->items[i].name);
             f->params.items[i].coerced = src_params->items[i].coerced;
             f->params.items[i].default_value = src_params->items[i].default_value;
+            f->params.items[i].template_expr = NULL;
+        }
+    }
+    f->param_template_values = NULL;
+    if (param_template_values && src_params && src_params->count > 0) {
+        f->param_template_values = safe_malloc(sizeof(Value) * src_params->count);
+        for (size_t i = 0; i < src_params->count; i++) {
+            f->param_template_values[i] = value_alias(param_template_values[i]);
         }
     }
     f->closure = closure;
@@ -697,6 +707,13 @@ static void free_runtime_function(Func *f) {
     }
     if (f->name) {
         free(f->name);
+    }
+    value_free(f->return_template_value);
+    if (f->param_template_values) {
+        for (size_t i = 0; i < f->params.count; i++) {
+            value_free(f->param_template_values[i]);
+        }
+        free(f->param_template_values);
     }
     for (size_t i = 0; i < f->params.count; i++) {
         free(f->params.items[i].name);
@@ -1322,8 +1339,63 @@ Value eval_expr(Interpreter *interp, Expr *expr, Env *env) {
             }
         }
 
-        Func *f = create_runtime_function(NULL, expr->as.lambda.return_type, expr->as.lambda.return_base,
-                                          &expr->as.lambda.params, expr->as.lambda.body, env);
+        // Evaluate return template and param templates
+        Value ret_tmpl = value_null();
+        if (expr->as.lambda.return_template_expr) {
+            ret_tmpl = eval_expr(interp, expr->as.lambda.return_template_expr, env);
+            if (interp->error) {
+                value_free(ret_tmpl);
+                return value_null();
+            }
+            if (ret_tmpl.type != VAL_MAP) {
+                interp->error = strdup("MAP template must evaluate to a MAP");
+                interp->error_line = expr->line;
+                interp->error_col = expr->column;
+                value_free(ret_tmpl);
+                return value_null();
+            }
+        }
+        size_t nparams = expr->as.lambda.params.count;
+        Value *param_templates = NULL;
+        if (nparams > 0) {
+            param_templates = safe_malloc(sizeof(Value) * nparams);
+            for (size_t pi = 0; pi < nparams; pi++) {
+                param_templates[pi] = value_null();
+                Param *p = &expr->as.lambda.params.items[pi];
+                if (p->template_expr) {
+                    param_templates[pi] = eval_expr(interp, p->template_expr, env);
+                    if (interp->error) {
+                        value_free(ret_tmpl);
+                        for (size_t j = 0; j <= pi; j++) {
+                            value_free(param_templates[j]);
+                        }
+                        free(param_templates);
+                        return value_null();
+                    }
+                    if (param_templates[pi].type != VAL_MAP) {
+                        interp->error = strdup("MAP template must evaluate to a MAP");
+                        interp->error_line = p->template_expr->line;
+                        interp->error_col = p->template_expr->column;
+                        value_free(ret_tmpl);
+                        for (size_t j = 0; j <= pi; j++) {
+                            value_free(param_templates[j]);
+                        }
+                        free(param_templates);
+                        return value_null();
+                    }
+                }
+            }
+        }
+
+        Func *f = create_runtime_function(NULL, expr->as.lambda.return_type, expr->as.lambda.return_base, ret_tmpl,
+                                          &expr->as.lambda.params, param_templates, expr->as.lambda.body, env);
+        value_free(ret_tmpl);
+        if (param_templates) {
+            for (size_t pi = 0; pi < nparams; pi++) {
+                value_free(param_templates[pi]);
+            }
+            free(param_templates);
+        }
         return value_func(f);
     }
 
@@ -1917,7 +1989,35 @@ Value eval_expr(Interpreter *interp, Expr *expr, Env *env) {
                 return value_null();
             }
 
-            env_define(call_env, param->name, param->type, param->num_base);
+            // Template check for MAP-typed params
+            if (param->type == TYPE_MAP && user_func->param_template_values &&
+                user_func->param_template_values[i].type == VAL_MAP && bind_val.type == VAL_MAP) {
+                if (!value_map_matches(bind_val, user_func->param_template_values[i])) {
+                    char buf[128];
+                    snprintf(buf, sizeof(buf), "Template mismatch for parameter '%s'", param->name);
+                    interp->error = strdup(buf);
+                    interp->error_line = expr->line;
+                    interp->error_col = expr->column;
+                    if (used_coercion) {
+                        value_free(bind_val);
+                    }
+                    if (arg_from_pos < 0 && arg_from_kw < 0) {
+                        value_free(arg_val);
+                    }
+                    for (int t = 0; t < pos_argc; t++) {
+                        value_free(pos_vals[t]);
+                    }
+                    free(pos_vals);
+                    for (int t = 0; t < kwc; t++) {
+                        value_free(kw_vals[t]);
+                    }
+                    free(kw_vals);
+                    env_free(call_env);
+                    return value_null();
+                }
+            }
+
+            env_define(call_env, param->name, param->type, param->num_base, value_null());
             if (!env_assign(call_env, param->name, bind_val, param->type, param->num_base, true)) {
                 char buf[256];
                 snprintf(buf, sizeof(buf), "Cannot assign to frozen identifier '%s'", param->name);
@@ -2051,6 +2151,20 @@ Value eval_expr(Interpreter *interp, Expr *expr, Env *env) {
                 interp->error_col = expr->column;
                 value_free(res.value);
                 return value_null();
+            }
+            // Template check on return value
+            if (user_func->return_type == TYPE_MAP && user_func->return_template_value.type == VAL_MAP &&
+                res.value.type == VAL_MAP) {
+                if (!value_map_matches(res.value, user_func->return_template_value)) {
+                    char buf[128];
+                    snprintf(buf, sizeof(buf), "Return template mismatch in function '%s'",
+                             user_func->name ? user_func->name : "<lambda>");
+                    interp->error = strdup(buf);
+                    interp->error_line = expr->line;
+                    interp->error_col = expr->column;
+                    value_free(res.value);
+                    return value_null();
+                }
             }
             trace_pop_frame(interp);
             return res.value;
@@ -3050,7 +3164,22 @@ static ExecResult exec_stmt(Interpreter *interp, Stmt *stmt, Env *env, LabelMap 
             if (!interp->isolate_env_writes && env->parent) {
                 decl_env = env->parent;
             }
-            env_define(decl_env, stmt->as.decl.name, stmt->as.decl.decl_type, stmt->as.decl.decl_base);
+            Value tmpl = value_null();
+            if (stmt->as.decl.template_expr) {
+                tmpl = eval_expr(interp, stmt->as.decl.template_expr, env);
+                if (interp->error) {
+                    ExecResult err = make_error(interp->error, interp->error_line, interp->error_col);
+                    clear_error(interp);
+                    value_free(tmpl);
+                    return err;
+                }
+                if (tmpl.type != VAL_MAP) {
+                    value_free(tmpl);
+                    return make_error("MAP template must evaluate to a MAP", stmt->line, stmt->column);
+                }
+            }
+            env_define(decl_env, stmt->as.decl.name, stmt->as.decl.decl_type, stmt->as.decl.decl_base, tmpl);
+            value_free(tmpl);
             return make_ok(value_null());
         }
 
@@ -3165,19 +3294,43 @@ static ExecResult exec_stmt(Interpreter *interp, Stmt *stmt, Env *env, LabelMap 
                 assign_env = env->parent;
             }
             if (!existing) {
-                env_define(assign_env, stmt->as.assign.name, expected, expected_base);
+                Value tmpl = value_null();
+                if (stmt->as.assign.template_expr) {
+                    tmpl = eval_expr(interp, stmt->as.assign.template_expr, env);
+                    if (interp->error) {
+                        ExecResult err = make_error(interp->error, interp->error_line, interp->error_col);
+                        clear_error(interp);
+                        value_free(v);
+                        value_free(tmpl);
+                        return err;
+                    }
+                    if (tmpl.type != VAL_MAP) {
+                        value_free(v);
+                        value_free(tmpl);
+                        return make_error("MAP template must evaluate to a MAP", stmt->line, stmt->column);
+                    }
+                }
+                env_define(assign_env, stmt->as.assign.name, expected, expected_base, tmpl);
+                value_free(tmpl);
             }
             if (!env_assign(assign_env, stmt->as.assign.name, v, expected, expected_base, true)) {
                 EnvEntry *echeck = env_get_entry(assign_env, stmt->as.assign.name);
-                if (echeck && !decl_type_accepts_value(echeck->decl_type, echeck->decl_base, v)) {
-                    char buf[128];
-                    char exp_buf[32];
-                    decl_type_name_base(echeck->decl_type, echeck->decl_base, exp_buf, sizeof(exp_buf));
-                    snprintf(buf, sizeof(buf), "Type mismatch: expected %s but got %s", exp_buf, value_type_name(v));
-                    value_free(v);
-                    return make_error(buf, stmt->line, stmt->column);
-                }
                 char buf[256];
+                if (echeck) {
+                    if (!decl_type_accepts_value(echeck->decl_type, echeck->decl_base, v)) {
+                        char exp_buf[32];
+                        decl_type_name_base(echeck->decl_type, echeck->decl_base, exp_buf, sizeof(exp_buf));
+                        snprintf(buf, sizeof(buf), "Type mismatch: expected %s but got %s", exp_buf,
+                                 value_type_name(v));
+                        value_free(v);
+                        return make_error(buf, stmt->line, stmt->column);
+                    }
+                    if (echeck->decl_type == TYPE_MAP && echeck->template.type == VAL_MAP && v.type == VAL_MAP) {
+                        snprintf(buf, sizeof(buf), "Map template mismatch for variable '%s'", stmt->as.assign.name);
+                        value_free(v);
+                        return make_error(buf, stmt->line, stmt->column);
+                    }
+                }
                 snprintf(buf, sizeof(buf), "Cannot assign to frozen identifier '%s'", stmt->as.assign.name);
                 value_free(v);
                 return make_error(buf, stmt->line, stmt->column);
@@ -3191,6 +3344,12 @@ static ExecResult exec_stmt(Interpreter *interp, Stmt *stmt, Env *env, LabelMap 
                         char buf[128];
                         snprintf(buf, sizeof(buf), "Type mismatch: expected %s but got %s",
                                  decl_type_name(echeck->decl_type), value_type_name(v));
+                        value_free(v);
+                        return make_error(buf, stmt->line, stmt->column);
+                    }
+                    if (echeck->decl_type == TYPE_MAP && echeck->template.type == VAL_MAP && v.type == VAL_MAP) {
+                        char buf[256];
+                        snprintf(buf, sizeof(buf), "Map template mismatch for variable '%s'", stmt->as.assign.name);
                         value_free(v);
                         return make_error(buf, stmt->line, stmt->column);
                     }
@@ -3239,9 +3398,61 @@ static ExecResult exec_stmt(Interpreter *interp, Stmt *stmt, Env *env, LabelMap 
         }
 
         // Register user-defined function in the interpreter
+        Value ret_tmpl = value_null();
+        if (stmt->as.func_stmt.return_template_expr) {
+            ret_tmpl = eval_expr(interp, stmt->as.func_stmt.return_template_expr, env);
+            if (interp->error) {
+                ExecResult err = make_error(interp->error, interp->error_line, interp->error_col);
+                clear_error(interp);
+                value_free(ret_tmpl);
+                return err;
+            }
+            if (ret_tmpl.type != VAL_MAP) {
+                value_free(ret_tmpl);
+                return make_error("MAP template must evaluate to a MAP", stmt->line, stmt->column);
+            }
+        }
+        size_t nparams = stmt->as.func_stmt.params.count;
+        Value *param_templates = NULL;
+        if (nparams > 0) {
+            param_templates = safe_malloc(sizeof(Value) * nparams);
+            for (size_t pi = 0; pi < nparams; pi++) {
+                param_templates[pi] = value_null();
+                Param *p = &stmt->as.func_stmt.params.items[pi];
+                if (p->template_expr) {
+                    param_templates[pi] = eval_expr(interp, p->template_expr, env);
+                    if (interp->error) {
+                        ExecResult err = make_error(interp->error, interp->error_line, interp->error_col);
+                        clear_error(interp);
+                        value_free(ret_tmpl);
+                        for (size_t j = 0; j <= pi; j++) {
+                            value_free(param_templates[j]);
+                        }
+                        free(param_templates);
+                        return err;
+                    }
+                    if (param_templates[pi].type != VAL_MAP) {
+                        value_free(ret_tmpl);
+                        for (size_t j = 0; j <= pi; j++) {
+                            value_free(param_templates[j]);
+                        }
+                        free(param_templates);
+                        return make_error("MAP template must evaluate to a MAP", p->template_expr->line,
+                                          p->template_expr->column);
+                    }
+                }
+            }
+        }
         Func *f = create_runtime_function(stmt->as.func_stmt.name, stmt->as.func_stmt.return_type,
-                                          stmt->as.func_stmt.return_base, &stmt->as.func_stmt.params,
-                                          stmt->as.func_stmt.body, env);
+                                          stmt->as.func_stmt.return_base, ret_tmpl, &stmt->as.func_stmt.params,
+                                          param_templates, stmt->as.func_stmt.body, env);
+        value_free(ret_tmpl);
+        if (param_templates) {
+            for (size_t pi = 0; pi < nparams; pi++) {
+                value_free(param_templates[pi]);
+            }
+            free(param_templates);
+        }
 
         if (builtin_lookup(f->name)) {
             free_runtime_function(f);
@@ -3379,7 +3590,7 @@ static ExecResult exec_stmt(Interpreter *interp, Stmt *stmt, Env *env, LabelMap 
                 if (stmt->as.try_stmt.catch_name) {
                     child_env = env_create(env);
                     exec_env = child_env;
-                    if (!env_define(exec_env, stmt->as.try_stmt.catch_name, TYPE_STR, 0)) {
+                    if (!env_define(exec_env, stmt->as.try_stmt.catch_name, TYPE_STR, 0, value_null())) {
                         free(msg);
                         env_free(child_env);
                         return make_error("Cannot bind catch name (frozen or existing)", stmt->line, stmt->column);
@@ -3734,16 +3945,16 @@ static ExecResult exec_stmt(Interpreter *interp, Stmt *stmt, Env *env, LabelMap 
 
         /* Detect whether a local binding already exists (trial define) */
         bool local_existed = true;
-        if (env_define(env, stmt->as.for_stmt.counter, TYPE_INT, 0)) {
+        if (env_define(env, stmt->as.for_stmt.counter, TYPE_INT, 0, value_null())) {
             /* no local existed; clean up the probe */
             env_delete(env, stmt->as.for_stmt.counter);
             local_existed = false;
         }
 
         /* Create the temporary target binding */
-        if (!env_define(env, temp_name, TYPE_INT, 0)) {
+        if (!env_define(env, temp_name, TYPE_INT, 0, value_null())) {
             int retries = 0;
-            while (retries < 1000 && !env_define(env, temp_name, TYPE_INT, 0)) {
+            while (retries < 1000 && !env_define(env, temp_name, TYPE_INT, 0, value_null())) {
                 my_temp_id = ++g_for_temp_id;
                 snprintf(temp_name, sizeof(temp_name), "__for_cnt_%d_%d_%d", my_temp_id, stmt->line, stmt->column);
                 retries++;
@@ -3960,7 +4171,7 @@ static ExecResult exec_stmt(Interpreter *interp, Stmt *stmt, Env *env, LabelMap 
             int64_t idx = (int64_t)i + 1; /* iterations are 1-based */
             /* Always define the counter locally so it shadows any
                same-named binding in a parent env. */
-            env_define(thread_env, stmt->as.parfor_stmt.counter, TYPE_INT, 0);
+            env_define(thread_env, stmt->as.parfor_stmt.counter, TYPE_INT, 0, value_null());
             if (!env_assign(thread_env, stmt->as.parfor_stmt.counter, value_int(idx), TYPE_INT, 0, false)) {
                 char buf[256];
                 snprintf(buf, sizeof(buf), "Cannot assign to frozen identifier '%s'", stmt->as.parfor_stmt.counter);
