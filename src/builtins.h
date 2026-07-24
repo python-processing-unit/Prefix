@@ -39,4 +39,6 @@ int builtins_register_operator(const char *name, BuiltinImplFn impl, int min_arg
 // Remove all runtime-registered operators.
 void builtins_reset_dynamic(void);
 
+const char *decl_type_name(DeclType dt);
+
 #endif // BUILTINS_H

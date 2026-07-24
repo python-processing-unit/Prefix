@@ -1041,31 +1041,6 @@ int value_truthiness(Value v) {
     }
 }
 
-// ============ Type conversion helpers ============
-
-static const char *decl_type_name(DeclType dt) {
-    switch (dt) {
-    case TYPE_BOOL:
-        return "BOOL";
-    case TYPE_INT:
-        return "INT";
-    case TYPE_FLT:
-        return "FLT";
-    case TYPE_STR:
-        return "STR";
-    case TYPE_TNS:
-        return "TNS";
-    case TYPE_MAP:
-        return "MAP";
-    case TYPE_FUNC:
-        return "FUNC";
-    case TYPE_THR:
-        return "THR";
-    default:
-        return "UNKNOWN";
-    }
-}
-
 /* `decl_type_to_value` removed: inverse mapping was unused. */
 
 static Value value_with_base(Value v, int base) {
