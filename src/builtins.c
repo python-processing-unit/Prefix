@@ -1258,7 +1258,7 @@ static void jb_append_json_string(JsonBuf *jb, const char *s) {
     jb_append_char(jb, '"');
 }
 
-static const char *decl_type_name(DeclType dt) {
+const char *decl_type_name(DeclType dt) {
     switch (dt) {
     case TYPE_BOOL:
         return "BOOL";
