@@ -74,37 +74,6 @@ static int buf_append(char **buf, size_t *len, size_t *cap, const char *s) {
     return 0;
 }
 
-static char *read_line_dynamic(FILE *in) {
-    if (!in) {
-        return NULL;
-    }
-    char *line = NULL;
-    size_t len = 0;
-    size_t cap = 0;
-    char chunk[512];
-
-    while (fgets(chunk, sizeof(chunk), in)) {
-        if (buf_append(&line, &len, &cap, chunk) != 0) {
-            free(line);
-            return NULL;
-        }
-        size_t n = strlen(chunk);
-        if (n > 0 && chunk[n - 1] == '\n') {
-            break;
-        }
-    }
-
-    if (len == 0 && feof(in)) {
-        free(line);
-        return NULL;
-    }
-
-    if (!line) {
-        line = strdup("");
-    }
-    return line;
-}
-
 static int is_exit_meta_command(const char *text) {
     if (!text) {
         return 0;
@@ -199,7 +168,29 @@ static int run_repl(int verbose, int private_flag) {
         fputs(in_continuation ? "\x1b[38;2;153;221;255m..>\033[0m " : "\x1b[38;2;153;221;255m>>>\033[0m ", stdout);
         fflush(stdout);
 
-        char *line = read_line_dynamic(stdin);
+        char *line = NULL;
+        {
+            size_t rllen = 0;
+            size_t rlcap = 0;
+            char chunk[512];
+            while (fgets(chunk, sizeof(chunk), stdin)) {
+                if (buf_append(&line, &rllen, &rlcap, chunk) != 0) {
+                    free(line);
+                    line = NULL;
+                    break;
+                }
+                size_t n = strlen(chunk);
+                if (n > 0 && chunk[n - 1] == '\n') {
+                    break;
+                }
+            }
+            if (rllen == 0 && feof(stdin)) {
+                free(line);
+                line = NULL;
+            } else if (!line) {
+                line = strdup("");
+            }
+        }
         int eof = (line == NULL);
 
         if (!eof) {
