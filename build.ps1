@@ -204,7 +204,7 @@ try {
         $extName = [System.IO.Path]::GetFileNameWithoutExtension($extSourcePath)
         $extOutName = "$extName$extSuffix"
         $extDest = Join-Path $extSource.DirectoryName $extOutName
-        $extBuildDir = Join-Path $buildDir ("ext-" + [guid]::NewGuid().ToString("N"))
+        $extBuildDir = Join-Path $buildDir "ext-$extName"
 
         New-Item -ItemType Directory -Path $extBuildDir -Force | Out-Null
         Push-Location $extBuildDir
