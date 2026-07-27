@@ -32,6 +32,7 @@ typedef struct Env {
 } Env;
 
 Env *env_create(Env *parent);
+// Kept to make extension development easier.
 void env_retain(Env *env);
 void env_free(Env *env);
 
@@ -39,6 +40,7 @@ bool env_define(Env *env, const char *name, DeclType type, int base, Value templ
 bool env_assign(Env *env, const char *name, Value value, DeclType type, int type_base, bool declare_if_missing);
 bool env_get(Env *env, const char *name, Value *out_value, DeclType *out_type, int *out_base, bool *out_initialized);
 bool env_delete(Env *env, const char *name);
+// Kept to make extension development easier.
 bool env_exists(Env *env, const char *name);
 // Return a per-thread snapshot of the EnvEntry for the given name, searching parents.
 // The snapshot is safe to read after the function returns even when the
@@ -59,14 +61,19 @@ bool env_set_alias_cross(Env *env, const char *name, Env *target_env, const char
 
 // Symbol freezing API
 // Returns 0 on success, -1 if the identifier was not found.
+// Kept to make extension development easier.
 int env_freeze(Env *env, const char *name);
 // Returns 0 on success, -1 if not found, -2 if identifier is permanently frozen
+// Kept to make extension development easier.
 int env_thaw(Env *env, const char *name);
 // Returns 0 on success, -1 if not found
+// Kept to make extension development easier.
 int env_permafreeze(Env *env, const char *name);
 // Returns -1 if permanently frozen, 1 if frozen, 0 if not frozen or not found
+// Kept to make extension development easier.
 int env_frozen_state(Env *env, const char *name);
 // Returns 1 if permanently frozen, 0 otherwise (or not found)
+// Kept to make extension development easier.
 int env_permafrozen(Env *env, const char *name);
 
 // ---- Direct (unbuffered) entry points used by the namespace buffer ----
