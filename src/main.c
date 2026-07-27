@@ -19,8 +19,10 @@ static int is_extension_arg(const char *arg) {
     if (!arg) {
         return 0;
     }
-    return ends_with_case_insensitive(arg, ".dll") || ends_with_case_insensitive(arg, ".so") ||
-           ends_with_case_insensitive(arg, ".dylib");
+    size_t alen = strlen(arg);
+    return (alen >= 4 && prefix_stricmp(arg + alen - 4, ".dll") == 0) ||
+           (alen >= 3 && prefix_stricmp(arg + alen - 3, ".so") == 0) ||
+           (alen >= 6 && prefix_stricmp(arg + alen - 6, ".dylib") == 0);
 }
 
 static char *path_dirname_dup(const char *path) {
