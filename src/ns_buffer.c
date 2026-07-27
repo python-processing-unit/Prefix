@@ -430,20 +430,13 @@ bool ns_buffer_assign(struct Env *env, const char *name, Value value, DeclType t
     return r;
 }
 
-static const char *ns_index_base_name(Expr *idx_expr) {
-    Expr *walker = idx_expr;
-    while (walker && walker->type == EXPR_INDEX) {
-        walker = walker->as.index.target;
-    }
-    if (!walker || walker->type != EXPR_IDENT) {
-        return NULL;
-    }
-    return walker->as.ident;
-}
-
 bool ns_buffer_assign_index(struct Interpreter *interp, struct Env *env, Expr *idx_expr, Value value, int stmt_line,
                             int stmt_col, char **out_error, int *out_line, int *out_col) {
-    const char *base_name = ns_index_base_name(idx_expr);
+    Expr *base_walker = idx_expr;
+    while (base_walker && base_walker->type == EXPR_INDEX) {
+        base_walker = base_walker->as.index.target;
+    }
+    const char *base_name = (!base_walker || base_walker->type != EXPR_IDENT) ? NULL : base_walker->as.ident;
     if (out_error) {
         *out_error = NULL;
     }
