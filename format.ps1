@@ -33,31 +33,10 @@ if (-not $clangTidy) {
     exit 1
 }
 
-# Determine clang-tidy checks to use. Priority:
-# 1) CLANG_TIDY_CHECKS env var
-# 2) repo .clang-tidy file (let clang-tidy find it)
-# 3) fix-oriented default checks that stay quiet unless they can rewrite code
-$repoTidyFile = Join-Path $scriptDir ".clang-tidy"
-$clangTidyChecks = $env:CLANG_TIDY_CHECKS
-if (-not $clangTidyChecks) {
-    if (-not (Test-Path $repoTidyFile)) {
-        # Default to checks that usually provide mechanical fixes instead of
-        # flooding the run with non-actionable audit diagnostics.
-        $clangTidyChecks = "readability-braces-around-statements,readability-isolate-declaration,readability-redundant-control-flow"
-    } else {
-        $clangTidyChecks = ""
-    }
-}
-$repoClangFormat = Join-Path $scriptDir ".clang-format"
-# If repo provides a .clang-format, prefer it; otherwise use an inline
-# style that enforces four-space indents and no tabs.
-if (Test-Path $repoClangFormat) {
-    $clangFormatStyle = "file"
-    $clangTidyFormatArg = "-format-style=file"
-} else {
-    $clangFormatStyle = "{BasedOnStyle: LLVM, IndentWidth: 4, UseTab: Never, ColumnLimit: 120}"
-    $clangTidyFormatArg = "-format-style=$clangFormatStyle"
-}
+# clang-tidy checks: fix-oriented defaults that stay quiet unless they can rewrite code.
+$clangTidyChecks = "readability-braces-around-statements,readability-isolate-declaration,readability-redundant-control-flow"
+$clangFormatStyle = "{BasedOnStyle: LLVM, IndentWidth: 4, UseTab: Never, ColumnLimit: 120}"
+$clangTidyFormatArg = "-format-style=$clangFormatStyle"
 $roots = @(
     (Join-Path $scriptDir "src"),
     (Join-Path $scriptDir "ext"),
