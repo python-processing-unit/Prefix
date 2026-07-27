@@ -21,13 +21,6 @@
 #define prefix_stricmp strcasecmp
 #endif
 
-static inline int ends_with_case_insensitive(const char *s, const char *suffix) {
-    if (!s || !suffix)
-        return 0;
-    size_t ls = strlen(s), lf = strlen(suffix);
-    return lf <= ls && prefix_stricmp(s + (ls - lf), suffix) == 0;
-}
-
 static inline char *prefix_fullpath_dup(const char *path) {
     if (!path || path[0] == '\0') {
         return NULL;

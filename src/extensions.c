@@ -129,8 +129,13 @@ static const char *platform_dynlib_suffix(void) {
 }
 
 static int has_dynlib_suffix(const char *path) {
-    return ends_with_case_insensitive(path, ".dll") || ends_with_case_insensitive(path, ".so") ||
-           ends_with_case_insensitive(path, ".dylib");
+    if (!path) {
+        return 0;
+    }
+    size_t plen = strlen(path);
+    return (plen >= 4 && prefix_stricmp(path + plen - 4, ".dll") == 0) ||
+           (plen >= 3 && prefix_stricmp(path + plen - 3, ".so") == 0) ||
+           (plen >= 6 && prefix_stricmp(path + plen - 6, ".dylib") == 0);
 }
 
 static char *path_join2(const char *a, const char *b) {
