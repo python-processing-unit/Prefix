@@ -75,28 +75,15 @@ static int module_export_bindings(Interpreter *interp, Env *caller_env, Env *mod
         }                                                                                                              \
     } while (0)
 
-static bool writeback_first_ptr(Interpreter *interp, Expr **arg_nodes, Env *env, Value result, const char *rule,
-                                int line, int col) {
-    if (!arg_nodes || !arg_nodes[0]) {
-        return true;
-    }
-    if (arg_nodes[0]->type != EXPR_PTR) {
-        return true;
-    }
-    const char *name = arg_nodes[0]->as.ptr_name;
+static bool writeback_ptr_name(Interpreter *interp, const char *name, Env *env, Value result, const char *rule,
+                               int line, int col) {
     if (!name) {
         interp->error = strdup("Invalid pointer target");
         interp->error_line = line;
         interp->error_col = col;
         return false;
     }
-    /*
-     * If this interpreter is running with isolated env writes (PARFOR
-     * worker), ensure we create a local binding in the per-iteration
-     * environment so writeback does not mutate parent bindings directly.
-     */
     if (interp && interp->isolate_env_writes && env && env->parent) {
-        /* create a local declaration if absent (use inferred decl type) */
         bool local_found = false;
         if (env->entries) {
             for (size_t _i = 0; _i < env->count; _i++) {
@@ -108,11 +95,6 @@ static bool writeback_first_ptr(Interpreter *interp, Expr **arg_nodes, Env *env,
             }
         }
         if (!local_found) {
-            /* best-effort: create a local (implicit) declaration to shadow parent.
-             * Use TYPE_UNKNOWN for implicit builtins-created bindings so the PARFOR
-             * merge step can distinguish explicit declarations (non-UNKNOWN)
-             * from these ephemeral locals and skip merging them back.
-             */
             if (!env_define(env, name, TYPE_UNKNOWN, 0, value_null())) {
                 char buf[128];
                 snprintf(buf, sizeof(buf), "%s writeback failed", rule);
@@ -134,56 +116,23 @@ static bool writeback_first_ptr(Interpreter *interp, Expr **arg_nodes, Env *env,
     return true;
 }
 
+static bool writeback_first_ptr(Interpreter *interp, Expr **arg_nodes, Env *env, Value result, const char *rule,
+                                int line, int col) {
+    if (!arg_nodes || !arg_nodes[0]) {
+        return true;
+    }
+    if (arg_nodes[0]->type != EXPR_PTR) {
+        return true;
+    }
+    return writeback_ptr_name(interp, arg_nodes[0]->as.ptr_name, env, result, rule, line, col);
+}
+
 static bool writeback_ptr_node(Interpreter *interp, Expr *node, Env *env, Value result, const char *rule, int line,
                                int col) {
     if (!node || node->type != EXPR_PTR) {
         return true;
     }
-    const char *name = node->as.ptr_name;
-    if (!name) {
-        interp->error = strdup("Invalid pointer target");
-        interp->error_line = line;
-        interp->error_col = col;
-        return false;
-    }
-    /* See comment in writeback_first_ptr: create a local binding for
-     * isolated-per-iteration environments so parent bindings are not
-     * modified directly by concurrent iterations.
-     */
-    if (interp && interp->isolate_env_writes && env && env->parent) {
-        bool local_found = false;
-        if (env->entries) {
-            for (size_t _i = 0; _i < env->count; _i++) {
-                EnvEntry *_e = &env->entries[_i];
-                if (_e->name && strcmp(_e->name, name) == 0) {
-                    local_found = true;
-                    break;
-                }
-            }
-        }
-        if (!local_found) {
-            /* Create an implicit local entry (TYPE_UNKNOWN) so iterations
-             * can write to a per-iteration copy without affecting parent.
-             */
-            if (!env_define(env, name, TYPE_UNKNOWN, 0, value_null())) {
-                char buf[128];
-                snprintf(buf, sizeof(buf), "%s writeback failed", rule);
-                interp->error = strdup(buf);
-                interp->error_line = line;
-                interp->error_col = col;
-                return false;
-            }
-        }
-    }
-    if (!env_assign(env, name, result, TYPE_UNKNOWN, 0, false)) {
-        char buf[128];
-        snprintf(buf, sizeof(buf), "%s writeback failed", rule);
-        interp->error = strdup(buf);
-        interp->error_line = line;
-        interp->error_col = col;
-        return false;
-    }
-    return true;
+    return writeback_ptr_name(interp, node->as.ptr_name, env, result, rule, line, col);
 }
 
 static bool writeback_ptr_range(Interpreter *interp, Expr **arg_nodes, Env *env, int start_index, int end_index,
