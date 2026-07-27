@@ -7515,6 +7515,11 @@ static Value builtin_input(Interpreter *interp, Value *args, int argc, Expr **ar
     char buf[4096];
     if (fgets(buf, sizeof(buf), stdin) != NULL) {
         size_t len = strlen(buf);
+        if (len >= 3 && (unsigned char)buf[0] == 0xEF && (unsigned char)buf[1] == 0xBB &&
+            (unsigned char)buf[2] == 0xBF) {
+            memmove(buf, buf + 3, len - 2);
+            len -= 3;
+        }
         if (len > 0 && buf[len - 1] == '\n') {
             buf[len - 1] = '\0';
         }

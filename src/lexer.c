@@ -88,6 +88,11 @@ void lexer_init(Lexer *lexer, const char *source, const char *filename) {
     lexer->current = 0;
     lexer->line = 1;
     lexer->column = 1;
+    if (lexer->source_len >= 3 && (unsigned char)lexer->source[0] == 0xEF && (unsigned char)lexer->source[1] == 0xBB &&
+        (unsigned char)lexer->source[2] == 0xBF) {
+        lexer->source += 3;
+        lexer->source_len -= 3;
+    }
 }
 
 char *lexer_get_line(Lexer *lexer, int line_num) {
