@@ -77,17 +77,16 @@ if ($runtimeSources.Count -eq 0) {
     exit 1
 }
 
-$platform = [System.Runtime.InteropServices.RuntimeInformation]
 $extSuffix = ".dll"
-if ($platform::IsOSPlatform([System.Runtime.InteropServices.OSPlatform]::Linux)) {
+if ($IsLinux) {
     $extSuffix = ".so"
-} elseif ($platform::IsOSPlatform([System.Runtime.InteropServices.OSPlatform]::OSX)) {
+} elseif ($IsMacOS) {
     $extSuffix = ".dylib"
 }
 
 Push-Location $buildDir
 try {
-    $runningOnWindows = $platform::IsOSPlatform([System.Runtime.InteropServices.OSPlatform]::Windows)
+    $runningOnWindows = -not $IsLinux -and -not $IsMacOS
 
     # Use a single release profile for every artifact: portable baseline x64,
     # full-program optimization, and link-time dead stripping/folding.
