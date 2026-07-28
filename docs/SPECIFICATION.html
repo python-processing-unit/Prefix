@@ -873,6 +873,8 @@ Built-in operator names MUST be matched case-sensitively and MUST be written in 
 
 - `BOOL IMPORT_PATH(STR path)` or `BOOL IMPORT_PATH(STR path, STR alias)` = MUST load a module from an explicit filesystem path and expose it under `alias` or, if omitted, under a basename-derived module name. The argument MUST at minimum accept an absolute path to a `.pre` source file. The module's basename, excluding the `.pre` suffix, MUST be used as the default qualified module name when no alias is supplied. The loaded module MUST otherwise obey the same isolation, caching, and exposure rules as `IMPORT`. Runtime extensions for that module MUST be loaded explicitly via `EXTEND`. On success, `IMPORT_PATH` MUST return `FALSE`.
 
+- `BOOL INCLUDE(STR module)` = MUST load the named module using the same search rules as `IMPORT`, execute it in its own isolated environment on first load, and cache that environment for subsequent calls. After the module loads, its exported bindings MUST be injected directly into the caller's environment under their original unqualified names. Unlike `IMPORT`, `INCLUDE` MUST NOT create a qualified namespace for the module and MUST NOT assign the module name itself as a binding in the caller. Re-importing an already loaded module MUST reuse the cached module namespace rather than re-executing the module. On success, `INCLUDE` MUST return `FALSE`.
+
 - `BOOL EXPORT(STR symbol, STR module)` = MUST copy the caller's current binding for `symbol` into the namespace of the already imported module designated by `module`, making the exported binding available through that module's qualified namespace. `EXPORT` MUST return `FALSE` on success and MUST raise a runtime error if `module` is not currently imported.
 
 ---
