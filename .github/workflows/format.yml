@@ -1,0 +1,30 @@
+name: Format and lint-fix
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  format-windows:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Run code formatter and commit changes
+        run: |
+          .\format.ps1
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          $changes = git status --porcelain
+          if ($changes) {
+            git add -A
+            git commit -m "chore: format and lint with Clang. [skip ci]"
+            git push
+          } else {
+            Write-Host "No changes to commit"
+          }
