@@ -1,5 +1,6 @@
 $prefixDir = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $PSScriptRoot))
-$exePath = Join-Path $prefixDir 'prefix.exe'
+$exeName = if ($IsLinux -or $IsMacOS) { 'prefix' } else { 'prefix.exe' }
+$exePath = Join-Path $prefixDir $exeName
 
 if (-not (Test-Path $exePath)) {
   throw "Interpreter executable not found at: $exePath"

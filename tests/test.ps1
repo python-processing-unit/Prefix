@@ -1,7 +1,9 @@
 $testDir = $PSScriptRoot
 $prefixDir = Split-Path -Parent $testDir
 $casesDir = Join-Path $testDir 'cases'
-$exePath = Join-Path $prefixDir 'prefix.exe'
+
+$exeName = if ($IsLinux -or $IsMacOS) { 'prefix' } else { 'prefix.exe' }
+$exePath = Join-Path $prefixDir $exeName
 
 function Assert([bool]$Condition, [string]$Message = 'Assertion failed') {
   if (-not $Condition) {
@@ -18,7 +20,7 @@ function Invoke-TestCase([string]$RelativePath) {
 
   if ($extension -ieq '.ps1') {
     $powerShellExe = if ($PSVersionTable.PSEdition -eq 'Core') {
-      Join-Path $PSHOME 'pwsh.exe'
+      if ($IsLinux -or $IsMacOS) { Join-Path $PSHOME 'pwsh' } else { Join-Path $PSHOME 'pwsh.exe' }
     } else {
       Join-Path $PSHOME 'powershell.exe'
     }
@@ -108,7 +110,11 @@ $resultsQueue = [System.Collections.Concurrent.ConcurrentQueue[object]]::new()
 foreach ($c in $allCases) { $taskQueue.Enqueue($c) }
 
 # Determine PowerShell executable path for running .ps1 cases.
-$powerShellExe = if ($PSVersionTable.PSEdition -eq 'Core') { Join-Path $PSHOME 'pwsh.exe' } else { Join-Path $PSHOME 'powershell.exe' }
+$powerShellExe = if ($PSVersionTable.PSEdition -eq 'Core') {
+    if ($IsLinux -or $IsMacOS) { Join-Path $PSHOME 'pwsh' } else { Join-Path $PSHOME 'pwsh.exe' }
+  } else {
+    Join-Path $PSHOME 'powershell.exe'
+  }
 
 # Create a runspace pool and start worker runspaces.
 

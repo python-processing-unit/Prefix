@@ -19,6 +19,7 @@
 #define prefix_stricmp _stricmp
 #else
 #define prefix_stricmp strcasecmp
+#define strtok_s strtok_r
 #endif
 
 static inline char *prefix_fullpath_dup(const char *path) {

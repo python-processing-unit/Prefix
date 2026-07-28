@@ -1,51 +1,83 @@
 <#
 build.ps1
-Compiles the Prefix runtime into a shared DLL, links the interpreter EXE
-against that DLL's import library, and compiles each discovered extension
-against the same shared runtime.
+Compiles the Prefix runtime into a shared library, links the interpreter
+against that library, and compiles each discovered extension against the
+same shared runtime.
 
-Requires: clang.exe on PATH targeting x64.
+Requires: clang on PATH targeting x64.
 Usage (from Prefix folder):
-    powershell -ExecutionPolicy Bypass -File .\build.ps1
+    pwsh -File ./build.ps1
 #>
 
 $script = Split-Path -Parent $MyInvocation.MyCommand.Definition
 $src = Join-Path $script "src"
 $runtimeDef = Join-Path $src "prefix_runtime.def"
-$runtimeDllName = "prefix_runtime.dll"
-$runtimeLibName = "prefix_runtime.lib"
-$runtimePdbName = "prefix_runtime.pdb"
-$runtimeDllDest = Join-Path $script $runtimeDllName
-$runtimeLibDest = Join-Path $script $runtimeLibName
-$runtimePdbDest = Join-Path $script $runtimePdbName
 $extRoots = @(
     (Join-Path $script "ext"),
     (Join-Path $script "lib"),
     (Join-Path $script "tests")
 )
 
-Write-Host "Preparing temp build directory under`$env:TEMP..."
+$runningOnWindows = -not $IsLinux -and -not $IsMacOS
+
+# Platform-specific names
+if ($runningOnWindows) {
+    $clangCmd = "clang.exe"
+    $runtimeDllName = "prefix_runtime.dll"
+    $runtimeLibName = "prefix_runtime.lib"
+    $runtimePdbName = "prefix_runtime.pdb"
+    $exeName = "prefix.exe"
+} elseif ($IsMacOS) {
+    $clangCmd = "clang"
+    $runtimeDllName = "libprefix_runtime.dylib"
+    $runtimeLibName = ""
+    $runtimePdbName = ""
+    $exeName = "prefix"
+} else {
+    $clangCmd = "clang"
+    $runtimeDllName = "libprefix_runtime.so"
+    $runtimeLibName = ""
+    $runtimePdbName = ""
+    $exeName = "prefix"
+}
+
+$runtimeDllDest = Join-Path $script $runtimeDllName
+$runtimeLibDest = if ($runtimeLibName) { Join-Path $script $runtimeLibName } else { $null }
+$runtimePdbDest = if ($runtimePdbName) { Join-Path $script $runtimePdbName } else { $null }
+
+$extSuffix = ".dll"
+if ($IsLinux) {
+    $extSuffix = ".so"
+} elseif ($IsMacOS) {
+    $extSuffix = ".dylib"
+}
+
+Write-Host "Preparing temp build directory..."
 $stamp = Get-Date -Format "yyyyMMdd-HHmmss"
-$buildDir = Join-Path $env:TEMP ("prefix-build-$stamp")
+if ($runningOnWindows) {
+    $buildDir = Join-Path $env:TEMP ("prefix-build-$stamp")
+} else {
+    $buildDir = Join-Path "/tmp" ("prefix-build-$stamp")
+}
 New-Item -ItemType Directory -Path $buildDir -Force | Out-Null
 Write-Host "Build dir: $buildDir"
 
-$clang = Get-Command clang.exe -ErrorAction SilentlyContinue
+$clang = Get-Command $clangCmd -ErrorAction SilentlyContinue
 if (-not $clang) {
-    Write-Error "clang.exe not found on PATH."
+    Write-Error "$clangCmd not found on PATH."
     Remove-Item -Recurse -Force $buildDir -ErrorAction SilentlyContinue
     exit 1
 }
 
-$clangTarget = (& clang.exe -dumpmachine 2>$null | Select-Object -First 1)
+$clangTarget = (& $clangCmd -dumpmachine 2>$null | Select-Object -First 1)
 if (-not $clangTarget) {
-    Write-Error "Unable to determine clang.exe target triple."
+    Write-Error "Unable to determine $clangCmd target triple."
     Remove-Item -Recurse -Force $buildDir -ErrorAction SilentlyContinue
     exit 1
 }
 
 if ($clangTarget -notmatch '^x86_64-') {
-    Write-Error "clang.exe must target baseline x64. Found target '$clangTarget'."
+    Write-Error "$clangCmd must target baseline x64. Found target '$clangTarget'."
     Remove-Item -Recurse -Force $buildDir -ErrorAction SilentlyContinue
     exit 1
 }
@@ -57,7 +89,7 @@ if ($cFiles.Count -eq 0) {
     exit 1
 }
 
-if (-not (Test-Path $runtimeDef)) {
+if ($runningOnWindows -and -not (Test-Path $runtimeDef)) {
     Write-Error "Runtime export definition not found: $runtimeDef"
     Remove-Item -Recurse -Force $buildDir -ErrorAction SilentlyContinue
     exit 1
@@ -77,114 +109,132 @@ if ($runtimeSources.Count -eq 0) {
     exit 1
 }
 
-$extSuffix = ".dll"
-if ($IsLinux) {
-    $extSuffix = ".so"
-} elseif ($IsMacOS) {
-    $extSuffix = ".dylib"
-}
-
 Push-Location $buildDir
 try {
-    $runningOnWindows = -not $IsLinux -and -not $IsMacOS
-
-    # Use a single release profile for every artifact: portable baseline x64,
-    # full-program optimization, and link-time dead stripping/folding.
-    $clangArgs = @(
-        "--driver-mode=cl",
-        "/clang:-march=x86-64",
-        "/clang:-fuse-ld=lld",
-        "/clang:-flto=full",
-        "/clang:-ffunction-sections",
-        "/clang:-fdata-sections"
-    )
-    $releaseCompileArgs = @(
-        "/std:c17", "/Gd", "/O2", "/Ot", "/Oi", "/Ob2", "/Gy", "/Gw", "/GF", "/W4", "/WX", "/nologo"
-    )
-    # Only pass the `--gc-sections` linker option on non-Windows platforms;
-    # on Windows we use MSVC-style linker options (/OPT:REF /OPT:ICF).
-    if (-not $runningOnWindows) {
-        $clangArgs += "/clang:-Wl,--gc-sections"
-    }
-
-    # Libraries that extensions may need on Windows. Link via the build
-    # system instead of source-level linker pragmas in the extension code.
-    $linkLibs = @()
     if ($runningOnWindows) {
+        # MSVC-compatible driver mode for Windows
+        $clangArgs = @(
+            "--driver-mode=cl",
+            "/clang:-march=x86-64",
+            "/clang:-fuse-ld=lld",
+            "/clang:-flto=full",
+            "/clang:-ffunction-sections",
+            "/clang:-fdata-sections"
+        )
+        $releaseCompileArgs = @(
+            "/std:c17", "/Gd", "/O2", "/Ot", "/Oi", "/Ob2", "/Gy", "/Gw", "/GF", "/W4", "/WX", "/nologo"
+        )
         $linkLibs = @("ole32.lib", "ws2_32.lib", "winhttp.lib", "user32.lib", "gdi32.lib")
         $clangArgs += "/clang:-Wno-deprecated-declarations"
-    }
-
-    $runtimeArgs = @($clangArgs + $releaseCompileArgs + @(
-        "/LD", "/I$src",
-        "/Fe:$runtimeDllName"
-    ))
-    $runtimeArgs += $runtimeSources
-    $runtimeLinkFlags = @("/link", "/DEF:$runtimeDef", "/IMPLIB:$runtimeLibName")
-    if ($runningOnWindows) {
-        $runtimeLinkFlags += "/OPT:REF"
-        $runtimeLinkFlags += "/OPT:ICF"
     } else {
-        $runtimeLinkFlags += "/clang:-Wl,--gc-sections"
+        # GCC-compatible flags for Linux/macOS
+        $clangArgs = @(
+            "-march=x86-64",
+            "-flto=full",
+            "-ffunction-sections",
+            "-fdata-sections",
+            "-fPIC"
+        )
+        $releaseCompileArgs = @(
+            "-std=c17", "-O2", "-Wall", "-Wextra", "-Werror",
+            "-D_GNU_SOURCE"
+        )
+        $linkLibs = @()
+        if ($IsLinux) {
+            $linkLibs = @("-ldl", "-lpthread", "-lm")
+        } elseif ($IsMacOS) {
+            $linkLibs = @("-ldl", "-lm")
+        }
     }
-    $runtimeArgs += $runtimeLinkFlags
 
-    Write-Host "Invoking: clang.exe $($runtimeArgs -join ' ')"
-    & clang.exe @runtimeArgs
+    # --- Build runtime shared library ---
+    if ($runningOnWindows) {
+        $runtimeArgs = @($clangArgs + $releaseCompileArgs + @(
+            "/LD", "/I$src",
+            "/Fe:$runtimeDllName"
+        ))
+        $runtimeArgs += $runtimeSources
+        $runtimeLinkFlags = @("/link", "/DEF:$runtimeDef", "/IMPLIB:$runtimeLibName", "/OPT:REF", "/OPT:ICF")
+        $runtimeArgs += $runtimeLinkFlags
+    } else {
+        $runtimeArgs = @($clangArgs + $releaseCompileArgs + @(
+            "-shared",
+            "-I$src",
+            "-o", $runtimeDllName
+        ))
+        $runtimeArgs += $runtimeSources
+        $runtimeArgs += @("-Wl,--gc-sections")
+        $runtimeArgs += $linkLibs
+    }
+
+    Write-Host "Invoking: $clangCmd $($runtimeArgs -join ' ')"
+    & $clangCmd @runtimeArgs
     if ($LASTEXITCODE -ne 0) {
-        throw "clang.exe returned exit code $LASTEXITCODE while building shared runtime"
+        throw "$clangCmd returned exit code $LASTEXITCODE while building shared runtime"
     }
 
     $runtimeDllPath = Join-Path $buildDir $runtimeDllName
-    $runtimeLibPath = Join-Path $buildDir $runtimeLibName
-    $runtimePdbPath = Join-Path $buildDir $runtimePdbName
 
     if (-not (Test-Path $runtimeDllPath)) {
-        throw "Expected runtime DLL not found: $runtimeDllPath"
-    }
-    if (-not (Test-Path $runtimeLibPath)) {
-        throw "Expected runtime import library not found: $runtimeLibPath"
+        throw "Expected runtime library not found: $runtimeDllPath"
     }
 
     Copy-Item -Path $runtimeDllPath -Destination $runtimeDllDest -Force
-    Copy-Item -Path $runtimeLibPath -Destination $runtimeLibDest -Force
-    if (Test-Path $runtimePdbPath) {
-        Copy-Item -Path $runtimePdbPath -Destination $runtimePdbDest -Force
-    }
-    Write-Host "Copied runtime DLL to: $runtimeDllDest"
-    Write-Host "Copied runtime import library to: $runtimeLibDest"
+    Write-Host "Copied runtime library to: $runtimeDllDest"
 
-    $exeArgs = @($clangArgs + $releaseCompileArgs + @(
-        "/I$src",
-        "/Fe:prefix.exe",
-        $mainSource,
-        $runtimeLibPath
-    ))
-    $exeLinkFlags = @()
     if ($runningOnWindows) {
-        $exeLinkFlags += "/link"
-        $exeLinkFlags += "/OPT:REF"
-        $exeLinkFlags += "/OPT:ICF"
+        $runtimeLibPath = Join-Path $buildDir $runtimeLibName
+        $runtimePdbPath = Join-Path $buildDir $runtimePdbName
+        if (-not (Test-Path $runtimeLibPath)) {
+            throw "Expected runtime import library not found: $runtimeLibPath"
+        }
+        Copy-Item -Path $runtimeLibPath -Destination $runtimeLibDest -Force
+        if (Test-Path $runtimePdbPath) {
+            Copy-Item -Path $runtimePdbPath -Destination $runtimePdbDest -Force
+        }
+        Write-Host "Copied runtime import library to: $runtimeLibDest"
+    }
+
+    # --- Build interpreter executable ---
+    if ($runningOnWindows) {
+        $runtimeLibPath = Join-Path $buildDir $runtimeLibName
+        $exeArgs = @($clangArgs + $releaseCompileArgs + @(
+            "/I$src",
+            "/Fe:$exeName",
+            $mainSource,
+            $runtimeLibPath
+        ))
+        $exeLinkFlags = @("/link", "/OPT:REF", "/OPT:ICF")
+        $exeArgs += $exeLinkFlags
     } else {
-        $exeLinkFlags += "/clang:-Wl,--gc-sections"
+        $exeArgs = @($clangArgs + $releaseCompileArgs + @(
+            "-I$src",
+            "-o", $exeName,
+            $mainSource,
+            "-L$buildDir",
+            "-lprefix_runtime",
+            "-Wl,-rpath,`$ORIGIN",
+            "-Wl,--gc-sections"
+        ))
+        $exeArgs += $linkLibs
     }
-    $exeArgs += $exeLinkFlags
 
-    Write-Host "Invoking: clang.exe $($exeArgs -join ' ')"
-    & clang.exe @exeArgs
+    Write-Host "Invoking: $clangCmd $($exeArgs -join ' ')"
+    & $clangCmd @exeArgs
     if ($LASTEXITCODE -ne 0) {
-        throw "clang.exe returned exit code $LASTEXITCODE while building interpreter"
+        throw "$clangCmd returned exit code $LASTEXITCODE while building interpreter"
     }
 
-    $outExe = Join-Path $buildDir "prefix.exe"
+    $outExe = Join-Path $buildDir $exeName
     if (-not (Test-Path $outExe)) {
-        throw "Expected output EXE not found: $outExe"
+        throw "Expected output executable not found: $outExe"
     }
 
-    $exeDest = Join-Path $script "prefix.exe"
+    $exeDest = Join-Path $script $exeName
     Copy-Item -Path $outExe -Destination $exeDest -Force
-    Write-Host "Copied EXE to: $exeDest"
+    Write-Host "Copied executable to: $exeDest"
 
+    # --- Build extensions ---
     $extSources = @()
     foreach ($root in $extRoots) {
         if (Test-Path $root) {
@@ -208,29 +258,33 @@ try {
         New-Item -ItemType Directory -Path $extBuildDir -Force | Out-Null
         Push-Location $extBuildDir
         try {
-            $extArgs = @($clangArgs + $releaseCompileArgs + @(
-                "/LD",
-                "/I$src",
-                "/Fe:$extOutName",
-                $extSourcePath
-            ))
-            # Add OS-specific libraries required by some extensions.
-            if ($linkLibs.Count -gt 0) { $extArgs += $linkLibs }
-            $extArgs += $runtimeLibPath
-            $extLinkFlags = @()
             if ($runningOnWindows) {
-                $extLinkFlags += "/link"
-                $extLinkFlags += "/OPT:REF"
-                $extLinkFlags += "/OPT:ICF"
+                $extArgs = @($clangArgs + $releaseCompileArgs + @(
+                    "/LD",
+                    "/I$src",
+                    "/Fe:$extOutName",
+                    $extSourcePath
+                ))
+                if ($linkLibs.Count -gt 0) { $extArgs += $linkLibs }
+                $extArgs += (Join-Path $buildDir $runtimeLibName)
+                $extArgs += @("/link", "/OPT:REF", "/OPT:ICF")
             } else {
-                $extLinkFlags += "/clang:-Wl,--gc-sections"
+                $extArgs = @($clangArgs + $releaseCompileArgs + @(
+                    "-shared",
+                    "-I$src",
+                    "-o", $extOutName,
+                    $extSourcePath,
+                    "-L$buildDir",
+                    "-lprefix_runtime",
+                    "-Wl,--gc-sections"
+                ))
+                if ($linkLibs.Count -gt 0) { $extArgs += $linkLibs }
             }
-            $extArgs += $extLinkFlags
 
-            Write-Host "Invoking: clang.exe $($extArgs -join ' ')"
-            & clang.exe @extArgs
+            Write-Host "Invoking: $clangCmd $($extArgs -join ' ')"
+            & $clangCmd @extArgs
             if ($LASTEXITCODE -ne 0) {
-                throw "clang.exe returned exit code $LASTEXITCODE while building extension '$extSourcePath'"
+                throw "$clangCmd returned exit code $LASTEXITCODE while building extension '$extSourcePath'"
             }
 
             $extOutPath = Join-Path $extBuildDir $extOutName
@@ -254,5 +308,5 @@ try {
     Remove-Item -Recurse -Force $buildDir -ErrorAction SilentlyContinue
 }
 
-Write-Host "Build succeeded and artifacts copied to: $(Join-Path $script 'prefix.exe'), $runtimeDllDest, $runtimeLibDest"
+Write-Host "Build succeeded and artifacts copied to: $(Join-Path $script $exeName), $runtimeDllDest"
 exit 0

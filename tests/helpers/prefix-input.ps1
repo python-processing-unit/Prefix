@@ -1,7 +1,8 @@
 function Get-PrefixExePath {
   $testsDir = Split-Path -Parent $PSScriptRoot
   $prefixDir = Split-Path -Parent $testsDir
-  $exePath = Join-Path $prefixDir 'prefix.exe'
+  $exeName = if ($IsLinux -or $IsMacOS) { 'prefix' } else { 'prefix.exe' }
+  $exePath = Join-Path $prefixDir $exeName
 
   if (-not (Test-Path $exePath)) {
     throw "Interpreter executable not found at: $exePath"
@@ -132,8 +133,14 @@ function Invoke-PrefixWithArguments {
 
   $process = Start-PrefixProcessWithArguments -Arguments $Arguments -WorkingDirectory $WorkingDirectory -EnvironmentVariables $EnvironmentVariables
   try {
-    $process.StandardInput.Write($InputText)
-    $process.StandardInput.Close()
+    try {
+      $process.StandardInput.Write($InputText)
+      $process.StandardInput.Close()
+    } catch [System.IO.IOException] {
+      # On Linux, writing to stdin after the process has exited throws
+      # "Broken pipe". This is expected when a REPL handler or early exit
+      # terminates the process before stdin is consumed.
+    }
 
     $stdout = $process.StandardOutput.ReadToEnd()
     $stderr = $process.StandardError.ReadToEnd()

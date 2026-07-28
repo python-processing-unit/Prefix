@@ -1,11 +1,13 @@
+#include "../../src/interpreter.h"
+#include "../../src/prefix_extension.h"
+#include "../../src/value.h"
+
+#ifdef _WIN32
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <windows.h>
-
-#include "../../src/interpreter.h"
-#include "../../src/prefix_extension.h"
-#include "../../src/value.h"
 
 // Minimal C implementation of the win32 extension. This implements a
 // subset of the convenience operators provided by the Python version.
@@ -637,3 +639,9 @@ void prefix_extension_init(prefix_ext_context *ctx) {
     ctx->register_operator("WIN_FORMAT_MESSAGE", (prefix_operator_fn)op_win_format_message,
                            PREFIX_EXTENSION_ASMODULE | PREFIX_EXTENSION_MODULE_RESTRICTED);
 }
+
+#else
+
+void prefix_extension_init(prefix_ext_context *ctx) { (void)ctx; }
+
+#endif

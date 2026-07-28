@@ -209,6 +209,7 @@ static const uint32_t cp1252_map[32] = {0x20AC, 0x0081, 0x201A, 0x0192, 0x201E, 
                                         0x0090, 0x2018, 0x2019, 0x201C, 0x201D, 0x2022, 0x2013, 0x2014,
                                         0x02DC, 0x2122, 0x0161, 0x203A, 0x0153, 0x009D, 0x017E, 0x0178};
 
+#ifdef _WIN32
 static char *dec_cp1252_to_utf8(const unsigned char *buf, size_t sz) {
     size_t outcap = (sz * 2) + 16;
     char *out = malloc(outcap);
@@ -273,6 +274,7 @@ static char *dec_cp1252_to_utf8(const unsigned char *buf, size_t sz) {
     out[op] = '\0';
     return out;
 }
+#endif
 
 static char *dec_utf16_to_utf8(const unsigned char *buf, size_t sz, int little_endian) {
     size_t outcap = (sz * 3) + 16;
@@ -7521,6 +7523,9 @@ static Value builtin_input(Interpreter *interp, Value *args, int argc, Expr **ar
             len -= 3;
         }
         if (len > 0 && buf[len - 1] == '\n') {
+            buf[--len] = '\0';
+        }
+        if (len > 0 && buf[len - 1] == '\r') {
             buf[len - 1] = '\0';
         }
         return value_str(buf);
@@ -11262,8 +11267,12 @@ static Value builtin_stop(Interpreter *interp, Value *args, int argc, Expr **arg
     if (value_thr_get_finished(args[0])) {
         return value_copy(args[0]);
     }
+    Thr *th = args[0].as.thr;
     value_thr_set_paused(args[0], 0);
     value_thr_set_finished(args[0], 1);
+    if (value_thr_get_started(args[0])) {
+        thrd_join(th->thread, NULL);
+    }
     return value_copy(args[0]);
 }
 
@@ -11854,9 +11863,9 @@ static BuiltinFunction builtins_table[] = {
     {"OS", 0, 0, builtin_os},
     {"EXIT", 0, 1, builtin_exit},
     {"EXTEND", 1, 1, builtin_extend},
+    {"INCLUDE", 1, 1, builtin_include},
     {"IMPORT", 1, 2, builtin_import},
     {"IMPORT_PATH", 1, 2, builtin_import_path},
-    {"INCLUDE", 1, 1, builtin_include},
     {"EXPORT", 2, 2, builtin_export},
 
     // Sentinel
