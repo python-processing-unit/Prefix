@@ -1,0 +1,3 @@
+INCLUDE("path")
+
+ASSERT(EQ(TYPE(TEMPFILE("include-unqualified-namespace.txt")), "STR"))

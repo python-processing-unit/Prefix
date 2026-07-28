@@ -10046,6 +10046,33 @@ static Value builtin_extend(Interpreter *interp, Value *args, int argc, Expr **a
     return value_bool(false);
 }
 
+static int module_include_bindings(Interpreter *interp, Env *caller_env, Env *mod_env) {
+    if (!interp || !caller_env || !mod_env) {
+        return -1;
+    }
+
+    for (size_t i = 0; i < mod_env->count; i++) {
+        EnvEntry *e = &mod_env->entries[i];
+        if (!e->initialized) {
+            continue;
+        }
+        if (e->name && e->name[0] == '_' && e->name[1] == '_') {
+            continue;
+        }
+        if (!env_assign(caller_env, e->name, e->value, e->decl_type, e->decl_base, true)) {
+            if (interp->error) {
+                free(interp->error);
+            }
+            interp->error = strdup("INCLUDE failed to assign module binding");
+            interp->error_line = 0;
+            interp->error_col = 0;
+            return -1;
+        }
+    }
+
+    return 0;
+}
+
 static int module_export_bindings(Interpreter *interp, Env *caller_env, Env *mod_env, const char *alias, int line,
                                   int col, const char *fail_msg) {
     if (!interp || !caller_env || !mod_env || !alias || alias[0] == '\0') {
@@ -10481,6 +10508,283 @@ static Value builtin_import(Interpreter *interp, Value *args, int argc, Expr **a
         if (!env_assign(env, alias, value_str(""), TYPE_STR, 0, true)) {
             RUNTIME_ERROR(interp, "IMPORT failed to assign module name", line, col);
         }
+    }
+
+    return value_bool(false);
+}
+
+static Value builtin_include(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line,
+                             int col) {
+    (void)arg_nodes;
+    (void)env;
+    if (argc < 1) {
+        RUNTIME_ERROR(interp, "INCLUDE expects a module name STR", line, col);
+    }
+    if (args[0].type != VAL_STR) {
+        RUNTIME_ERROR(interp, "INCLUDE first argument must be STR", line, col);
+    }
+    const char *modname = args[0].as.s ? args[0].as.s : "";
+
+    const char *referer_source = NULL;
+    EnvEntry *src_entry = env_get_entry(env, "__MODULE_SOURCE__");
+    if (src_entry && src_entry->initialized && src_entry->value.type == VAL_STR) {
+        referer_source = src_entry->value.as.s;
+    }
+
+    char referer_dir[1024] = {0};
+    if (referer_source && referer_source[0] != '\0') {
+        strncpy(referer_dir, referer_source, sizeof(referer_dir) - 1);
+        char *last_sep = NULL;
+        for (char *p = referer_dir; *p; p++) {
+            if (*p == '/' || *p == '\\') {
+                last_sep = p;
+            }
+        }
+        if (last_sep) {
+            *last_sep = '\0';
+        }
+    } else {
+        strncpy(referer_dir, ".", sizeof(referer_dir) - 1);
+    }
+
+#ifdef _WIN32
+    const char PATH_SEP = '\\';
+#else
+    const char PATH_SEP = '/';
+#endif
+    char base[1024];
+    base[0] = '\0';
+    const char *p = modname;
+    char *b = base;
+    while (*p && (size_t)(b - base) + 1 < sizeof(base)) {
+        if (p[0] == '.' && p[1] == '.') {
+            *b++ = PATH_SEP;
+            p += 2;
+            continue;
+        }
+        *b++ = *p++;
+    }
+    *b = '\0';
+
+    struct stat st;
+    char candidate[2048];
+    char *found_path = NULL;
+    char *srcbuf = NULL;
+
+    const char *search_dirs[5];
+    search_dirs[0] = referer_dir;
+
+    EnvEntry *primary_src_entry =
+        interp && interp->global_env ? env_get_entry(interp->global_env, "__MODULE_SOURCE__") : NULL;
+    char primary_program_dir[1024];
+    char primary_std_dir[1024];
+    char primary_usr_dir[1024];
+    primary_program_dir[0] = '\0';
+    primary_std_dir[0] = '\0';
+    primary_usr_dir[0] = '\0';
+    if (primary_src_entry && primary_src_entry->initialized && primary_src_entry->value.type == VAL_STR &&
+        primary_src_entry->value.as.s && primary_src_entry->value.as.s[0] != '\0') {
+        strncpy(primary_program_dir, primary_src_entry->value.as.s, sizeof(primary_program_dir) - 1);
+        primary_program_dir[sizeof(primary_program_dir) - 1] = '\0';
+        char *last_sep = NULL;
+        for (char *q = primary_program_dir; *q; q++) {
+            if (*q == '/' || *q == '\\') {
+                last_sep = q;
+            }
+        }
+        if (last_sep) {
+            *last_sep = '\0';
+        }
+        if (snprintf(primary_std_dir, sizeof(primary_std_dir), "%s/lib/std", primary_program_dir) >= 0) {
+            search_dirs[1] = primary_std_dir;
+        } else {
+            search_dirs[1] = "lib/std";
+        }
+        if (snprintf(primary_usr_dir, sizeof(primary_usr_dir), "%s/lib/usr", primary_program_dir) >= 0) {
+            search_dirs[2] = primary_usr_dir;
+        } else {
+            search_dirs[2] = "lib/usr";
+        }
+    } else {
+        search_dirs[1] = "lib/std";
+        search_dirs[2] = "lib/usr";
+    }
+
+    char exe_program_dir[1024];
+    char exe_std_dir[1024];
+    char exe_usr_dir[1024];
+    exe_program_dir[0] = '\0';
+    exe_std_dir[0] = '\0';
+    exe_usr_dir[0] = '\0';
+    if (g_argv && g_argv[0] && g_argv[0][0] != '\0') {
+        strncpy(exe_program_dir, g_argv[0], sizeof(exe_program_dir) - 1);
+        exe_program_dir[sizeof(exe_program_dir) - 1] = '\0';
+        char *last_sep = NULL;
+        for (char *q = exe_program_dir; *q; q++) {
+            if (*q == '/' || *q == '\\') {
+                last_sep = q;
+            }
+        }
+        if (last_sep) {
+            *last_sep = '\0';
+        }
+        if (snprintf(exe_std_dir, sizeof(exe_std_dir), "%s/lib/std", exe_program_dir) >= 0) {
+            search_dirs[3] = exe_std_dir;
+        } else {
+            search_dirs[3] = "lib/std";
+        }
+        if (snprintf(exe_usr_dir, sizeof(exe_usr_dir), "%s/lib/usr", exe_program_dir) >= 0) {
+            search_dirs[4] = exe_usr_dir;
+        } else {
+            search_dirs[4] = "lib/usr";
+        }
+    } else {
+        search_dirs[3] = "lib/std";
+        search_dirs[4] = "lib/usr";
+    }
+
+    for (int sd = 0; sd < 5 && !found_path; sd++) {
+        const char *sdir = search_dirs[sd];
+        if (!sdir) {
+            continue;
+        }
+
+        if (snprintf(candidate, sizeof(candidate), "%s/%s", sdir, base) < 0) {
+            continue;
+        }
+        if (stat(candidate, &st) == 0 && (st.st_mode & S_IFMT) == S_IFDIR) {
+            char initpath[2048];
+            if (snprintf(initpath, sizeof(initpath), "%s/%s/init.pre", sdir, base) < 0) {
+                continue;
+            }
+            if (stat(initpath, &st) == 0 && (st.st_mode & S_IFMT) == S_IFREG) {
+                found_path = strdup(initpath);
+                break;
+            }
+            char buf[256];
+            snprintf(buf, sizeof(buf), "INCLUDE: package '%s' missing init.pre", modname);
+            RUNTIME_ERROR(interp, buf, line, col);
+        }
+
+        char filepath[2048];
+        if (snprintf(filepath, sizeof(filepath), "%s/%s.pre", sdir, base) < 0) {
+            continue;
+        }
+        if (stat(filepath, &st) == 0 && (st.st_mode & S_IFMT) == S_IFREG) {
+            found_path = strdup(filepath);
+            break;
+        }
+    }
+
+    char *canonical_path = found_path ? prefix_fullpath_dup(found_path) : NULL;
+    const char *cache_key = canonical_path ? canonical_path : modname;
+
+    if (!found_path) {
+        Env *existing = module_env_lookup(interp, cache_key);
+        if (!existing) {
+            free(found_path);
+            free(canonical_path);
+            char buf[256];
+            snprintf(buf, sizeof(buf), "INCLUDE: module '%s' not found", modname);
+            RUNTIME_ERROR(interp, buf, line, col);
+        }
+    }
+
+    Env *mod_env = module_env_lookup(interp, cache_key);
+    if (!mod_env) {
+        mod_env = module_env_lookup(interp, modname);
+    }
+    if (!mod_env) {
+        if (module_register(interp, cache_key) != 0) {
+            free(found_path);
+            free(canonical_path);
+            RUNTIME_ERROR(interp, "INCLUDE failed to register module", line, col);
+        }
+        mod_env = module_env_lookup(interp, cache_key);
+    }
+    if (!mod_env) {
+        free(found_path);
+        free(canonical_path);
+        RUNTIME_ERROR(interp, "INCLUDE failed to lookup module env", line, col);
+    }
+
+    if (strcmp(modname, cache_key) != 0) {
+        (void)module_register_alias(interp, modname, mod_env);
+    }
+    if (found_path && strcmp(found_path, cache_key) != 0) {
+        (void)module_register_alias(interp, found_path, mod_env);
+    }
+
+    EnvEntry *scope_entry = env_get_entry(mod_env, "__MODULE_SCOPE__");
+    if (!scope_entry || !scope_entry->initialized || scope_entry->value.type != VAL_STR) {
+        env_assign(mod_env, "__MODULE_SCOPE__", value_str(modname), TYPE_STR, 0, true);
+    }
+
+    EnvEntry *marker = env_get_entry(mod_env, "__MODULE_LOADED__");
+    if ((!marker || !marker->initialized) && found_path) {
+        FILE *f = fopen(found_path, "rb");
+        if (f) {
+            fseek(f, 0, SEEK_END);
+            long len = ftell(f);
+            fseek(f, 0, SEEK_SET);
+            srcbuf = malloc((size_t)len + 1);
+            if (!srcbuf) {
+                fclose(f);
+                free(found_path);
+                free(canonical_path);
+                RUNTIME_ERROR(interp, "Out of memory", line, col);
+            }
+            if (fread(srcbuf, 1, (size_t)len, f) != (size_t)len) {
+                free(srcbuf);
+                srcbuf = NULL;
+            }
+            if (srcbuf) {
+                srcbuf[len] = '\0';
+                fclose(f);
+
+                env_assign(mod_env, "__MODULE_SOURCE__", value_str(cache_key), TYPE_STR, 0, true);
+
+                Lexer lex;
+                lexer_init(&lex, srcbuf, found_path);
+                Parser parser;
+                parser_init(&parser, &lex);
+
+                Stmt *program = parser_parse(&parser);
+                if (parser.had_error) {
+                    free(srcbuf);
+                    free(found_path);
+                    free(canonical_path);
+                    interp->error = strdup("INCLUDE: parse error");
+                    interp->error_line = parser.current_token.line;
+                    interp->error_col = parser.current_token.column;
+                    return value_null();
+                }
+
+                ExecResult res = exec_program_in_env(interp, program, mod_env);
+                if (res.status == EXEC_ERROR) {
+                    free(srcbuf);
+                    free(found_path);
+                    free(canonical_path);
+                    interp->error = res.error ? strdup(res.error) : strdup("Runtime error in INCLUDE");
+                    interp->error_line = res.error_line;
+                    interp->error_col = res.error_column;
+                    free(res.error);
+                    return value_null();
+                }
+
+                env_assign(mod_env, "__MODULE_LOADED__", value_int(1), TYPE_INT, 0, true);
+                free(srcbuf);
+            } else {
+                fclose(f);
+            }
+        }
+    }
+
+    free(found_path);
+    free(canonical_path);
+
+    if (module_include_bindings(interp, env, mod_env) != 0) {
+        return value_null();
     }
 
     return value_bool(false);
@@ -11552,6 +11856,7 @@ static BuiltinFunction builtins_table[] = {
     {"EXTEND", 1, 1, builtin_extend},
     {"IMPORT", 1, 2, builtin_import},
     {"IMPORT_PATH", 1, 2, builtin_import_path},
+    {"INCLUDE", 1, 1, builtin_include},
     {"EXPORT", 2, 2, builtin_export},
 
     // Sentinel
