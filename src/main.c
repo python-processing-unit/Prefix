@@ -267,7 +267,11 @@ int main(int argc, char **argv) {
 
     char cwd_buf[4096];
     const char *cwd = NULL;
+#ifdef _WIN32
     if (_getcwd(cwd_buf, sizeof(cwd_buf))) {
+#else
+    if (getcwd(cwd_buf, sizeof(cwd_buf))) {
+#endif
         cwd = cwd_buf;
     }
     char *exe_dir = path_dirname_dup((argc > 0) ? argv[0] : NULL);
@@ -431,7 +435,11 @@ int main(int argc, char **argv) {
         }
         if (last_slash) {
             *last_slash = '\0';
+#ifdef _WIN32
             _chdir(dir);
+#else
+            chdir(dir);
+#endif
         }
         free(dir);
     }

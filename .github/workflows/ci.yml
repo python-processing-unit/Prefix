@@ -5,7 +5,7 @@ on:
   pull_request:
 
 jobs:
-  build-and-test:
+  build-and-test-windows:
     runs-on: windows-latest
 
     steps:
@@ -36,3 +36,25 @@ jobs:
 
       - name: Run tests
         run: .\tests\test.ps1
+
+  build-and-test-ubuntu:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang lld powershell
+
+      - name: Build interpreter and extensions
+        shell: pwsh
+        run: ./build.ps1
+
+      - name: Run tests
+        shell: pwsh
+        run: ./tests/test.ps1

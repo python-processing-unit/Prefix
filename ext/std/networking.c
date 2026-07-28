@@ -274,6 +274,8 @@ static char *hex_encode(const unsigned char *data, size_t len) {
     return out;
 }
 
+#ifdef _WIN32
+
 static int write_text_file(const char *path, const char *data) {
     FILE *f = fopen(path, "wb");
     if (!f) {
@@ -407,12 +409,11 @@ static const char *py_bridge_script(void) {
            "  fail(op + ' failed: ' + str(e))\n";
 }
 
+#endif
+
+#ifdef _WIN32
+
 static int ensure_bridge_script(char *out_path, size_t out_path_cap) {
-#ifndef _WIN32
-    (void)out_path;
-    (void)out_path_cap;
-    return -1;
-#else
     char temp_dir[MAX_PATH];
     DWORD n = GetTempPathA((DWORD)sizeof(temp_dir), temp_dir);
     if (n == 0 || n >= sizeof(temp_dir)) {
@@ -428,15 +429,9 @@ static int ensure_bridge_script(char *out_path, size_t out_path_cap) {
     }
     snprintf(out_path, out_path_cap, "%s", script_path);
     return 0;
-#endif
 }
 
 static int create_temp_file_path(char *out_path, size_t out_cap) {
-#ifndef _WIN32
-    (void)out_path;
-    (void)out_cap;
-    return -1;
-#else
     char temp_dir[MAX_PATH];
     DWORD n = GetTempPathA((DWORD)sizeof(temp_dir), temp_dir);
     if (n == 0 || n >= sizeof(temp_dir)) {
@@ -448,8 +443,9 @@ static int create_temp_file_path(char *out_path, size_t out_cap) {
     }
     snprintf(out_path, out_cap, "%s", temp_file);
     return 0;
-#endif
 }
+
+#endif
 
 static int bridge_call(const char *op, const char **args, int arg_count, unsigned char **out_data, size_t *out_len,
                        char **out_err) {

@@ -4,7 +4,8 @@
 // DO NOT REMOVE: Clang on Windows with --driver-mode=cl does NOT provide
 // <threads.h>. MSVC does since VS 2015, but the UCRT shipped with Clang-cl
 // lacks a conforming C11 threads implementation. This file reimplements
-// <threads.h> using Win32 primitives and is required for all builds.
+// <threads.h> using Win32 primitives and is required for Windows builds.
+// On non-Windows platforms, we use the standard C11 <threads.h>.
 
 #ifdef _WIN32
 
@@ -146,5 +147,10 @@ static inline void cnd_destroy(cnd_t *cnd) {
     (void)cnd;
 }
 
-#endif // WIN32
+#else
+
+// Non-Windows: use standard C11 <threads.h>
+#include <threads.h>
+
+#endif // _WIN32
 #endif // WIN32_SHIM_H

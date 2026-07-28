@@ -844,6 +844,7 @@ static Value op_save_png(Interpreter *interp, Value *args, int argc, Expr **arg_
     return save_with_gdiplus(interp, args[0], path, L"image/png", quality, line, col);
 #else
     (void)quality;
+    (void)path;
     return fail(interp, "SAVE_PNG not supported on this platform", line, col);
 #endif
 }
@@ -869,6 +870,7 @@ static Value op_save_jpeg(Interpreter *interp, Value *args, int argc, Expr **arg
     return save_with_gdiplus(interp, args[0], path, L"image/jpeg", quality, line, col);
 #else
     (void)quality;
+    (void)path;
     return fail(interp, "SAVE_JPEG not supported on this platform", line, col);
 #endif
 }
@@ -886,6 +888,7 @@ static Value op_save_bmp(Interpreter *interp, Value *args, int argc, Expr **arg_
 #ifdef _WIN32
     return save_with_gdiplus(interp, args[0], path, L"image/bmp", 100, line, col);
 #else
+    (void)path;
     return fail(interp, "SAVE_BMP not supported on this platform", line, col);
 #endif
 }

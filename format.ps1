@@ -3,7 +3,7 @@ format.ps1
 Formats and lint-fixes the Prefix C codebase with Clang tools.
 
 Usage (from Prefix folder):
-    powershell -ExecutionPolicy Bypass -File .\format.ps1
+    pwsh -File ./format.ps1
 #>
 
 $ErrorActionPreference = 'Stop'
@@ -16,20 +16,31 @@ if (-not (Test-Path $srcDir)) {
     exit 1
 }
 
-$clang = Get-Command clang.exe -ErrorAction SilentlyContinue
-$clangFormat = Get-Command clang-format.exe -ErrorAction SilentlyContinue
-$clangTidy = Get-Command clang-tidy.exe -ErrorAction SilentlyContinue
+$runningOnWindows = -not $IsLinux -and -not $IsMacOS
+
+# Resolve tool names (with or without .exe suffix)
+function Resolve-Tool([string]$BaseName) {
+    $exe = Get-Command "$BaseName.exe" -ErrorAction SilentlyContinue
+    if ($exe) { return $exe }
+    $exe = Get-Command $BaseName -ErrorAction SilentlyContinue
+    if ($exe) { return $exe }
+    return $null
+}
+
+$clang = Resolve-Tool 'clang'
+$clangFormat = Resolve-Tool 'clang-format'
+$clangTidy = Resolve-Tool 'clang-tidy'
 
 if (-not $clang) {
-    Write-Error "clang.exe not found on PATH."
+    Write-Error "clang not found on PATH."
     exit 1
 }
 if (-not $clangFormat) {
-    Write-Error "clang-format.exe not found on PATH."
+    Write-Error "clang-format not found on PATH."
     exit 1
 }
 if (-not $clangTidy) {
-    Write-Error "clang-tidy.exe not found on PATH."
+    Write-Error "clang-tidy not found on PATH."
     exit 1
 }
 
@@ -79,7 +90,11 @@ foreach ($file in $formatFiles) {
 }
 
 $stamp = Get-Date -Format "yyyyMMdd-HHmmss"
-$tidyDbDir = Join-Path $env:TEMP ("prefix-clang-tidy-" + $stamp)
+if ($runningOnWindows) {
+    $tidyDbDir = Join-Path $env:TEMP ("prefix-clang-tidy-" + $stamp)
+} else {
+    $tidyDbDir = Join-Path "/tmp" ("prefix-clang-tidy-" + $stamp)
+}
 New-Item -ItemType Directory -Path $tidyDbDir -Force | Out-Null
 
 try {
@@ -87,7 +102,11 @@ try {
     $compileDb = @()
 
     foreach ($file in $sourceFiles) {
-        $command = ('"{0}" --driver-mode=cl /std:c17 /I"{1}" /I"{2}" /D_CRT_SECURE_NO_WARNINGS "{3}"' -f $clang.Path, $srcDir, $scriptDir, $file)
+        if ($runningOnWindows) {
+            $command = ('"{0}" --driver-mode=cl /std:c17 /I"{1}" /I"{2}" /D_CRT_SECURE_NO_WARNINGS "{3}"' -f $clang.Path, $srcDir, $scriptDir, $file)
+        } else {
+            $command = ('"{0}" -std=c17 -I"{1}" -I"{2}" "{3}"' -f $clang.Path, $srcDir, $scriptDir, $file)
+        }
         $compileDb += [ordered]@{
             directory = $scriptDir
             file = $file
