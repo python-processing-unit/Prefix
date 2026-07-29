@@ -1,6 +1,135 @@
 # Prefix
 
-C17 implementation of the Prefix programming language.
+Prefix is a programming language focused on explicit, readable code.
+
+```prefix
+! LCG cracker.
+! Recovers the modulus m, multiplier a, and constant c of a linear
+! congruential generator from a short run of consecutive outputs, then
+! predicts the next value.
+
+! ---------- modular inverse via the extended Euclidean algorithm ----------
+FUNC INT modinv(INT a, INT m){
+    a = MOD(a, m)
+    IF(LT(a, 0d0)){ a = +(a, m) }
+    INT r0 = m
+    INT r1 = a
+    INT t0 = 0d0
+    INT t1 = 0d1
+    WHILE(NEQ(r1, 0d0)){
+        INT q = /(r0, r1)
+        INT nr = -(r0, *(q, r1))
+        INT nt = -(t0, *(q, t1))
+        r0 = r1
+        r1 = nr
+        t0 = t1
+        t1 = nt
+    }
+    IF(NEQ(r0, 0d1)){
+        THROW("modinv: arguments not coprime")
+    }
+    INT inv = MOD(t0, m)
+    IF(LT(inv, 0d0)){ inv = +(inv, m) }
+    RETURN(inv)
+}
+
+! ---------- the hidden LCG (the secret being cracked) ----------
+! x_{n+1} = (a * x_n + c) mod m
+! The modulus is kept below 2^31 so that products of two consecutive
+! differences (each < m) never overflow Prefix's signed 64-bit INT.
+INT m = 0x186A1
+INT a = 0d16807
+INT c = 0d12345
+INT seed = 0d48271
+
+FUNC INT step(INT s){
+    RETURN(MOD(+( *(a, s), c), m))
+}
+
+! ---------- collect observed outputs (all the attacker sees) ----------
+MAP obs
+INT s = seed
+FOR(i, 0d8){
+    obs<i> = s
+    s = step(s)
+}
+DEL("seed")
+DEL("s")
+
+! ---------- recover the modulus m ----------
+! t_i = x_{i+1} - x_i  follows  t_{i+1} = a * t_i (mod m), so each
+! u_k = t_{k+1} * t_{k-1} - t_k^2 is a multiple of m.  GCD of several
+! |u_k| yields m.
+MAP d
+FOR(i, 0d7){
+    d<i> = -(obs<+(i, 0d1)>, obs<i>)
+}
+
+INT mrec = 0d0
+INT k = 0d2
+WHILE(LTE(k, 0d6)){
+    INT lo = -(k, 0d1)
+    INT hi = +(k, 0d1)
+    INT tk = d<k>
+    mrec = GCD(mrec, ABS(-( *(d<hi>, d<lo>), *(tk, tk) )))
+    k = +(k, 0d1)
+}
+DEL("d")
+DEL("k")
+
+! ---------- recover a and c ----------
+! a = (x2 - x1) * (x1 - x0)^{-1}  (mod m)
+! c = x1 - a * x0                  (mod m)
+INT x0 = obs<0d1>
+INT x1 = obs<0d2>
+INT x2 = obs<0d3>
+INT arec = MOD(*( -(x2, x1), modinv(-(x1, x0), mrec) ), mrec)
+INT crec = MOD(-(x1, *(arec, x0)), mrec)
+IF(LT(arec, 0d0)){ arec = +(arec, mrec) }
+IF(LT(crec, 0d0)){ crec = +(crec, mrec) }
+DEL("r0")
+DEL("r1")
+DEL("t0")
+DEL("t1")
+DEL("q")
+DEL("nr")
+DEL("nt")
+DEL("inv")
+DEL("x2")
+DEL("x1")
+DEL("modinv")
+
+! ---------- verify by regenerating the whole sequence ----------
+INT ok = 0d1
+INT v = x0
+FOR(i, 0d8){
+    IF(NEQ(v, obs<i>)){
+        ok = 0d0
+    }
+    v = MOD(+( *(arec, v), crec), mrec)
+}
+DEL("x0")
+DEL("v")
+
+! ---------- report ----------
+PRINT("hidden : m=", m, " a=", a, " c=", c)
+PRINT("cracked: m=", mrec, " a=", arec, " c=", crec)
+PRINT("sequence reproduced: ", ok)
+
+! ---------- predict the next output ----------
+INT next_pred = MOD(+( *(arec, obs<0d8>), crec), mrec)
+INT next_true = step(obs<0d8>)
+DEL("obs")
+DEL("step")
+PRINT("next output predicted: ", next_pred)
+PRINT("next output actual  : ", next_true)
+
+ASSERT(EQ(ok, 0d1))
+ASSERT(EQ(mrec, m))
+ASSERT(EQ(arec, a))
+ASSERT(EQ(crec, c))
+ASSERT(EQ(next_pred, next_true))
+```
 
 Overview
 --------
