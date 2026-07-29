@@ -6448,6 +6448,12 @@ static Value builtin_str(Interpreter *interp, Value *args, int argc, Expr **arg_
     RUNTIME_ERROR(interp, "STR expects BOOL, STR, INT, or FLT", line, col);
 }
 
+Value builtin_str_value(Interpreter *interp, Value v, int line, int col) {
+    Value args[1];
+    args[0] = v;
+    return builtin_str(interp, args, 1, NULL, NULL, line, col);
+}
+
 // BYTES(INT: n, endian = "big"):TNS
 static Value builtin_bytes(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
     (void)arg_nodes;

@@ -248,6 +248,8 @@ The character `\` MUST begin an escape sequence in a `STR` literal. The followin
 
 - `\R` = raw mode toggle. In raw mode, all escape sequences (with the exception of `\R`) are treated as plain text until the next `\R` or the end of the string literal.
 
+- `\F` = formatted mode toggle. When formatted mode is on, `{` and `}` delimit embedded expressions within the string literal. The embedded expression is parsed, evaluated, coerced to `STR`, and concatenated into the resulting string. Braces inside the embedded expression are matched by depth: the first `}` that closes the outer `{` terminates the interpolation. Nested braces inside the expression (e.g., block bodies, map literals) are consumed as part of the expression. Raw mode supersedes formatted mode: when raw mode is active, `{` and `}` are treated as literal characters even if formatted mode is also active.
+
 If an invalid escape sequence (or a non-Hexadecimal value when one is expected by the escape sequence) is encountered in a `STR` literal, an error MUST be raised.
 
 ---

@@ -147,6 +147,15 @@ Expr *expr_wildcard(int line, int column) {
     return expr;
 }
 
+Expr *expr_fmt_str(ExprList parts, int line, int column) {
+    Expr *expr = ast_alloc(sizeof(Expr));
+    expr->type = EXPR_FMT_STR;
+    expr->line = line;
+    expr->column = column;
+    expr->as.fmt_str.parts = parts;
+    return expr;
+}
+
 Expr *expr_lambda(ParamList params, DeclType return_type, int return_base, Expr *return_template_expr, Stmt *body,
                   int line, int column) {
     Expr *expr = ast_alloc(sizeof(Expr));
@@ -468,6 +477,9 @@ void free_expr(Expr *expr) {
         free(expr->as.lambda.params.items);
         free_expr(expr->as.lambda.return_template_expr);
         free_stmt(expr->as.lambda.body);
+        break;
+    case EXPR_FMT_STR:
+        free_expr_list(&expr->as.fmt_str.parts);
         break;
     case EXPR_IDENT:
         free(expr->as.ident);

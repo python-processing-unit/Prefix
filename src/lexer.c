@@ -88,6 +88,18 @@ void lexer_init(Lexer *lexer, const char *source, const char *filename) {
     lexer->current = 0;
     lexer->line = 1;
     lexer->column = 1;
+    lexer->pending_token.type = TOKEN_EOF;
+    lexer->pending_token.literal = NULL;
+    lexer->pending_token.line = 0;
+    lexer->pending_token.column = 0;
+    lexer->has_pending = false;
+    lexer->in_fmt_string = false;
+    lexer->fmt_mode = false;
+    lexer->fmt_depth = 0;
+    lexer->fmt_quote = '\0';
+    lexer->fmt_buffer = NULL;
+    lexer->fmt_buffer_len = 0;
+    lexer->fmt_buffer_cap = 0;
     if (lexer->source_len >= 3 && (unsigned char)lexer->source[0] == 0xEF && (unsigned char)lexer->source[1] == 0xBB &&
         (unsigned char)lexer->source[2] == 0xBF) {
         lexer->source += 3;
@@ -218,6 +230,220 @@ static int hex_digit(char c) {
     return -1;
 }
 
+static void fmt_buffer_append(Lexer *lexer, char c) {
+    if (lexer->fmt_buffer_len + 1 >= lexer->fmt_buffer_cap) {
+        size_t new_cap = lexer->fmt_buffer_cap == 0 ? 16 : lexer->fmt_buffer_cap * 2;
+        lexer->fmt_buffer = safe_realloc(lexer->fmt_buffer, new_cap);
+        lexer->fmt_buffer_cap = new_cap;
+    }
+    lexer->fmt_buffer[lexer->fmt_buffer_len++] = c;
+    lexer->fmt_buffer[lexer->fmt_buffer_len] = '\0';
+}
+
+static Token flush_fmt_buffer(Lexer *lexer) {
+    Token t;
+    t.type = TOKEN_FSTRING;
+    t.line = lexer->line;
+    t.column = lexer->column - (int)lexer->fmt_buffer_len;
+    t.literal = safe_strdup(lexer->fmt_buffer ? lexer->fmt_buffer : "");
+    lexer->fmt_buffer_len = 0;
+    if (lexer->fmt_buffer) {
+        lexer->fmt_buffer[0] = '\0';
+    }
+    return t;
+}
+
+static Token fmt_error(Lexer *lexer, const char *msg) {
+    lexer->in_fmt_string = false;
+    return error_token(lexer, msg);
+}
+
+static Token scan_fmt_string_text(Lexer *lexer, char quote_char) {
+    bool raw_mode = false;
+
+    while (!is_at_end(lexer)) {
+        char c = peek(lexer);
+        unsigned char uc = (unsigned char)c;
+        if (uc > 0x7F) {
+            return fmt_error(lexer, "Non-ASCII character in string literal; use escape sequences");
+        }
+
+        if (c == quote_char) {
+            advance(lexer);
+            Token t = flush_fmt_buffer(lexer);
+            lexer->in_fmt_string = false;
+            return t;
+        }
+
+        if (c == '\n' || c == '\r') {
+            return fmt_error(lexer, "Unterminated string literal");
+        }
+
+        if (c == '\\') {
+            advance(lexer);
+            if (is_at_end(lexer)) {
+                return fmt_error(lexer, "Unterminated string literal");
+            }
+            char next = peek(lexer);
+
+            if (raw_mode) {
+                if (next == 'R') {
+                    advance(lexer);
+                    raw_mode = false;
+                    continue;
+                }
+                if (next == 'F') {
+                    advance(lexer);
+                    lexer->fmt_mode = !lexer->fmt_mode;
+                    continue;
+                }
+                fmt_buffer_append(lexer, '\\');
+                advance(lexer);
+                fmt_buffer_append(lexer, next);
+                continue;
+            }
+
+            if (next == 'R') {
+                advance(lexer);
+                raw_mode = true;
+                continue;
+            }
+
+            if (next == 'F') {
+                advance(lexer);
+                lexer->fmt_mode = !lexer->fmt_mode;
+                continue;
+            }
+
+            int codepoint = -1;
+            char esc_char = 0;
+            bool handled = true;
+
+            switch (next) {
+            case '\\':
+                esc_char = '\\';
+                break;
+            case '\'':
+                esc_char = '\'';
+                break;
+            case '"':
+                esc_char = '"';
+                break;
+            case 'a':
+                esc_char = '\a';
+                break;
+            case 'b':
+                esc_char = '\b';
+                break;
+            case 'f':
+                esc_char = '\f';
+                break;
+            case 'n':
+                esc_char = '\n';
+                break;
+            case 'r':
+                esc_char = '\r';
+                break;
+            case 't':
+                esc_char = '\t';
+                break;
+            case 'v':
+                esc_char = '\v';
+                break;
+            case 'e':
+                esc_char = '\x1b';
+                break;
+            case 'x':
+                handled = false;
+                break;
+            default:
+                handled = false;
+                break;
+            }
+
+            if (handled) {
+                advance(lexer);
+                fmt_buffer_append(lexer, esc_char);
+                continue;
+            }
+
+            if (next == 'x') {
+                advance(lexer);
+                int d1 = hex_digit(peek(lexer));
+                advance(lexer);
+                int d2 = hex_digit(peek(lexer));
+                advance(lexer);
+                if (d1 < 0 || d2 < 0) {
+                    return fmt_error(lexer, "Invalid \\x escape");
+                }
+                codepoint = (d1 << 4) | d2;
+            } else if (next == 'u') {
+                advance(lexer);
+                int acc = 0;
+                for (int i = 0; i < 4; i++) {
+                    int d = hex_digit(peek(lexer));
+                    advance(lexer);
+                    if (d < 0) {
+                        return fmt_error(lexer, "Invalid \\u escape");
+                    }
+                    acc = (acc << 4) | d;
+                }
+                codepoint = acc;
+            } else if (next == 'U') {
+                advance(lexer);
+                int acc = 0;
+                for (int i = 0; i < 8; i++) {
+                    int d = hex_digit(peek(lexer));
+                    advance(lexer);
+                    if (d < 0) {
+                        return fmt_error(lexer, "Invalid \\U escape");
+                    }
+                    acc = (acc << 4) | d;
+                }
+                codepoint = acc;
+            } else {
+                return fmt_error(lexer, "Unknown escape sequence");
+            }
+
+            if (codepoint != -1) {
+                if (codepoint <= 0x7F) {
+                    fmt_buffer_append(lexer, (char)codepoint);
+                } else if (codepoint <= 0x7FF) {
+                    fmt_buffer_append(lexer, 0xC0 | ((codepoint >> 6) & 0x1F));
+                    fmt_buffer_append(lexer, 0x80 | (codepoint & 0x3F));
+                } else if (codepoint <= 0xFFFF) {
+                    fmt_buffer_append(lexer, 0xE0 | ((codepoint >> 12) & 0x0F));
+                    fmt_buffer_append(lexer, 0x80 | ((codepoint >> 6) & 0x3F));
+                    fmt_buffer_append(lexer, 0x80 | (codepoint & 0x3F));
+                } else {
+                    fmt_buffer_append(lexer, 0xF0 | ((codepoint >> 18) & 0x07));
+                    fmt_buffer_append(lexer, 0x80 | ((codepoint >> 12) & 0x3F));
+                    fmt_buffer_append(lexer, 0x80 | ((codepoint >> 6) & 0x3F));
+                    fmt_buffer_append(lexer, 0x80 | (codepoint & 0x3F));
+                }
+                continue;
+            }
+        }
+
+        if (c == '{' && lexer->fmt_mode && !raw_mode && lexer->fmt_depth == 0) {
+            advance(lexer);
+            Token t = flush_fmt_buffer(lexer);
+            lexer->fmt_depth = 1;
+            lexer->has_pending = true;
+            lexer->pending_token.type = TOKEN_FMT_OPEN;
+            lexer->pending_token.line = lexer->line;
+            lexer->pending_token.column = lexer->column;
+            lexer->pending_token.literal = safe_strdup("{");
+            return t;
+        }
+
+        advance(lexer);
+        fmt_buffer_append(lexer, c);
+    }
+
+    return fmt_error(lexer, "Unterminated string literal");
+}
+
 static bool is_base_prefix_char(char c) {
     return (c == 'b' || c == 'o' || c == 'd' || c == 'x' || c == 't' || c == 'c' || c == 's' || c == 'r') != 0;
 }
@@ -260,6 +486,18 @@ static bool matches_reserved_signed_special(Lexer *lexer, size_t index, const ch
 }
 
 Token lexer_next_token(Lexer *lexer) {
+    if (lexer->has_pending) {
+        lexer->has_pending = false;
+        Token t = lexer->pending_token;
+        lexer->pending_token.type = TOKEN_EOF;
+        lexer->pending_token.literal = NULL;
+        return t;
+    }
+
+    if (lexer->in_fmt_string && lexer->fmt_depth == 0) {
+        return scan_fmt_string_text(lexer, lexer->fmt_quote);
+    }
+
     while (!is_at_end(lexer)) {
         char c = peek(lexer);
         unsigned char uc = (unsigned char)c;
@@ -315,10 +553,25 @@ Token lexer_next_token(Lexer *lexer) {
             return make_token(lexer, TOKEN_RPAREN, ")", 1);
         }
         if (c == '{') {
+            if (lexer->in_fmt_string && lexer->fmt_depth > 0) {
+                advance(lexer);
+                lexer->fmt_depth++;
+                return make_token(lexer, TOKEN_LBRACE, "{", 1);
+            }
             advance(lexer);
             return make_token(lexer, TOKEN_LBRACE, "{", 1);
         }
         if (c == '}') {
+            if (lexer->in_fmt_string && lexer->fmt_depth == 1) {
+                advance(lexer);
+                lexer->fmt_depth = 0;
+                return make_token(lexer, TOKEN_FMT_CLOSE, "}", 1);
+            }
+            if (lexer->in_fmt_string && lexer->fmt_depth > 1) {
+                advance(lexer);
+                lexer->fmt_depth--;
+                return make_token(lexer, TOKEN_RBRACE, "}", 1);
+            }
             advance(lexer);
             return make_token(lexer, TOKEN_RBRACE, "}", 1);
         }
@@ -368,7 +621,16 @@ Token lexer_next_token(Lexer *lexer) {
         }
 
         if (c == '"' || c == '\'') {
-            return string_token(lexer, c);
+            if (lexer->in_fmt_string && lexer->fmt_depth > 0) {
+                bool outer_fmt = lexer->fmt_mode;
+                int outer_depth = lexer->fmt_depth;
+                Token t = string_token(lexer, c);
+                lexer->fmt_mode = outer_fmt;
+                lexer->fmt_depth = outer_depth;
+                return t;
+            }
+            Token t = string_token(lexer, c);
+            return t;
         }
 
         if (c == '-') {
@@ -416,204 +678,18 @@ Token lexer_next_token(Lexer *lexer) {
 }
 
 static Token string_token(Lexer *lexer, char quote_char) {
-    int start_line = lexer->line;
-    int start_col = lexer->column;
     advance(lexer);
 
-    size_t capacity = 64;
-    char *value = safe_malloc(capacity);
-    size_t len_val = 0;
-    bool raw_mode = false;
-
-    while (!is_at_end(lexer)) {
-        char c = peek(lexer);
-        unsigned char uc = (unsigned char)c;
-        if (uc > 0x7F) {
-            free(value);
-            return error_token(lexer, "Non-ASCII character in string literal; use escape sequences");
-        }
-
-        if (c == quote_char) {
-            advance(lexer);
-            value[len_val] = '\0';
-            Token t = {TOKEN_STRING, value, start_line, start_col};
-            return t;
-        }
-
-        if (c == '\n' || c == '\r') {
-            free(value);
-            return error_token(lexer, "Unterminated string literal");
-        }
-
-        if (c == '\\') {
-            advance(lexer);
-            if (is_at_end(lexer)) {
-                free(value);
-                return error_token(lexer, "Unterminated string literal");
-            }
-            char next = peek(lexer);
-
-            if (raw_mode) {
-                if (next == 'R') {
-                    advance(lexer);
-                    raw_mode = false;
-                    continue;
-                }
-                if (len_val + 2 >= capacity) {
-                    capacity *= 2;
-                    value = safe_realloc(value, capacity);
-                }
-                value[len_val++] = '\\';
-                advance(lexer);
-                value[len_val++] = next;
-                continue;
-            }
-
-            if (next == 'R') {
-                advance(lexer);
-                raw_mode = true;
-                continue;
-            }
-
-            int codepoint = -1;
-            char esc_char = 0;
-            bool handled = true;
-
-            switch (next) {
-            case '\\':
-                esc_char = '\\';
-                break;
-            case '\'':
-                esc_char = '\'';
-                break;
-            case '"':
-                esc_char = '"';
-                break;
-            case 'a':
-                esc_char = '\a';
-                break;
-            case 'b':
-                esc_char = '\b';
-                break;
-            case 'f':
-                esc_char = '\f';
-                break;
-            case 'n':
-                esc_char = '\n';
-                break;
-            case 'r':
-                esc_char = '\r';
-                break;
-            case 't':
-                esc_char = '\t';
-                break;
-            case 'v':
-                esc_char = '\v';
-                break;
-            case 'e':
-                esc_char = '\x1b';
-                break;
-            case 'x':
-                handled = false;
-                break; // specific handling
-            default:
-                handled = false;
-                break;
-            }
-
-            if (handled) {
-                advance(lexer);
-                if (len_val + 1 >= capacity) {
-                    capacity *= 2;
-                    value = safe_realloc(value, capacity);
-                }
-                value[len_val++] = esc_char;
-                continue;
-            }
-
-            // Hex/Unicode
-            if (next == 'x') {
-                advance(lexer);
-                int d1 = hex_digit(peek(lexer));
-                advance(lexer);
-                int d2 = hex_digit(peek(lexer));
-                advance(lexer);
-                if (d1 < 0 || d2 < 0) {
-                    free(value);
-                    return error_token(lexer, "Invalid \\x escape");
-                }
-                codepoint = (d1 << 4) | d2;
-            } else if (next == 'u') {
-                advance(lexer);
-                int acc = 0;
-                for (int i = 0; i < 4; i++) {
-                    int d = hex_digit(peek(lexer));
-                    advance(lexer);
-                    if (d < 0) {
-                        free(value);
-                        return error_token(lexer, "Invalid \\u escape");
-                    }
-                    acc = (acc << 4) | d;
-                }
-                codepoint = acc;
-            } else if (next == 'U') {
-                advance(lexer);
-                int acc = 0;
-                for (int i = 0; i < 8; i++) {
-                    int d = hex_digit(peek(lexer));
-                    advance(lexer);
-                    if (d < 0) {
-                        free(value);
-                        return error_token(lexer, "Invalid \\U escape");
-                    }
-                    acc = (acc << 4) | d;
-                }
-                codepoint = acc;
-            } else {
-                free(value);
-                return error_token(lexer, "Unknown escape sequence");
-            }
-
-            if (codepoint != -1) {
-                if (codepoint <= 0x7F) {
-                    if (len_val + 1 >= capacity) {
-                        capacity *= 2;
-                        value = safe_realloc(value, capacity);
-                    }
-                    value[len_val++] = (char)codepoint;
-                } else {
-                    if (len_val + 4 >= capacity) {
-                        capacity += 10;
-                        value = safe_realloc(value, capacity);
-                    }
-                    if (codepoint <= 0x7FF) {
-                        value[len_val++] = 0xC0 | ((codepoint >> 6) & 0x1F);
-                        value[len_val++] = 0x80 | (codepoint & 0x3F);
-                    } else if (codepoint <= 0xFFFF) {
-                        value[len_val++] = 0xE0 | ((codepoint >> 12) & 0x0F);
-                        value[len_val++] = 0x80 | ((codepoint >> 6) & 0x3F);
-                        value[len_val++] = 0x80 | (codepoint & 0x3F);
-                    } else {
-                        value[len_val++] = 0xF0 | ((codepoint >> 18) & 0x07);
-                        value[len_val++] = 0x80 | ((codepoint >> 12) & 0x3F);
-                        value[len_val++] = 0x80 | ((codepoint >> 6) & 0x3F);
-                        value[len_val++] = 0x80 | (codepoint & 0x3F);
-                    }
-                }
-                continue;
-            }
-        }
-
-        advance(lexer);
-        if (len_val + 1 >= capacity) {
-            capacity *= 2;
-            value = safe_realloc(value, capacity);
-        }
-        value[len_val++] = c;
+    lexer->in_fmt_string = true;
+    lexer->fmt_mode = false;
+    lexer->fmt_depth = 0;
+    lexer->fmt_quote = quote_char;
+    lexer->fmt_buffer_len = 0;
+    if (lexer->fmt_buffer) {
+        lexer->fmt_buffer[0] = '\0';
     }
 
-    free(value);
-    return error_token(lexer, "Unterminated string literal");
+    return scan_fmt_string_text(lexer, quote_char);
 }
 
 static Token identifier_token(Lexer *lexer) {
