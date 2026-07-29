@@ -48,7 +48,8 @@ typedef enum {
     EXPR_INDEX,
     EXPR_RANGE,
     EXPR_WILDCARD,
-    EXPR_LAMBDA
+    EXPR_LAMBDA,
+    EXPR_FMT_STR
 } ExprType;
 
 typedef struct {
@@ -91,6 +92,9 @@ struct Expr {
         struct {
             Stmt *block;
         } async;
+        struct {
+            ExprList parts; // alternating STR parts and embedded expressions
+        } fmt_str;
         struct {
             ParamList params;
             DeclType return_type;
@@ -244,6 +248,7 @@ Expr *expr_range(Expr *start, Expr *end, int line, int column);
 Expr *expr_wildcard(int line, int column);
 Expr *expr_lambda(ParamList params, DeclType return_type, int return_base, Expr *return_template_expr, Stmt *body,
                   int line, int column);
+Expr *expr_fmt_str(ExprList parts, int line, int column);
 void expr_list_add(ExprList *list, Expr *expr);
 
 Stmt *stmt_block(int line, int column);

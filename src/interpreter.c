@@ -1246,6 +1246,64 @@ Value eval_expr(Interpreter *interp, Expr *expr, Env *env) {
     case EXPR_STR:
         return value_str(expr->as.str_value);
 
+    case EXPR_FMT_STR: {
+        size_t total_len = 0;
+        size_t part_count = expr->as.fmt_str.parts.count;
+        Value *temp_vals = safe_malloc(sizeof(Value) * part_count);
+        for (size_t i = 0; i < part_count; i++) {
+            Expr *part = expr->as.fmt_str.parts.items[i];
+            if (part->type == EXPR_STR) {
+                total_len += strlen(part->as.str_value ? part->as.str_value : "");
+            } else {
+                Value v = eval_expr(interp, part, env);
+                if (interp->error) {
+                    for (size_t j = 0; j < i; j++) {
+                        if (expr->as.fmt_str.parts.items[j]->type != EXPR_STR) {
+                            value_free(temp_vals[j]);
+                        }
+                    }
+                    free(temp_vals);
+                    return value_null();
+                }
+                temp_vals[i] = builtin_str_value(interp, v, expr->line, expr->column);
+                if (interp->error) {
+                    for (size_t j = 0; j < i; j++) {
+                        if (expr->as.fmt_str.parts.items[j]->type != EXPR_STR) {
+                            value_free(temp_vals[j]);
+                        }
+                    }
+                    free(temp_vals);
+                    return value_null();
+                }
+                total_len += strlen(temp_vals[i].as.s ? temp_vals[i].as.s : "");
+            }
+        }
+
+        char *result = safe_malloc(total_len + 1);
+        result[0] = '\0';
+        size_t pos = 0;
+        for (size_t i = 0; i < part_count; i++) {
+            Expr *part = expr->as.fmt_str.parts.items[i];
+            if (part->type == EXPR_STR) {
+                const char *s = part->as.str_value ? part->as.str_value : "";
+                size_t len = strlen(s);
+                memcpy(result + pos, s, len);
+                pos += len;
+            } else {
+                const char *s = temp_vals[i].as.s;
+                size_t len = strlen(s ? s : "");
+                memcpy(result + pos, s, len);
+                pos += len;
+                value_free(temp_vals[i]);
+            }
+        }
+        result[pos] = '\0';
+        free(temp_vals);
+        Value ret = value_str(result);
+        free(result);
+        return ret;
+    }
+
     case EXPR_IDENT: {
         Value v;
         DeclType dtype;

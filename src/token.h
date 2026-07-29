@@ -11,9 +11,12 @@ typedef enum {
 
     // Literals
     TOKEN_IDENT,
-    TOKEN_NUMBER, // Binary integer (signed or unsigned)
-    TOKEN_FLOAT,  // Binary float
-    TOKEN_STRING,
+    TOKEN_NUMBER,    // Binary integer (signed or unsigned)
+    TOKEN_FLOAT,     // Binary float
+    TOKEN_STRING,    // Regular string literal
+    TOKEN_FSTRING,   // Formatted-string text segment
+    TOKEN_FMT_OPEN,  // { opening an embedded expression in formatted mode
+    TOKEN_FMT_CLOSE, // } closing an embedded expression in formatted mode
 
     // Symbols
     TOKEN_LPAREN,   // (

@@ -728,6 +728,32 @@ static Expr *parse_primary(Parser *parser) {
     if (match(parser, TOKEN_STRING)) {
         return expr_str(token.literal, token.line, token.column);
     }
+    if (match(parser, TOKEN_FSTRING)) {
+        ExprList parts;
+        parts.items = NULL;
+        parts.count = 0;
+        parts.capacity = 0;
+        expr_list_add(&parts, expr_str(token.literal, token.line, token.column));
+
+        while (match(parser, TOKEN_FMT_OPEN)) {
+            Expr *expr = parse_expression(parser);
+            if (!expr) {
+                return NULL;
+            }
+            if (!consume(parser, TOKEN_FMT_CLOSE, "Expected '}' in formatted string")) {
+                return NULL;
+            }
+            expr_list_add(&parts, expr);
+
+            if (match(parser, TOKEN_FSTRING)) {
+                expr_list_add(&parts, expr_str(parser->previous_token.literal, parser->previous_token.line,
+                                               parser->previous_token.column));
+            } else {
+                expr_list_add(&parts, expr_str("", parser->current_token.line, parser->current_token.column));
+            }
+        }
+        return expr_fmt_str(parts, token.line, token.column);
+    }
     if (match(parser, TOKEN_AT)) {
         if (parser->current_token.type != TOKEN_IDENT) {
             report_error(parser, "Expected identifier after '@'");
