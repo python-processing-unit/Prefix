@@ -1,4 +1,0 @@
-! MAP{<"x" = 0d1>} with matching value
-MAP{<"x" = 0d1>} template_var
-template_var = <"x" = 0d42>
-ASSERT(MATCH(template_var, <"x" = 0d1>))

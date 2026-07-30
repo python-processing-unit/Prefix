@@ -1,0 +1,55 @@
+passing:
+  - name: op-tns-from-shape-map
+    language: Prefix
+    source: |
+        MAP fill_map = <"n" = 0d1>
+        TNS filled_map = TNS([0d2], fill_map)
+        ASSERT(EQ(filled_map, [fill_map, fill_map]))
+        
+  - name: op-tns-from-shape-scalar
+    language: Prefix
+    source: |
+        TNS filled_scalar = TNS([0d2, 0d1], 0d7)
+        ASSERT(EQ(filled_scalar, [[0d7], [0d7]]))
+        
+  - name: op-tns-from-str
+    language: Prefix
+    source: |
+        TNS from_string = TNS("abc")
+        ASSERT(EQ(from_string, ["a", "b", "c"]))
+failing:
+  - name: op-tns-bad-shape-type
+    language: Prefix
+    source: 'TNS([[0d1]], 0d1)'
+  - name: op-tns-bad-shape
+    language: Prefix
+    source: 'TNS([0d2, 0d0], 0d1)'
+  - name: op-tns-bool
+    language: Prefix
+    source: |
+        BOOL sample_bool = TRUE
+        TNS(sample_bool)
+  - name: op-tns-flt
+    language: Prefix
+    source: TNS(0d1.5)
+  - name: op-tns-func
+    language: Prefix
+    source: |
+        FUNC INT sample_func(){
+            RETURN(0d1)
+        }
+        
+        TNS(sample_func)
+  - name: op-tns-int
+    language: Prefix
+    source: TNS(0d1)
+  - name: op-tns-map
+    language: Prefix
+    source: |
+        MAP fill_map = <"n" = 0d1>
+        TNS(fill_map)
+  - name: op-tns-thr
+    language: Prefix
+    source: |
+        THR(sample_thr){}
+        TNS(sample_thr)

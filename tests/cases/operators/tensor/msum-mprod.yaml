@@ -1,0 +1,76 @@
+passing:
+  - name: mprod-single
+    language: Prefix
+    source: |
+        TNS x = [[0d2, 0d3], [0d4, 0d5]]
+        
+        ASSERT(EQ(MPROD(x), x))
+        
+  - name: mprod-three
+    language: Prefix
+    source: |
+        ASSERT(EQ(MPROD([0d2, 0d3], [0d4, 0d5], [0d6, 0d7]), [0d48, 0d105]))
+        
+  - name: mprod-two
+    language: Prefix
+    source: |
+        ASSERT(EQ(MPROD([0d2, 0d3], [0d4, 0d5]), [0d8, 0d15]))
+        
+  - name: msum-single
+    language: Prefix
+    source: |
+        TNS x = [[0d1, 0d2], [0d3, 0d4]]
+        
+        ASSERT(EQ(MSUM(x), x))
+        
+  - name: msum-three
+    language: Prefix
+    source: |
+        ASSERT(EQ(MSUM([0d1, 0d2], [0d3, 0d4], [0d5, 0d6]), [0d9, 0d12]))
+        
+  - name: msum-two
+    language: Prefix
+    source: |
+        ASSERT(EQ(MSUM([0d1, 0d2], [0d3, 0d4]), [0d4, 0d6]))
+        
+failing:
+  - name: mprod-arity-zero
+    language: Prefix
+    source: |
+        MPROD()
+        
+  - name: mprod-non-numeric
+    language: Prefix
+    source: |
+        MPROD(["a"], ["b"])
+        
+  - name: mprod-non-tns-arg
+    language: Prefix
+    source: |
+        MPROD([0d1], 0d2)
+        
+  - name: mprod-shape-mismatch
+    language: Prefix
+    source: |
+        MPROD([0d1, 0d2], [0d3])
+        
+  - name: msum-arity-zero
+    language: Prefix
+    source: |
+        MSUM()
+        
+  - name: msum-non-numeric
+    language: Prefix
+    source: |
+        MSUM(["a"], ["b"])
+        
+  - name: msum-non-tns-arg
+    language: Prefix
+    source: |
+        MSUM([0d1], 0d2)
+        
+  - name: msum-shape-mismatch
+    language: Prefix
+    source: |
+        MSUM([0d1, 0d2], [0d3])
+        

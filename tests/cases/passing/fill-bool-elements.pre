@@ -1,3 +1,0 @@
-TNS flags = [TRUE, FALSE, TRUE]
-
-ASSERT(EQ(FILL(flags, FALSE), [FALSE, FALSE, FALSE]))

@@ -1,9 +1,0 @@
-INT a1 = 0d5
-INT b1 = 0d3
--(@a1, b1)
-ASSERT(EQ(a1, 0d2))
-
-FLT f1 = 0d5.5
-FLT g1 = 0d1.25
--(@f1, g1)
-ASSERT(EQ(f1, 0d4.25))

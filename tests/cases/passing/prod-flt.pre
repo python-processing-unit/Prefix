@@ -1,3 +1,0 @@
-! PROD with two FLT arguments
-FLT result = PROD(0d1.5, 0d2.0)
-ASSERT(EQ(result, 0d3.0))

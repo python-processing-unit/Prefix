@@ -1,7 +1,0 @@
-MAP m = <0d1 = "int", 0d2.5 = "flt", "three" = "str">
-
-ASSERT(KEYIN(0d1, m))
-ASSERT(KEYIN(0d2.5, m))
-ASSERT(KEYIN("three", m))
-REFUTE(KEYIN(0d1.0, m))
-REFUTE(KEYIN("0d1", m))

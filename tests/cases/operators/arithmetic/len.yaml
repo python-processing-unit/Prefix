@@ -1,0 +1,13 @@
+passing:
+  - name: len
+    language: Prefix
+    source: |
+        ASSERT(EQ(LEN(0d1), 0d1))
+        ASSERT(EQ(LEN("prefix"), 0d1))
+        ASSERT(EQ(LEN(0d1, "prefix"), 0d2))
+        ASSERT(EQ(LEN(0b1, "prefix", -0xA), 0d3))
+        ASSERT(EQ(BASE(LEN(0b1, "prefix", -0xA)), 0d16))
+failing:
+  - name: len-unsupported
+    language: Prefix
+    source: LEN([0d1])

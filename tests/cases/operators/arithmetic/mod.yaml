@@ -1,0 +1,68 @@
+passing:
+  - name: mod-flt
+    language: Prefix
+    source: |
+        FLT left_oct = 0o7.0
+        FLT right_hex = 0x2.0
+        FLT wide_oct = 0o5.0
+        FLT right_hex_frac = 0x1.8
+        
+        ASSERT(EQ(MOD(left_oct, right_hex), 0x1.0))
+        ASSERT(EQ(BASE(MOD(left_oct, right_hex)), 0d16))
+        
+        ASSERT(EQ(MOD(wide_oct, right_hex_frac), 0x0.8))
+        ASSERT(EQ(BASE(MOD(wide_oct, right_hex_frac)), 0d16))
+  - name: mod-int
+    language: Prefix
+    source: |
+        INT left_dec = 0d7
+        INT right_bin = 0b10
+        INT wide_hex = 0x10
+        
+        ASSERT(EQ(MOD(left_dec, right_bin), 0d1))
+        ASSERT(EQ(BASE(MOD(left_dec, right_bin)), 0d10))
+        
+        ASSERT(EQ(MOD(wide_hex, 0d3), 0x1))
+        ASSERT(EQ(BASE(MOD(wide_hex, 0d3)), 0d16))
+  - name: mod-pointer-writeback
+    language: Prefix
+    source: |
+        INT a1 = 0d5
+        INT b1 = 0d2
+        MOD(@a1, b1)
+        ASSERT(EQ(a1, 0d1))
+        
+        INT a2 = 0d5
+        INT b2 = 0d2
+        MOD(a2, @b2)
+        ASSERT(EQ(b2, 0d2))
+        
+        INT a3 = 0d5
+        INT b3 = 0d2
+        MOD(@a3, @b3)
+        ASSERT(EQ(a3, 0d1))
+        ASSERT(EQ(b3, 0d1))
+        
+        FLT f1 = 0d5.5
+        FLT g1 = 0d2.0
+        MOD(@f1, g1)
+        ASSERT(EQ(f1, 0d1.5))
+        
+        FLT f2 = 0d5.5
+        FLT g2 = 0d2.0
+        MOD(f2, @g2)
+        ASSERT(EQ(g2, 0d2.0))
+        
+        FLT f3 = 0d5.5
+        FLT g3 = 0d2.0
+        MOD(@f3, @g3)
+        ASSERT(EQ(f3, 0d1.5))
+        ASSERT(EQ(g3, 0d1.5))
+        
+failing:
+  - name: mod-zero-flt
+    language: Prefix
+    source: 'MOD(0o1.0, 0x0.0)'
+  - name: mod-zero-int
+    language: Prefix
+    source: 'MOD(0d1, 0d0)'

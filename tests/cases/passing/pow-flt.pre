@@ -1,9 +1,0 @@
-FLT left_oct = 0o1.4
-FLT right_hex = 0x2.0
-FLT wide_oct = 0o2.0
-
-ASSERT(EQ(POW(left_oct, right_hex), 0x2.4))
-ASSERT(EQ(BASE(POW(left_oct, right_hex)), 0d16))
-
-ASSERT(EQ(POW(wide_oct, 0x3.0), 0x8.0))
-ASSERT(EQ(BASE(POW(wide_oct, 0x3.0)), 0d16))

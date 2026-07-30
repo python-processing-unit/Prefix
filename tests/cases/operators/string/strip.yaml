@@ -1,0 +1,61 @@
+passing:
+  - name: strip-basic
+    language: Prefix
+    source: |
+        ASSERT(EQ(TYPE(STRIP("prefix", "fix")), "STR"))
+        ASSERT(EQ(STRIP("prefix", "fix"), "pre"))
+        
+  - name: strip-empty-and-whole
+    language: Prefix
+    source: |
+        ASSERT(EQ(STRIP("", "x"), ""))
+        ASSERT(EQ(STRIP("whole", "whole"), ""))
+        
+  - name: strip-every-occurrence
+    language: Prefix
+    source: |
+        ASSERT(EQ(STRIP("banana", "an"), "ba"))
+        ASSERT(EQ(STRIP("fooXXbarXXXXbazXX", "XX"), "foobarbaz"))
+        
+  - name: strip-not-found
+    language: Prefix
+    source: |
+        ASSERT(EQ(STRIP("prefix", "zzz"), "prefix"))
+        
+  - name: strip-substring-exact
+    language: Prefix
+    source: |
+        ASSERT(EQ(STRIP("abc", "ac"), "abc"))
+        ASSERT(EQ(STRIP("a  b  c", "  "), "abc"))
+        
+failing:
+  - name: strip-arity-one
+    language: Prefix
+    source: |
+        STRIP("abc")
+        
+  - name: strip-arity-three
+    language: Prefix
+    source: |
+        STRIP("abc", "a", "b")
+        
+  - name: strip-arity-zero
+    language: Prefix
+    source: |
+        STRIP()
+        
+  - name: strip-empty-remove
+    language: Prefix
+    source: |
+        STRIP("abc", "")
+        
+  - name: strip-first-non-str
+    language: Prefix
+    source: |
+        STRIP(0d1, "a")
+        
+  - name: strip-second-non-str
+    language: Prefix
+    source: |
+        STRIP("abc", 0d1)
+        

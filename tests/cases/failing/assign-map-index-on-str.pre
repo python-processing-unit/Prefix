@@ -1,2 +1,0 @@
-STR s = "x"
-ASSIGN(s<"k">, 0d1)

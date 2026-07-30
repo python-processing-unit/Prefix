@@ -1,3 +1,0 @@
-INT x = 0d1
-DEL("x")
-BOOL x = TRUE

@@ -1,2 +1,0 @@
-FUNC fn = GET_FIVE
-ASSIGN(fn[0d1], 0d1)

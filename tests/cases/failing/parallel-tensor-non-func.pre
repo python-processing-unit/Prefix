@@ -1,3 +1,0 @@
-FUNC BOOL worker(){}
-
-PARALLEL([worker, 0d1])

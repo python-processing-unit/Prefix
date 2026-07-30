@@ -1,4 +1,0 @@
-FUNC INT{0d2} add(INT{0d2} a, INT{0d2} b) {
-    RETURN(+(a, b))
-}
-add(0d5, 0d6)

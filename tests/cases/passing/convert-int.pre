@@ -1,7 +1,0 @@
-INT int_value = 0d42
-
-ASSERT(EQ(CONVERT(int_value, 0x10), 0x2A))
-ASSERT(EQ(BASE(CONVERT(int_value, 0x10)), 0d16))
-ASSERT(EQ(CONVERT(int_value, 0d2), 0b101010))
-ASSERT(EQ(BASE(CONVERT(int_value, 0d2)), 0d2))
-ASSERT(EQ(BASE(CONVERT(int_value, 0d64)), 0d64))

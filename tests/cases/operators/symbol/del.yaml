@@ -1,0 +1,129 @@
+passing:
+  - name: del-frozen
+    language: Prefix
+    source: |
+        BOOL frozen_symbol = TRUE
+        REFUTE(FREEZE("frozen_symbol"))
+        
+        BOOL frozen_delete_failed = FALSE
+        TRY{
+            DEL("frozen_symbol")
+        } CATCH {
+            frozen_delete_failed = TRUE
+        }
+        ASSERT(frozen_delete_failed)
+        ASSERT(EXIST("frozen_symbol"))
+        
+        REFUTE(THAW("frozen_symbol"))
+        REFUTE(DEL("frozen_symbol"))
+        REFUTE(EXIST("frozen_symbol"))
+        
+        BOOL permafrozen_symbol = TRUE
+        REFUTE(PERMAFREEZE("permafrozen_symbol"))
+        
+        BOOL permafrozen_delete_failed = FALSE
+        TRY{
+            DEL("permafrozen_symbol")
+        } CATCH {
+            permafrozen_delete_failed = TRUE
+        }
+        ASSERT(permafrozen_delete_failed)
+        ASSERT(EXIST("permafrozen_symbol"))
+        
+  - name: del-map
+    language: Prefix
+    source: |
+        MAP top = <"keep" = 0d1, "drop" = 0d2>
+        REFUTE(DEL('top<"drop">'))
+        ASSERT(EQ(top, <"keep" = 0d1>))
+        
+        BOOL top_missing = FALSE
+        TRY{
+            top<"drop">
+        } CATCH {
+            top_missing = TRUE
+        }
+        ASSERT(top_missing)
+        
+        MAP nested = <"outer" = <"keep" = 0d1, "drop" = 0d2>>
+        REFUTE(DEL('nested<"outer", "drop">'))
+        ASSERT(EQ(nested, <"outer" = <"keep" = 0d1>>))
+        
+        MAP missing_intermediate = <"outer" = <"keep" = 0d1>>
+        REFUTE(DEL('missing_intermediate<"absent", "drop">'))
+        ASSERT(EQ(missing_intermediate, <"outer" = <"keep" = 0d1>>))
+        
+        MAP missing_final = <"outer" = <"keep" = 0d1>>
+        REFUTE(DEL('missing_final<"outer", "drop">'))
+        ASSERT(EQ(missing_final, <"outer" = <"keep" = 0d1>>))
+        
+  - name: del-symbol
+    language: Prefix
+    source: |
+        BOOL symbol = TRUE
+        ASSERT(EXIST("symbol"))
+        REFUTE(DEL("symbol"))
+        REFUTE(EXIST("symbol"))
+        
+        BOOL deleted_read_failed = FALSE
+        TRY{
+        	symbol
+        } CATCH {
+        	deleted_read_failed = TRUE
+        }
+        ASSERT(deleted_read_failed)
+        
+        INT count = 0d1
+        REFUTE(DEL("count"))
+        count = 0d2
+        ASSERT(EQ(count, 0d2))
+        ASSERT(EXIST("count"))
+        
+failing:
+  - name: del-already-deleted-symbol
+    language: Prefix
+    source: |
+        BOOL x = TRUE
+        DEL("x")
+        DEL("x")
+        
+  - name: del-map-intermediate-not-map
+    language: Prefix
+    source: |
+        MAP value = <"branch" = 0d1>
+        DEL('value<"branch", "leaf">')
+        
+  - name: del-map-target-not-map
+    language: Prefix
+    source: |
+        INT value = 0d1
+        DEL('value<"key">')
+        
+  - name: del-never-assigned-symbol
+    language: Prefix
+    source: |
+        BOOL x
+        DEL("x")
+        
+  - name: del-nonexistent-symbol
+    language: Prefix
+    source: |
+        DEL("x")
+        
+  - name: del-raw-indexed-target
+    language: Prefix
+    source: |
+        MAP value = <"key" = 0d1>
+        DEL(value<"key">)
+  - name: del-raw-symbol-argument
+    language: Prefix
+    source: |
+        BOOL x = TRUE
+        DEL(x)
+  - name: del-type-mismatch-after-delete
+    language: Prefix
+    source: |
+        INT x = 0d1
+        DEL("x")
+        BOOL x = TRUE
+        

@@ -1,0 +1,24 @@
+passing:
+  - name: all
+    language: Prefix
+    source: |
+        ASSERT(ALL(TRUE, TRUE))
+        REFUTE(ALL(TRUE, FALSE))
+        ASSERT(ALL(TRUE, TRUE, TRUE))
+        REFUTE(ALL(TRUE, TRUE, FALSE))
+        
+  - name: any
+    language: Prefix
+    source: |
+        ASSERT(NOT(ANY(FALSE, FALSE)))
+        ASSERT(ANY(FALSE, TRUE))
+        ASSERT(ANY(FALSE, FALSE, TRUE))
+        ASSERT(NOT(ANY(FALSE, FALSE, FALSE)))
+        
+failing:
+  - name: all-arity-zero
+    language: Prefix
+    source: ALL()
+  - name: any-arity-zero
+    language: Prefix
+    source: ANY()

@@ -1,0 +1,230 @@
+passing:
+  - name: isbool
+    language: Prefix
+    source: |
+        BOOL sample_bool_true = TRUE
+        BOOL sample_bool_false = FALSE
+        INT sample_int = -0d7
+        FLT sample_flt = 0d3.5
+        STR sample_str = "prefix"
+        TNS sample_tns = [0d1, 0d2]
+        MAP sample_map = <"n" = 0d1>
+        
+        FUNC INT sample_func(INT value){
+            RETURN(value)
+        }
+        
+        THR(sample_thr){}
+        
+        ASSERT(ISBOOL(sample_bool_true))
+        ASSERT(ISBOOL(sample_bool_false))
+        REFUTE(ISBOOL(sample_int))
+        REFUTE(ISBOOL(sample_flt))
+        REFUTE(ISBOOL(sample_str))
+        REFUTE(ISBOOL(sample_tns))
+        REFUTE(ISBOOL(sample_map))
+        REFUTE(ISBOOL(sample_func))
+        REFUTE(ISBOOL(sample_thr))
+        
+  - name: isflt
+    language: Prefix
+    source: |
+        BOOL sample_bool_true = TRUE
+        INT sample_int = -0d7
+        FLT sample_flt = 0d3.5
+        STR sample_str = "prefix"
+        TNS sample_tns = [0d1, 0d2]
+        MAP sample_map = <"n" = 0d1>
+        
+        FUNC INT sample_func(INT value){
+            RETURN(value)
+        }
+        
+        THR(sample_thr){}
+        
+        REFUTE(ISFLT(sample_bool_true))
+        REFUTE(ISFLT(sample_int))
+        ASSERT(ISFLT(sample_flt))
+        REFUTE(ISFLT(sample_str))
+        REFUTE(ISFLT(sample_tns))
+        REFUTE(ISFLT(sample_map))
+        REFUTE(ISFLT(sample_func))
+        REFUTE(ISFLT(sample_thr))
+        
+  - name: isfunc
+    language: Prefix
+    source: |
+        BOOL sample_bool_true = TRUE
+        BOOL sample_bool_false = FALSE
+        INT sample_int = -0d7
+        FLT sample_flt = 0d3.5
+        STR sample_str = "prefix"
+        TNS sample_tns = [0d1, 0d2]
+        MAP sample_map = <"n" = 0d1>
+        
+        FUNC INT sample_func(INT value){
+            RETURN(value)
+        }
+        
+        THR(sample_thr){}
+        
+        ASSERT(ISFUNC(sample_func))
+        REFUTE(ISFUNC(sample_bool_true))
+        REFUTE(ISFUNC(sample_bool_false))
+        REFUTE(ISFUNC(sample_int))
+        REFUTE(ISFUNC(sample_flt))
+        REFUTE(ISFUNC(sample_str))
+        REFUTE(ISFUNC(sample_tns))
+        REFUTE(ISFUNC(sample_map))
+        REFUTE(ISFUNC(sample_thr))
+        
+  - name: isint
+    language: Prefix
+    source: |
+        BOOL sample_bool_true = TRUE
+        INT sample_int = -0d7
+        FLT sample_flt = 0d3.5
+        STR sample_str = "prefix"
+        TNS sample_tns = [0d1, 0d2]
+        MAP sample_map = <"n" = 0d1>
+        
+        FUNC INT sample_func(INT value){
+            RETURN(value)
+        }
+        
+        THR(sample_thr){}
+        
+        REFUTE(ISINT(sample_bool_true))
+        ASSERT(ISINT(sample_int))
+        REFUTE(ISINT(sample_flt))
+        REFUTE(ISINT(sample_str))
+        REFUTE(ISINT(sample_tns))
+        REFUTE(ISINT(sample_map))
+        REFUTE(ISINT(sample_func))
+        REFUTE(ISINT(sample_thr))
+        
+  - name: ismap
+    language: Prefix
+    source: |
+        BOOL sample_bool_true = TRUE
+        BOOL sample_bool_false = FALSE
+        INT sample_int = -0d7
+        FLT sample_flt = 0d3.5
+        STR sample_str = "prefix"
+        TNS sample_tns = [0d1, 0d2]
+        MAP sample_map = <"n" = 0d1>
+        
+        FUNC INT sample_func(INT value){
+            RETURN(value)
+        }
+        
+        THR(sample_thr){}
+        
+        ASSERT(ISMAP(sample_map))
+        REFUTE(ISMAP(sample_bool_true))
+        REFUTE(ISMAP(sample_bool_false))
+        REFUTE(ISMAP(sample_int))
+        REFUTE(ISMAP(sample_flt))
+        REFUTE(ISMAP(sample_str))
+        REFUTE(ISMAP(sample_tns))
+        REFUTE(ISMAP(sample_func))
+        REFUTE(ISMAP(sample_thr))
+        
+  - name: isstr
+    language: Prefix
+    source: |
+        BOOL sample_bool_true = TRUE
+        INT sample_int = -0d7
+        FLT sample_flt = 0d3.5
+        STR sample_str = "prefix"
+        TNS sample_tns = [0d1, 0d2]
+        MAP sample_map = <"n" = 0d1>
+        
+        FUNC INT sample_func(INT value){
+            RETURN(value)
+        }
+        
+        THR(sample_thr){}
+        
+        REFUTE(ISSTR(sample_bool_true))
+        REFUTE(ISSTR(sample_int))
+        REFUTE(ISSTR(sample_flt))
+        ASSERT(ISSTR(sample_str))
+        REFUTE(ISSTR(sample_tns))
+        REFUTE(ISSTR(sample_map))
+        REFUTE(ISSTR(sample_func))
+        REFUTE(ISSTR(sample_thr))
+        
+  - name: isthr
+    language: Prefix
+    source: |
+        BOOL sample_bool_true = TRUE
+        INT sample_int = -0d7
+        FLT sample_flt = 0d3.5
+        STR sample_str = "prefix"
+        TNS sample_tns = [0d1, 0d2]
+        MAP sample_map = <"n" = 0d1>
+        
+        FUNC INT sample_func(INT value){
+            RETURN(value)
+        }
+        
+        THR(sample_thr){}
+        
+        REFUTE(ISTHR(sample_bool_true))
+        REFUTE(ISTHR(sample_int))
+        REFUTE(ISTHR(sample_flt))
+        REFUTE(ISTHR(sample_str))
+        REFUTE(ISTHR(sample_tns))
+        REFUTE(ISTHR(sample_map))
+        REFUTE(ISTHR(sample_func))
+        ASSERT(ISTHR(sample_thr))
+        
+  - name: istns
+    language: Prefix
+    source: |
+        BOOL sample_bool_true = TRUE
+        INT sample_int = -0d7
+        FLT sample_flt = 0d3.5
+        STR sample_str = "prefix"
+        TNS sample_tns = [0d1, 0d2]
+        MAP sample_map = <"n" = 0d1>
+        
+        FUNC INT sample_func(INT value){
+            RETURN(value)
+        }
+        
+        THR(sample_thr){}
+        
+        REFUTE(ISTNS(sample_bool_true))
+        REFUTE(ISTNS(sample_int))
+        REFUTE(ISTNS(sample_flt))
+        REFUTE(ISTNS(sample_str))
+        ASSERT(ISTNS(sample_tns))
+        REFUTE(ISTNS(sample_map))
+        REFUTE(ISTNS(sample_func))
+        REFUTE(ISTNS(sample_thr))
+        
+failing:
+  - name: isfunc-arity-two
+    language: Prefix
+    source: 'ISFUNC(TRUE, FALSE)'
+  - name: isfunc-arity-zero
+    language: Prefix
+    source: ISFUNC()
+  - name: ismap-arity-two
+    language: Prefix
+    source: 'ISMAP(TRUE, FALSE)'
+  - name: ismap-arity-zero
+    language: Prefix
+    source: ISMAP()
+  - name: isthr-arity-two
+    language: Prefix
+    source: |
+        ISTHR(TRUE, FALSE)
+        
+  - name: isthr-arity-zero
+    language: Prefix
+    source: |
+        ISTHR()
+        

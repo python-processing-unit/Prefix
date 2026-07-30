@@ -1,7 +1,0 @@
-BOOL i = TRUE
-INT runs = 0d0
-PARFOR(i, 0d5){
-    +(@runs, 0d1)
-}
-ASSERT(EQ(runs, 0d0))
-ASSERT(i)

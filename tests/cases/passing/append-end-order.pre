@@ -1,2 +1,0 @@
-ASSERT(EQ(APPEND("z", ["a", "b"]), ["a", "b", "z"]))
-ASSERT(EQ(APPEND(0d9, [0d7]), [0d7, 0d9]))

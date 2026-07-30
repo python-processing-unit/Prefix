@@ -1,3 +1,0 @@
-! Passing integer arithmetic, checking coercion and correct logic
-INT result_div = I/(0d20, 0d4)
-ASSERT(EQ(result_div, 0d5))

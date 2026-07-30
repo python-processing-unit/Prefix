@@ -1,3 +1,0 @@
-MAP m = <0d1 = "one", 0d2.5 = "two_point_five", "three" = "three">
-
-ASSERT(EQ(KEYS(m), [0d1, 0d2.5, "three"]))

@@ -1,0 +1,85 @@
+passing:
+  - name: stop-async-deferred-arg
+    language: Prefix
+    source: |
+        BOOL reached_end = FALSE
+        
+        THR stopped = STOP(ASYNC{
+            FOR(i, 0d100000){}
+            reached_end = TRUE
+        })
+        
+        ASSERT(EQ(TYPE(stopped), "THR"))
+        REFUTE(BOOL(stopped))
+        ASSERT(EQ(reached_end, FALSE))
+        
+  - name: stop-async-handle
+    language: Prefix
+    source: |
+        BOOL reached_end = FALSE
+        
+        THR worker = ASYNC{
+            FOR(i, 0d100000){}
+            reached_end = TRUE
+        }
+        
+        ASSERT(BOOL(worker))
+        
+        THR stopped = STOP(worker)
+        
+        ASSERT(EQ(TYPE(stopped), "THR"))
+        ASSERT(EQ(stopped, worker))
+        REFUTE(BOOL(worker))
+        REFUTE(BOOL(stopped))
+        ASSERT(EQ(reached_end, FALSE))
+  - name: stop-thread-handle
+    language: Prefix
+    source: |
+        BOOL reached_end = FALSE
+        
+        THR(worker){
+            FOR(i, 0d1000000){
+            }
+            reached_end = TRUE
+        }
+        
+        ASSERT(BOOL(worker))
+        
+        THR stopped = STOP(worker)
+        
+        ASSERT(EQ(TYPE(stopped), "THR"))
+        ASSERT(EQ(stopped, worker))
+        REFUTE(BOOL(worker))
+        REFUTE(BOOL(stopped))
+        ASSERT(EQ(reached_end, FALSE))
+failing:
+  - name: stop-arity-two
+    language: Prefix
+    source: |
+        THR(worker){}
+        
+        STOP(worker, worker)
+  - name: stop-arity-zero
+    language: Prefix
+    source: STOP()
+  - name: stop-type-bool
+    language: Prefix
+    source: STOP(TRUE)
+  - name: stop-type-flt
+    language: Prefix
+    source: STOP(0d1.0)
+  - name: stop-type-func
+    language: Prefix
+    source: 'STOP(LAMBDA BOOL: (){})'
+  - name: stop-type-int
+    language: Prefix
+    source: STOP(0d1)
+  - name: stop-type-map
+    language: Prefix
+    source: STOP(<>)
+  - name: stop-type-str
+    language: Prefix
+    source: STOP("thread")
+  - name: stop-type-tns
+    language: Prefix
+    source: STOP([0d1])

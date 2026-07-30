@@ -1,2 +1,0 @@
-STR s = "x"
-ASSIGN(s[0d1], 0d1)

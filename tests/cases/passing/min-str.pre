@@ -1,3 +1,0 @@
-! MIN returns the shortest string
-STR result = MIN("a", "", "prefix", "bb")
-ASSERT(EQ(result, ""))

@@ -1,0 +1,270 @@
+passing:
+  - name: shush-cl-suppresses-forwarding
+    language: PowerShell
+    source: |
+        $helperPath = Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) 'helpers\prefix-input.ps1'
+        . $helperPath
+        
+        $tempDir = New-PrefixTempDir
+        
+        try {
+          $programPath = Join-Path $tempDir 'program.pre'
+        
+          Set-Content -Path $programPath -Encoding Ascii -Value @'
+        SHUSH()
+        ASSERT(EQ(CL("echo prefix-shush-cl"), 0d0))
+        '@
+        
+          $startInfo = New-Object System.Diagnostics.ProcessStartInfo
+          $startInfo.FileName = Get-PrefixExePath
+          $startInfo.Arguments = ('"{0}"' -f $programPath)
+          $startInfo.RedirectStandardOutput = $true
+          $startInfo.RedirectStandardError = $true
+          $startInfo.UseShellExecute = $false
+          $startInfo.CreateNoWindow = $true
+        
+          $process = [System.Diagnostics.Process]::Start($startInfo)
+          try {
+            $stdout = $process.StandardOutput.ReadToEnd()
+            $stderr = $process.StandardError.ReadToEnd()
+            $process.WaitForExit()
+        
+            $result = [pscustomobject]@{
+              ExitCode = $process.ExitCode
+              Stdout = $stdout
+              Stderr = $stderr
+            }
+          }
+          finally {
+            $process.Dispose()
+          }
+        
+          Assert-PrefixSuccess $result
+          Assert-NoErrorOutput $result
+        
+          if ($result.Stdout.Length -ne 0) {
+            $stdout = Format-VisibleText $result.Stdout
+            throw "Expected no stdout output, got: $stdout"
+          }
+        }
+        finally {
+          Remove-Item -Path $tempDir -Recurse -Force -ErrorAction SilentlyContinue
+        }
+        
+  - name: shush-input-prompt-forwarded
+    language: PowerShell
+    source: |
+        $helperPath = Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) 'helpers\prefix-input.ps1'
+        . $helperPath
+        
+        $tempDir = New-PrefixTempDir
+        
+        try {
+          $programPath = Join-Path $tempDir 'program.pre'
+        
+          Set-Content -Path $programPath -Encoding Ascii -Value @'
+        SHUSH()
+        STR line = INPUT("PROMPT>")
+        ASSERT(EQ(line, "alpha"))
+        PRINT("hidden")
+        '@
+        
+          $result = Invoke-PrefixProgramWithInput -ProgramPath $programPath -InputText "alpha`r`n"
+        
+          Assert-PrefixSuccess $result
+          Assert-NoErrorOutput $result
+        
+          if (-not [regex]::IsMatch($result.Stdout, '\APROMPT>\z')) {
+            $stdout = Format-VisibleText $result.Stdout
+            throw "Unexpected stdout: $stdout"
+          }
+        }
+        finally {
+          Remove-Item -Path $tempDir -Recurse -Force -ErrorAction SilentlyContinue
+        }
+        
+  - name: shush-print-suppresses-forwarding
+    language: PowerShell
+    source: |
+        $helperPath = Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) 'helpers\prefix-input.ps1'
+        . $helperPath
+        
+        $tempDir = New-PrefixTempDir
+        
+        try {
+          $programPath = Join-Path $tempDir 'program.pre'
+        
+          Set-Content -Path $programPath -Encoding Ascii -Value @'
+        SHUSH()
+        PRINT("hidden")
+        '@
+        
+          $startInfo = New-Object System.Diagnostics.ProcessStartInfo
+          $startInfo.FileName = Get-PrefixExePath
+          $startInfo.Arguments = ('"{0}"' -f $programPath)
+          $startInfo.RedirectStandardOutput = $true
+          $startInfo.RedirectStandardError = $true
+          $startInfo.UseShellExecute = $false
+          $startInfo.CreateNoWindow = $true
+        
+          $process = [System.Diagnostics.Process]::Start($startInfo)
+          try {
+            $stdout = $process.StandardOutput.ReadToEnd()
+            $stderr = $process.StandardError.ReadToEnd()
+            $process.WaitForExit()
+        
+            $result = [pscustomobject]@{
+              ExitCode = $process.ExitCode
+              Stdout = $stdout
+              Stderr = $stderr
+            }
+          }
+          finally {
+            $process.Dispose()
+          }
+        
+          Assert-PrefixSuccess $result
+          Assert-NoErrorOutput $result
+        
+          if ($result.Stdout.Length -ne 0) {
+            $stdout = Format-VisibleText $result.Stdout
+            throw "Expected no stdout output, got: $stdout"
+          }
+        }
+        finally {
+          Remove-Item -Path $tempDir -Recurse -Force -ErrorAction SilentlyContinue
+        }
+        
+  - name: shush-return-false
+    language: Prefix
+    source: |
+        ASSERT(EQ(SHUSH(), FALSE))
+        
+  - name: shush-warn-suppresses-forwarding
+    language: PowerShell
+    source: |
+        $helperPath = Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) 'helpers\prefix-input.ps1'
+        . $helperPath
+        
+        $tempDir = New-PrefixTempDir
+        
+        try {
+          $programPath = Join-Path $tempDir 'program.pre'
+        
+          Set-Content -Path $programPath -Encoding Ascii -Value @'
+        SHUSH()
+        WARN("hidden")
+        '@
+        
+          $startInfo = New-Object System.Diagnostics.ProcessStartInfo
+          $startInfo.FileName = Get-PrefixExePath
+          $startInfo.Arguments = ('-verbose "{0}"' -f $programPath)
+          $startInfo.RedirectStandardOutput = $true
+          $startInfo.RedirectStandardError = $true
+          $startInfo.UseShellExecute = $false
+          $startInfo.CreateNoWindow = $true
+        
+          $process = [System.Diagnostics.Process]::Start($startInfo)
+          try {
+            $stdout = $process.StandardOutput.ReadToEnd()
+            $stderr = $process.StandardError.ReadToEnd()
+            $process.WaitForExit()
+        
+            $result = [pscustomobject]@{
+              ExitCode = $process.ExitCode
+              Stdout = $stdout
+              Stderr = $stderr
+            }
+          }
+          finally {
+            $process.Dispose()
+          }
+        
+          Assert-PrefixSuccess $result
+          Assert-NoErrorOutput $result
+        
+          if ($result.Stdout.Length -ne 0) {
+            $stdout = Format-VisibleText $result.Stdout
+            throw "Expected no stdout output, got: $stdout"
+          }
+        }
+        finally {
+          Remove-Item -Path $tempDir -Recurse -Force -ErrorAction SilentlyContinue
+        }
+        
+  - name: unshush-no-op
+    language: Prefix
+    source: |
+        ASSERT(EQ(UNSHUSH(), FALSE))
+        
+  - name: unshush-restores-forwarding
+    language: PowerShell
+    source: |
+        $helperPath = Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) 'helpers\prefix-input.ps1'
+        . $helperPath
+        
+        $tempDir = New-PrefixTempDir
+        
+        try {
+          $programPath = Join-Path $tempDir 'program.pre'
+        
+          Set-Content -Path $programPath -Encoding Ascii -Value @'
+        SHUSH()
+        PRINT("hidden")
+        ASSERT(EQ(UNSHUSH(), FALSE))
+        PRINT("shown")
+        '@
+        
+          $startInfo = New-Object System.Diagnostics.ProcessStartInfo
+          $startInfo.FileName = Get-PrefixExePath
+          $startInfo.Arguments = ('"{0}"' -f $programPath)
+          $startInfo.RedirectStandardOutput = $true
+          $startInfo.RedirectStandardError = $true
+          $startInfo.UseShellExecute = $false
+          $startInfo.CreateNoWindow = $true
+        
+          $process = [System.Diagnostics.Process]::Start($startInfo)
+          try {
+            $stdout = $process.StandardOutput.ReadToEnd()
+            $stderr = $process.StandardError.ReadToEnd()
+            $process.WaitForExit()
+        
+            $result = [pscustomobject]@{
+              ExitCode = $process.ExitCode
+              Stdout = $stdout
+              Stderr = $stderr
+            }
+          }
+          finally {
+            $process.Dispose()
+          }
+        
+          Assert-PrefixSuccess $result
+          Assert-NoErrorOutput $result
+        
+          if (-not [regex]::IsMatch($result.Stdout, '\Ashown(?:\r\n|\n)\z')) {
+            $stdout = Format-VisibleText $result.Stdout
+            throw "Unexpected stdout: $stdout"
+          }
+        }
+        finally {
+          Remove-Item -Path $tempDir -Recurse -Force -ErrorAction SilentlyContinue
+        }
+        
+  - name: unshush-return-false
+    language: Prefix
+    source: |
+        SHUSH()
+        ASSERT(EQ(UNSHUSH(), FALSE))
+        
+failing:
+  - name: shush-arity-one
+    language: Prefix
+    source: |
+        SHUSH(0d1)
+        
+  - name: unshush-arity-one
+    language: Prefix
+    source: |
+        UNSHUSH(0d1)
+        

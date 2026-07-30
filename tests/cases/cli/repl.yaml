@@ -1,0 +1,81 @@
+passing:
+  - name: repl-basic
+    language: PowerShell
+    source: |
+        $helperPath = Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) 'helpers\prefix-input.ps1'
+        . $helperPath
+        
+        $result = Invoke-PrefixWithArguments -Arguments @() -InputText "PRINT('repl-basic')`n.exit`n"
+        
+        Assert-PrefixSuccess $result
+        Assert-NoErrorOutput $result
+        
+        $stdout = Format-VisibleText $result.Stdout
+        if (-not ($stdout -match 'repl-basic')) {
+          throw "Unexpected stdout: $stdout"
+        }
+        
+  - name: repl-eof
+    language: PowerShell
+    source: |
+        $helperPath = Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) 'helpers\prefix-input.ps1'
+        . $helperPath
+        
+        # Send a single command and EOF (no explicit .exit)
+        $result = Invoke-PrefixWithArguments -Arguments @() -InputText "PRINT('bye')`n"
+        
+        Assert-PrefixSuccess $result
+        Assert-NoErrorOutput $result
+        
+        $stdout = Format-VisibleText $result.Stdout
+        if (-not ($stdout -match 'bye')) {
+          throw "Unexpected stdout: $stdout"
+        }
+        
+  - name: repl-multiline
+    language: PowerShell
+    source: |
+        $helperPath = Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) 'helpers\prefix-input.ps1'
+        . $helperPath
+        
+        $input = @'
+        FUNC STR hello(){
+        RETURN("hi")
+        }
+        PRINT(hello())
+        .exit
+        '@
+        
+        $result = Invoke-PrefixWithArguments -Arguments @() -InputText $input
+        
+        Assert-PrefixSuccess $result
+        Assert-NoErrorOutput $result
+        
+        $stdout = Format-VisibleText $result.Stdout
+        if (-not ($stdout -match 'hi')) {
+          throw "Unexpected stdout: $stdout"
+        }
+        
+  - name: repl-persistence
+    language: PowerShell
+    source: |
+        $helperPath = Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) 'helpers\prefix-input.ps1'
+        . $helperPath
+        
+        $input = @'
+        BOOL persisted = TRUE
+        
+        PRINT(persisted)
+        .exit
+        '@
+        
+        $result = Invoke-PrefixWithArguments -Arguments @() -InputText $input
+        
+        Assert-PrefixSuccess $result
+        Assert-NoErrorOutput $result
+        
+        $stdout = Format-VisibleText $result.Stdout
+        if (-not ($stdout -match 'TRUE')) {
+          throw "Unexpected stdout: $stdout"
+        }
+        

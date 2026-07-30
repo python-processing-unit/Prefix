@@ -1,5 +1,0 @@
-TNS src = [0d10, 0d20]
-TNS out = APPEND(0d30, src)
-
-ASSERT(EQ(src, [0d10, 0d20]))
-ASSERT(EQ(out, [0d10, 0d20, 0d30]))

@@ -1,4 +1,0 @@
-! MAP with a template having no keys
-MAP{<>} template_var
-template_var = <"anything" = 0d1>
-ASSERT(ISMAP(template_var))

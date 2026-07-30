@@ -1,4 +1,0 @@
-TNS out = CONV([0d2.0], [0d1.0])
-
-ASSERT(EQ(out, [0d2.0]))
-ASSERT(EQ(TYPE(out[0d1]), "FLT"))

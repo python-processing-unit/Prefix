@@ -1,0 +1,89 @@
+passing:
+  - name: max-flt
+    language: Prefix
+    source: |
+        ! MAX with multiple FLT arguments
+        FLT result = MAX(0d1.5, -0d2.25, 0d3.0)
+        ASSERT(EQ(result, 0d3.0))
+        
+  - name: max-int
+    language: Prefix
+    source: |
+        ! MAX with multiple INT arguments
+        INT result = MAX(0d1, -0d2, 0d3)
+        ASSERT(EQ(result, 0d3))
+        
+  - name: max-str
+    language: Prefix
+    source: |
+        ! MAX returns the longest string
+        STR result = MAX("a", "", "prefix", "bb")
+        ASSERT(EQ(result, "prefix"))
+        
+  - name: max-tns
+    language: Prefix
+    source: |
+        ! MAX flattens tensors and returns the maximum scalar element
+        TNS a = [[0d1, 0d2], [-0d3, 0d0]]
+        TNS b = [0d0, 0d4]
+        INT result = MAX(a, b)
+        ASSERT(EQ(result, 0d4))
+        
+  - name: min-flt
+    language: Prefix
+    source: |
+        ! MIN with multiple FLT arguments
+        FLT result = MIN(0d1.5, -0d2.25, 0d3.0)
+        ASSERT(EQ(result, -0d2.25))
+        
+  - name: min-int
+    language: Prefix
+    source: |
+        ! MIN with multiple INT arguments
+        INT result = MIN(0d1, -0d2, 0d3)
+        ASSERT(EQ(result, -0d2))
+        
+  - name: min-str
+    language: Prefix
+    source: |
+        ! MIN returns the shortest string
+        STR result = MIN("a", "", "prefix", "bb")
+        ASSERT(EQ(result, ""))
+        
+  - name: min-tns
+    language: Prefix
+    source: |
+        ! MIN flattens tensors and returns the minimum scalar element (string length for STR)
+        TNS a = [["aa", "b"], ["ccc", "dd"]]
+        STR result = MIN(a)
+        ASSERT(EQ(result, "b"))
+        
+failing:
+  - name: max-mixed-types
+    language: Prefix
+    source: |
+        ! Mixing INT and FLT in arguments must raise a runtime error per specification
+        INT _ = MAX(0d1, 0d2.0)
+        
+  - name: max-tns-mixed-element-type
+    language: Prefix
+    source: |
+        ! TNS arguments must share the same scalar element type per specification
+        TNS a = [0d1]
+        TNS b = ["x"]
+        INT _ = MAX(a, b)
+        
+  - name: min-mixed-types
+    language: Prefix
+    source: |
+        ! Mixing INT and FLT in arguments must raise a runtime error per specification
+        _ = MIN(0d1, 0d2.0)
+        
+  - name: min-tns-mixed-element-type
+    language: Prefix
+    source: |
+        ! TNS arguments must share the same scalar element type per specification
+        TNS a = [0d1]
+        TNS b = ["x"]
+        _ = MIN(a, b)
+        

@@ -1,6 +1,0 @@
-TRY{
-    ASSERT(FALSE)
-} CATCH(err) {
-    ASSERT(EXIST("err"))
-}
-REFUTE(EXIST("err"))

@@ -1,4 +1,0 @@
-TNS out = T*([0d2, 0d3, 0d4], 0d5)
-
-ASSERT(EQ(TYPE(out), "TNS"))
-ASSERT(EQ(out, [0d10, 0d15, 0d20]))

@@ -1,3 +1,0 @@
-ASSERT(EQ(JOIN("prefix"), "prefix"))
-ASSERT(EQ(JOIN("pre", " ", "fix"), "pre fix"))
-ASSERT(EQ(JOIN("", "a", "", "b"), "ab"))

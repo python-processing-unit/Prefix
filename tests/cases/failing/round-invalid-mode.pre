@@ -1,1 +1,0 @@
-ROUND(0b0.101, mode = "nearest", ndigits = 0b10)

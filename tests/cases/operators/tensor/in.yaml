@@ -1,0 +1,56 @@
+passing:
+  - name: in-basic-false
+    language: Prefix
+    source: |
+        REFUTE(IN(0d9, [0d1, 0d2, 0d3]))
+        
+  - name: in-basic-true
+    language: Prefix
+    source: |
+        ASSERT(IN(0d2, [0d1, 0d2, 0d3]))
+        
+  - name: in-rank2
+    language: Prefix
+    source: |
+        TNS grid = [[0d1, 0d2], [0d3, 0d4]]
+        
+        ASSERT(IN(0d4, grid))
+        REFUTE(IN(0d9, grid))
+        
+  - name: in-return-type
+    language: Prefix
+    source: |
+        ASSERT(EQ(TYPE(IN(0d1, [0d1])), "BOOL"))
+        
+  - name: in-strings-bools
+    language: Prefix
+    source: |
+        ASSERT(IN("beta", ["alpha", "beta", "gamma"]))
+        ASSERT(IN(FALSE, [TRUE, FALSE]))
+        
+failing:
+  - name: in-arity-one
+    language: Prefix
+    source: |
+        IN(0d1)
+        
+  - name: in-arity-three
+    language: Prefix
+    source: |
+        IN(0d1, [0d1], 0d2)
+        
+  - name: in-arity-zero
+    language: Prefix
+    source: |
+        IN()
+        
+  - name: in-second-non-tns-int
+    language: Prefix
+    source: |
+        IN(0d1, 0d2)
+        
+  - name: in-second-non-tns-str
+    language: Prefix
+    source: |
+        IN(0d1, "not-a-tensor")
+        

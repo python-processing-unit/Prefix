@@ -1,3 +1,0 @@
-! Passing integer arithmetic, checking coercion and correct logic
-INT result_pow = IPOW(0d2, 0d3)
-ASSERT(EQ(result_pow, 0d8))

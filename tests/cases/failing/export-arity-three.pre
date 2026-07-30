@@ -1,2 +1,0 @@
-INT value = 0d1
-EXPORT(value, "helper", extra)

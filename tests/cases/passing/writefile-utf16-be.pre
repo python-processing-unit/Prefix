@@ -1,6 +1,0 @@
-IMPORT("path")
-
-STR p = path.TEMPFILE("prefix-writefile-utf16-be.txt")
-
-ASSERT(WRITEFILE("Prefix", p, coding = "UTF-16 BE"))
-ASSERT(EQ(READFILE(p, coding = "UTF-16 BE"), "Prefix"))

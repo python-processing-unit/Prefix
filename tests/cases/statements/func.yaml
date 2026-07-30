@@ -1,0 +1,342 @@
+passing:
+  - name: func-arguments
+    language: Prefix
+    source: |
+        INT order_trace = 0d0
+        
+        FUNC INT mark(INT step){
+            order_trace = +(*(order_trace, 0d10), step)
+            RETURN(step)
+        }
+        
+        FUNC INT place(INT first, INT second = 0d0){
+            RETURN(+(*(first, 0d10), second))
+        }
+        
+        order_trace = 0d0
+        ASSERT(EQ(place(mark(0d1), second = mark(0d2)), 0d12))
+        ASSERT(EQ(order_trace, 0d12))
+        
+        INT outer_bonus = 0d1
+        FUNC INT add_bonus(INT value, INT bonus = outer_bonus){
+            RETURN(+(value, bonus))
+        }
+        
+        ASSERT(EQ(add_bonus(0d2), 0d3))
+        outer_bonus = 0d4
+        ASSERT(EQ(add_bonus(0d2), 0d6))
+        
+        FUNC INT double_self(INT value, INT second = value){
+            RETURN(+(value, second))
+        }
+        
+        ASSERT(EQ(double_self(0d3), 0d6))
+        ASSERT(EQ(double_self(0d3, second = 0d1), 0d4))
+        
+        FUNC INT accept_int(INT value){
+            RETURN(value)
+        }
+        
+        FUNC INT coerce_int(~INT value){
+            RETURN(value)
+        }
+        
+        ASSERT(EQ(coerce_int("0d11"), 0d11))
+        
+  - name: func-basics
+    language: Prefix
+    source: |
+        FUNC INT add(INT left, INT right){
+            RETURN(+(left, right))
+        }
+        
+        ASSERT(EQ(add(0d2, 0d3), 0d5))
+        
+        FUNC add_alias = add
+        ASSERT(EQ(add_alias(0d4, 0d5), 0d9))
+        
+        FUNC BOOL bool_default(){}
+        FUNC INT int_default(){}
+        FUNC FLT flt_default(){}
+        FUNC STR str_default(){}
+        
+        ASSERT(EQ(bool_default(), FALSE))
+        ASSERT(EQ(int_default(), 0d0))
+        ASSERT(EQ(flt_default(), 0d0.0))
+        ASSERT(EQ(str_default(), ""))
+        
+        BOOL func_truthy = FALSE
+        IF(add_alias){
+            func_truthy = TRUE
+        }
+        ASSERT(func_truthy)
+        
+        INT stop_flag = 0d0
+        FUNC INT early_return(){
+            RETURN(0d7)
+            stop_flag = 0d1
+        }
+        
+        ASSERT(EQ(early_return(), 0d7))
+        ASSERT(EQ(stop_flag, 0d0))
+        
+  - name: func-call-errors
+    language: Prefix
+    source: |
+        INT runtime_errors = 0d0
+        
+        FUNC INT accept_int(INT value){
+            RETURN(value)
+        }
+        
+        FUNC INT coerce_int(~INT value){
+            RETURN(value)
+        }
+        
+        FUNC INT keyword_only(INT left, INT right = 0d0){
+            RETURN(+(left, right))
+        }
+        
+        TRY{
+            accept_int("0d1")
+        } CATCH(err){
+            runtime_errors = +(runtime_errors, 0d1)
+        }
+        
+        TRY{
+            keyword_only("0d1", "0d2", "0d3")
+        } CATCH(err){
+            runtime_errors = +(runtime_errors, 0d1)
+        }
+        
+        TRY{
+            keyword_only("0d1", suffix = "!")
+        } CATCH(err){
+            runtime_errors = +(runtime_errors, 0d1)
+        }
+        
+        TRY{
+            keyword_only("0d1", right = "0d2", right = "0d3")
+        } CATCH(err){
+            runtime_errors = +(runtime_errors, 0d1)
+        }
+        
+        ASSERT(EQ(runtime_errors, 0d4))
+        
+  - name: func-closures
+    language: Prefix
+    source: |
+        INT captured = 0d2
+        
+        FUNC INT read_captured(){
+            RETURN(captured)
+        }
+        
+        FUNC add_captured = LAMBDA INT (INT delta){
+            RETURN(+(captured, delta))
+        }
+        
+        ASSERT(EQ(read_captured(), 0d2))
+        ASSERT(EQ(add_captured(0d1), 0d3))
+        captured = 0d5
+        ASSERT(EQ(read_captured(), 0d5))
+        ASSERT(EQ(add_captured(0d1), 0d6))
+        
+        FUNC greeter = LAMBDA STR (STR name, STR prefix = "Hi"){
+            RETURN(JOIN(" ", prefix, name))
+        }
+        
+        ASSERT(EQ(greeter("Prefix"), "Hi Prefix"))
+        ASSERT(EQ(greeter("Prefix", prefix = "Hello"), "Hello Prefix"))
+        
+        ASSERT(EQ((LAMBDA INT (INT x){ RETURN(+(x, 0d1)) })(0d2), 0d3))
+        
+        FUNC INT invoke(FUNC callable, INT arg){
+            RETURN(callable(arg))
+        }
+        
+        ASSERT(EQ(invoke(add_captured, 0d2), 0d7))
+        
+        FUNC FUNC make_reader(INT seed){
+            RETURN(LAMBDA INT (){
+                RETURN(seed)
+            })
+        }
+        
+        FUNC reader = make_reader(0d9)
+        ASSERT(EQ(reader(), 0d9))
+        
+  - name: func-containers
+    language: Prefix
+    source: |
+        TNS func_slots = [LAMBDA INT (INT left, INT right){ RETURN(+(left, right)) }]
+        ASSERT(EQ(func_slots[0d1](0d2, 0d3), 0d5))
+        
+        MAP func_map = <"sum" = func_slots[0d1]>
+        ASSERT(EQ(func_map<"sum">(0d3, 0d4), 0d7))
+        
+        MAP method_map = < ^
+            "install" = LAMBDA FUNC (){ ^
+                SELF<"tag"> = LAMBDA INT (){ RETURN(0d7) } ^
+                RETURN(SELF<"tag">) ^
+            }, ^
+            "seed" = LAMBDA INT (){ RETURN(0d1) } ^
+        >
+        MAP method_copy = method_map
+        MAP method_alias = @method_map
+        
+        ASSERT(EQ(method_copy<"install">()(), 0d7))
+        BOOL copy_did_not_mutate_source = FALSE
+        TRY{
+            method_map<"tag">()
+        } CATCH(err){
+            copy_did_not_mutate_source = TRUE
+        }
+        ASSERT(copy_did_not_mutate_source)
+        
+        ASSERT(EQ(method_alias<"install">()(), 0d7))
+        ASSERT(EQ(method_map<"tag">(), 0d7))
+        
+  - name: func-pop
+    language: Prefix
+    source: |
+        INT pop_target = 0d8
+        
+        FUNC INT take_and_delete(){
+            POP("pop_target")
+        }
+        
+        ASSERT(EQ(take_and_delete(), 0d8))
+        BOOL pop_deleted = FALSE
+        TRY{
+            pop_target
+        } CATCH(err){
+            pop_deleted = TRUE
+        }
+        ASSERT(pop_deleted)
+        
+  - name: func-return-errors
+    language: Prefix
+    source: |
+        INT runtime_errors = 0d0
+        
+        FUNC INT wrong_return(){
+            RETURN("bad")
+        }
+        
+        TRY{
+            wrong_return()
+        } CATCH(err){
+            runtime_errors = +(runtime_errors, 0d1)
+        }
+        
+        FUNC TNS missing_tns_return(){}
+        TRY{
+            missing_tns_return()
+        } CATCH(err){
+            runtime_errors = +(runtime_errors, 0d1)
+        }
+        
+        FUNC MAP missing_map_return(){}
+        TRY{
+            missing_map_return()
+        } CATCH(err){
+            runtime_errors = +(runtime_errors, 0d1)
+        }
+        
+        FUNC FUNC missing_func_return(){}
+        TRY{
+            missing_func_return()
+        } CATCH(err){
+            runtime_errors = +(runtime_errors, 0d1)
+        }
+        
+        FUNC THR missing_thr_return(){}
+        TRY{
+            missing_thr_return()
+        } CATCH(err){
+            runtime_errors = +(runtime_errors, 0d1)
+        }
+        
+        FUNC missing_lambda_return = LAMBDA FUNC (){}
+        TRY{
+            missing_lambda_return()
+        } CATCH(err){
+            runtime_errors = +(runtime_errors, 0d1)
+        }
+        
+        ASSERT(EQ(runtime_errors, 0d6))
+        
+  - name: lambda-space-signature
+    language: Prefix
+    source: |
+        ASSIGN(FUNC f, LAMBDA INT (INT x) { RETURN(x) })
+        ASSERT(EQ(f(0d2), 0d2))
+        
+failing:
+  - name: func-default-before-positional
+    language: Prefix
+    source: |
+        FUNC INT sample(INT first = 0d1, INT second){
+            RETURN(+(first, second))
+        }
+        
+  - name: func-missing-param-type
+    language: Prefix
+    source: |
+        FUNC INT sample(value){
+            RETURN(value)
+        }
+  - name: func-missing-return-type
+    language: Prefix
+    source: |
+        FUNC sample(INT value){
+            RETURN(value)
+        }
+  - name: func-name-conflicts-builtin
+    language: Prefix
+    source: |
+        FUNC INT ASSERT(){
+            RETURN(0d0)
+        }
+  - name: func-name-conflicts-symbol
+    language: Prefix
+    source: |
+        INT sample = 0d1
+        FUNC INT sample(){
+            RETURN(0d0)
+        }
+  - name: func-positional-after-keyword
+    language: Prefix
+    source: |
+        FUNC INT sample(INT left, INT right = 0d0){
+            RETURN(+(left, right))
+        }
+        
+        sample(left = 0d1, 0d2)
+  - name: lambda-colon-form
+    language: Prefix
+    source: |
+        ASSIGN(f, LAMBDA INT: (INT x) { RETURN(x) })
+        
+  - name: lambda-default-before-positional
+    language: Prefix
+    source: |
+        FUNC sample = LAMBDA INT: (INT first = 0d1, INT second){
+            RETURN(+(first, second))
+        }
+  - name: lambda-missing-param-type
+    language: Prefix
+    source: |
+        FUNC sample = LAMBDA INT: (value){
+            RETURN(value)
+        }
+  - name: lambda-missing-return-type
+    language: Prefix
+    source: |
+        FUNC sample = LAMBDA (INT value){
+            RETURN(value)
+        }
+  - name: return-outside-function
+    language: Prefix
+    source: RETURN(0d1)

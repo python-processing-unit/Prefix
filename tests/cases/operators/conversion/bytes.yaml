@@ -1,0 +1,111 @@
+passing:
+  - name: bytes
+    language: Prefix
+    source: |
+        ASSERT(EQ(TYPE(BYTES(0d0)), "TNS"))
+        ASSERT(EQ(BYTES(0d0), [0d0]))
+        
+        ! Default endian is "big"
+        ASSERT(EQ(BYTES(0x1234), BYTES(0x1234, endian = "big")))
+        
+        ! Least-significant-byte placement checks (robust regardless of leading zero bytes)
+        ASSERT(EQ(MOD(0x123456, 0d256), BYTES(0x123456, endian = "big")[-0d1]))
+        ASSERT(EQ(MOD(0x123456, 0d256), BYTES(0x123456, endian = "little")[0d1]))
+        
+        ! All elements must be bytes (0..0xFF)
+        ASSERT(GTE(MIN(BYTES(0x123456, endian = "big")), 0d0))
+        ASSERT(LTE(MAX(BYTES(0x123456, endian = "big")), 0d255))
+        ASSERT(GTE(MIN(BYTES(0x123456, endian = "little")), 0d0))
+        ASSERT(LTE(MAX(BYTES(0x123456, endian = "little")), 0d255))
+        
+        ! Elements must be INT
+        ASSERT(EQ(TYPE(BYTES(0x1234)[0d1]), "INT"))
+        
+failing:
+  - name: bytes-endian-case
+    language: Prefix
+    source: |
+        BYTES(0d1, endian = "Big")
+        
+  - name: bytes-first-bool
+    language: Prefix
+    source: |
+        BYTES(TRUE)
+        
+  - name: bytes-first-flt
+    language: Prefix
+    source: |
+        BYTES(0d1.5)
+        
+  - name: bytes-first-func
+    language: Prefix
+    source: |
+        FUNC INT ff(INT x){ RETURN x }
+        BYTES(ff)
+        
+  - name: bytes-first-map
+    language: Prefix
+    source: |
+        BYTES(<"k" = 0d1>)
+        
+  - name: bytes-first-thr
+    language: Prefix
+    source: |
+        BYTES(ASYNC{ TRUE })
+        
+  - name: bytes-first-tns
+    language: Prefix
+    source: |
+        BYTES([0d1])
+        
+  - name: bytes-invalid-endian
+    language: Prefix
+    source: |
+        BYTES(0d1, endian = "middle")
+        
+  - name: bytes-negative
+    language: Prefix
+    source: |
+        BYTES(-0d1)
+        
+  - name: bytes-second-bool
+    language: Prefix
+    source: |
+        BYTES(0d1, endian = TRUE)
+        
+  - name: bytes-second-flt
+    language: Prefix
+    source: |
+        BYTES(0d1, endian = 0d1.5)
+        
+  - name: bytes-second-func
+    language: Prefix
+    source: |
+        FUNC INT ff(INT x){ RETURN x }
+        BYTES(0d1, endian = ff)
+        
+  - name: bytes-second-int
+    language: Prefix
+    source: |
+        BYTES(0d1, 0d1)
+        
+  - name: bytes-second-map
+    language: Prefix
+    source: |
+        BYTES(0d1, endian = <"k" = "big">)
+        
+  - name: bytes-second-thr
+    language: Prefix
+    source: |
+        BYTES(0d1, endian = ASYNC{ TRUE })
+        
+  - name: bytes-second-tns
+    language: Prefix
+    source: |
+        BYTES(0d1, endian = ["big"])
+        
+  - name: bytes-value-type
+    language: Prefix
+    source: |
+        BYTES("1")
+        

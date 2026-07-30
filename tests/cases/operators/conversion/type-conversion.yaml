@@ -1,0 +1,204 @@
+passing:
+  - name: op-bool-from-bool
+    language: Prefix
+    source: |
+        ASSERT(BOOL(TRUE))
+        REFUTE(BOOL(FALSE))
+        
+  - name: op-bool-from-flt
+    language: Prefix
+    source: |
+        REFUTE(BOOL(0d0.0))
+        ASSERT(BOOL(0d0.5))
+        ASSERT(BOOL(-0d0.5))
+        ASSERT(BOOL(INF))
+        ASSERT(BOOL(-INF))
+        ASSERT(BOOL(NaN))
+        
+  - name: op-bool-from-func
+    language: Prefix
+    source: |
+        FUNC BOOL sample_func(){
+            RETURN(TRUE)
+        }
+        
+        ASSERT(BOOL(sample_func))
+        
+  - name: op-bool-from-int
+    language: Prefix
+    source: |
+        REFUTE(BOOL(0d0))
+        ASSERT(BOOL(0d1))
+        
+  - name: op-bool-from-map
+    language: Prefix
+    source: |
+        REFUTE(BOOL(<>))
+        ASSERT(BOOL(<"n" = 0d0>))
+        
+  - name: op-bool-from-str
+    language: Prefix
+    source: |
+        REFUTE(BOOL(""))
+        ASSERT(BOOL("text"))
+        
+  - name: op-bool-from-thr
+    language: Prefix
+    source: |
+        BOOL thr_release = FALSE
+        THR(worker){
+            WHILE(NOT(thr_release)){
+            }
+        }
+        
+        ASSERT(BOOL(worker))
+        thr_release = TRUE
+        WHILE(worker){
+        }
+        REFUTE(BOOL(worker))
+        
+  - name: op-bool-from-tns
+    language: Prefix
+    source: |
+        REFUTE(BOOL([FALSE, 0d0, ""]))
+        ASSERT(BOOL([FALSE, 0d0, TRUE]))
+        
+  - name: op-flt-from-bool
+    language: Prefix
+    source: |
+        ASSERT(EQ(FLT(TRUE), 0d1.0))
+        ASSERT(EQ(FLT(FALSE), 0d0.0))
+        
+  - name: op-flt-from-flt
+    language: Prefix
+    source: |
+        ASSERT(EQ(FLT(0d1.5), 0d1.5))
+        
+  - name: op-flt-from-int
+    language: Prefix
+    source: |
+        ASSERT(EQ(FLT(0d7), 0d7.0))
+        ASSERT(EQ(FLT(-0d7), -0d7.0))
+        
+  - name: op-flt-from-special-str
+    language: Prefix
+    source: |
+        ASSERT(EQ(FLT("INF"), INF))
+        ASSERT(EQ(FLT("-INF"), -INF))
+        ASSERT(NEQ(FLT("NaN"), FLT("NaN")))
+        
+  - name: op-flt-from-str
+    language: Prefix
+    source: |
+        ASSERT(EQ(FLT("0d1.25"), 0d1.25))
+        
+  - name: op-int-from-bool
+    language: Prefix
+    source: |
+        ASSERT(EQ(INT(TRUE), 0d1))
+        ASSERT(EQ(INT(FALSE), 0d0))
+        
+  - name: op-int-from-flt
+    language: Prefix
+    source: |
+        ASSERT(EQ(INT(0b1.1), 0d1))
+        ASSERT(EQ(INT(-0b1.1), -0d1))
+        
+  - name: op-int-from-int
+    language: Prefix
+    source: |
+        ASSERT(EQ(INT(0d42), 0d42))
+        
+  - name: op-int-from-str
+    language: Prefix
+    source: |
+        ASSERT(EQ(INT("0x1A"), 0d26))
+        ASSERT(EQ(INT(""), 0d0))
+        ASSERT(EQ(INT("prefix"), 0d1))
+        
+  - name: op-str-from-bool
+    language: Prefix
+    source: |
+        ASSERT(EQ(STR(TRUE), "TRUE"))
+        ASSERT(EQ(STR(FALSE), "FALSE"))
+        
+  - name: op-str-from-flt
+    language: Prefix
+    source: |
+        ASSERT(EQ(STR(-0d1.5), "-0d1.5"))
+        
+  - name: op-str-from-int
+    language: Prefix
+    source: |
+        ASSERT(EQ(STR(0b101), "0b101"))
+        
+  - name: op-str-from-special-flt
+    language: Prefix
+    source: |
+        ASSERT(EQ(STR(INF), "INF"))
+        ASSERT(EQ(STR(-INF), "-INF"))
+        ASSERT(EQ(STR(NaN), "NaN"))
+        
+  - name: op-str-from-str
+    language: Prefix
+    source: |
+        ASSERT(EQ(STR("prefix"), "prefix"))
+        
+failing:
+  - name: op-flt-bad-str
+    language: Prefix
+    source: FLT("prefix")
+  - name: op-flt-func
+    language: Prefix
+    source: |
+        FUNC INT sample_func(){
+            RETURN(0d1)
+        }
+        
+        FLT(sample_func)
+  - name: op-flt-map
+    language: Prefix
+    source: FLT(<>)
+  - name: op-flt-thr
+    language: Prefix
+    source: |
+        THR(sample_thr){}
+        FLT(sample_thr)
+  - name: op-int-func
+    language: Prefix
+    source: |
+        FUNC INT sample_func(){
+            RETURN(0d1)
+        }
+        
+        INT(sample_func)
+  - name: op-int-map
+    language: Prefix
+    source: INT(<>)
+  - name: op-int-thr
+    language: Prefix
+    source: |
+        THR(sample_thr){}
+        INT(sample_thr)
+  - name: op-str-func
+    language: Prefix
+    source: |
+        FUNC BOOL str_func(){
+            RETURN(TRUE)
+        }
+        
+        STR(str_func)
+  - name: op-str-lambda
+    language: Prefix
+    source: 'STR(LAMBDA BOOL: (){ RETURN(TRUE) })'
+  - name: op-str-map
+    language: Prefix
+    source: STR(<>)
+  - name: op-str-thr
+    language: Prefix
+    source: |
+        THR(str_thr){}
+        STR(str_thr)
+  - name: op-str-tns
+    language: Prefix
+    source: STR([TRUE])

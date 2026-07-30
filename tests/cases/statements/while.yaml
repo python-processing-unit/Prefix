@@ -1,0 +1,21 @@
+passing:
+  - name: while
+    language: Prefix
+    source: |
+        INT c = 0d0
+        WHILE(LT(c, 0d10)){
+            +(@c, 0d1)
+        }
+        ASSERT(EQ(c, 0d10))
+        
+failing:
+  - name: while-no-block
+    language: Prefix
+    source: |
+        WHILE(TRUE)
+        
+  - name: while-no-condition
+    language: Prefix
+    source: |
+        WHILE(){}
+        

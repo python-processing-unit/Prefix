@@ -1,3 +1,0 @@
-! Passing float arithmetic, checking coercion and correct logic
-FLT result_sub = F-(0d10.0, 0d2)
-ASSERT(EQ(result_sub, 0d8.0))

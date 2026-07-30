@@ -1,5 +1,0 @@
-IMPORT("path")
-
-STR missing = path.TEMPFILE("prefix-readfile-missing.txt")
-TRY{ DELETEFILE(missing) } CATCH { }
-READFILE(missing)

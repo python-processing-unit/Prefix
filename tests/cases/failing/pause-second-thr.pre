@@ -1,3 +1,0 @@
-THR(worker){}
-THR(delay){}
-PAUSE(worker, seconds = delay)

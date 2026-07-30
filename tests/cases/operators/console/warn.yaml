@@ -1,0 +1,127 @@
+passing:
+  - name: warn-coerce-scalars
+    language: Prefix
+    source: |
+        ASSERT(EQ(WARN(TRUE), FALSE))
+        ASSERT(EQ(WARN(0d42), FALSE))
+        ASSERT(EQ(WARN(0d1.5), FALSE))
+        ASSERT(EQ(WARN("value"), FALSE))
+  - name: warn-nonverbose-no-output
+    language: PowerShell
+    source: |
+        $helperPath = Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) 'helpers\prefix-input.ps1'
+        . $helperPath
+        
+        $tempDir = New-PrefixTempDir
+        
+        try {
+          $programPath = Join-Path $tempDir 'program.pre'
+        
+          Set-Content -Path $programPath -Encoding Ascii -Value @'
+        ASSERT(EQ(WARN("bool=", TRUE, ",int=", 0d42, ",flt=", INF, ",str=", "ok"), FALSE))
+        '@
+        
+          $startInfo = New-Object System.Diagnostics.ProcessStartInfo
+          $startInfo.FileName = Get-PrefixExePath
+          $startInfo.Arguments = ('"{0}"' -f $programPath)
+          $startInfo.RedirectStandardOutput = $true
+          $startInfo.RedirectStandardError = $true
+          $startInfo.UseShellExecute = $false
+          $startInfo.CreateNoWindow = $true
+        
+          $process = [System.Diagnostics.Process]::Start($startInfo)
+          try {
+            $stdout = $process.StandardOutput.ReadToEnd()
+            $stderr = $process.StandardError.ReadToEnd()
+            $process.WaitForExit()
+        
+            $result = [pscustomobject]@{
+              ExitCode = $process.ExitCode
+              Stdout = $stdout
+              Stderr = $stderr
+            }
+          }
+          finally {
+            $process.Dispose()
+          }
+        
+          Assert-PrefixSuccess $result
+          Assert-NoErrorOutput $result
+        
+          if ($result.Stdout.Length -ne 0) {
+            $stdout = Format-VisibleText $result.Stdout
+            throw "Expected no stdout output, got: $stdout"
+          }
+        }
+        finally {
+          Remove-Item -Path $tempDir -Recurse -Force -ErrorAction SilentlyContinue
+        }
+  - name: warn-verbose-output-prefix
+    language: PowerShell
+    source: |
+        $helperPath = Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) 'helpers\prefix-input.ps1'
+        . $helperPath
+        
+        $tempDir = New-PrefixTempDir
+        
+        try {
+          $programPath = Join-Path $tempDir 'program.pre'
+        
+          Set-Content -Path $programPath -Encoding Ascii -Value @'
+        ASSERT(EQ(WARN("bool=", TRUE, ",int=", 0d42, ",flt=", INF, ",str=", "ok"), TRUE))
+        '@
+        
+          $startInfo = New-Object System.Diagnostics.ProcessStartInfo
+          $startInfo.FileName = Get-PrefixExePath
+          $startInfo.Arguments = ('-verbose "{0}"' -f $programPath)
+          $startInfo.RedirectStandardOutput = $true
+          $startInfo.RedirectStandardError = $true
+          $startInfo.UseShellExecute = $false
+          $startInfo.CreateNoWindow = $true
+        
+          $process = [System.Diagnostics.Process]::Start($startInfo)
+          try {
+            $stdout = $process.StandardOutput.ReadToEnd()
+            $stderr = $process.StandardError.ReadToEnd()
+            $process.WaitForExit()
+        
+            $result = [pscustomobject]@{
+              ExitCode = $process.ExitCode
+              Stdout = $stdout
+              Stderr = $stderr
+            }
+          }
+          finally {
+            $process.Dispose()
+          }
+        
+          Assert-PrefixSuccess $result
+          Assert-NoErrorOutput $result
+        
+          if (-not [regex]::IsMatch($result.Stdout, '\AWARNING: bool=TRUE,int=0d42,flt=INF,str=ok(?:\r\n|\n)\z')) {
+            $stdout = Format-VisibleText $result.Stdout
+            throw "Unexpected stdout: $stdout"
+          }
+        }
+        finally {
+          Remove-Item -Path $tempDir -Recurse -Force -ErrorAction SilentlyContinue
+        }
+failing:
+  - name: warn-arity-zero
+    language: Prefix
+    source: WARN()
+  - name: warn-first-func
+    language: Prefix
+    source: 'WARN(LAMBDA BOOL: (){})'
+  - name: warn-first-map
+    language: Prefix
+    source: 'WARN(<"key" = 0d1>)'
+  - name: warn-first-thr
+    language: Prefix
+    source: WARN(ASYNC{})
+  - name: warn-first-tns
+    language: Prefix
+    source: WARN([0d1])
+  - name: warn-second-map
+    language: Prefix
+    source: 'WARN("ok", <"key" = 0d1>)'

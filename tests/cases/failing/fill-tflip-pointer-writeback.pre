@@ -1,8 +1,0 @@
-// FILL / TFLIP writeback expectations
-TNS dst1 = [0d0, 0d0, 0d0]
-FILL(@dst1, 0d7)
-ASSERT(EQ(dst1, [0d7, 0d7, 0d7]))
-
-TNS a1 = [[0d1, 0d2], [0d3, 0d4]]
-TFLIP(@a1)
-ASSERT(EQ(a1, [[0d1, 0d3], [0d2, 0d4]]))

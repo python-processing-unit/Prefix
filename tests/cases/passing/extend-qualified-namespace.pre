@@ -1,7 +1,0 @@
-IMPORT("path")
-
-STR tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
-STR helper_path = JOIN(tests_dir, "/helpers/extend_core_once.pre")
-
-REFUTE(IMPORT_PATH(helper_path, "helper"))
-ASSERT(EQ(helper.extend_core.TST_EXT_RESTRICTED(), "core-restricted"))

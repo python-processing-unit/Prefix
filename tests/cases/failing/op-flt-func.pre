@@ -1,5 +1,0 @@
-FUNC INT sample_func(){
-    RETURN(0d1)
-}
-
-FLT(sample_func)

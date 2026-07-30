@@ -1,0 +1,14 @@
+passing:
+  - name: slen
+    language: Prefix
+    source: |
+        ASSERT(EQ(SLEN(""), 0d0))
+        ASSERT(EQ(SLEN("prefix"), 0d6))
+        ASSERT(EQ(SLEN("\u0041"), 0d1))
+        ASSERT(EQ(SLEN("\u00E9"), 0d1))
+        ASSERT(EQ(SLEN("\U0001F600"), 0d1))
+        ASSERT(EQ(SLEN("\u0041\u00E9"), 0d2))
+failing:
+  - name: slen-non-str
+    language: Prefix
+    source: SLEN(0d1)

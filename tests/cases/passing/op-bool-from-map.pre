@@ -1,2 +1,0 @@
-REFUTE(BOOL(<>))
-ASSERT(BOOL(<"n" = 0d0>))

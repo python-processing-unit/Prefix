@@ -1,3 +1,0 @@
-ASSERT(EQ("\R\n\t\x41\u0042\U00000043", '\\n\\t\\x41\\u0042\\U00000043'))
-ASSERT(EQ("A\R\n\RB", 'A\\nB'))
-ASSERT(EQ("\R\n", '\\n'))

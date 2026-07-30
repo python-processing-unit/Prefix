@@ -1,2 +1,0 @@
-! Division by zero for F/ must raise a runtime error per specification
-_ = F/(0d1.0, 0d0.0)

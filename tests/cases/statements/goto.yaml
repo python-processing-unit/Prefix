@@ -1,0 +1,91 @@
+passing:
+  - name: goto-backward
+    language: Prefix
+    source: |
+        INT i = 0d0
+        INT hits = 0d0
+        GOTOPOINT('loop')
+        +(@hits, 0d1)
+        IF(LT(i, 0d2)){
+            +(@i, 0d1)
+            GOTO('loop')
+        }
+        ASSERT(EQ(i, 0d2))
+        ASSERT(EQ(hits, 0d3))
+        
+  - name: goto-cross-block
+    language: Prefix
+    source: |
+        INT test = 0d0
+        IF(TRUE){
+            GOTO('target')
+            ASSERT(FALSE)
+        }
+        ASSERT(FALSE)
+        GOTOPOINT('target')
+        ASSERT(EQ(test, 0d0))
+        
+  - name: goto-errors
+    language: Prefix
+    source: |
+        INT errors_caught = 0d0
+        
+        TRY {
+            GOTOPOINT(TRUE)
+        } CATCH(err) {
+            ASSERT(EQ(err, 'GOTOPOINT requires INT or STR argument'))
+             +(@errors_caught, 0d1)
+        }
+        
+        TRY {
+            GOTO(TRUE)
+        } CATCH(err) {
+            ASSERT(EQ(err, 'GOTO requires INT or STR argument'))
+             +(@errors_caught, 0d1)
+        }
+        
+        TRY {
+            GOTOPOINT(-0d1)
+        } CATCH(err) {
+            ASSERT(EQ(err, 'Negative GOTOPOINT identifier is not allowed'))
+             +(@errors_caught, 0d1)
+        }
+        
+        TRY {
+            GOTO(-0d1)
+        } CATCH(err) {
+            ASSERT(EQ(err, 'Negative GOTO target is not allowed'))
+             +(@errors_caught, 0d1)
+        }
+        
+        TRY {
+            GOTO('unregistered')
+        } CATCH(err) {
+            ASSERT(EQ(err, 'Unregistered GOTO target'))
+             +(@errors_caught, 0d1)
+        }
+        
+        ASSERT(EQ(errors_caught, 0d5))
+        
+  - name: goto-forward
+    language: Prefix
+    source: |
+        INT value = 0d0
+        GOTO(0d1)
+        ASSERT(FALSE)
+        GOTOPOINT(0d1)
+        +(@value, 0d1)
+        ASSERT(EQ(value, 0d1))
+        
+failing:
+  - name: goto-no-parens
+    language: Prefix
+    source: |
+        GOTOPOINT(0d1)
+        GOTO 0d1
+        
+  - name: gotopoint-no-parens
+    language: Prefix
+    source: |
+        GOTOPOINT 0d1
+        

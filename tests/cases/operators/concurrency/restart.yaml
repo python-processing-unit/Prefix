@@ -1,0 +1,62 @@
+passing:
+  - name: restart-basic
+    language: Prefix
+    source: |
+        BOOL finished = FALSE
+        
+        THR worker = ASYNC{
+            FOR(i, 0d1000){}
+            finished = TRUE
+        }
+        
+        ! Wait for worker to finish
+        AWAIT(worker)
+        ASSERT(EQ(finished, TRUE))
+        
+        ! Restart the finished thread
+        THR r = RESTART(worker)
+        ASSERT(EQ(TYPE(r), "THR"))
+        ASSERT(EQ(r, worker))
+        ASSERT(BOOL(r))
+        
+        ! After restart, the thread should run again and set finished
+        AWAIT(r)
+        ASSERT(EQ(finished, TRUE))
+        
+failing:
+  - name: restart-arity-two
+    language: Prefix
+    source: 'RESTART(ASYNC{}, ASYNC{})'
+  - name: restart-arity-zero
+    language: Prefix
+    source: RESTART()
+  - name: restart-bool
+    language: Prefix
+    source: RESTART(TRUE)
+  - name: restart-flt
+    language: Prefix
+    source: RESTART(0d1.0)
+  - name: restart-func
+    language: Prefix
+    source: 'RESTART(LAMBDA BOOL: (){})'
+  - name: restart-int
+    language: Prefix
+    source: RESTART(0d1)
+  - name: restart-map
+    language: Prefix
+    source: RESTART(<>)
+  - name: restart-running
+    language: Prefix
+    source: |
+        THR worker = ASYNC{
+            FOR(i, 0d100000){}
+        }
+        
+        RESTART(worker)
+        
+  - name: restart-str
+    language: Prefix
+    source: RESTART("thread")
+  - name: restart-tns
+    language: Prefix
+    source: RESTART([0d1])

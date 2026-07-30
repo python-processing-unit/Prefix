@@ -1,0 +1,469 @@
+passing:
+  - name: include-cached
+    language: PowerShell
+    source: |
+        $helperPath = Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) 'helpers\prefix-input.ps1'
+        . $helperPath
+        
+        $tempDir = New-PrefixTempDir
+        $moduleName = 'prefixinclude' + ([IO.Path]::GetRandomFileName().Replace('.', ''))
+        
+        try {
+          $markerPath = Join-Path $tempDir 'marker.txt'
+          $markerLiteral = $markerPath.Replace('\', '/')
+          $programPath = Join-Path $tempDir 'program.pre'
+          $modulePath = Join-Path $tempDir "$moduleName.pre"
+        
+          Set-Content -Path $modulePath -Encoding Ascii -Value @"
+        STR marker = "$markerLiteral"
+        
+        IF(EXISTFILE(marker)){
+            WRITEFILE("reloaded", marker)
+        } ELSE {
+            WRITEFILE("loaded", marker)
+        }
+        
+        FUNC STR marker_text(){
+            RETURN(READFILE(marker))
+        }
+        "@
+        
+          Set-Content -Path $programPath -Encoding Ascii -Value @"
+        INCLUDE("$moduleName")
+        INCLUDE("$moduleName")
+        
+        ASSERT(EQ(marker_text(), "loaded"))
+        "@
+        
+          $output = & (Get-PrefixExePath) $programPath 2>&1
+          if ($LASTEXITCODE -ne 0) {
+            $outputText = ($output | ForEach-Object { $_.ToString() }) -join [Environment]::NewLine
+            throw "Prefix exited with code $LASTEXITCODE`n$outputText"
+          }
+        }
+        finally {
+          Remove-Item -Path $tempDir -Recurse -Force -ErrorAction SilentlyContinue
+        }
+        
+  - name: include-isolated-top-level
+    language: PowerShell
+    source: |
+        $helperPath = Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) 'helpers\prefix-input.ps1'
+        . $helperPath
+        
+        $tempDir = New-PrefixTempDir
+        $moduleName = 'prefixinclude' + ([IO.Path]::GetRandomFileName().Replace('.', ''))
+        
+        try {
+          $programPath = Join-Path $tempDir 'program.pre'
+          $modulePath = Join-Path $tempDir "$moduleName.pre"
+        
+          Set-Content -Path $modulePath -Encoding Ascii -Value @'
+        INT module_var = 0d7
+        
+        FUNC INT read_module_var(){
+            RETURN(module_var)
+        }
+        '@
+        
+          Set-Content -Path $programPath -Encoding Ascii -Value @"
+        INT caller_var = 0d11
+        
+        INCLUDE("$moduleName")
+        
+        ASSERT(EQ(read_module_var(), 0d7))
+        ASSERT(EQ(module_var, 0d7))
+        ASSERT(EQ(caller_var, 0d11))
+        "@
+        
+          $output = & (Get-PrefixExePath) $programPath 2>&1
+          if ($LASTEXITCODE -ne 0) {
+            $outputText = ($output | ForEach-Object { $_.ToString() }) -join [Environment]::NewLine
+            throw "Prefix exited with code $LASTEXITCODE`n$outputText"
+          }
+        }
+        finally {
+          Remove-Item -Path $tempDir -Recurse -Force -ErrorAction SilentlyContinue
+        }
+        
+  - name: include-local-before-stdlib
+    language: PowerShell
+    source: |
+        $helperPath = Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) 'helpers\prefix-input.ps1'
+        . $helperPath
+        
+        $prefixDir = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $PSScriptRoot))
+        $tempDir = New-PrefixTempDir
+        $moduleName = 'prefixinclude' + ([IO.Path]::GetRandomFileName().Replace('.', ''))
+        $stdlibPath = Join-Path $prefixDir "lib\std\$moduleName.pre"
+        
+        try {
+          $programPath = Join-Path $tempDir 'program.pre'
+          $localModulePath = Join-Path $tempDir "$moduleName.pre"
+        
+          Set-Content -Path $localModulePath -Encoding Ascii -Value @'
+        FUNC STR identify(){
+            RETURN("local")
+        }
+        '@
+        
+          Set-Content -Path $stdlibPath -Encoding Ascii -Value @'
+        FUNC STR identify(){
+            RETURN("stdlib")
+        }
+        '@
+        
+          Set-Content -Path $programPath -Encoding Ascii -Value @"
+        INCLUDE("$moduleName")
+        
+        ASSERT(EQ(identify(), "local"))
+        "@
+        
+          $output = & (Get-PrefixExePath) $programPath 2>&1
+          if ($LASTEXITCODE -ne 0) {
+            $outputText = ($output | ForEach-Object { $_.ToString() }) -join [Environment]::NewLine
+            throw "Prefix exited with code $LASTEXITCODE`n$outputText"
+          }
+        }
+        finally {
+          Remove-Item -Path $tempDir -Recurse -Force -ErrorAction SilentlyContinue
+          Remove-Item -Path $stdlibPath -Force -ErrorAction SilentlyContinue
+        }
+        
+  - name: include-no-companion-prex
+    language: PowerShell
+    source: |
+        $helperPath = Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) 'helpers\prefix-input.ps1'
+        . $helperPath
+        
+        $tempDir = New-PrefixTempDir
+        $moduleName = 'prefixinclude' + ([IO.Path]::GetRandomFileName().Replace('.', ''))
+        
+        try {
+          $programPath = Join-Path $tempDir 'program.pre'
+          $modulePath = Join-Path $tempDir "$moduleName.pre"
+          $pointerPath = Join-Path $tempDir "$moduleName.prex"
+        
+          Set-Content -Path $modulePath -Encoding Ascii -Value @'
+        FUNC STR identify(){
+            RETURN("source")
+        }
+        '@
+        
+          Set-Content -Path $pointerPath -Encoding Ascii -Value 'this companion pointer file must be ignored by INCLUDE'
+        
+          Set-Content -Path $programPath -Encoding Ascii -Value @"
+        INCLUDE("$moduleName")
+        
+        ASSERT(EQ(identify(), "source"))
+        "@
+        
+          $output = & (Get-PrefixExePath) $programPath 2>&1
+          if ($LASTEXITCODE -ne 0) {
+            $outputText = ($output | ForEach-Object { $_.ToString() }) -join [Environment]::NewLine
+            throw "Prefix exited with code $LASTEXITCODE`n$outputText"
+          }
+        }
+        finally {
+          Remove-Item -Path $tempDir -Recurse -Force -ErrorAction SilentlyContinue
+        }
+        
+  - name: include-package-init
+    language: PowerShell
+    source: |
+        $helperPath = Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) 'helpers\prefix-input.ps1'
+        . $helperPath
+        
+        $tempDir = New-PrefixTempDir
+        $packageName = 'prefixpkg' + ([IO.Path]::GetRandomFileName().Replace('.', ''))
+        
+        try {
+          $programPath = Join-Path $tempDir 'program.pre'
+          $packageDir = Join-Path $tempDir $packageName
+          $initPath = Join-Path $packageDir 'init.pre'
+        
+          New-Item -ItemType Directory -Path $packageDir | Out-Null
+        
+          Set-Content -Path $initPath -Encoding Ascii -Value @'
+        FUNC STR identify(){
+            RETURN("package")
+        }
+        '@
+        
+          Set-Content -Path $programPath -Encoding Ascii -Value @"
+        INCLUDE("$packageName")
+        
+        ASSERT(EQ(identify(), "package"))
+        "@
+        
+          $output = & (Get-PrefixExePath) $programPath 2>&1
+          if ($LASTEXITCODE -ne 0) {
+            $outputText = ($output | ForEach-Object { $_.ToString() }) -join [Environment]::NewLine
+            throw "Prefix exited with code $LASTEXITCODE`n$outputText"
+          }
+        }
+        finally {
+          Remove-Item -Path $tempDir -Recurse -Force -ErrorAction SilentlyContinue
+        }
+        
+  - name: include-package-missing-init-errors
+    language: PowerShell
+    source: |
+        $helperPath = Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) 'helpers\prefix-input.ps1'
+        . $helperPath
+        
+        $tempDir = New-PrefixTempDir
+        $packageName = 'prefixpkg' + ([IO.Path]::GetRandomFileName().Replace('.', ''))
+        
+        try {
+          $programPath = Join-Path $tempDir 'program.pre'
+          $modulePath = Join-Path $tempDir "$packageName.pre"
+          $packageDir = Join-Path $tempDir $packageName
+        
+          New-Item -ItemType Directory -Path $packageDir | Out-Null
+        
+          Set-Content -Path $modulePath -Encoding Ascii -Value @'
+        FUNC STR identify(){
+            RETURN("module")
+        }
+        '@
+        
+          Set-Content -Path $programPath -Encoding Ascii -Value @"
+        INCLUDE("$packageName")
+        "@
+        
+          $result = Invoke-PrefixProgramWithInput -ProgramPath $programPath -InputText ''
+          if ($result.ExitCode -eq 0) {
+            $outputText = "STDOUT: $(Format-VisibleText $result.Stdout)`nSTDERR: $(Format-VisibleText $result.Stderr)"
+            throw "Expected INCLUDE($packageName) to fail when the package directory has no init.pre`n$outputText"
+          }
+        }
+        finally {
+          Remove-Item -Path $tempDir -Recurse -Force -ErrorAction SilentlyContinue
+        }
+        
+  - name: include-package-precedence
+    language: PowerShell
+    source: |
+        $helperPath = Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) 'helpers\prefix-input.ps1'
+        . $helperPath
+        
+        $tempDir = New-PrefixTempDir
+        $packageName = 'prefixpkg' + ([IO.Path]::GetRandomFileName().Replace('.', ''))
+        
+        try {
+          $programPath = Join-Path $tempDir 'program.pre'
+          $modulePath = Join-Path $tempDir "$packageName.pre"
+          $packageDir = Join-Path $tempDir $packageName
+          $initPath = Join-Path $packageDir 'init.pre'
+        
+          New-Item -ItemType Directory -Path $packageDir | Out-Null
+        
+          Set-Content -Path $modulePath -Encoding Ascii -Value @'
+        FUNC STR identify(){
+            RETURN("module")
+        }
+        '@
+        
+          Set-Content -Path $initPath -Encoding Ascii -Value @'
+        FUNC STR identify(){
+            RETURN("package")
+        }
+        '@
+        
+          Set-Content -Path $programPath -Encoding Ascii -Value @"
+        INCLUDE("$packageName")
+        
+        ASSERT(EQ(identify(), "package"))
+        "@
+        
+          $output = & (Get-PrefixExePath) $programPath 2>&1
+          if ($LASTEXITCODE -ne 0) {
+            $outputText = ($output | ForEach-Object { $_.ToString() }) -join [Environment]::NewLine
+            throw "Prefix exited with code $LASTEXITCODE`n$outputText"
+          }
+        }
+        finally {
+          Remove-Item -Path $tempDir -Recurse -Force -ErrorAction SilentlyContinue
+        }
+        
+  - name: include-qualified-namespace-isolation
+    language: PowerShell
+    source: |
+        $helperPath = Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) 'helpers\prefix-input.ps1'
+        . $helperPath
+        
+        $tempDir = New-PrefixTempDir
+        $moduleName = 'prefixinclude' + ([IO.Path]::GetRandomFileName().Replace('.', ''))
+        
+        try {
+          $programPath = Join-Path $tempDir 'program.pre'
+          $modulePath = Join-Path $tempDir "$moduleName.pre"
+        
+          Set-Content -Path $modulePath -Encoding Ascii -Value @'
+        INT hidden = 0d7
+        '@
+        
+          Set-Content -Path $programPath -Encoding Ascii -Value @"
+        INCLUDE("$moduleName")
+        
+        ASSERT(EQ($moduleName.hidden, 0d7))
+        "@
+        
+          $result = Invoke-PrefixProgramWithInput -ProgramPath $programPath -InputText ''
+          if ($result.ExitCode -eq 0) {
+            $outputText = "STDOUT: $(Format-VisibleText $result.Stdout)`nSTDERR: $(Format-VisibleText $result.Stderr)"
+            throw "Expected qualified access to fail after INCLUDE($moduleName)`n$outputText"
+          }
+        }
+        finally {
+          Remove-Item -Path $tempDir -Recurse -Force -ErrorAction SilentlyContinue
+        }
+        
+  - name: include-return-false
+    language: Prefix
+    source: |
+        ASSERT(EQ(TYPE(INCLUDE("path")), "BOOL"))
+        REFUTE(INCLUDE("path"))
+        
+  - name: include-stdlib-before-userlib
+    language: PowerShell
+    source: |
+        $helperPath = Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) 'helpers\prefix-input.ps1'
+        . $helperPath
+        
+        $prefixDir = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $PSScriptRoot))
+        $tempDir = New-PrefixTempDir
+        $moduleName = 'prefixinclude' + ([IO.Path]::GetRandomFileName().Replace('.', ''))
+        $stdlibPath = Join-Path $prefixDir "lib\std\$moduleName.pre"
+        $userlibPath = Join-Path $prefixDir "lib\usr\$moduleName.pre"
+        
+        try {
+          $programPath = Join-Path $tempDir 'program.pre'
+        
+          Set-Content -Path $stdlibPath -Encoding Ascii -Value @'
+        FUNC STR identify(){
+            RETURN("stdlib")
+        }
+        '@
+        
+          Set-Content -Path $userlibPath -Encoding Ascii -Value @'
+        FUNC STR identify(){
+            RETURN("userlib")
+        }
+        '@
+        
+          Set-Content -Path $programPath -Encoding Ascii -Value @"
+        INCLUDE("$moduleName")
+        
+        ASSERT(EQ(identify(), "stdlib"))
+        "@
+        
+          $output = & (Get-PrefixExePath) $programPath 2>&1
+          if ($LASTEXITCODE -ne 0) {
+            $outputText = ($output | ForEach-Object { $_.ToString() }) -join [Environment]::NewLine
+            throw "Prefix exited with code $LASTEXITCODE`n$outputText"
+          }
+        }
+        finally {
+          Remove-Item -Path $tempDir -Recurse -Force -ErrorAction SilentlyContinue
+          Remove-Item -Path $stdlibPath -Force -ErrorAction SilentlyContinue
+          Remove-Item -Path $userlibPath -Force -ErrorAction SilentlyContinue
+        }
+        
+  - name: include-type-str
+    language: Prefix
+    source: |
+        INCLUDE("path")
+        
+  - name: include-unqualified-access
+    language: PowerShell
+    source: |
+        $helperPath = Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) 'helpers\prefix-input.ps1'
+        . $helperPath
+        
+        $tempDir = New-PrefixTempDir
+        $moduleName = 'prefixinclude' + ([IO.Path]::GetRandomFileName().Replace('.', ''))
+        
+        try {
+          $programPath = Join-Path $tempDir 'program.pre'
+          $modulePath = Join-Path $tempDir "$moduleName.pre"
+        
+          Set-Content -Path $modulePath -Encoding Ascii -Value @'
+        INT hidden = 0d7
+        '@
+        
+          Set-Content -Path $programPath -Encoding Ascii -Value @"
+        INCLUDE("$moduleName")
+        
+        ASSERT(EQ(hidden, 0d7))
+        "@
+        
+          $result = Invoke-PrefixProgramWithInput -ProgramPath $programPath -InputText ''
+          if ($result.ExitCode -ne 0) {
+            $outputText = "STDOUT: $(Format-VisibleText $result.Stdout)`nSTDERR: $(Format-VisibleText $result.Stderr)"
+            throw "Expected unqualified module binding access to succeed after INCLUDE($moduleName)`n$outputText"
+          }
+        }
+        finally {
+          Remove-Item -Path $tempDir -Recurse -Force -ErrorAction SilentlyContinue
+        }
+        
+  - name: include-unqualified-namespace
+    language: Prefix
+    source: |
+        INCLUDE("path")
+        
+        ASSERT(EQ(TYPE(TEMPFILE("include-unqualified-namespace.txt")), "STR"))
+        
+failing:
+  - name: include-arity-two
+    language: Prefix
+    source: |
+        INCLUDE("path", "extra")
+        
+  - name: include-arity-zero
+    language: Prefix
+    source: |
+        INCLUDE()
+        
+  - name: include-missing-module
+    language: Prefix
+    source: |
+        INCLUDE("prefixincludemissingmoduletest")
+        
+  - name: include-type-bool
+    language: Prefix
+    source: |
+        INCLUDE(TRUE)
+        
+  - name: include-type-flt
+    language: Prefix
+    source: |
+        INCLUDE(0d1.0)
+        
+  - name: include-type-func
+    language: Prefix
+    source: |
+        INCLUDE(LAMBDA BOOL: (){})
+        
+  - name: include-type-int
+    language: Prefix
+    source: |
+        INCLUDE(0d1)
+        
+  - name: include-type-map
+    language: Prefix
+    source: |
+        INCLUDE(<>)
+        
+  - name: include-type-thr
+    language: Prefix
+    source: |
+        INCLUDE(ASYNC{})
+        
+  - name: include-type-tns
+    language: Prefix
+    source: |
+        INCLUDE([0d1])
+        

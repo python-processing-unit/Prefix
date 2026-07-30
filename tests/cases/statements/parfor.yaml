@@ -1,0 +1,138 @@
+passing:
+  - name: parfor-break-nested
+    language: Prefix
+    source: |
+        INT outer = 0d0
+        
+        FOR(j, 0d3){
+            +(@outer, 0d1)
+            PARFOR(i, 0d5){
+                BREAK(0d2)
+            }
+            ASSERT(FALSE)
+        }
+        
+        ASSERT(EQ(outer, 0d1))
+        REFUTE(EXIST("i"))
+        REFUTE(EXIST("j"))
+        
+  - name: parfor-break
+    language: Prefix
+    source: |
+        INT outer = 0d0
+        INT after = 0d0
+        
+        FOR(j, 0d3){
+            +(@outer, 0d1)
+            PARFOR(i, 0d5){
+                BREAK(0d1)
+            }
+            +(@after, 0d1)
+        }
+        
+        ASSERT(EQ(outer, 0d3))
+        ASSERT(EQ(after, 0d3))
+        REFUTE(EXIST("i"))
+        REFUTE(EXIST("j"))
+        
+  - name: parfor-continue
+    language: Prefix
+    source: |
+        TNS seen = [0d0, 0d0, 0d0, 0d0]
+        PARFOR(i, 0d4){
+            IF(EQ(i, 0d2)){
+                CONTINUE()
+            }
+            seen[i] = i
+        }
+        ASSERT(EQ(seen, [0d1, 0d0, 0d3, 0d4]))
+        REFUTE(EXIST("i"))
+        
+  - name: parfor-error-join
+    language: Prefix
+    source: |
+        TNS seen = [0d0, 0d0, 0d0]
+        BOOL caught = FALSE
+        
+        TRY{
+            PARFOR(i, 0d3){
+                seen[i] = i
+                IF(EQ(i, 0d2)){
+                    ASSERT(FALSE)
+                }
+            }
+            ASSERT(FALSE)
+        } CATCH {
+            caught = TRUE
+        }
+        
+        ASSERT(caught)
+        ASSERT(EQ(seen, [0d1, 0d2, 0d3]))
+        
+  - name: parfor-merge-symbol
+    language: Prefix
+    source: |
+        PARFOR(i, 0d3){
+            IF(EQ(i, 0d2)){
+                INT merged = 0d7
+            }
+        }
+        ASSERT(EXIST("merged"))
+        ASSERT(EQ(merged, 0d7))
+        REFUTE(EXIST("i"))
+        
+  - name: parfor-target-once
+    language: Prefix
+    source: |
+        INT target_calls = 0d0
+        
+        FUNC INT get_target(){
+            +(@target_calls, 0d1)
+            RETURN(0d3)
+        }
+        
+        TNS seen = [0d0, 0d0, 0d0]
+        PARFOR(i, get_target()){
+            seen[i] = i
+        }
+        ASSERT(EQ(target_calls, 0d1))
+        ASSERT(EQ(seen, [0d1, 0d2, 0d3]))
+        REFUTE(EXIST("i"))
+        
+  - name: parfor-zero-and-restore-counter
+    language: Prefix
+    source: |
+        BOOL i = TRUE
+        INT runs = 0d0
+        PARFOR(i, 0d5){
+            +(@runs, 0d1)
+        }
+        ASSERT(EQ(runs, 0d0))
+        ASSERT(i)
+        
+  - name: parfor
+    language: Prefix
+    source: |
+        TNS seen = [0d0, 0d0, 0d0, 0d0]
+        PARFOR(i, 0d4){
+            seen[i] = i
+        }
+        ASSERT(EQ(seen, [0d1, 0d2, 0d3, 0d4]))
+        REFUTE(EXIST("i"))
+        
+failing:
+  - name: parfor-no-block
+    language: Prefix
+    source: |
+        PARFOR(i, 0d1)
+        
+  - name: parfor-no-target
+    language: Prefix
+    source: |
+        PARFOR(i, ){}
+        
+  - name: parfor-target-not-int
+    language: Prefix
+    source: |
+        PARFOR(i, TRUE){}
+        

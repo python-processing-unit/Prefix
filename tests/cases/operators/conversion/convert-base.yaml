@@ -1,0 +1,91 @@
+passing:
+  - name: base-flt
+    language: Prefix
+    source: |
+        FLT flt_decimal = 0d1.5
+        FLT flt_binary = 0b1.1
+        
+        ASSERT(EQ(BASE(flt_decimal), 0d10))
+        ASSERT(EQ(BASE(flt_binary), 0d2))
+        ASSERT(EQ(CONVERT(flt_binary, BASE(flt_decimal)), flt_decimal))
+        ASSERT(EQ(BASE(CONVERT(flt_decimal, 0d64)), 0d64))
+        
+  - name: base-int
+    language: Prefix
+    source: |
+        INT int_binary = 0b101010
+        INT int_hex = 0x2A
+        
+        ASSERT(EQ(BASE(int_binary), 0d2))
+        ASSERT(EQ(BASE(int_hex), 0d16))
+        ASSERT(EQ(CONVERT(int_binary, BASE(int_hex)), int_hex))
+        ASSERT(EQ(BASE(CONVERT(int_hex, 0d64)), 0d64))
+        
+  - name: convert-flt
+    language: Prefix
+    source: |
+        FLT flt_value = 0d1.5
+        
+        ASSERT(EQ(CONVERT(flt_value, 0b10), 0b1.1))
+        ASSERT(EQ(BASE(CONVERT(flt_value, 0b10)), 0d2))
+        ASSERT(EQ(CONVERT(flt_value, 0x10), 0x1.8))
+        ASSERT(EQ(BASE(CONVERT(flt_value, 0x10)), 0d16))
+        ASSERT(EQ(BASE(CONVERT(flt_value, 0d64)), 0d64))
+        
+  - name: convert-int
+    language: Prefix
+    source: |
+        INT int_value = 0d42
+        
+        ASSERT(EQ(CONVERT(int_value, 0x10), 0x2A))
+        ASSERT(EQ(BASE(CONVERT(int_value, 0x10)), 0d16))
+        ASSERT(EQ(CONVERT(int_value, 0d2), 0b101010))
+        ASSERT(EQ(BASE(CONVERT(int_value, 0d2)), 0d2))
+        ASSERT(EQ(BASE(CONVERT(int_value, 0d64)), 0d64))
+        
+failing:
+  - name: base-func
+    language: Prefix
+    source: |
+        BASE(LAMBDA BOOL: sample_func(){})
+        
+  - name: base-map
+    language: Prefix
+    source: |
+        BASE(<>)
+        
+  - name: base-string
+    language: Prefix
+    source: |
+        BASE("42")
+        
+  - name: base-thr
+    language: Prefix
+    source: |
+        BASE(ASYNC{})
+        
+  - name: convert-base-too-large
+    language: Prefix
+    source: |
+        CONVERT(0d42, 0d65)
+        
+  - name: convert-base-too-small
+    language: Prefix
+    source: |
+        CONVERT(0d42, 0d1)
+        
+  - name: convert-base-wrong-type
+    language: Prefix
+    source: |
+        CONVERT(0d42, TRUE)
+        
+  - name: convert-value-map
+    language: Prefix
+    source: |
+        CONVERT(<>, 0d10)
+        
+  - name: convert-value-string
+    language: Prefix
+    source: |
+        CONVERT("42", 0d10)
+        

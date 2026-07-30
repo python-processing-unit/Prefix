@@ -1,0 +1,165 @@
+passing:
+  - name: input-empty-line
+    language: PowerShell
+    source: |
+        $helperPath = Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) 'helpers\prefix-input.ps1'
+        . $helperPath
+        
+        $tempDir = New-PrefixTempDir
+        
+        try {
+          $programPath = Join-Path $tempDir 'program.pre'
+        
+          Set-Content -Path $programPath -Encoding Ascii -Value @'
+        STR line = INPUT()
+        ASSERT(ISSTR(line))
+        ASSERT(EQ(line, ""))
+        '@
+        
+          $result = Invoke-PrefixProgramWithInput -ProgramPath $programPath -InputText "`r`ntrailing`r`n"
+        
+          Assert-PrefixSuccess $result
+          Assert-NoErrorOutput $result
+        
+          if ($result.Stdout.Length -ne 0) {
+            $stdout = Format-VisibleText $result.Stdout
+            throw "Expected no stdout output, got: $stdout"
+          }
+        }
+        finally {
+          Remove-Item -Path $tempDir -Recurse -Force -ErrorAction SilentlyContinue
+        }
+        
+  - name: input-prompt-output
+    language: PowerShell
+    source: |
+        $helperPath = Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) 'helpers\prefix-input.ps1'
+        . $helperPath
+        
+        $tempDir = New-PrefixTempDir
+        
+        try {
+          $programPath = Join-Path $tempDir 'program.pre'
+        
+          Set-Content -Path $programPath -Encoding Ascii -Value @'
+        STR line = INPUT("PROMPT>")
+        ASSERT(EQ(line, "alpha"))
+        PRINT("DONE=", line)
+        '@
+        
+          $result = Invoke-PrefixProgramWithInput -ProgramPath $programPath -InputText "alpha`r`n"
+        
+          Assert-PrefixSuccess $result
+          Assert-NoErrorOutput $result
+        
+          if (-not [regex]::IsMatch($result.Stdout, '\APROMPT>DONE=alpha(?:\r\n|\n)\z')) {
+            $stdout = Format-VisibleText $result.Stdout
+            throw "Unexpected stdout: $stdout"
+          }
+        }
+        finally {
+          Remove-Item -Path $tempDir -Recurse -Force -ErrorAction SilentlyContinue
+        }
+        
+  - name: input-return-type
+    language: PowerShell
+    source: |
+        $helperPath = Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) 'helpers\prefix-input.ps1'
+        . $helperPath
+        
+        $tempDir = New-PrefixTempDir
+        
+        try {
+          $programPath = Join-Path $tempDir 'program.pre'
+        
+          Set-Content -Path $programPath -Encoding Ascii -Value @'
+        STR line = INPUT()
+        ASSERT(ISSTR(line))
+        ASSERT(EQ(line, "Alpha beta 42"))
+        '@
+        
+          $result = Invoke-PrefixProgramWithInput -ProgramPath $programPath -InputText "Alpha beta 42`r`nignored`r`n"
+        
+          Assert-PrefixSuccess $result
+          Assert-NoErrorOutput $result
+        
+          if ($result.Stdout.Length -ne 0) {
+            $stdout = Format-VisibleText $result.Stdout
+            throw "Expected no stdout output, got: $stdout"
+          }
+        }
+        finally {
+          Remove-Item -Path $tempDir -Recurse -Force -ErrorAction SilentlyContinue
+        }
+        
+  - name: input-sequential-lines
+    language: PowerShell
+    source: |
+        $helperPath = Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) 'helpers\prefix-input.ps1'
+        . $helperPath
+        
+        $tempDir = New-PrefixTempDir
+        
+        try {
+          $programPath = Join-Path $tempDir 'program.pre'
+        
+          Set-Content -Path $programPath -Encoding Ascii -Value @'
+        ASSERT(EQ(INPUT(), "alpha"))
+        ASSERT(EQ(INPUT(), "beta"))
+        '@
+        
+          $result = Invoke-PrefixProgramWithInput -ProgramPath $programPath -InputText "alpha`r`nbeta`r`ngamma`r`n"
+        
+          Assert-PrefixSuccess $result
+          Assert-NoErrorOutput $result
+        
+          if ($result.Stdout.Length -ne 0) {
+            $stdout = Format-VisibleText $result.Stdout
+            throw "Expected no stdout output, got: $stdout"
+          }
+        }
+        finally {
+          Remove-Item -Path $tempDir -Recurse -Force -ErrorAction SilentlyContinue
+        }
+        
+failing:
+  - name: input-arity-two
+    language: Prefix
+    source: |
+        INPUT("left", "right")
+        
+  - name: input-type-bool
+    language: Prefix
+    source: |
+        INPUT(TRUE)
+        
+  - name: input-type-flt
+    language: Prefix
+    source: |
+        INPUT(0d1.0)
+        
+  - name: input-type-func
+    language: Prefix
+    source: |
+        INPUT(LAMBDA BOOL: (){})
+        
+  - name: input-type-int
+    language: Prefix
+    source: |
+        INPUT(0d1)
+        
+  - name: input-type-map
+    language: Prefix
+    source: |
+        INPUT(<>)
+        
+  - name: input-type-thr
+    language: Prefix
+    source: |
+        INPUT(ASYNC{})
+        
+  - name: input-type-tns
+    language: Prefix
+    source: |
+        INPUT([0d1])
+        

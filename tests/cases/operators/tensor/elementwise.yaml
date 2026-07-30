@@ -1,0 +1,296 @@
+passing:
+  - name: madd-basic
+    language: Prefix
+    source: |
+        TNS out = M+([0d1, 0d2, 0d3], [0d4, 0d5, 0d6])
+        
+        ASSERT(EQ(TYPE(out), "TNS"))
+        ASSERT(EQ(out, [0d5, 0d7, 0d9]))
+        
+  - name: madd-rank2-shape
+    language: Prefix
+    source: |
+        TNS a = [[0d1, 0d2], [0d3, 0d4]]
+        TNS b = [[0d10, 0d20], [0d30, 0d40]]
+        TNS out = M+(a, b)
+        
+        ASSERT(EQ(out, [[0d11, 0d22], [0d33, 0d44]]))
+        ASSERT(EQ(SHAPE(out), [0d2, 0d2]))
+        
+  - name: mdiv-basic
+    language: Prefix
+    source: |
+        ASSERT(EQ(M/([0d8, 0d6, 0d4], [0d2, 0d3, 0d2]), [0d4, 0d2, 0d2]))
+        
+  - name: mdiv-rank2
+    language: Prefix
+    source: |
+        TNS out = M/([[0d9, 0d8], [0d6, 0d4]], [[0d3, 0d2], [0d3, 0d2]])
+        
+        ASSERT(EQ(out, [[0d3, 0d4], [0d2, 0d2]]))
+        ASSERT(EQ(SHAPE(out), [0d2, 0d2]))
+        
+  - name: mmul-basic
+    language: Prefix
+    source: |
+        ASSERT(EQ(M*([0d1, 0d2, 0d3], [0d4, 0d5, 0d6]), [0d4, 0d10, 0d18]))
+        
+  - name: mmul-rank2-shape
+    language: Prefix
+    source: |
+        TNS a = [[0d1, 0d2], [0d3, 0d4]]
+        TNS b = [[0d5, 0d6], [0d7, 0d8]]
+        TNS out = M*(a, b)
+        
+        ASSERT(EQ(out, [[0d5, 0d12], [0d21, 0d32]]))
+        ASSERT(EQ(SHAPE(out), [0d2, 0d2]))
+        
+  - name: msub-basic
+    language: Prefix
+    source: |
+        TNS out = M-([0d9, 0d7, 0d5], [0d4, 0d5, 0d6])
+        
+        ASSERT(EQ(TYPE(out), "TNS"))
+        ASSERT(EQ(out, [0d5, 0d2, -0d1]))
+  - name: msub-float
+    language: Prefix
+    source: 'ASSERT(EQ(M-([0d5.5, 0d3.0], [0d1.0, 0d0.5]), [0d4.5, 0d2.5]))'
+  - name: msub-rank2-shape
+    language: Prefix
+    source: |
+        TNS a = [[0d9, 0d8], [0d7, 0d6]]
+        TNS b = [[0d1, 0d2], [0d3, 0d4]]
+        TNS out = M-(a, b)
+        
+        ASSERT(EQ(out, [[0d8, 0d6], [0d4, 0d2]]))
+        ASSERT(EQ(SHAPE(out), [0d2, 0d2]))
+failing:
+  - name: madd-arity-one
+    language: Prefix
+    source: |
+        M+([0d1])
+        
+  - name: madd-arity-three
+    language: Prefix
+    source: |
+        M+([0d1], [0d2], [0d3])
+        
+  - name: madd-arity-zero
+    language: Prefix
+    source: |
+        M+()
+        
+  - name: madd-first-non-tns
+    language: Prefix
+    source: |
+        M+(0d1, [0d2])
+        
+  - name: madd-non-numeric
+    language: Prefix
+    source: |
+        M+(["a"], ["b"])
+        
+  - name: madd-second-non-tns
+    language: Prefix
+    source: |
+        M+([0d1], 0d2)
+        
+  - name: madd-shape-mismatch
+    language: Prefix
+    source: |
+        M+([0d1, 0d2], [0d3])
+        
+  - name: mdiv-arity-one
+    language: Prefix
+    source: |
+        M/([0d1])
+        
+  - name: mdiv-arity-three
+    language: Prefix
+    source: |
+        M/([0d1], [0d2], [0d3])
+        
+  - name: mdiv-arity-zero
+    language: Prefix
+    source: |
+        M/()
+        
+  - name: mdiv-first-non-tns
+    language: Prefix
+    source: |
+        M/(0d1, [0d2])
+        
+  - name: mdiv-non-numeric
+    language: Prefix
+    source: |
+        M/(["a"], ["b"])
+        
+  - name: mdiv-second-non-tns
+    language: Prefix
+    source: |
+        M/([0d1], 0d2)
+        
+  - name: mdiv-shape-mismatch
+    language: Prefix
+    source: |
+        M/([0d1, 0d2], [0d3])
+        
+  - name: mdiv-zero
+    language: Prefix
+    source: |
+        M/([0d1, 0d2], [0d1, 0d0])
+        
+  - name: mmul-arity-one
+    language: Prefix
+    source: |
+        M*([0d1])
+        
+  - name: mmul-arity-three
+    language: Prefix
+    source: |
+        M*([0d1], [0d2], [0d3])
+        
+  - name: mmul-arity-zero
+    language: Prefix
+    source: |
+        M*()
+        
+  - name: mmul-first-non-tns
+    language: Prefix
+    source: |
+        M*(0d1, [0d2])
+        
+  - name: mmul-non-numeric
+    language: Prefix
+    source: |
+        M*(["a"], ["b"])
+        
+  - name: mmul-second-non-tns
+    language: Prefix
+    source: |
+        M*([0d1], 0d2)
+        
+  - name: mmul-shape-mismatch
+    language: Prefix
+    source: |
+        M*([0d1, 0d2], [0d3])
+        
+  - name: mops-pointer-writeback
+    language: Prefix
+    source: |
+        // M* family (matrix/tensor ops) should write back to pointer operands.
+        TNS A1 = [0d1, 0d2]
+        TNS B1 = [0d3, 0d4]
+        M+(@A1, B1)
+        ASSERT(EQ(A1, [0d4, 0d6]))
+        
+        TNS A2 = [0d1, 0d2]
+        TNS B2 = [0d3, 0d4]
+        M+(A2, @B2)
+        ASSERT(EQ(B2, [0d4, 0d6]))
+        
+        // MSUM / MPROD behavior: elementwise -> writeback
+        TNS C1 = [0d2, 0d3]
+        MSUM(@C1)
+        ASSERT(EQ(C1, [0d5]))
+        
+  - name: msub-arity-one
+    language: Prefix
+    source: M-([0d1])
+  - name: msub-arity-three
+    language: Prefix
+    source: 'M-([0d1], [0d2], [0d3])'
+  - name: msub-arity-zero
+    language: Prefix
+    source: M-()
+  - name: msub-first-bool
+    language: Prefix
+    source: 'M-(TRUE, [0d1])'
+  - name: msub-first-flt
+    language: Prefix
+    source: 'M-(0d1.0, [0d1])'
+  - name: msub-first-func
+    language: Prefix
+    source: 'M-(LAMBDA BOOL: (){}, [0d1])'
+  - name: msub-first-int
+    language: Prefix
+    source: 'M-(0d1, [0d1])'
+  - name: msub-first-map
+    language: Prefix
+    source: 'M-(<>, [0d1])'
+  - name: msub-first-str
+    language: Prefix
+    source: 'M-("a", [0d1])'
+  - name: msub-first-thr
+    language: Prefix
+    source: 'M-(ASYNC{}, [0d1])'
+  - name: msub-mixed-numeric-types
+    language: Prefix
+    source: 'M-([0d1, 0d2], [0d1.0, 0d2.0])'
+  - name: msub-non-numeric-bool
+    language: Prefix
+    source: 'M-([TRUE], [TRUE])'
+  - name: msub-non-numeric-func
+    language: Prefix
+    source: 'M-([LAMBDA BOOL: (){}], [LAMBDA BOOL: (){}])'
+  - name: msub-non-numeric-map
+    language: Prefix
+    source: 'M-([<>], [<>])'
+  - name: msub-non-numeric-str
+    language: Prefix
+    source: 'M-(["a"], ["b"])'
+  - name: msub-non-numeric-thr
+    language: Prefix
+    source: 'M-([ASYNC{}], [ASYNC{}])'
+  - name: msub-non-numeric-tns
+    language: Prefix
+    source: |
+        TNS inner = [0d1]
+        M-([inner], [inner])
+  - name: msub-second-bool
+    language: Prefix
+    source: 'M-([0d1], TRUE)'
+  - name: msub-second-flt
+    language: Prefix
+    source: 'M-([0d1], 0d1.0)'
+  - name: msub-second-func
+    language: Prefix
+    source: 'M-([0d1], LAMBDA BOOL: (){})'
+  - name: msub-second-int
+    language: Prefix
+    source: 'M-([0d1], 0d1)'
+  - name: msub-second-map
+    language: Prefix
+    source: 'M-([0d1], <>)'
+  - name: msub-second-str
+    language: Prefix
+    source: 'M-([0d1], "a")'
+  - name: msub-second-thr
+    language: Prefix
+    source: 'M-([0d1], ASYNC{})'
+  - name: msub-shape-mismatch
+    language: Prefix
+    source: 'M-([0d1, 0d2], [0d3])'
+  - name: msub-tensor-mixed-numeric-elements
+    language: Prefix
+    source: 'M-([0d1, 0d2.0], [0d1, 0d1])'
+  - name: tensor-elemwise-pointer-writeback
+    language: Prefix
+    source: |
+        // Elementwise tensor ops should write back to pointer operands when provided.
+        TNS a1 = [0d1, 0d2]
+        TNS b1 = [0d3, 0d4]
+        T+(@a1, b1)
+        ASSERT(EQ(a1, [0d4, 0d6]))
+        
+        TNS a2 = [0d1, 0d2]
+        TNS b2 = [0d3, 0d4]
+        T+(a2, @b2)
+        ASSERT(EQ(b2, [0d4, 0d6]))
+        
+        // similar for T*
+        TNS c1 = [0d2, 0d3]
+        TNS d1 = [0d4, 0d5]
+        T*(@c1, d1)
+        ASSERT(EQ(c1, [0d8, 0d15]))
+        

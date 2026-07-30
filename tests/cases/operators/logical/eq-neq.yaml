@@ -1,0 +1,96 @@
+passing:
+  - name: eq-scalars
+    language: Prefix
+    source: |
+        ASSERT(ISBOOL(EQ(TRUE, TRUE)))
+        ASSERT(EQ(TRUE, TRUE))
+        REFUTE(EQ(TRUE, FALSE))
+        
+        ASSERT(EQ(0d42, 0d42))
+        REFUTE(EQ(0d42, 0d43))
+        
+        ASSERT(EQ(0d1.5, 0d1.5))
+        REFUTE(EQ(NaN, NaN))
+        
+        ASSERT(EQ("prefix", "prefix"))
+        REFUTE(EQ("prefix", "Prefix"))
+  - name: eq-structured
+    language: Prefix
+    source: |
+        TNS tensor = [[0d1, 0d2], [0d3, 0d4]]
+        TNS tensor_copy = tensor
+        
+        MAP map_value = <"alpha" = 0d1, "beta" = [0d2, 0d3]>
+        MAP map_copy = map_value
+        
+        FUNC INT identity(INT value){
+            RETURN(value)
+        }
+        FUNC identity_alias = identity
+        
+        THR(worker){}
+        
+        ASSERT(ISBOOL(EQ(tensor_copy, tensor)))
+        ASSERT(EQ(tensor_copy, tensor))
+        REFUTE(EQ(tensor, [[0d1, 0d2], [0d3, 0d5]]))
+        
+        ASSERT(EQ(map_copy, map_value))
+        REFUTE(EQ(map_value, <"alpha" = 0d1, "beta" = [0d2, 0d4]>))
+        
+        ASSERT(EQ(identity_alias, identity))
+        ASSERT(EQ(worker, worker))
+  - name: neq-scalars
+    language: Prefix
+    source: |
+        ASSERT(ISBOOL(NEQ(TRUE, FALSE)))
+        ASSERT(NEQ(TRUE, FALSE))
+        REFUTE(NEQ(TRUE, TRUE))
+        
+        ASSERT(NEQ(0d42, 0d43))
+        REFUTE(NEQ(0d42, 0d42))
+        
+        ASSERT(NEQ(0d1.5, 0d1.25))
+        ASSERT(NEQ(NaN, NaN))
+        
+        ASSERT(NEQ("prefix", "Prefix"))
+        REFUTE(NEQ("prefix", "prefix"))
+  - name: neq-structured
+    language: Prefix
+    source: |
+        TNS tensor = [[0d1, 0d2], [0d3, 0d4]]
+        TNS different_tensor = [[0d1, 0d2], [0d3, 0d5]]
+        
+        MAP map_value = <"alpha" = 0d1, "beta" = [0d2, 0d3]>
+        MAP different_map = <"alpha" = 0d1, "beta" = [0d2, 0d4]>
+        
+        FUNC INT identity(INT value){
+            RETURN(value)
+        }
+        FUNC identity_alias = identity
+        
+        THR(worker){}
+        THR(other){}
+        
+        ASSERT(ISBOOL(NEQ(tensor, different_tensor)))
+        ASSERT(NEQ(tensor, different_tensor))
+        REFUTE(NEQ(tensor, tensor))
+        
+        ASSERT(NEQ(map_value, different_map))
+        REFUTE(NEQ(map_value, map_value))
+        
+        REFUTE(NEQ(identity_alias, identity))
+        REFUTE(NEQ(worker, worker))
+        ASSERT(NEQ(worker, other))
+failing:
+  - name: eq-arity-one
+    language: Prefix
+    source: EQ(0d1)
+  - name: eq-arity-three
+    language: Prefix
+    source: 'EQ(0d1, 0d2, 0d3)'
+  - name: neq-arity-one
+    language: Prefix
+    source: NEQ(0d1)
+  - name: neq-arity-three
+    language: Prefix
+    source: 'NEQ(0d1, 0d2, 0d3)'

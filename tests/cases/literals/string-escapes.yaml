@@ -1,0 +1,60 @@
+passing:
+  - name: string-escapes-hex
+    language: Prefix
+    source: |
+        ASSERT(EQ("\x6a", "j"))
+        ASSERT(EQ("\u00e9", "\U000000E9"))
+        ASSERT(EQ("\U0000006a", "j"))
+        
+        ASSERT(EQ("\x4142", "A42"))
+        ASSERT(EQ("\u004142", "A42"))
+        ASSERT(EQ("\U0000004142", "A42"))
+  - name: string-escapes
+    language: Prefix
+    source: |
+        ASSERT(EQ("\\", "\x5C"))
+        ASSERT(EQ("\"", "\x22"))
+        ASSERT(EQ("'", "\x27"))
+        ASSERT(EQ("\a", "\x07"))
+        ASSERT(EQ("\b", "\x08"))
+        ASSERT(EQ("\f", "\x0C"))
+        ASSERT(EQ("\n", "\x0A"))
+        ASSERT(EQ("\r", "\x0D"))
+        ASSERT(EQ("\t", "\x09"))
+        ASSERT(EQ("\v", "\x0B"))
+        ASSERT(EQ("\e", "\x1B"))
+        ASSERT(EQ("A", "\x41"))
+        ASSERT(EQ("A", "\u0041"))
+        ASSERT(EQ("A", "\U00000041"))
+        ASSERT(EQ("\u263A", "\U0000263A"))
+        ASSERT(EQ("\u00E9", "\U000000E9"))
+failing:
+  - name: string-invalid-U-escape-uppercase
+    language: Prefix
+    source: |
+        STR bad = "\U0000G000"
+        
+  - name: string-invalid-U-short-escape
+    language: Prefix
+    source: 'STR bad = "\U0000123"'
+  - name: string-invalid-escape
+    language: Prefix
+    source: |
+        STR bad = "oops\q"
+        
+  - name: string-invalid-u-escape
+    language: Prefix
+    source: |
+        STR bad = "\u12G4"
+        
+  - name: string-invalid-u-short
+    language: Prefix
+    source: 'STR bad = "\u123"'
+  - name: string-invalid-x-escape
+    language: Prefix
+    source: |
+        STR bad = "\xGG"
+        
+  - name: string-invalid-x-short
+    language: Prefix
+    source: 'STR bad = "\x4"'

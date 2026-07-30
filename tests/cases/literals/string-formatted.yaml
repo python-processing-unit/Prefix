@@ -1,0 +1,26 @@
+passing:
+  - name: string-fmt-simple
+    language: Prefix
+    source: |
+        ASSERT(EQ("\F{0d1}", "0d1"))
+        
+  - name: string-formatted-mode
+    language: Prefix
+    source: |
+        STR x = "0d1"
+        INT y = 0d2
+        ASSERT(EQ("\Fx: {x}; y: {y}", "x: 0d1; y: 0d2"))
+        ASSERT(EQ("\F{x}", "0d1"))
+        ASSERT(EQ("\Fhello{ x }world", "hello0d1world"))
+        ASSERT(EQ("\F{+(0d3, 0d4)}", "0d7"))
+        ASSERT(EQ("\F{TRUE}", "TRUE"))
+        ASSERT(EQ("\F{FALSE}", "FALSE"))
+        ASSERT(EQ("\R\F{x}", "{x}"))
+        ASSERT(EQ("\F\R{x}", "{x}"))
+        ASSERT(EQ("\R\F{x}\R", "{x}"))
+        ASSERT(EQ("\F\R{x}\F", "{x}"))
+        
+failing:
+  - name: string-formatted-unclosed
+    language: Prefix
+    source: 'ASSERT(EQ("\F{0d1", "0d1"))'

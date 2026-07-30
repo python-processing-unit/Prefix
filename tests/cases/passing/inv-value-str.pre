@@ -1,1 +1,0 @@
-ASSERT(EQ(INV(<"left" = "x">), <"x" = "left">))

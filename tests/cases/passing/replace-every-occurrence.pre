@@ -1,2 +1,0 @@
-ASSERT(EQ(REPLACE("abXXcdXXef", "XX", "__"), "ab__cd__ef"))
-ASSERT(EQ(REPLACE("fooXXbarXXXXbaz", "XX", "-"), "foo-bar--baz"))

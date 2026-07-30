@@ -1,0 +1,56 @@
+passing:
+  - name: split-consecutive-and-trailing
+    language: Prefix
+    source: |
+        ASSERT(EQ(SPLIT("a,,b,,,c", ","), ["a", "", "b", "", "", "c"]))
+        ASSERT(EQ(SPLIT("tail,,", ","), ["tail", "", ""]))
+        
+  - name: split-custom-delimiter
+    language: Prefix
+    source: |
+        ASSERT(EQ(SPLIT("ab--cd--ef", "--"), ["ab", "cd", "ef"]))
+        ASSERT(EQ(SPLIT("no delimiter here", "--"), ["no delimiter here"]))
+        
+  - name: split-default-delimiter
+    language: Prefix
+    source: |
+        TNS words = SPLIT("foo bar baz")
+        
+        ASSERT(EQ(TYPE(words), "TNS"))
+        ASSERT(EQ(words, ["foo", "bar", "baz"]))
+        ASSERT(EQ(TLEN(words, 0d1), 0d3))
+        
+  - name: split-return-element-type
+    language: Prefix
+    source: |
+        TNS parts = SPLIT("left|right", "|")
+        
+        ASSERT(EQ(TYPE(parts[0d1]), "STR"))
+        ASSERT(EQ(TYPE(parts[0d2]), "STR"))
+        
+failing:
+  - name: split-arity-three
+    language: Prefix
+    source: |
+        SPLIT("a,b", ",", ",")
+        
+  - name: split-arity-zero
+    language: Prefix
+    source: |
+        SPLIT()
+        
+  - name: split-empty-delimiter
+    language: Prefix
+    source: |
+        SPLIT("a,b", "")
+        
+  - name: split-first-non-str
+    language: Prefix
+    source: |
+        SPLIT(0d1, ",")
+        
+  - name: split-second-non-str
+    language: Prefix
+    source: |
+        SPLIT("a,b", 0d1)
+        

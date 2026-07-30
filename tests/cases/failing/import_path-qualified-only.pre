@@ -1,8 +1,0 @@
-IMPORT("path")
-
-STR tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
-STR helper_path = JOIN(tests_dir, "/helpers/import_path_hidden_target.pre")
-
-IMPORT_PATH(helper_path)
-
-ASSERT(EQ(hidden, 0d7))

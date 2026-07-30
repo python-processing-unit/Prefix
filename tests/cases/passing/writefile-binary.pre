@@ -1,7 +1,0 @@
-IMPORT("path")
-
-STR p = path.TEMPFILE("prefix-writefile-binary.bin")
-
-ASSERT(WRITEFILE("0100000101111010", p, coding = "binary"))
-ASSERT(EQ(READFILE(p, coding = "binary"), "0100000101111010"))
-ASSERT(EQ(READFILE(p), "Az"))

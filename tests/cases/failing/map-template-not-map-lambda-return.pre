@@ -1,2 +1,0 @@
-MAP f = FUNC MAP{0d1} () { RETURN(<>); }
-f()

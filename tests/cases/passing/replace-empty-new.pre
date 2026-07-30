@@ -1,1 +1,0 @@
-ASSERT(EQ(REPLACE("one,two,three", ",", ""), "onetwothree"))

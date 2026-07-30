@@ -1,0 +1,91 @@
+passing:
+  - name: parallel-tensor-func-values
+    language: Prefix
+    source: |
+        TNS seen = [FALSE, FALSE]
+        
+        FUNC first = LAMBDA BOOL (){
+            FOR(i, 0d500){}
+            seen[0d1] = TRUE
+        }
+        
+        FUNC second = LAMBDA BOOL (){
+            FOR(i, 0d500){}
+            seen[0d2] = TRUE
+        }
+        
+        TNS workers = [first, second]
+        
+        ASSERT(EQ(PARALLEL(workers), FALSE))
+        ASSERT(EQ(seen, [TRUE, TRUE]))
+  - name: parallel-tensor-literal
+    language: Prefix
+    source: |
+        TNS seen = [FALSE, FALSE]
+        
+        FUNC BOOL first(){
+            FOR(i, 0d500){}
+            seen[0d1] = TRUE
+        }
+        
+        FUNC BOOL second(){
+            FOR(i, 0d500){}
+            seen[0d2] = TRUE
+        }
+        
+        ASSERT(EQ(PARALLEL([first, second]), FALSE))
+        ASSERT(EQ(seen, [TRUE, TRUE]))
+  - name: parallel-variadic
+    language: Prefix
+    source: |
+        TNS seen = [FALSE, FALSE, FALSE]
+        
+        FUNC BOOL first(){
+            FOR(i, 0d500){
+            }
+            seen[0d1] = TRUE
+        }
+        
+        FUNC BOOL second(){
+            FOR(i, 0d500){
+            }
+            seen[0d2] = TRUE
+        }
+        
+        FUNC BOOL third(){
+            FOR(i, 0d500){
+            }
+            seen[0d3] = TRUE
+        }
+        
+        ASSERT(EQ(PARALLEL(first, second, third), FALSE))
+        ASSERT(EQ(seen, [TRUE, TRUE, TRUE]))
+failing:
+  - name: parallel-arity-zero
+    language: Prefix
+    source: PARALLEL()
+  - name: parallel-non-func-arg
+    language: Prefix
+    source: PARALLEL(TRUE)
+  - name: parallel-tensor-non-func
+    language: Prefix
+    source: |
+        FUNC BOOL worker(){}
+        
+        PARALLEL([worker, 0d1])
+  - name: parallel-worker-failure
+    language: Prefix
+    source: |
+        FUNC BOOL explode(){
+            THROW("boom")
+        }
+        
+        PARALLEL(explode)
+  - name: parallel-worker-no-args
+    language: Prefix
+    source: |
+        FUNC BOOL requires_arg(INT value){
+            RETURN(TRUE)
+        }
+        
+        PARALLEL(requires_arg)

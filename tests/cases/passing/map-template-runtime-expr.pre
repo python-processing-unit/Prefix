@@ -1,5 +1,0 @@
-! Template expression that evaluates to a MAP at declaration time
-MAP proto = <"a" = 0d1, "b" = 0d2>
-MAP{proto} shaped
-shaped = <"a" = 0d10, "b" = 0d20>
-ASSERT(MATCH(shaped, proto))

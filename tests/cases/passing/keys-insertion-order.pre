@@ -1,3 +1,0 @@
-MAP m = <"alpha" = 0d1, "beta" = 0d2, "gamma" = 0d3>
-
-ASSERT(EQ(KEYS(m), ["alpha", "beta", "gamma"]))

@@ -1,4 +1,0 @@
-ASSERT(EQ(TYPE(LOWER("PREFIX")), "STR"))
-ASSERT(EQ(LOWER("PREFIX"), "prefix"))
-ASSERT(EQ(LOWER("Prefix 123!"), "prefix 123!"))
-ASSERT(EQ(LOWER(""), ""))

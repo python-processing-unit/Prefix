@@ -1,3 +1,0 @@
-TNS out = SCAT([0d55], [0d10, 0d20, 0d30], [[0d3, 0d3]])
-
-ASSERT(EQ(out, [0d10, 0d20, 0d55]))

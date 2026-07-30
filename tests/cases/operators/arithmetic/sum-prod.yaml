@@ -1,0 +1,113 @@
+passing:
+  - name: fprod-base
+    language: Prefix
+    source: |
+        ! FPROD result uses the highest numeric base present among operands
+        FLT result = FPROD(0d2, 0x3.0)
+        
+        ASSERT(EQ(result, 0x6.0))
+        ASSERT(EQ(BASE(result), 0d16))
+  - name: fprod-inf
+    language: Prefix
+    source: |
+        ! FPROD preserves INF under float arithmetic
+        FLT result = FPROD(INF, 0d2.0)
+        ASSERT(EQ(result, INF))
+  - name: fprod-mixed
+    language: Prefix
+    source: |
+        ! FPROD coerces mixed numeric inputs to FLT before multiplying
+        FLT result = FPROD(0d2, 0d3.5, 0d4)
+        ASSERT(EQ(result, 0d28.0))
+  - name: fprod-single-int
+    language: Prefix
+    source: |
+        ! FPROD coerces a single INT argument to FLT
+        FLT result = FPROD(0d3)
+        ASSERT(EQ(result, 0d3.0))
+  - name: fsum-inf
+    language: Prefix
+    source: |
+        ! FSUM preserves INF under float arithmetic
+        FLT result = FSUM(INF, 0d1.0)
+        ASSERT(EQ(result, INF))
+        
+  - name: fsum
+    language: Prefix
+    source: |
+        ! FSUM coerces mixed numeric inputs to FLT
+        FLT result = FSUM(0d1, 0d2.5, 0d3)
+        ASSERT(EQ(result, 0d6.5))
+        
+  - name: iprod
+    language: Prefix
+    source: |
+        ! IPROD coerces inputs to INT before multiplying
+        INT result = IPROD(0d2.9, 0d3.1)
+        ASSERT(EQ(result, 0d6))
+        
+  - name: isum-trunc
+    language: Prefix
+    source: |
+        ! ISUM truncates floating-point inputs toward zero
+        INT result = ISUM(0d1.9, 0d2.1, -0d0.9)
+        ASSERT(EQ(result, 0d3))
+        
+  - name: prod-flt
+    language: Prefix
+    source: |
+        ! PROD with two FLT arguments
+        FLT result = PROD(0d1.5, 0d2.0)
+        ASSERT(EQ(result, 0d3.0))
+        
+  - name: prod-int
+    language: Prefix
+    source: |
+        ! PROD with three INT arguments
+        INT result = PROD(0d2, 0d3, 0d1)
+        ASSERT(EQ(result, 0d6))
+        
+  - name: sum-flt
+    language: Prefix
+    source: |
+        ! SUM with two FLT arguments
+        FLT result = SUM(0d1.5, 0d2.5)
+        ASSERT(EQ(result, 0d4.0))
+        
+  - name: sum-int
+    language: Prefix
+    source: |
+        ! SUM with three INT arguments
+        INT result = SUM(0d1, 0d2, 0d3)
+        ASSERT(EQ(result, 0d6))
+        
+failing:
+  - name: fprod-arity-zero
+    language: Prefix
+    source: FPROD()
+  - name: fprod-bool
+    language: Prefix
+    source: 'FPROD(TRUE, 0d1)'
+  - name: fprod-str
+    language: Prefix
+    source: 'FPROD("1.0", 0d1)'
+  - name: fsum-str
+    language: Prefix
+    source: |
+        FSUM('1.0', 0d1)
+        
+  - name: prod-mixed
+    language: Prefix
+    source: |
+        PROD(0d2, 0d2.0)
+        
+  - name: sum-mixed
+    language: Prefix
+    source: |
+        SUM(0d1, 0d2.0)
+        
+  - name: sum-str
+    language: Prefix
+    source: |
+        SUM('1', 0d1)
+        

@@ -1,6 +1,0 @@
-TNS x = [[0d1, 0d2], [0d3, 0d4]]
-TNS k = [[0d0, 0d0, 0d0], [0d0, 0d1, 0d0], [0d0, 0d0, 0d0]]
-TNS out = CONV(x, k)
-
-ASSERT(EQ(SHAPE(out), [0d2, 0d2]))
-ASSERT(EQ(out, x))

@@ -1,5 +1,0 @@
-TNS v = [0d1, 0d2, 0d3, 0d4]
-
-ASSERT(EQ(TYPE(TFLIP(v, 0d1)), "TNS"))
-ASSERT(EQ(TFLIP(v, 0d1), [0d4, 0d3, 0d2, 0d1]))
-ASSERT(EQ(v, [0d1, 0d2, 0d3, 0d4]))

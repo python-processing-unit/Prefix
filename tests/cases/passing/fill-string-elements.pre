@@ -1,3 +1,0 @@
-TNS words = ["alpha", "beta", "gamma"]
-
-ASSERT(EQ(FILL(words, "z"), ["z", "z", "z"]))

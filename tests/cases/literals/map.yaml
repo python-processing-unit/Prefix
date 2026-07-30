@@ -1,0 +1,121 @@
+passing:
+  - name: map-literals-empty-ordered
+    language: Prefix
+    source: |
+        FUNC INT GET_FIVE(){
+            RETURN(0d5)
+        }
+        
+        MAP empty = <>
+        MAP ordered = <"alpha" = 0d1, "beta" = 0d2, "gamma" = 0d3>
+        MAP duplicate = <"x" = 0d1, "y" = 0d2, "x" = 0d3>
+        
+        ASSERT(EQ(empty, <>))
+        
+        IF(empty){
+            ASSERT(FALSE)
+        } ELSE {
+            ASSERT(TRUE)
+        }
+        
+        IF(<"false_value" = FALSE>){
+            ASSERT(TRUE)
+        } ELSE {
+            ASSERT(FALSE)
+        }
+        
+        ASSERT(EQ(ordered, <"alpha" = 0d1, "beta" = 0d2, "gamma" = 0d3>))
+        ASSERT(EQ(KEYS(ordered), ["alpha", "beta", "gamma"]))
+        ASSERT(EQ(VALUES(ordered), [0d1, 0d2, 0d3]))
+        
+        ASSERT(EQ(duplicate<"x">, 0d3))
+        ASSERT(EQ(duplicate<"y">, 0d2))
+        ASSERT(EQ(KEYS(duplicate), ["x", "y"]))
+        ASSERT(EQ(VALUES(duplicate), [0d3, 0d2]))
+        
+  - name: map-literals-mixed-keys-nested
+    language: Prefix
+    source: |
+        MAP mixed_keys = <0d1 = "int", 0d2.5 = "flt", "three" = "str", +(0d2, 0d2) = "expr">
+        MAP nested = <"outer" = <"inner" = 0d9>, "empty_inner" = <>>
+        
+        ASSERT(EQ(mixed_keys<0d1>, "int"))
+        ASSERT(EQ(mixed_keys<0d2.5>, "flt"))
+        ASSERT(EQ(mixed_keys<"three">, "str"))
+        ASSERT(EQ(mixed_keys<0d4>, "expr"))
+        
+        ASSERT(EQ(nested<"outer", "inner">, 0d9))
+        ASSERT(EQ(nested<"empty_inner">, <>))
+        IF(nested<"empty_inner">){
+            ASSERT(FALSE)
+        } ELSE {
+            ASSERT(TRUE)
+        }
+        
+  - name: map-literals-mixed-values
+    language: Prefix
+    source: |
+        FUNC INT GET_FIVE(){
+            RETURN(0d5)
+        }
+        
+        THR(worker){}
+        MAP mixed_values = <"bool" = TRUE, "int" = 0d2, "flt" = 0d3.5, "str" = "four", "tns" = [0d1, 0d2], "map" = <"n" = 0d5>, "func" = GET_FIVE, "thr" = worker>
+        
+        ASSERT(EQ(mixed_values<"bool">, TRUE))
+        ASSERT(EQ(mixed_values<"int">, 0d2))
+        ASSERT(EQ(mixed_values<"flt">, 0d3.5))
+        ASSERT(EQ(mixed_values<"str">, "four"))
+        ASSERT(EQ(mixed_values<"tns">, [0d1, 0d2]))
+        ASSERT(EQ(mixed_values<"map">, <"n" = 0d5>))
+        ASSERT(EQ(mixed_values<"func">(), 0d5))
+        ASSERT(EQ(mixed_values<"thr">, worker))
+        
+  - name: map-literals-self
+    language: Prefix
+    source: |
+        MAP self_alias = <"value" = 0d1, "self" = SELF>
+        MAP self_lookup = <"value" = 0d7, "copy" = SELF<"value">, "nested" = <"n" = 0d9>, "copy_nested" = SELF<"nested", "n">>
+        MAP inner_self = <"inner" = <"value" = 0d4, "self" = SELF, "copy" = SELF<"value">>>
+        
+        ASSERT(EQ(self_alias<"self", "value">, 0d1))
+        self_alias<"value"> = 0d2
+        ASSERT(EQ(self_alias<"self", "value">, 0d2))
+        
+        ASSERT(EQ(self_lookup<"copy">, 0d7))
+        ASSERT(EQ(self_lookup<"copy_nested">, 0d9))
+        
+        ASSERT(EQ(inner_self<"inner", "self", "value">, 0d4))
+        ASSERT(EQ(inner_self<"inner", "copy">, 0d4))
+        
+failing:
+  - name: map-literal-bad-key-bool
+    language: Prefix
+    source: |
+        MAP bad = <TRUE = 0d1>
+        
+  - name: map-literal-bad-key-tns
+    language: Prefix
+    source: |
+        MAP bad = <[0d1] = 0d1>
+        
+  - name: map-literal-missing-equals
+    language: Prefix
+    source: |
+        MAP bad = <"a" 0d1>
+        
+  - name: map-literal-self-bad-key
+    language: Prefix
+    source: |
+        MAP bad = <"value" = 0d1, "copy" = SELF<TRUE>>
+        
+  - name: map-literal-self-forward
+    language: Prefix
+    source: |
+        MAP bad = <"copy" = SELF<"value">, "value" = 0d1>
+        
+  - name: map-literal-trailing-comma
+    language: Prefix
+    source: |
+        MAP bad = <"a" = 0d1,>
+        

@@ -1,3 +1,0 @@
-! Passing integer arithmetic, checking coercion and correct logic
-INT result_mul = I*(0d4, 0d5)
-ASSERT(EQ(result_mul, 0d20))
