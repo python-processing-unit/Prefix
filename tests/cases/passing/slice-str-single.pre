@@ -1,2 +1,0 @@
-ASSERT(EQ(SLICE("x", 0d1, 0d1), "x"))
-ASSERT(EQ(SLICE("hello", 0d3, 0d3), "l"))

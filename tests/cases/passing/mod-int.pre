@@ -1,9 +1,0 @@
-INT left_dec = 0d7
-INT right_bin = 0b10
-INT wide_hex = 0x10
-
-ASSERT(EQ(MOD(left_dec, right_bin), 0d1))
-ASSERT(EQ(BASE(MOD(left_dec, right_bin)), 0d10))
-
-ASSERT(EQ(MOD(wide_hex, 0d3), 0x1))
-ASSERT(EQ(BASE(MOD(wide_hex, 0d3)), 0d16))

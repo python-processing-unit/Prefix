@@ -1,0 +1,42 @@
+passing:
+  - name: slice-int-type
+    language: Prefix
+    source: |
+        ASSERT(EQ(TYPE(SLICE(0d12345, 0d2, 0d4)), "INT"))
+        ASSERT(EQ(TYPE(SLICE(0b1101, 0d1, 0d2)), "INT"))
+        
+  - name: slice-str-basic
+    language: Prefix
+    source: |
+        ASSERT(EQ(TYPE(SLICE("abcdef", 0d1, 0d3)), "STR"))
+        ASSERT(EQ(SLICE("abcdef", 0d1, 0d3), "abc"))
+        ASSERT(EQ(SLICE("abcdef", 0d1, 0d6), "abcdef"))
+        
+  - name: slice-str-negative
+    language: Prefix
+    source: |
+        ASSERT(EQ(SLICE("abcdef", -0d2, -0d1), "ef"))
+        ASSERT(EQ(SLICE("abcdef", 0d1, -0d1), "abcdef"))
+        
+  - name: slice-str-single
+    language: Prefix
+    source: |
+        ASSERT(EQ(SLICE("x", 0d1, 0d1), "x"))
+        ASSERT(EQ(SLICE("hello", 0d3, 0d3), "l"))
+        
+failing:
+  - name: slice-non-int-end
+    language: Prefix
+    source: |
+        SLICE("abc", 0d1, "2")
+        
+  - name: slice-non-int-start
+    language: Prefix
+    source: |
+        SLICE("abc", 0d1.5, 0d2)
+        
+  - name: slice-non-value
+    language: Prefix
+    source: |
+        SLICE(0d0.5, 0d1, 0d1)
+        

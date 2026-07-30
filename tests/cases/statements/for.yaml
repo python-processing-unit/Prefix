@@ -1,0 +1,31 @@
+passing:
+  - name: for-zero-and-restore-counter
+    language: Prefix
+    source: |
+        STR i = "foo"
+        FOR(i, 0d10){}
+        ASSERT(EQ(i, "foo"))
+  - name: for
+    language: Prefix
+    source: |
+        INT sum = 0d0
+        FOR(i, 0d4){
+            +(@sum, i)
+        }
+        ASSERT(EQ(sum, 0d10))
+        REFUTE(EXIST("i"))
+        
+failing:
+  - name: for-no-block
+    language: Prefix
+    source: |
+        FOR(i, 0d1)
+        
+  - name: for-no-target
+    language: Prefix
+    source: |
+        FOR(i, ){}
+        
+  - name: for-target-not-int
+    language: Prefix
+    source: 'FOR(i, TRUE){}'

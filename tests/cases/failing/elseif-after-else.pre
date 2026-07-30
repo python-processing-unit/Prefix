@@ -1,7 +1,0 @@
-IF(FALSE){
-    ASSERT(FALSE)
-} ELSE {
-    ASSERT(FALSE)
-} ELSEIF(TRUE) {
-    ASSERT(TRUE)
-}

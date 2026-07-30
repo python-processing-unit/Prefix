@@ -1,2 +1,0 @@
-TNS from_string = TNS("abc")
-ASSERT(EQ(from_string, ["a", "b", "c"]))

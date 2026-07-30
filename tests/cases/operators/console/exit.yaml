@@ -1,0 +1,159 @@
+passing:
+  - name: exit-default
+    language: Prefix
+    source: |
+        EXIT()
+        THROW("unreachable")
+        
+  - name: exit-explicit-nonzero
+    language: PowerShell
+    source: |
+        $helperPath = Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) 'helpers\prefix-input.ps1'
+        . $helperPath
+        
+        $tempDir = New-PrefixTempDir
+        
+        try {
+          $programPath = Join-Path $tempDir 'program.pre'
+        
+          Set-Content -Path $programPath -Encoding Ascii -Value @'
+        PRINT("custom")
+        EXIT(0d23)
+        PRINT("after")
+        '@
+        
+          $startInfo = New-Object System.Diagnostics.ProcessStartInfo
+          $startInfo.FileName = Get-PrefixExePath
+          $startInfo.Arguments = ('"{0}"' -f $programPath)
+          $startInfo.RedirectStandardOutput = $true
+          $startInfo.RedirectStandardError = $true
+          $startInfo.UseShellExecute = $false
+          $startInfo.CreateNoWindow = $true
+        
+          $process = [System.Diagnostics.Process]::Start($startInfo)
+          try {
+            $stdout = $process.StandardOutput.ReadToEnd()
+            $stderr = $process.StandardError.ReadToEnd()
+            $process.WaitForExit()
+        
+            $result = [pscustomobject]@{
+              ExitCode = $process.ExitCode
+              Stdout = $stdout
+              Stderr = $stderr
+            }
+          }
+          finally {
+            $process.Dispose()
+          }
+        
+          if ($result.ExitCode -ne 23) {
+            $stdout = Format-VisibleText $result.Stdout
+            $stderr = Format-VisibleText $result.Stderr
+            throw "Expected Prefix to exit with code 23, got $($result.ExitCode)`nSTDOUT: $stdout`nSTDERR: $stderr"
+          }
+        
+          Assert-NoErrorOutput $result
+        
+          if (-not [regex]::IsMatch($result.Stdout, '\Acustom(?:\r\n|\n)\z')) {
+            $stdout = Format-VisibleText $result.Stdout
+            throw "Unexpected stdout: $stdout"
+          }
+        }
+        finally {
+          Remove-Item -Path $tempDir -Recurse -Force -ErrorAction SilentlyContinue
+        }
+        
+  - name: exit-explicit-zero
+    language: PowerShell
+    source: |
+        $helperPath = Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) 'helpers\prefix-input.ps1'
+        . $helperPath
+        
+        $tempDir = New-PrefixTempDir
+        
+        try {
+          $programPath = Join-Path $tempDir 'program.pre'
+        
+          Set-Content -Path $programPath -Encoding Ascii -Value @'
+        PRINT("before")
+        EXIT(0d0)
+        PRINT("after")
+        '@
+        
+          $startInfo = New-Object System.Diagnostics.ProcessStartInfo
+          $startInfo.FileName = Get-PrefixExePath
+          $startInfo.Arguments = ('"{0}"' -f $programPath)
+          $startInfo.RedirectStandardOutput = $true
+          $startInfo.RedirectStandardError = $true
+          $startInfo.UseShellExecute = $false
+          $startInfo.CreateNoWindow = $true
+        
+          $process = [System.Diagnostics.Process]::Start($startInfo)
+          try {
+            $stdout = $process.StandardOutput.ReadToEnd()
+            $stderr = $process.StandardError.ReadToEnd()
+            $process.WaitForExit()
+        
+            $result = [pscustomobject]@{
+              ExitCode = $process.ExitCode
+              Stdout = $stdout
+              Stderr = $stderr
+            }
+          }
+          finally {
+            $process.Dispose()
+          }
+        
+          Assert-PrefixSuccess $result
+          Assert-NoErrorOutput $result
+        
+          if (-not [regex]::IsMatch($result.Stdout, '\Abefore(?:\r\n|\n)\z')) {
+            $stdout = Format-VisibleText $result.Stdout
+            throw "Unexpected stdout: $stdout"
+          }
+        }
+        finally {
+          Remove-Item -Path $tempDir -Recurse -Force -ErrorAction SilentlyContinue
+        }
+        
+failing:
+  - name: exit-arity-two
+    language: Prefix
+    source: |
+        EXIT(0d0, 0d1)
+        
+  - name: exit-type-bool
+    language: Prefix
+    source: |
+        EXIT(TRUE)
+        
+  - name: exit-type-flt
+    language: Prefix
+    source: |
+        EXIT(0d1.0)
+        
+  - name: exit-type-func
+    language: Prefix
+    source: |
+        EXIT(LAMBDA BOOL: (){})
+        
+  - name: exit-type-map
+    language: Prefix
+    source: |
+        EXIT(<>)
+        
+  - name: exit-type-str
+    language: Prefix
+    source: |
+        EXIT("0d1")
+        
+  - name: exit-type-thr
+    language: Prefix
+    source: |
+        EXIT(ASYNC{})
+        
+  - name: exit-type-tns
+    language: Prefix
+    source: |
+        EXIT([0d1])
+        

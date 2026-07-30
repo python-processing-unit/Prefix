@@ -1,0 +1,75 @@
+passing:
+  - name: replace-basic
+    language: Prefix
+    source: |
+        ASSERT(EQ(TYPE(REPLACE("prefix", "fix", "lude")), "STR"))
+        ASSERT(EQ(REPLACE("prefix", "fix", "lude"), "prelude"))
+        
+  - name: replace-empty-new
+    language: Prefix
+    source: |
+        ASSERT(EQ(REPLACE("one,two,three", ",", ""), "onetwothree"))
+        
+  - name: replace-every-occurrence
+    language: Prefix
+    source: |
+        ASSERT(EQ(REPLACE("abXXcdXXef", "XX", "__"), "ab__cd__ef"))
+        ASSERT(EQ(REPLACE("fooXXbarXXXXbaz", "XX", "-"), "foo-bar--baz"))
+        
+  - name: replace-not-found
+    language: Prefix
+    source: |
+        ASSERT(EQ(REPLACE("prefix", "zzz", "X"), "prefix"))
+        
+  - name: replace-substring-exact
+    language: Prefix
+    source: |
+        ASSERT(EQ(REPLACE("abc", "ac", "Z"), "abc"))
+        ASSERT(EQ(REPLACE("a  b  c", "  ", "-"), "a-b-c"))
+        
+  - name: replace-whole
+    language: Prefix
+    source: |
+        ASSERT(EQ(REPLACE("token", "token", "x"), "x"))
+        
+failing:
+  - name: replace-arity-four
+    language: Prefix
+    source: |
+        REPLACE("abc", "a", "b", "c")
+        
+  - name: replace-arity-one
+    language: Prefix
+    source: |
+        REPLACE("abc")
+        
+  - name: replace-arity-two
+    language: Prefix
+    source: |
+        REPLACE("abc", "a")
+        
+  - name: replace-arity-zero
+    language: Prefix
+    source: |
+        REPLACE()
+        
+  - name: replace-empty
+    language: Prefix
+    source: |
+        REPLACE("abc", "", "x")
+        
+  - name: replace-first-non-str
+    language: Prefix
+    source: |
+        REPLACE(0d1, "a", "b")
+        
+  - name: replace-second-non-str
+    language: Prefix
+    source: |
+        REPLACE("abc", 0d1, "b")
+        
+  - name: replace-third-non-str
+    language: Prefix
+    source: |
+        REPLACE("abc", "a", 0d1)
+        

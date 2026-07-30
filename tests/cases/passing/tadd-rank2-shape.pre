@@ -1,5 +1,0 @@
-TNS src = [[0d1, 0d2], [0d3, 0d4]]
-TNS out = T+(src, 0d10)
-
-ASSERT(EQ(out, [[0d11, 0d12], [0d13, 0d14]]))
-ASSERT(EQ(SHAPE(out), [0d2, 0d2]))

@@ -1,8 +1,0 @@
-INT test = 0d0
-IF(TRUE){
-    GOTO('target')
-    ASSERT(FALSE)
-}
-ASSERT(FALSE)
-GOTOPOINT('target')
-ASSERT(EQ(test, 0d0))

@@ -1,5 +1,0 @@
-IMPORT("path")
-
-STR p = path.TEMPFILE("prefix-writefile-unsupported.txt")
-
-WRITEFILE("Prefix", p, coding = "UTF-7")

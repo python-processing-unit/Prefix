@@ -1,5 +1,0 @@
-FUNC INT sample(INT left, INT right = 0d0){
-    RETURN(+(left, right))
-}
-
-sample(left = 0d1, 0d2)

@@ -1,0 +1,18 @@
+passing:
+  - name: not
+    language: Prefix
+    source: |
+        ASSERT(EQ(NOT(FALSE), TRUE))
+        ASSERT(EQ(NOT(TRUE), FALSE))
+        ASSERT(EQ(NOT(0d0), TRUE))
+        ASSERT(EQ(NOT(0d1), FALSE))
+        ASSERT(EQ(NOT(""), TRUE))
+        ASSERT(EQ(NOT("x"), FALSE))
+        
+failing:
+  - name: not-arity-two
+    language: Prefix
+    source: 'NOT(TRUE, FALSE)'
+  - name: not-arity-zero
+    language: Prefix
+    source: NOT()

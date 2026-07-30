@@ -1,6 +1,0 @@
-INT sum = 0d0
-FOR(i, 0d4){
-    +(@sum, i)
-}
-ASSERT(EQ(sum, 0d10))
-REFUTE(EXIST("i"))

@@ -1,5 +1,0 @@
-THR(worker){}
-
-THR thread_copy = DEEPCOPY(worker)
-
-ASSERT(EQ(thread_copy, worker))

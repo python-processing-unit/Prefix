@@ -1,0 +1,26 @@
+passing:
+  - name: type
+    language: Prefix
+    source: |
+        BOOL sample_bool = TRUE
+        INT sample_int = 0d1
+        FLT sample_flt = 0d1.5
+        STR sample_str = "prefix"
+        TNS sample_tns = [0d1, 0d2]
+        MAP sample_map = <"n" = 0d1>
+        
+        FUNC INT sample_func(){
+            RETURN(0d1)
+        }
+        
+        THR(sample_thr){}
+        
+        ASSERT(EQ(TYPE(sample_bool), "BOOL"))
+        ASSERT(EQ(TYPE(sample_int), "INT"))
+        ASSERT(EQ(TYPE(sample_flt), "FLT"))
+        ASSERT(EQ(TYPE(sample_str), "STR"))
+        ASSERT(EQ(TYPE(sample_tns), "TNS"))
+        ASSERT(EQ(TYPE(sample_map), "MAP"))
+        ASSERT(EQ(TYPE(sample_func), "FUNC"))
+        ASSERT(EQ(TYPE(sample_thr), "THR"))
+        

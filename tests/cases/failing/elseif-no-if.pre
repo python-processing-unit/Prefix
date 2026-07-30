@@ -1,3 +1,0 @@
-ELSEIF(TRUE){
-    ASSERT(FALSE)
-}

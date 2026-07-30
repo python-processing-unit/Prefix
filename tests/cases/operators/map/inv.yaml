@@ -1,0 +1,85 @@
+passing:
+  - name: inv-basic
+    language: Prefix
+    source: 'ASSERT(EQ(INV(<"alpha" = "x", "beta" = "y">), <"x" = "alpha", "y" = "beta">))'
+  - name: inv-empty
+    language: Prefix
+    source: 'ASSERT(EQ(INV(<>), <>))'
+  - name: inv-pointer-writeback
+    language: Prefix
+    source: |
+        MAP src = <"left" = "x", "right" = "y">
+        
+        INV(@src)
+        
+        ASSERT(EQ(src, <"x" = "left", "y" = "right">))
+  - name: inv-return-type
+    language: Prefix
+    source: |
+        ASSERT(EQ(TYPE(INV(<"one" = 0d1>)), "MAP"))
+        MAP m = <"a" = "x">
+        ASSERT(EQ(TYPE(INV(m)), "MAP"))
+        
+  - name: inv-source-unchanged
+    language: Prefix
+    source: |
+        MAP src = <"left" = "x", "right" = "y">
+        
+        INV(src)
+        
+        ASSERT(EQ(src, <"left" = "x", "right" = "y">))
+  - name: inv-value-flt
+    language: Prefix
+    source: 'ASSERT(EQ(INV(<"pi" = 0d3.5>), <0d3.5 = "pi">))'
+  - name: inv-value-int
+    language: Prefix
+    source: 'ASSERT(EQ(INV(<"one" = 0d1>), <0d1 = "one">))'
+  - name: inv-value-str
+    language: Prefix
+    source: 'ASSERT(EQ(INV(<"left" = "x">), <"x" = "left">))'
+failing:
+  - name: inv-arity-two
+    language: Prefix
+    source: 'INV(<"a" = "x">, <"b" = "y">)'
+  - name: inv-arity-zero
+    language: Prefix
+    source: INV()
+  - name: inv-bool
+    language: Prefix
+    source: INV(TRUE)
+  - name: inv-duplicate-values
+    language: Prefix
+    source: 'INV(<"a" = "dup", "b" = "dup">)'
+  - name: inv-flt
+    language: Prefix
+    source: INV(0d1.5)
+  - name: inv-func
+    language: Prefix
+    source: 'INV(LAMBDA INT: (){})'
+  - name: inv-int
+    language: Prefix
+    source: INV(0d1)
+  - name: inv-str
+    language: Prefix
+    source: INV("map")
+  - name: inv-thr
+    language: Prefix
+    source: INV(ASYNC{})
+  - name: inv-tns
+    language: Prefix
+    source: INV([0d1])
+  - name: inv-value-bool
+    language: Prefix
+    source: 'INV(<"a" = TRUE>)'
+  - name: inv-value-func
+    language: Prefix
+    source: 'INV(<"a" = LAMBDA INT: (){}>)'
+  - name: inv-value-map
+    language: Prefix
+    source: 'INV(<"a" = <"x" = 0d1>>)'
+  - name: inv-value-thr
+    language: Prefix
+    source: 'INV(<"a" = ASYNC{}>)'
+  - name: inv-value-tns
+    language: Prefix
+    source: 'INV(<"a" = [0d1]>)'

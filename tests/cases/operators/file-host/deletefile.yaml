@@ -1,0 +1,51 @@
+passing:
+  - name: deletefile
+    language: Prefix
+    source: |
+        IMPORT("path")
+        
+        STR p = path.TEMPFILE("temp.txt")
+        WRITEFILE("Prefix", p)
+        ASSERT(EXISTFILE(p))
+        ASSERT(DELETEFILE(p))
+        REFUTE(EXISTFILE(p))
+failing:
+  - name: deletefile-arity-two
+    language: Prefix
+    source: |
+        IMPORT("path")
+        
+        STR p = path.TEMPFILE("temp.txt")
+        WRITEFILE("Prefix", p)
+        ASSERT(EXISTFILE(p))
+        ASSERT(DELETEFILE(p, "Prefix"))
+  - name: deletefile-arity-zero
+    language: Prefix
+    source: DELETEFILE()
+  - name: deletefile-bool
+    language: Prefix
+    source: DELETEFILE(TRUE)
+  - name: deletefile-flt
+    language: Prefix
+    source: DELETEFILE(0d1.0)
+  - name: deletefile-func
+    language: Prefix
+    source: 'DELETEFILE(LAMBDA BOOL: (){})'
+  - name: deletefile-int
+    language: Prefix
+    source: DELETEFILE(0d1)
+  - name: deletefile-map
+    language: Prefix
+    source: DELETEFILE(<>)
+  - name: deletefile-nonexistent
+    language: Prefix
+    source: |
+        IMPORT("path")
+        
+        DELETEFILE(JOIN(path.script_dir, "/nonexistent.txt"))
+  - name: deletefile-thr
+    language: Prefix
+    source: DELETEFILE(ASYNC{})
+  - name: deletefile-tns
+    language: Prefix
+    source: DELETEFILE([0d1])

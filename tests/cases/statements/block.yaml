@@ -1,0 +1,6 @@
+failing:
+  - name: unexpected-block
+    language: Prefix
+    source: |
+        { BOOL x = TRUE }
+        

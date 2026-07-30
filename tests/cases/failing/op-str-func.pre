@@ -1,5 +1,0 @@
-FUNC BOOL str_func(){
-    RETURN(TRUE)
-}
-
-STR(str_func)

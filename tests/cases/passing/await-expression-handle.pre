@@ -1,6 +1,0 @@
-THR worker = ASYNC{}
-THR awaited = AWAIT(worker)
-
-ASSERT(EQ(TYPE(awaited), "THR"))
-ASSERT(EQ(awaited, worker))
-REFUTE(BOOL(awaited))

@@ -1,4 +1,0 @@
-TNS vec = [0d1, 0d2, 0d3]
-
-ASSERT(EQ(ASSIGN(vec[0d1:0d2], [0d9, 0d10]), [0d9, 0d10]))
-ASSERT(EQ(vec, [0d9, 0d10, 0d3]))

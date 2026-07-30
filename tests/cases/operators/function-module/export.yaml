@@ -1,0 +1,258 @@
+passing:
+  - name: export-alias-shared-module
+    language: Prefix
+    source: |
+        IMPORT("path")
+        
+        STR tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
+        STR helper_path = JOIN(tests_dir, "/helpers/export_target.pre")
+        
+        IMPORT_PATH(helper_path)
+        IMPORT_PATH(helper_path, "again")
+        
+        INT via_name = 0d7
+        REFUTE(EXPORT("via_name", "export_target"))
+        ASSERT(EQ(again.via_name, 0d7))
+        
+        INT via_alias = 0d8
+        REFUTE(EXPORT("via_alias", "again"))
+        ASSERT(EQ(export_target.via_alias, 0d8))
+  - name: export-copy-map
+    language: Prefix
+    source: |
+        IMPORT("path")
+        
+        STR tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
+        STR helper_path = JOIN(tests_dir, "/helpers/export_target.pre")
+        
+        REFUTE(IMPORT_PATH(helper_path, "helper"))
+        
+        MAP box = <"value" = 0d5>
+        REFUTE(EXPORT("box", "helper"))
+        
+        box<"value"> = 0d6
+        
+        ASSERT(EQ(helper.read_box_value(), 0d5))
+        REFUTE(helper.set_box_value(0d7))
+        ASSERT(EQ(box<"value">, 0d6))
+        ASSERT(EQ(helper.read_box_value(), 0d7))
+  - name: export-copy-tensor
+    language: Prefix
+    source: |
+        IMPORT("path")
+        
+        STR tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
+        STR helper_path = JOIN(tests_dir, "/helpers/export_target.pre")
+        
+        REFUTE(IMPORT_PATH(helper_path, "helper"))
+        
+        TNS tensor = [0d5, 0d6]
+        REFUTE(EXPORT("tensor", "helper"))
+        
+        tensor[0d1] = 0d8
+        
+        ASSERT(EQ(helper.read_tensor_first(), 0d5))
+        REFUTE(helper.set_tensor_first(0d9))
+        ASSERT(EQ(tensor[0d1], 0d8))
+        ASSERT(EQ(helper.read_tensor_first(), 0d9))
+  - name: export-qualified-call
+    language: Prefix
+    source: |
+        IMPORT("path", "helper")
+        
+        FUNC STR describe(){
+            RETURN("exported")
+        }
+        
+        REFUTE(EXPORT("describe", "helper"))
+        ASSERT(EQ(helper.describe(), "exported"))
+  - name: export-return-false
+    language: Prefix
+    source: |
+        IMPORT("path")
+        
+        STR tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
+        STR helper_path = JOIN(tests_dir, "/helpers/export_target.pre")
+        
+        REFUTE(IMPORT_PATH(helper_path, "helper"))
+        
+        INT value = 0d42
+        BOOL result = EXPORT("value", "helper")
+        
+        ASSERT(EQ(TYPE(result), "BOOL"))
+        REFUTE(result)
+        ASSERT(EQ(helper.value, 0d42))
+failing:
+  - name: export-arity-one
+    language: Prefix
+    source: |
+        INT value = 0d1
+        EXPORT(value)
+  - name: export-arity-three
+    language: Prefix
+    source: |
+        INT value = 0d1
+        EXPORT(value, "helper", extra)
+  - name: export-arity-zero
+    language: Prefix
+    source: EXPORT()
+  - name: export-declared-only-symbol
+    language: Prefix
+    source: |
+        IMPORT("path")
+        
+        STR tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
+        STR helper_path = JOIN(tests_dir, "/helpers/export_target.pre")
+        
+        REFUTE(IMPORT_PATH(helper_path, "helper"))
+        
+        INT value
+        EXPORT("value", "helper")
+  - name: export-deleted-symbol
+    language: Prefix
+    source: |
+        IMPORT("path")
+        
+        STR tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
+        STR helper_path = JOIN(tests_dir, "/helpers/export_target.pre")
+        
+        REFUTE(IMPORT_PATH(helper_path, "helper"))
+        
+        INT value = 0d1
+        DEL("value")
+        EXPORT("value", "helper")
+  - name: export-module-type-bool
+    language: Prefix
+    source: |
+        INT value = 0d1
+        EXPORT(value, TRUE)
+  - name: export-module-type-flt
+    language: Prefix
+    source: |
+        INT value = 0d1
+        EXPORT(value, 0d1.0)
+  - name: export-module-type-func
+    language: Prefix
+    source: |
+        INT value = 0d1
+        EXPORT(value, LAMBDA BOOL: (){})
+  - name: export-module-type-int
+    language: Prefix
+    source: |
+        INT value = 0d1
+        EXPORT(value, 0d1)
+  - name: export-module-type-map
+    language: Prefix
+    source: |
+        INT value = 0d1
+        EXPORT(value, <>)
+  - name: export-module-type-str
+    language: Prefix
+    source: |
+        INT value = 0d1
+        EXPORT(value, "helper")
+  - name: export-module-type-thr
+    language: Prefix
+    source: |
+        INT value = 0d1
+        EXPORT(value, ASYNC{})
+  - name: export-module-type-tns
+    language: Prefix
+    source: |
+        INT value = 0d1
+        EXPORT(value, [0d1])
+  - name: export-symbol-type-bool
+    language: Prefix
+    source: |
+        IMPORT("path")
+        
+        STR tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
+        STR helper_path = JOIN(tests_dir, "/helpers/export_target.pre")
+        
+        REFUTE(IMPORT_PATH(helper_path, "helper"))
+        EXPORT(TRUE, "helper")
+  - name: export-symbol-type-flt
+    language: Prefix
+    source: |
+        IMPORT("path")
+        
+        STR tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
+        STR helper_path = JOIN(tests_dir, "/helpers/export_target.pre")
+        
+        REFUTE(IMPORT_PATH(helper_path, "helper"))
+        EXPORT(0d1.0, "helper")
+  - name: export-symbol-type-func
+    language: Prefix
+    source: |
+        IMPORT("path")
+        
+        STR tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
+        STR helper_path = JOIN(tests_dir, "/helpers/export_target.pre")
+        
+        REFUTE(IMPORT_PATH(helper_path, "helper"))
+        EXPORT(LAMBDA BOOL: (){}, "helper")
+  - name: export-symbol-type-int
+    language: Prefix
+    source: |
+        IMPORT("path")
+        
+        STR tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
+        STR helper_path = JOIN(tests_dir, "/helpers/export_target.pre")
+        
+        REFUTE(IMPORT_PATH(helper_path, "helper"))
+        EXPORT(0d1, "helper")
+  - name: export-symbol-type-map
+    language: Prefix
+    source: |
+        IMPORT("path")
+        
+        STR tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
+        STR helper_path = JOIN(tests_dir, "/helpers/export_target.pre")
+        
+        REFUTE(IMPORT_PATH(helper_path, "helper"))
+        EXPORT(<>, "helper")
+  - name: export-symbol-type-str
+    language: Prefix
+    source: |
+        IMPORT("path")
+        
+        STR tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
+        STR helper_path = JOIN(tests_dir, "/helpers/export_target.pre")
+        
+        REFUTE(IMPORT_PATH(helper_path, "helper"))
+        EXPORT("value", "helper")
+  - name: export-symbol-type-thr
+    language: Prefix
+    source: |
+        IMPORT("path")
+        
+        STR tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
+        STR helper_path = JOIN(tests_dir, "/helpers/export_target.pre")
+        
+        REFUTE(IMPORT_PATH(helper_path, "helper"))
+        EXPORT(ASYNC{}, "helper")
+  - name: export-symbol-type-tns
+    language: Prefix
+    source: |
+        IMPORT("path")
+        
+        STR tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
+        STR helper_path = JOIN(tests_dir, "/helpers/export_target.pre")
+        
+        REFUTE(IMPORT_PATH(helper_path, "helper"))
+        EXPORT([0d1], "helper")
+  - name: export-undeclared-symbol
+    language: Prefix
+    source: |
+        IMPORT("path")
+        
+        STR tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
+        STR helper_path = JOIN(tests_dir, "/helpers/export_target.pre")
+        
+        REFUTE(IMPORT_PATH(helper_path, "helper"))
+        EXPORT("value", "helper")
+  - name: export-unimported-module
+    language: Prefix
+    source: |
+        INT value = 0d1
+        EXPORT("value", "helper")

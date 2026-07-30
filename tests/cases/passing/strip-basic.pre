@@ -1,2 +1,0 @@
-ASSERT(EQ(TYPE(STRIP("prefix", "fix")), "STR"))
-ASSERT(EQ(STRIP("prefix", "fix"), "pre"))

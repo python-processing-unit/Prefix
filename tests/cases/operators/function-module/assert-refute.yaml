@@ -1,0 +1,25 @@
+passing:
+  - name: assert
+    language: Prefix
+    source: |
+        ASSERT(TRUE)
+        
+  - name: refute
+    language: Prefix
+    source: |
+        REFUTE(FALSE)
+        REFUTE(0d0)
+        REFUTE(0d0.0)
+        REFUTE("")
+        
+failing:
+  - name: assert-false
+    language: Prefix
+    source: |
+        ASSERT(FALSE)
+        
+  - name: refute-true
+    language: Prefix
+    source: |
+        REFUTE(TRUE)
+        

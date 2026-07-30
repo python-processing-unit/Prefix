@@ -1,0 +1,322 @@
+passing:
+  - name: tadd-basic
+    language: Prefix
+    source: |
+        TNS out = T+([0d1, 0d2, 0d3], 0d4)
+        
+        ASSERT(EQ(TYPE(out), "TNS"))
+        ASSERT(EQ(out, [0d5, 0d6, 0d7]))
+        
+  - name: tadd-float
+    language: Prefix
+    source: |
+        ASSERT(EQ(T+([0d1.5, 0d2.0], 0d0.5), [0d2.0, 0d2.5]))
+        
+  - name: tadd-rank2-shape
+    language: Prefix
+    source: |
+        TNS src = [[0d1, 0d2], [0d3, 0d4]]
+        TNS out = T+(src, 0d10)
+        
+        ASSERT(EQ(out, [[0d11, 0d12], [0d13, 0d14]]))
+        ASSERT(EQ(SHAPE(out), [0d2, 0d2]))
+        
+  - name: tdiv-basic
+    language: Prefix
+    source: |
+        TNS out = T/([0d8, 0d6, 0d4], 0d2)
+        
+        ASSERT(EQ(TYPE(out), "TNS"))
+        ASSERT(EQ(out, [0d4, 0d3, 0d2]))
+        
+  - name: tdiv-float
+    language: Prefix
+    source: |
+        ASSERT(EQ(T/([0d4.0, 0d1.5], 0d0.5), [0d8.0, 0d3.0]))
+        
+  - name: tdiv-rank2-shape
+    language: Prefix
+    source: |
+        TNS src = [[0d12, 0d10], [0d8, 0d6]]
+        TNS out = T/(src, 0d2)
+        
+        ASSERT(EQ(out, [[0d6, 0d5], [0d4, 0d3]]))
+        ASSERT(EQ(SHAPE(out), [0d2, 0d2]))
+        
+  - name: tmul-basic
+    language: Prefix
+    source: |
+        TNS out = T*([0d2, 0d3, 0d4], 0d5)
+        
+        ASSERT(EQ(TYPE(out), "TNS"))
+        ASSERT(EQ(out, [0d10, 0d15, 0d20]))
+        
+  - name: tmul-float
+    language: Prefix
+    source: |
+        ASSERT(EQ(T*([0d1.5, 0d2.0], 0d2.0), [0d3.0, 0d4.0]))
+        
+  - name: tmul-rank2-shape
+    language: Prefix
+    source: |
+        TNS src = [[0d1, 0d2], [0d3, 0d4]]
+        TNS out = T*(src, 0d6)
+        
+        ASSERT(EQ(out, [[0d6, 0d12], [0d18, 0d24]]))
+        ASSERT(EQ(SHAPE(out), [0d2, 0d2]))
+        
+  - name: tpow-basic
+    language: Prefix
+    source: |
+        TNS out = TPOW([0d2, 0d3, 0d4], 0d3)
+        
+        ASSERT(EQ(TYPE(out), "TNS"))
+        ASSERT(EQ(out, [0d8, 0d27, 0d64]))
+        
+  - name: tpow-float
+    language: Prefix
+    source: |
+        ASSERT(EQ(TPOW([0d1.5, 0d2.0], 0d2.0), [0d2.25, 0d4.0]))
+        
+  - name: tpow-rank2-shape
+    language: Prefix
+    source: |
+        TNS src = [[0d1, 0d2], [0d3, 0d4]]
+        TNS out = TPOW(src, 0d2)
+        
+        ASSERT(EQ(out, [[0d1, 0d4], [0d9, 0d16]]))
+        ASSERT(EQ(SHAPE(out), [0d2, 0d2]))
+        
+  - name: tsub-basic
+    language: Prefix
+    source: |
+        TNS out = T-([0d9, 0d7, 0d5], 0d2)
+        
+        ASSERT(EQ(TYPE(out), "TNS"))
+        ASSERT(EQ(out, [0d7, 0d5, 0d3]))
+        
+  - name: tsub-float
+    language: Prefix
+    source: |
+        ASSERT(EQ(T-([0d2.5, 0d1.5], 0d0.5), [0d2.0, 0d1.0]))
+        
+  - name: tsub-rank2-shape
+    language: Prefix
+    source: |
+        TNS src = [[0d8, 0d7], [0d6, 0d5]]
+        TNS out = T-(src, 0d3)
+        
+        ASSERT(EQ(out, [[0d5, 0d4], [0d3, 0d2]]))
+        ASSERT(EQ(SHAPE(out), [0d2, 0d2]))
+        
+failing:
+  - name: tadd-arity-one
+    language: Prefix
+    source: |
+        T+([0d1, 0d2])
+        
+  - name: tadd-arity-three
+    language: Prefix
+    source: |
+        T+([0d1], 0d2, 0d3)
+        
+  - name: tadd-arity-zero
+    language: Prefix
+    source: |
+        T+()
+        
+  - name: tadd-first-non-tns
+    language: Prefix
+    source: |
+        T+(0d1, 0d2)
+        
+  - name: tadd-mixed-numeric-types
+    language: Prefix
+    source: |
+        T+([0d1, 0d2], 0d1.0)
+        
+  - name: tadd-second-non-numeric
+    language: Prefix
+    source: |
+        T+([0d1], "1")
+        
+  - name: tadd-tensor-mixed-numeric-elements
+    language: Prefix
+    source: |
+        T+([0d1, 0d2.0], 0d1)
+        
+  - name: tadd-tensor-non-numeric
+    language: Prefix
+    source: |
+        T+(["a", "b"], 0d1)
+        
+  - name: tdiv-arity-one
+    language: Prefix
+    source: |
+        T/([0d1, 0d2])
+        
+  - name: tdiv-arity-three
+    language: Prefix
+    source: |
+        T/([0d1], 0d2, 0d3)
+        
+  - name: tdiv-arity-zero
+    language: Prefix
+    source: |
+        T/()
+        
+  - name: tdiv-first-non-tns
+    language: Prefix
+    source: |
+        T/(0d1, 0d2)
+        
+  - name: tdiv-mixed-numeric-types
+    language: Prefix
+    source: |
+        T/([0d1, 0d2], 0d2.0)
+        
+  - name: tdiv-second-non-numeric
+    language: Prefix
+    source: |
+        T/([0d1], "1")
+        
+  - name: tdiv-tensor-mixed-numeric-elements
+    language: Prefix
+    source: |
+        T/([0d1, 0d2.0], 0d2)
+        
+  - name: tdiv-tensor-non-numeric
+    language: Prefix
+    source: |
+        T/(["a", "b"], 0d2)
+        
+  - name: tdiv-zero-float
+    language: Prefix
+    source: |
+        T/([0d1.0, 0d2.5], 0d0.0)
+        
+  - name: tdiv-zero
+    language: Prefix
+    source: |
+        T/([0d1, 0d2], 0d0)
+        
+  - name: tmul-arity-one
+    language: Prefix
+    source: |
+        T*([0d1, 0d2])
+        
+  - name: tmul-arity-three
+    language: Prefix
+    source: |
+        T*([0d1], 0d2, 0d3)
+        
+  - name: tmul-arity-zero
+    language: Prefix
+    source: |
+        T*()
+        
+  - name: tmul-first-non-tns
+    language: Prefix
+    source: |
+        T*(0d1, 0d2)
+        
+  - name: tmul-mixed-numeric-types
+    language: Prefix
+    source: |
+        T*([0d1, 0d2], 0d2.0)
+        
+  - name: tmul-second-non-numeric
+    language: Prefix
+    source: |
+        T*([0d1], "1")
+        
+  - name: tmul-tensor-mixed-numeric-elements
+    language: Prefix
+    source: |
+        T*([0d1, 0d2.0], 0d2)
+        
+  - name: tmul-tensor-non-numeric
+    language: Prefix
+    source: |
+        T*(["a", "b"], 0d2)
+        
+  - name: tpow-arity-one
+    language: Prefix
+    source: |
+        TPOW([0d1, 0d2])
+        
+  - name: tpow-arity-three
+    language: Prefix
+    source: |
+        TPOW([0d1], 0d2, 0d3)
+        
+  - name: tpow-arity-zero
+    language: Prefix
+    source: |
+        TPOW()
+        
+  - name: tpow-first-non-tns
+    language: Prefix
+    source: |
+        TPOW(0d1, 0d2)
+        
+  - name: tpow-mixed-numeric-types
+    language: Prefix
+    source: |
+        TPOW([0d1, 0d2], 0d2.0)
+        
+  - name: tpow-second-non-numeric
+    language: Prefix
+    source: |
+        TPOW([0d1], "1")
+        
+  - name: tpow-tensor-mixed-numeric-elements
+    language: Prefix
+    source: |
+        TPOW([0d1, 0d2.0], 0d2)
+        
+  - name: tpow-tensor-non-numeric
+    language: Prefix
+    source: |
+        TPOW(["a", "b"], 0d2)
+        
+  - name: tsub-arity-one
+    language: Prefix
+    source: |
+        T-([0d1, 0d2])
+        
+  - name: tsub-arity-three
+    language: Prefix
+    source: |
+        T-([0d1], 0d2, 0d3)
+        
+  - name: tsub-arity-zero
+    language: Prefix
+    source: |
+        T-()
+        
+  - name: tsub-first-non-tns
+    language: Prefix
+    source: |
+        T-(0d1, 0d2)
+        
+  - name: tsub-mixed-numeric-types
+    language: Prefix
+    source: |
+        T-([0d1, 0d2], 0d1.0)
+        
+  - name: tsub-second-non-numeric
+    language: Prefix
+    source: |
+        T-([0d1], "1")
+        
+  - name: tsub-tensor-mixed-numeric-elements
+    language: Prefix
+    source: |
+        T-([0d1, 0d2.0], 0d1)
+        
+  - name: tsub-tensor-non-numeric
+    language: Prefix
+    source: |
+        T-(["a", "b"], 0d1)
+        

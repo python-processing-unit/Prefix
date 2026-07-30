@@ -1,3 +1,0 @@
-FUNC sample = LAMBDA INT: (INT first = 0d1, INT second){
-    RETURN(+(first, second))
-}

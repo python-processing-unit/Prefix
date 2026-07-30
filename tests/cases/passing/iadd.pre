@@ -1,4 +1,0 @@
-! Passing integer arithmetic, checking coercion and correct logic
-INT result_add_1 = I+(0d10, 0d5)
-INT result_add_2 = I+(0d10.5, 0d5.2) ! Coerces to integers before/after?
-ASSERT(EQ(result_add_1, 0d15))

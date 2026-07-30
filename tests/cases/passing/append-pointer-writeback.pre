@@ -1,7 +1,0 @@
-TNS t1 = [0d1, 0d2]
-APPEND(0d3, @t1)
-ASSERT(EQ(t1, [0d1, 0d2, 0d3]))
-
-TNS t2 = ["a", "b"]
-APPEND("c", @t2)
-ASSERT(EQ(t2, ["a", "b", "c"]))

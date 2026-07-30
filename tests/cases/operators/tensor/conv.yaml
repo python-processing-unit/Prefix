@@ -1,0 +1,118 @@
+passing:
+  - name: conv-extended-basic
+    language: Prefix
+    source: |
+        TNS x = [[[0d1], [0d2], [0d3]], [[0d4], [0d5], [0d6]]]
+        TNS kernel = [[[[0d1, 0d2]]]]
+        TNS out = CONV(x, kernel, stride_w = 0d1)
+        
+        ASSERT(EQ(SHAPE(out), [0d2, 0d3, 0d2]))
+        ASSERT(EQ(out, [[[0d1, 0d2], [0d2, 0d4], [0d3, 0d6]], [[0d4, 0d8], [0d5, 0d10], [0d6, 0d12]]]))
+  - name: conv-extended-bias
+    language: Prefix
+    source: |
+        TNS x = [[[0d3]]]
+        TNS kernel = [[[[0d2, 0d3]]]]
+        TNS out = CONV(x, kernel, bias = [0d10, 0d20])
+        
+        ASSERT(EQ(SHAPE(out), [0d1, 0d1, 0d2]))
+        ASSERT(EQ(out, [[[0d16, 0d29]]]))
+  - name: conv-extended-flt-output-type
+    language: Prefix
+    source: |
+        TNS x = [[[0d2.0]]]
+        TNS kernel = [[[[0d1.5]]]]
+        TNS out = CONV(x, kernel, stride_w = 0d1)
+        
+        ASSERT(EQ(out, [[[0d3.0]]]))
+        ASSERT(EQ(TYPE(out[0d1, 0d1, 0d1]), "FLT"))
+  - name: conv-legacy-1d-clamp
+    language: Prefix
+    source: |
+        TNS x = [0d1, 0d2, 0d3]
+        TNS k = [0d1, 0d1, 0d1]
+        TNS out = CONV(x, k)
+        
+        ASSERT(EQ(TYPE(out), "TNS"))
+        ASSERT(EQ(SHAPE(out), [0d3]))
+        ASSERT(EQ(out, [0d4, 0d6, 0d8]))
+  - name: conv-legacy-flt-output-type
+    language: Prefix
+    source: |
+        TNS out = CONV([0d2.0], [0d1.0])
+        
+        ASSERT(EQ(out, [0d2.0]))
+        ASSERT(EQ(TYPE(out[0d1]), "FLT"))
+  - name: conv-legacy-int-output-type
+    language: Prefix
+    source: |
+        TNS out = CONV([0d7], [0d1])
+        
+        ASSERT(EQ(out, [0d7]))
+        ASSERT(EQ(TYPE(out[0d1]), "INT"))
+  - name: conv-legacy-rank2-shape
+    language: Prefix
+    source: |
+        TNS x = [[0d1, 0d2], [0d3, 0d4]]
+        TNS k = [[0d0, 0d0, 0d0], [0d0, 0d1, 0d0], [0d0, 0d0, 0d0]]
+        TNS out = CONV(x, k)
+        
+        ASSERT(EQ(SHAPE(out), [0d2, 0d2]))
+        ASSERT(EQ(out, x))
+failing:
+  - name: conv-arity-eight
+    language: Prefix
+    source: 'CONV([0d1], [0d1], 0d1, 0d1, 0d0, 0d0, [], 0d9)'
+  - name: conv-arity-one
+    language: Prefix
+    source: CONV([0d1])
+  - name: conv-arity-zero
+    language: Prefix
+    source: CONV()
+  - name: conv-extended-bias-not-tns
+    language: Prefix
+    source: 'CONV([[[0d1]]], [[[[0d1]]]], bias = 0d1)'
+  - name: conv-extended-bias-size-mismatch
+    language: Prefix
+    source: 'CONV([[[0d1]]], [[[[0d1, 0d1]]]], bias = [0d5])'
+  - name: conv-extended-kernel-not-rank4
+    language: Prefix
+    source: 'CONV([[[0d1]]], [[[0d1]]], stride_w = 0d1)'
+  - name: conv-extended-stride-w-non-int
+    language: Prefix
+    source: 'CONV([[[0d1]]], [[[[0d1]]]], stride_w = "1")'
+  - name: conv-extended-x-not-rank3
+    language: Prefix
+    source: 'CONV([[0d1]], [[[[0d1]]]], stride_w = 0d1)'
+  - name: conv-first-non-tns
+    language: Prefix
+    source: 'CONV(0d1, [0d1])'
+  - name: conv-legacy-even-kernel
+    language: Prefix
+    source: 'CONV([0d1, 0d2, 0d3], [0d1, 0d1])'
+  - name: conv-legacy-rank-mismatch
+    language: Prefix
+    source: 'CONV([0d1, 0d2], [[0d1, 0d1, 0d1]])'
+  - name: conv-pointer-writeback
+    language: Prefix
+    source: |
+        // CONV should write back to pointer operands when passed.
+        TNS x1 = [0d1, 0d2, 0d3]
+        TNS k1 = [0d1, 0d0, 0d1]
+        CONV(@x1, k1)
+        ASSERT(EQ(x1, [0d3, 0d4, 0d5]))
+        
+        TNS x2 = [0d1, 0d2, 0d3]
+        TNS k2 = [0d1, 0d0, 0d1]
+        CONV(x2, @k2)
+        ASSERT(EQ(k2, [0d3, 0d4, 0d5]))
+        
+        TNS x3 = [0d1, 0d2, 0d3]
+        TNS k3 = [0d1, 0d0, 0d1]
+        CONV(@x3, @k3)
+        ASSERT(EQ(x3, [0d3, 0d4, 0d5]))
+        ASSERT(EQ(k3, [0d3, 0d4, 0d5]))
+        
+  - name: conv-second-non-tns
+    language: Prefix
+    source: 'CONV([0d1], 0d1)'

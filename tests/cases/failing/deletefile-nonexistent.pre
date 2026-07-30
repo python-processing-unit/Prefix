@@ -1,3 +1,0 @@
-IMPORT("path")
-
-DELETEFILE(JOIN(path.script_dir, "/nonexistent.txt"))

@@ -1,0 +1,56 @@
+passing:
+  - name: caret-before-comment
+    language: Prefix
+    source: |
+        BOOL ^! comment
+        x = TRUE
+        
+  - name: comment
+    language: Prefix
+    source: |
+        BOOL x = TRUE ! foo
+        
+  - name: statement-using-caret
+    language: Prefix
+    source: |
+        BOOL ^
+        x = TRUE
+        
+  - name: statements-semicolon-delimiter
+    language: Prefix
+    source: |
+        BOOL x = TRUE ; BOOL y = FALSE
+        
+  - name: whitespace
+    language: Prefix
+    source: |
+        BOOL x = TRUE
+        BOOL x = TRUE
+        BOOL x = TRUE
+        BOOL x = TRUE
+        BOOL x= TRUE
+        BOOL x =TRUE
+        BOOL x=TRUE
+        
+failing:
+  - name: statement-with-caret
+    language: Prefix
+    source: |
+        BOOL x ^ = TRUE
+        
+  - name: statement-with-delimiter
+    language: Prefix
+    source: |
+        BOOL 
+         x = TRUE
+        
+  - name: statement-with-semicolon
+    language: Prefix
+    source: |
+        BOOL ; x = TRUE
+        
+  - name: statements-no-delimiter
+    language: Prefix
+    source: |
+        BOOL x = TRUE BOOL y = FALSE
+        

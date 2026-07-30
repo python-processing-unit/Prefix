@@ -1,2 +1,0 @@
-ASSERT(EQ(STRIP("", "x"), ""))
-ASSERT(EQ(STRIP("whole", "whole"), ""))

@@ -1,5 +1,0 @@
-TNS words = SPLIT("foo bar baz")
-
-ASSERT(EQ(TYPE(words), "TNS"))
-ASSERT(EQ(words, ["foo", "bar", "baz"]))
-ASSERT(EQ(TLEN(words, 0d1), 0d3))

@@ -1,3 +1,0 @@
-! Passing float arithmetic, checking coercion and correct logic
-FLT result_add = F+(0d10.5, 0d5.25)
-ASSERT(EQ(result_add, 0d15.75))

@@ -1,7 +1,0 @@
-FLT flt_decimal = 0d1.5
-FLT flt_binary = 0b1.1
-
-ASSERT(EQ(BASE(flt_decimal), 0d10))
-ASSERT(EQ(BASE(flt_binary), 0d2))
-ASSERT(EQ(CONVERT(flt_binary, BASE(flt_decimal)), flt_decimal))
-ASSERT(EQ(BASE(CONVERT(flt_decimal, 0d64)), 0d64))

@@ -1,4 +1,0 @@
-FUNC MAP test(MAP{<"req" = 0d1>} m) {
-    RETURN(m)
-}
-test(<"nope" = 0d1>)

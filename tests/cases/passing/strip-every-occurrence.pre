@@ -1,2 +1,0 @@
-ASSERT(EQ(STRIP("banana", "an"), "ba"))
-ASSERT(EQ(STRIP("fooXXbarXXXXbazXX", "XX"), "foobarbaz"))

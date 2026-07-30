@@ -1,5 +1,0 @@
-THR worker = ASYNC{
-    FOR(i, 0d100000){}
-}
-
-RESUME(worker)

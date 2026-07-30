@@ -1,0 +1,586 @@
+passing:
+  - name: extend-alias-qualified-namespace
+    language: Prefix
+    source: |
+        IMPORT("path")
+        
+        STR tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
+        STR helper_path = JOIN(tests_dir, "/helpers/extend_core_once.pre")
+        
+        REFUTE(IMPORT_PATH(helper_path, "first"))
+        REFUTE(IMPORT_PATH(helper_path, "second"))
+        ASSERT(EQ(first.extend_core.TST_EXT_RESTRICTED(), "core-restricted"))
+        ASSERT(EQ(second.extend_core.TST_EXT_RESTRICTED(), "core-restricted"))
+        ASSERT(EQ(TST_EXT_INIT_COUNT(), 0d1))
+  - name: extend-asmodule-global
+    language: Prefix
+    source: |
+        IMPORT("path")
+        
+        STR tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
+        STR helper_path = JOIN(tests_dir, "/helpers/extend_core_once.pre")
+        
+        REFUTE(IMPORT_PATH(helper_path, "helper"))
+        ASSERT(EQ(TST_EXT_ASMODULE_ONLY(), "asmodule-global"))
+  - name: extend-cli-multiple
+    language: PowerShell
+    source: |
+        $helperPath = Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) 'helpers\prefix-input.ps1'
+        . $helperPath
+        
+        $tempDir = New-PrefixTempDir
+        $coreExtension = Get-PrefixHelperExtensionPath 'extend_core'
+        $packageExtension = Get-PrefixHelperExtensionPath 'extend_package\init'
+        
+        try {
+          $programPath = Join-Path $tempDir 'program.pre'
+        
+          Set-Content -Path $programPath -Encoding Ascii -Value @'
+        ASSERT(EQ(TST_EXT_GLOBAL(), "core-global"))
+        ASSERT(EQ(TST_EXT_PACKAGE_INIT(), "package-init"))
+        '@
+        
+          $result = Invoke-PrefixWithArguments -Arguments @($coreExtension, $packageExtension, $programPath)
+          Assert-PrefixSuccess $result
+          Assert-NoErrorOutput $result
+        
+          if ($result.Stdout.Length -ne 0) {
+            $stdout = Format-VisibleText $result.Stdout
+            throw "Expected no stdout output, got: $stdout"
+          }
+        }
+        finally {
+          Remove-Item -Path $tempDir -Recurse -Force -ErrorAction SilentlyContinue
+        }
+  - name: extend-cli-prex-rejected
+    language: PowerShell
+    source: |
+        $helperPath = Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) 'helpers\prefix-input.ps1'
+        . $helperPath
+        
+        $tempDir = New-PrefixTempDir
+        $prexPath = Join-Path (Split-Path -Parent $helperPath) 'extend_prex_only.prex'
+        
+        try {
+          $programPath = Join-Path $tempDir 'program.pre'
+        
+          Set-Content -Path $programPath -Encoding Ascii -Value @'
+        ASSERT(TRUE)
+        '@
+        
+          $result = Invoke-PrefixWithArguments -Arguments @($prexPath, $programPath)
+          if ($result.ExitCode -eq 0) {
+            $stdout = Format-VisibleText $result.Stdout
+            $stderr = Format-VisibleText $result.Stderr
+            throw "Expected the interpreter to reject a .prex CLI extension input`nSTDOUT: $stdout`nSTDERR: $stderr"
+          }
+        }
+        finally {
+          Remove-Item -Path $tempDir -Recurse -Force -ErrorAction SilentlyContinue
+        }
+  - name: extend-cli-repl-handler
+    language: PowerShell
+    source: |
+        $helperPath = Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) 'helpers\prefix-input.ps1'
+        . $helperPath
+        
+        $tempDir = New-PrefixTempDir
+        $hooksExtension = Get-PrefixHelperExtensionPath 'extend_hooks'
+        
+        try {
+          $replLogPath = Join-Path $tempDir 'repl.log'
+        
+          $result = Invoke-PrefixWithArguments -Arguments @($hooksExtension) -InputText ".exit`n" -EnvironmentVariables @{
+            PREFIX_TEST_REPL_LOG = $replLogPath
+          }
+        
+          Assert-PrefixSuccess $result
+          Assert-NoErrorOutput $result
+        
+          if (-not (Test-Path $replLogPath)) {
+            throw 'Expected the replacement REPL handler to create its marker file'
+          }
+        
+          $marker = Get-Content -Path $replLogPath -Raw
+          if ($marker -ne 'repl-handler') {
+            throw "Unexpected REPL marker text: $marker"
+          }
+        }
+        finally {
+          Remove-Item -Path $tempDir -Recurse -Force -ErrorAction SilentlyContinue
+        }
+  - name: extend-event-handlers
+    language: PowerShell
+    source: |
+        $helperPath = Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) 'helpers\prefix-input.ps1'
+        . $helperPath
+        
+        $tempDir = New-PrefixTempDir
+        $hooksExtension = Get-PrefixHelperExtensionPath 'extend_hooks'
+        
+        try {
+          $eventLogPath = Join-Path $tempDir 'events.log'
+          $programPath = Join-Path $tempDir 'program.pre'
+        
+          Set-Content -Path $programPath -Encoding Ascii -Value @'
+        FUNC INT ping(){
+            RETURN(0d1)
+        }
+        
+        ASSERT(EQ(TST_HOOKS_READY(), "hooks-ready"))
+        ASSERT(EQ(ping(), 0d1))
+        '@
+        
+          $result = Invoke-PrefixWithArguments -Arguments @($hooksExtension, $programPath) -EnvironmentVariables @{
+            PREFIX_TEST_EVENT_LOG = $eventLogPath
+          }
+        
+          Assert-PrefixSuccess $result
+          Assert-NoErrorOutput $result
+        
+          if (-not (Test-Path $eventLogPath)) {
+            throw 'Expected the event-hook extension to create its log file'
+          }
+        
+          $events = Get-Content -Path $eventLogPath | Where-Object { $_.Length -gt 0 }
+          foreach ($expectedEvent in @('program_start', 'before_statement', 'after_statement', 'before_call', 'after_call', 'program_end')) {
+            if ($events -notcontains $expectedEvent) {
+              throw "Expected event '$expectedEvent' to appear in the hook log. Got: $($events -join ', ')"
+            }
+          }
+        }
+        finally {
+          Remove-Item -Path $tempDir -Recurse -Force -ErrorAction SilentlyContinue
+        }
+  - name: extend-event-on-error
+    language: PowerShell
+    source: |
+        $helperPath = Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) 'helpers\prefix-input.ps1'
+        . $helperPath
+        
+        $tempDir = New-PrefixTempDir
+        $hooksExtension = Get-PrefixHelperExtensionPath 'extend_hooks'
+        
+        try {
+          $eventLogPath = Join-Path $tempDir 'events.log'
+          $programPath = Join-Path $tempDir 'program.pre'
+        
+          Set-Content -Path $programPath -Encoding Ascii -Value @'
+        THROW("boom")
+        '@
+        
+          $result = Invoke-PrefixWithArguments -Arguments @($hooksExtension, $programPath) -EnvironmentVariables @{
+            PREFIX_TEST_EVENT_LOG = $eventLogPath
+          }
+        
+          if ($result.ExitCode -eq 0) {
+            throw 'Expected the program to fail so the on_error hook can run'
+          }
+        
+          if (-not (Test-Path $eventLogPath)) {
+            throw 'Expected the event-hook extension to create its log file'
+          }
+        
+          $events = Get-Content -Path $eventLogPath | Where-Object { $_.Length -gt 0 }
+          if ($events -notcontains 'on_error') {
+            throw "Expected event 'on_error' to appear in the hook log. Got: $($events -join ', ')"
+          }
+        }
+        finally {
+          Remove-Item -Path $tempDir -Recurse -Force -ErrorAction SilentlyContinue
+        }
+  - name: extend-explicit-suffix-rejected
+    language: PowerShell
+    source: |
+        $helperPath = Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) 'helpers\prefix-input.ps1'
+        . $helperPath
+        
+        $tempDir = New-PrefixTempDir
+        $suffix = Get-PrefixExtensionSuffix
+        $coreExtension = Get-PrefixHelperExtensionPath 'extend_core'
+        
+        try {
+          $programPath = Join-Path $tempDir 'program.pre'
+          $stagedExtension = Join-Path $tempDir ("extend_core{0}" -f $suffix)
+          $extensionSpecifier = "extend_core{0}" -f $suffix
+        
+          Copy-Item -Path $coreExtension -Destination $stagedExtension -Force
+        
+          Set-Content -Path $programPath -Encoding Ascii -Value @"
+        BOOL loaded = EXTEND("$extensionSpecifier")
+        REFUTE(loaded)
+        "@
+        
+          $result = Invoke-PrefixWithArguments -Arguments @($programPath)
+          if ($result.ExitCode -eq 0) {
+            $stdout = Format-VisibleText $result.Stdout
+            $stderr = Format-VisibleText $result.Stderr
+            throw "Expected EXTEND to reject a suffix-qualified specifier`nSTDOUT: $stdout`nSTDERR: $stderr"
+          }
+        }
+        finally {
+          Remove-Item -Path $tempDir -Recurse -Force -ErrorAction SilentlyContinue
+        }
+  - name: extend-idempotent
+    language: Prefix
+    source: |
+        IMPORT("path")
+        
+        STR tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
+        STR helper_path = JOIN(tests_dir, "/helpers/extend_core_twice.pre")
+        
+        REFUTE(IMPORT_PATH(helper_path, "helper"))
+        REFUTE(helper.first_result)
+        REFUTE(helper.second_result)
+        ASSERT(EQ(TST_EXT_INIT_COUNT(), 0d1))
+  - name: extend-package-init
+    language: Prefix
+    source: |
+        IMPORT("path")
+        
+        STR tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
+        STR helper_path = JOIN(tests_dir, "/helpers/extend_package_loader.pre")
+        
+        REFUTE(IMPORT_PATH(helper_path, "helper"))
+        REFUTE(helper.extend_result)
+        ASSERT(EQ(TST_EXT_PACKAGE_INIT(), "package-init"))
+  - name: extend-package-submodule
+    language: Prefix
+    source: |
+        IMPORT("path")
+        
+        STR tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
+        STR helper_path = JOIN(tests_dir, "/helpers/extend_submodule_loader.pre")
+        
+        REFUTE(IMPORT_PATH(helper_path, "helper"))
+        REFUTE(helper.extend_result)
+        ASSERT(EQ(TST_EXT_PACKAGE_SUBMOD(), "package-submod"))
+  - name: extend-periodic-hook
+    language: PowerShell
+    source: |
+        $helperPath = Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) 'helpers\prefix-input.ps1'
+        . $helperPath
+        
+        $tempDir = New-PrefixTempDir
+        $hooksExtension = Get-PrefixHelperExtensionPath 'extend_hooks'
+        
+        try {
+          $periodicLogPath = Join-Path $tempDir 'periodic.log'
+          $programPath = Join-Path $tempDir 'program.pre'
+        
+          Set-Content -Path $programPath -Encoding Ascii -Value @'
+        INT total = 0d0
+        
+        FOR(i, 0d40){
+          total = +(total, i)
+        }
+        
+        ASSERT(GT(total, 0d0))
+        '@
+        
+          $result = Invoke-PrefixWithArguments -Arguments @($hooksExtension, $programPath) -EnvironmentVariables @{
+            PREFIX_TEST_PERIODIC_LOG = $periodicLogPath
+          }
+        
+          Assert-PrefixSuccess $result
+          Assert-NoErrorOutput $result
+        
+          if (-not (Test-Path $periodicLogPath)) {
+            throw 'Expected the periodic-hook extension to create its log file'
+          }
+        
+          $ticks = Get-Content -Path $periodicLogPath | Where-Object { $_ -eq 'periodic' }
+          if ($ticks.Count -lt 2) {
+            throw "Expected at least two periodic hook executions, got $($ticks.Count)"
+          }
+        }
+        finally {
+          Remove-Item -Path $tempDir -Recurse -Force -ErrorAction SilentlyContinue
+        }
+  - name: extend-qualified-namespace
+    language: Prefix
+    source: |
+        IMPORT("path")
+        
+        STR tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
+        STR helper_path = JOIN(tests_dir, "/helpers/extend_core_once.pre")
+        
+        REFUTE(IMPORT_PATH(helper_path, "helper"))
+        ASSERT(EQ(helper.extend_core.TST_EXT_RESTRICTED(), "core-restricted"))
+  - name: extend-return-false
+    language: Prefix
+    source: |
+        IMPORT("path")
+        
+        STR tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
+        STR helper_path = JOIN(tests_dir, "/helpers/extend_core_once.pre")
+        
+        REFUTE(IMPORT_PATH(helper_path, "helper"))
+        ASSERT(EQ(TYPE(helper.extend_result), "BOOL"))
+        REFUTE(helper.extend_result)
+        ASSERT(EQ(TST_EXT_GLOBAL(), "core-global"))
+  - name: extend-search-cwd-before-roots
+    language: PowerShell
+    source: |
+        $helperPath = Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) 'helpers\prefix-input.ps1'
+        . $helperPath
+        
+        $prefixDir = Get-PrefixRootPath
+        $tempDir = New-PrefixTempDir
+        $cwdDir = Join-Path $tempDir 'cwd'
+        $suffix = Get-PrefixExtensionSuffix
+        $probeSource = Get-PrefixHelperExtensionPath 'search_probe'
+        $stagedPaths = @()
+        
+        function Add-StagedProbe([string]$Destination) {
+          Copy-Item -Path $probeSource -Destination $Destination -Force
+          $script:stagedPaths += $Destination
+        }
+        
+        try {
+          New-Item -ItemType Directory -Path $cwdDir | Out-Null
+        
+          $cwdProbe = Join-Path $cwdDir ("search_probe{0}" -f $suffix)
+          $extStdProbe = Join-Path (Join-Path $prefixDir 'ext\std') ("search_probe{0}" -f $suffix)
+          $extUsrProbe = Join-Path (Join-Path $prefixDir 'ext\usr') ("search_probe{0}" -f $suffix)
+          $libStdProbe = Join-Path (Join-Path $prefixDir 'lib\std') ("search_probe{0}" -f $suffix)
+          $libUsrProbe = Join-Path (Join-Path $prefixDir 'lib\usr') ("search_probe{0}" -f $suffix)
+        
+          Add-StagedProbe $cwdProbe
+          Add-StagedProbe $extStdProbe
+          Add-StagedProbe $extUsrProbe
+          Add-StagedProbe $libStdProbe
+          Add-StagedProbe $libUsrProbe
+        
+          $sourceText = 'BOOL loaded=EXTEND("search_probe");REFUTE(loaded);PRINT(TST_SEARCH_PROBE_PATH())'
+          $result = Invoke-PrefixWithArguments -Arguments @('-source', $sourceText) -WorkingDirectory $cwdDir
+          Assert-PrefixSuccess $result
+          Assert-NoErrorOutput $result
+        
+          $actualPath = $result.Stdout.Trim()
+          $expectedPath = [IO.Path]::GetFullPath($cwdProbe)
+          if ([IO.Path]::GetFullPath($actualPath).ToLowerInvariant() -ne $expectedPath.ToLowerInvariant()) {
+            throw "Expected EXTEND to resolve from the current working directory in -source mode`nExpected: $expectedPath`nActual:   $actualPath"
+          }
+        }
+        finally {
+          foreach ($stagedPath in $stagedPaths) {
+            Remove-Item -Path $stagedPath -Force -ErrorAction SilentlyContinue
+          }
+        
+          Remove-Item -Path $tempDir -Recurse -Force -ErrorAction SilentlyContinue
+        }
+  - name: extend-search-ext-std-before-ext-usr
+    language: PowerShell
+    source: |
+        $helperPath = Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) 'helpers\prefix-input.ps1'
+        . $helperPath
+        
+        $prefixDir = Get-PrefixRootPath
+        $tempDir = New-PrefixTempDir
+        $suffix = Get-PrefixExtensionSuffix
+        $probeSource = Get-PrefixHelperExtensionPath 'search_probe'
+        $stagedPaths = @()
+        
+        function Add-StagedProbe([string]$Destination) {
+          Copy-Item -Path $probeSource -Destination $Destination -Force
+          $script:stagedPaths += $Destination
+        }
+        
+        try {
+          $programPath = Join-Path $tempDir 'program.pre'
+          $extStdProbe = Join-Path (Join-Path $prefixDir 'ext\std') ("search_probe{0}" -f $suffix)
+          $extUsrProbe = Join-Path (Join-Path $prefixDir 'ext\usr') ("search_probe{0}" -f $suffix)
+          $libStdProbe = Join-Path (Join-Path $prefixDir 'lib\std') ("search_probe{0}" -f $suffix)
+          $libUsrProbe = Join-Path (Join-Path $prefixDir 'lib\usr') ("search_probe{0}" -f $suffix)
+        
+          Add-StagedProbe $extStdProbe
+          Add-StagedProbe $extUsrProbe
+          Add-StagedProbe $libStdProbe
+          Add-StagedProbe $libUsrProbe
+        
+          Set-Content -Path $programPath -Encoding Ascii -Value @'
+        BOOL loaded = EXTEND("search_probe")
+        REFUTE(loaded)
+        PRINT(TST_SEARCH_PROBE_PATH())
+        '@
+        
+          $result = Invoke-PrefixWithArguments -Arguments @($programPath)
+          Assert-PrefixSuccess $result
+          Assert-NoErrorOutput $result
+        
+          $actualPath = $result.Stdout.Trim()
+          $expectedPath = [IO.Path]::GetFullPath($extStdProbe)
+          if ([IO.Path]::GetFullPath($actualPath).ToLowerInvariant() -ne $expectedPath.ToLowerInvariant()) {
+            throw "Expected EXTEND to prefer ext/std over later roots`nExpected: $expectedPath`nActual:   $actualPath"
+          }
+        }
+        finally {
+          foreach ($stagedPath in $stagedPaths) {
+            Remove-Item -Path $stagedPath -Force -ErrorAction SilentlyContinue
+          }
+        
+          Remove-Item -Path $tempDir -Recurse -Force -ErrorAction SilentlyContinue
+        }
+  - name: extend-search-lib-std-before-lib-usr
+    language: PowerShell
+    source: |
+        $helperPath = Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) 'helpers\prefix-input.ps1'
+        . $helperPath
+        
+        $prefixDir = Get-PrefixRootPath
+        $tempDir = New-PrefixTempDir
+        $suffix = Get-PrefixExtensionSuffix
+        $probeSource = Get-PrefixHelperExtensionPath 'search_probe'
+        $stagedPaths = @()
+        
+        function Add-StagedProbe([string]$Destination) {
+          Copy-Item -Path $probeSource -Destination $Destination -Force
+          $script:stagedPaths += $Destination
+        }
+        
+        try {
+          $programPath = Join-Path $tempDir 'program.pre'
+          $libStdProbe = Join-Path (Join-Path $prefixDir 'lib\std') ("search_probe{0}" -f $suffix)
+          $libUsrProbe = Join-Path (Join-Path $prefixDir 'lib\usr') ("search_probe{0}" -f $suffix)
+        
+          Add-StagedProbe $libStdProbe
+          Add-StagedProbe $libUsrProbe
+        
+          Set-Content -Path $programPath -Encoding Ascii -Value @'
+        BOOL loaded = EXTEND("search_probe")
+        REFUTE(loaded)
+        PRINT(TST_SEARCH_PROBE_PATH())
+        '@
+        
+          $result = Invoke-PrefixWithArguments -Arguments @($programPath)
+          Assert-PrefixSuccess $result
+          Assert-NoErrorOutput $result
+        
+          $actualPath = $result.Stdout.Trim()
+          $expectedPath = [IO.Path]::GetFullPath($libStdProbe)
+          if ([IO.Path]::GetFullPath($actualPath).ToLowerInvariant() -ne $expectedPath.ToLowerInvariant()) {
+            throw "Expected EXTEND to prefer lib/std over lib/usr when ext roots are absent`nExpected: $expectedPath`nActual:   $actualPath"
+          }
+        }
+        finally {
+          foreach ($stagedPath in $stagedPaths) {
+            Remove-Item -Path $stagedPath -Force -ErrorAction SilentlyContinue
+          }
+        
+          Remove-Item -Path $tempDir -Recurse -Force -ErrorAction SilentlyContinue
+        }
+  - name: extend-search-program-dir-first
+    language: PowerShell
+    source: |
+        $helperPath = Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) 'helpers\prefix-input.ps1'
+        . $helperPath
+        
+        $prefixDir = Get-PrefixRootPath
+        $tempDir = New-PrefixTempDir
+        $programDir = Join-Path $tempDir 'program'
+        $cwdDir = Join-Path $tempDir 'cwd'
+        $suffix = Get-PrefixExtensionSuffix
+        $probeSource = Get-PrefixHelperExtensionPath 'search_probe'
+        $stagedPaths = @()
+        
+        function Add-StagedProbe([string]$Destination) {
+          Copy-Item -Path $probeSource -Destination $Destination -Force
+          $script:stagedPaths += $Destination
+        }
+        
+        try {
+          New-Item -ItemType Directory -Path $programDir | Out-Null
+          New-Item -ItemType Directory -Path $cwdDir | Out-Null
+        
+          $programPath = Join-Path $programDir 'program.pre'
+          $programProbe = Join-Path $programDir ("search_probe{0}" -f $suffix)
+          $cwdProbe = Join-Path $cwdDir ("search_probe{0}" -f $suffix)
+          $extStdProbe = Join-Path (Join-Path $prefixDir 'ext\std') ("search_probe{0}" -f $suffix)
+          $extUsrProbe = Join-Path (Join-Path $prefixDir 'ext\usr') ("search_probe{0}" -f $suffix)
+          $libStdProbe = Join-Path (Join-Path $prefixDir 'lib\std') ("search_probe{0}" -f $suffix)
+          $libUsrProbe = Join-Path (Join-Path $prefixDir 'lib\usr') ("search_probe{0}" -f $suffix)
+        
+          Add-StagedProbe $programProbe
+          Add-StagedProbe $cwdProbe
+          Add-StagedProbe $extStdProbe
+          Add-StagedProbe $extUsrProbe
+          Add-StagedProbe $libStdProbe
+          Add-StagedProbe $libUsrProbe
+        
+          Set-Content -Path $programPath -Encoding Ascii -Value @'
+        BOOL loaded = EXTEND("search_probe")
+        REFUTE(loaded)
+        PRINT(TST_SEARCH_PROBE_PATH())
+        '@
+        
+          $result = Invoke-PrefixWithArguments -Arguments @($programPath) -WorkingDirectory $cwdDir
+          Assert-PrefixSuccess $result
+          Assert-NoErrorOutput $result
+        
+          $actualPath = $result.Stdout.Trim()
+          $expectedPath = [IO.Path]::GetFullPath($programProbe)
+          if ([IO.Path]::GetFullPath($actualPath).ToLowerInvariant() -ne $expectedPath.ToLowerInvariant()) {
+            throw "Expected EXTEND to resolve from the program directory`nExpected: $expectedPath`nActual:   $actualPath"
+          }
+        }
+        finally {
+          foreach ($stagedPath in $stagedPaths) {
+            Remove-Item -Path $stagedPath -Force -ErrorAction SilentlyContinue
+          }
+        
+          Remove-Item -Path $tempDir -Recurse -Force -ErrorAction SilentlyContinue
+        }
+failing:
+  - name: extend-asmodule-not-qualified
+    language: Prefix
+    source: |
+        IMPORT("path")
+        
+        STR tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
+        STR helper_path = JOIN(tests_dir, "/helpers/extend_core_once.pre")
+        
+        IMPORT_PATH(helper_path, "helper")
+        
+        helper.extend_core.TST_EXT_ASMODULE_ONLY()
+  - name: extend-missing-file
+    language: Prefix
+    source: EXTEND("prefix_missing_extension_target")
+  - name: extend-missing-init-symbol
+    language: Prefix
+    source: |
+        IMPORT("path")
+        
+        STR tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
+        STR helper_path = JOIN(tests_dir, "/helpers/extend_missing_init_loader.pre")
+        
+        IMPORT_PATH(helper_path)
+  - name: extend-package-missing-init
+    language: Prefix
+    source: |
+        IMPORT("path")
+        
+        STR tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
+        STR helper_path = JOIN(tests_dir, "/helpers/extend_missing_package_loader.pre")
+        
+        IMPORT_PATH(helper_path)
+  - name: extend-prex-rejected
+    language: Prefix
+    source: |
+        IMPORT("path")
+        
+        STR tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
+        STR helper_path = JOIN(tests_dir, "/helpers/extend_prex_loader.pre")
+        
+        IMPORT_PATH(helper_path)
+  - name: extend-restricted-not-global
+    language: Prefix
+    source: |
+        IMPORT("path")
+        
+        STR tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
+        STR helper_path = JOIN(tests_dir, "/helpers/extend_core_once.pre")
+        
+        IMPORT_PATH(helper_path, "helper")
+        
+        TST_EXT_RESTRICTED()

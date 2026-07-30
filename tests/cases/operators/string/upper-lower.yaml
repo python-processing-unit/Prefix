@@ -1,0 +1,34 @@
+passing:
+  - name: lower
+    language: Prefix
+    source: |
+        ASSERT(EQ(TYPE(LOWER("PREFIX")), "STR"))
+        ASSERT(EQ(LOWER("PREFIX"), "prefix"))
+        ASSERT(EQ(LOWER("Prefix 123!"), "prefix 123!"))
+        ASSERT(EQ(LOWER(""), ""))
+  - name: upper
+    language: Prefix
+    source: |
+        ASSERT(EQ(TYPE(UPPER("prefix")), "STR"))
+        ASSERT(EQ(UPPER("prefix"), "PREFIX"))
+        ASSERT(EQ(UPPER("Prefix 123!"), "PREFIX 123!"))
+        ASSERT(EQ(UPPER(""), ""))
+failing:
+  - name: lower-arity-two
+    language: Prefix
+    source: 'LOWER("a", "b")'
+  - name: lower-arity-zero
+    language: Prefix
+    source: LOWER()
+  - name: lower-non-str
+    language: Prefix
+    source: LOWER(0d1)
+  - name: upper-arity-two
+    language: Prefix
+    source: 'UPPER("a", "b")'
+  - name: upper-arity-zero
+    language: Prefix
+    source: UPPER()
+  - name: upper-non-str
+    language: Prefix
+    source: UPPER(0d1)

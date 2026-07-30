@@ -1,4 +1,0 @@
-INT sample = 0d1
-FUNC INT sample(){
-    RETURN(0d0)
-}

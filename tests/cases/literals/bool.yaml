@@ -1,0 +1,13 @@
+passing:
+  - name: bool
+    language: Prefix
+    source: |
+        BOOL truthy = TRUE
+        BOOL falsy = FALSE
+        
+        ASSERT(truthy)
+        REFUTE(falsy)
+failing:
+  - name: bool-lowercase
+    language: Prefix
+    source: ASSERT(true)

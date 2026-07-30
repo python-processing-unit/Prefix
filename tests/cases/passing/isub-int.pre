@@ -1,3 +1,0 @@
-! Passing integer arithmetic, checking coercion and correct logic
-INT result_sub = I-(0d10, 0d2.0)
-ASSERT(EQ(result_sub, 0d8))

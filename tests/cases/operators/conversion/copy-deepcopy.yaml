@@ -1,0 +1,122 @@
+passing:
+  - name: copy-bool
+    language: Prefix
+    source: 'ASSERT(EQ(COPY(TRUE), TRUE))'
+  - name: copy-flt
+    language: Prefix
+    source: 'ASSERT(EQ(COPY(0d1.5), 0d1.5))'
+  - name: copy-from-pointer
+    language: Prefix
+    source: |
+        MAP source = <"plain" = 0d2, "nested" = <"value" = 0d3>>
+        MAP copied = COPY(@source)
+        
+        copied<"plain"> = 0d9
+        ASSERT(EQ(source<"plain">, 0d2))
+        
+        copied<"nested", "value"> = 0d8
+        ASSERT(EQ(source<"nested", "value">, 0d8))
+  - name: copy-func
+    language: Prefix
+    source: |
+        FUNC INT identity(INT value){
+            RETURN(value)
+        }
+        
+        FUNC func_copy = COPY(identity)
+        
+        ASSERT(EQ(func_copy, identity))
+        ASSERT(EQ(func_copy(0d7), 0d7))
+  - name: copy-int
+    language: Prefix
+    source: 'ASSERT(EQ(COPY(0xA), 0xA))'
+  - name: copy-map
+    language: Prefix
+    source: |
+        MAP map_value = <"n" = 0d3>
+        
+        ASSERT(EQ(COPY(map_value), map_value))
+  - name: copy-str
+    language: Prefix
+    source: 'ASSERT(EQ(COPY("prefix"), "prefix"))'
+  - name: copy-thr
+    language: Prefix
+    source: |
+        THR(worker){}
+        
+        THR thread_copy = COPY(worker)
+        
+        ASSERT(EQ(thread_copy, worker))
+  - name: copy-tns
+    language: Prefix
+    source: |
+        TNS tensor = [0d1, 0d2]
+        
+        ASSERT(EQ(COPY(tensor), tensor))
+  - name: deepcopy-bool
+    language: Prefix
+    source: 'ASSERT(EQ(DEEPCOPY(TRUE), TRUE))'
+  - name: deepcopy-flt
+    language: Prefix
+    source: 'ASSERT(EQ(DEEPCOPY(0d1.5), 0d1.5))'
+  - name: deepcopy-from-pointer
+    language: Prefix
+    source: |
+        MAP source = <"plain" = 0d2, "nested" = <"value" = 0d3>>
+        MAP copied = DEEPCOPY(@source)
+        
+        copied<"plain"> = 0d9
+        copied<"nested", "value"> = 0d8
+        
+        ASSERT(EQ(source<"plain">, 0d2))
+        ASSERT(EQ(source<"nested", "value">, 0d3))
+  - name: deepcopy-func
+    language: Prefix
+    source: |
+        FUNC INT identity(INT value){
+            RETURN(value)
+        }
+        
+        FUNC func_copy = DEEPCOPY(identity)
+        
+        ASSERT(EQ(func_copy, identity))
+        ASSERT(EQ(func_copy(0d7), 0d7))
+  - name: deepcopy-int
+    language: Prefix
+    source: 'ASSERT(EQ(DEEPCOPY(0xA), 0xA))'
+  - name: deepcopy-map
+    language: Prefix
+    source: |
+        MAP map_value = <"n" = 0d3>
+        
+        ASSERT(EQ(DEEPCOPY(map_value), map_value))
+  - name: deepcopy-str
+    language: Prefix
+    source: 'ASSERT(EQ(DEEPCOPY("prefix"), "prefix"))'
+  - name: deepcopy-thr
+    language: Prefix
+    source: |
+        THR(worker){}
+        
+        THR thread_copy = DEEPCOPY(worker)
+        
+        ASSERT(EQ(thread_copy, worker))
+  - name: deepcopy-tns
+    language: Prefix
+    source: |
+        TNS tensor = [0d1, 0d2]
+        
+        ASSERT(EQ(DEEPCOPY(tensor), tensor))
+failing:
+  - name: copy-arity-two
+    language: Prefix
+    source: 'COPY(0d1, 0d2)'
+  - name: copy-arity-zero
+    language: Prefix
+    source: COPY()
+  - name: deepcopy-arity-two
+    language: Prefix
+    source: 'DEEPCOPY(0d1, 0d2)'
+  - name: deepcopy-arity-zero
+    language: Prefix
+    source: DEEPCOPY()

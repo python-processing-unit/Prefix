@@ -1,0 +1,50 @@
+passing:
+  - name: band
+    language: Prefix
+    source: |
+        ASSERT(EQ(BAND(0b1101, 0b1011), 0b1001))
+        ASSERT(EQ(BASE(BAND(0b1101, 0b1011)), 0d2))
+  - name: bnot
+    language: Prefix
+    source: |
+        ASSERT(EQ(BAND(0b1010, BNOT(0b1010)), 0b0))
+        ASSERT(EQ(BASE(BNOT(0b1010)), 0d2))
+  - name: bor
+    language: Prefix
+    source: |
+        ASSERT(EQ(BOR(0b1100, 0b0011), 0b1111))
+        ASSERT(EQ(BASE(BOR(0b1100, 0b0011)), 0d2))
+  - name: bxor
+    language: Prefix
+    source: |
+        ASSERT(EQ(BXOR(0b1100, 0b1010), 0b0110))
+        ASSERT(EQ(BASE(BXOR(0b1100, 0b1010)), 0d2))
+  - name: shl
+    language: Prefix
+    source: |
+        ASSERT(EQ(SHL(0b101, 0b10), 0b10100))
+        ASSERT(EQ(BASE(SHL(0b101, 0b10)), 0d2))
+  - name: shr
+    language: Prefix
+    source: |
+        ASSERT(EQ(SHR(0b10100, 0b10), 0b101))
+        ASSERT(EQ(BASE(SHR(0b10100, 0b10)), 0d2))
+failing:
+  - name: band-radix
+    language: Prefix
+    source: 'BAND(0b1, 0d1)'
+  - name: bnot-radix
+    language: Prefix
+    source: BNOT(0o1)
+  - name: bor-radix
+    language: Prefix
+    source: 'BOR(0d1, 0b1)'
+  - name: bxor-radix
+    language: Prefix
+    source: 'BXOR(0b1, 0x1)'
+  - name: shl-radix
+    language: Prefix
+    source: 'SHL(0b1, 0d1)'
+  - name: shr-radix
+    language: Prefix
+    source: 'SHR(0x1, 0b1)'

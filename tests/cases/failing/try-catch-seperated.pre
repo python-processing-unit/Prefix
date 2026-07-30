@@ -1,6 +1,0 @@
-TRY{
-    ASSERT(FALSE)
-}
-CATCH {
-    ASSERT(TRUE)
-}

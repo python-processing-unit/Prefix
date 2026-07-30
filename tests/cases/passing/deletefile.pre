@@ -1,7 +1,0 @@
-IMPORT("path")
-
-STR p = path.TEMPFILE("temp.txt")
-WRITEFILE("Prefix", p)
-ASSERT(EXISTFILE(p))
-ASSERT(DELETEFILE(p))
-REFUTE(EXISTFILE(p))

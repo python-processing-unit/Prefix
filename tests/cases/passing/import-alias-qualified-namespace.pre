@@ -1,3 +1,0 @@
-IMPORT("path", "helper")
-
-ASSERT(EQ(TYPE(helper.TEMPFILE("import-alias-qualified-namespace.txt")), "STR"))

@@ -1,0 +1,85 @@
+passing:
+  - name: cl-exit-nonzero
+    language: Prefix
+    source: 'ASSERT(EQ(CL("exit 7"), 0d7))'
+  - name: cl-exit-zero
+    language: Prefix
+    source: 'ASSERT(EQ(CL("exit 0"), 0d0))'
+  - name: cl-output-forwarding
+    language: PowerShell
+    source: |
+        $helperPath = Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) 'helpers\prefix-input.ps1'
+        . $helperPath
+        
+        $tempDir = New-PrefixTempDir
+        
+        try {
+          $programPath = Join-Path $tempDir 'program.pre'
+        
+          Set-Content -Path $programPath -Encoding Ascii -Value @'
+        ASSERT(EQ(CL("echo prefix-cl-output"), 0d0))
+        '@
+        
+          $startInfo = New-Object System.Diagnostics.ProcessStartInfo
+          $startInfo.FileName = Get-PrefixExePath
+          $startInfo.Arguments = ('"{0}"' -f $programPath)
+          $startInfo.RedirectStandardOutput = $true
+          $startInfo.RedirectStandardError = $true
+          $startInfo.UseShellExecute = $false
+          $startInfo.CreateNoWindow = $true
+        
+          $process = [System.Diagnostics.Process]::Start($startInfo)
+          try {
+            $stdout = $process.StandardOutput.ReadToEnd()
+            $stderr = $process.StandardError.ReadToEnd()
+            $process.WaitForExit()
+        
+            $result = [pscustomobject]@{
+              ExitCode = $process.ExitCode
+              Stdout = $stdout
+              Stderr = $stderr
+            }
+          }
+          finally {
+            $process.Dispose()
+          }
+        
+          Assert-PrefixSuccess $result
+          Assert-NoErrorOutput $result
+        
+          if (-not [regex]::IsMatch($result.Stdout, '\Aprefix-cl-output(?:\r\n|\n)\z')) {
+            $stdout = Format-VisibleText $result.Stdout
+            throw "Unexpected stdout: $stdout"
+          }
+        }
+        finally {
+          Remove-Item -Path $tempDir -Recurse -Force -ErrorAction SilentlyContinue
+        }
+failing:
+  - name: cl-arity-two
+    language: Prefix
+    source: 'CL("exit 0", "extra")'
+  - name: cl-arity-zero
+    language: Prefix
+    source: CL()
+  - name: cl-type-bool
+    language: Prefix
+    source: CL(TRUE)
+  - name: cl-type-flt
+    language: Prefix
+    source: CL(0d1.0)
+  - name: cl-type-func
+    language: Prefix
+    source: 'CL(LAMBDA BOOL: (){})'
+  - name: cl-type-int
+    language: Prefix
+    source: CL(0d1)
+  - name: cl-type-map
+    language: Prefix
+    source: CL(<>)
+  - name: cl-type-thr
+    language: Prefix
+    source: CL(ASYNC{})
+  - name: cl-type-tns
+    language: Prefix
+    source: CL([0d1])

@@ -1,2 +1,0 @@
-THR(worker){}
-PAUSE(worker, seconds = <>)

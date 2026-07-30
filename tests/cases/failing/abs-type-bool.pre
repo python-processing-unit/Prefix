@@ -1,2 +1,0 @@
-BOOL b = TRUE
-ABS(b)

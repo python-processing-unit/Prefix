@@ -1,3 +1,0 @@
-TNS x = [[0d2, 0d3], [0d4, 0d5]]
-
-ASSERT(EQ(MPROD(x), x))

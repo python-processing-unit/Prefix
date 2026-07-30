@@ -1,3 +1,0 @@
-! FPROD coerces mixed numeric inputs to FLT before multiplying
-FLT result = FPROD(0d2, 0d3.5, 0d4)
-ASSERT(EQ(result, 0d28.0))

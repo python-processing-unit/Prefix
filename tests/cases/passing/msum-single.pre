@@ -1,3 +1,0 @@
-TNS x = [[0d1, 0d2], [0d3, 0d4]]
-
-ASSERT(EQ(MSUM(x), x))

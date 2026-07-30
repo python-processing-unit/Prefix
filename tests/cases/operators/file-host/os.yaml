@@ -1,0 +1,17 @@
+passing:
+  - name: os-lowercase
+    language: Prefix
+    source: 'ASSERT(EQ(OS(), LOWER(OS())))'
+  - name: os-nonempty
+    language: Prefix
+    source: 'ASSERT(GT(SLEN(OS()), 0d0))'
+  - name: os-return-type
+    language: Prefix
+    source: 'ASSERT(EQ(TYPE(OS()), "STR"))'
+  - name: os
+    language: Prefix
+    source: 'ASSERT(IN(OS(), ["win", "linux", "macos", "unix"]))'
+failing:
+  - name: os-arity-one
+    language: Prefix
+    source: OS("win")

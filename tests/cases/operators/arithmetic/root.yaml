@@ -1,0 +1,121 @@
+passing:
+  - name: froot-neg
+    language: Prefix
+    source: |
+        ! FROOT negative example with odd exponent allowed
+        FLT result = FROOT(-0d8.0, 0d3.0)
+        ASSERT(EQ(result, -0d2.0))
+        
+  - name: froot
+    language: Prefix
+    source: |
+        FLT result_root_normal = FROOT(0d16.0, 0d2.0)
+        ASSERT(EQ(result_root_normal, 0d4.0))
+        
+        ! FROOT positive example: cube root of 8.0 (merged from froot.pre)
+        FLT result = FROOT(0d8.0, 0d3.0)
+        ASSERT(EQ(result, 0d2.0))
+        
+  - name: iroot
+    language: Prefix
+    source: |
+        ! Passing integer arithmetic, checking coercion and correct logic
+        INT result_root = IROOT(0d16, 0d2)
+        ASSERT(EQ(result_root, 0d4))
+        
+  - name: root-flt
+    language: Prefix
+    source: |
+        FLT exact_hex = 0x64.0
+        FLT exact_dec = 0d64.0
+        FLT zero_hex = 0x0.0
+        FLT negative_odd_dec = -0d27.0
+        FLT root_dec = 0d2.0
+        FLT root_hex = 0x3.0
+        
+        ASSERT(EQ(ROOT(exact_hex, root_dec), 0xA.0))
+        ASSERT(ISFLT(ROOT(exact_hex, root_dec)))
+        ASSERT(EQ(BASE(ROOT(exact_hex, root_dec)), 0d16))
+        
+        ASSERT(EQ(ROOT(exact_dec, root_hex), 0x4.0))
+        ASSERT(EQ(BASE(ROOT(exact_dec, root_hex)), 0d16))
+        
+        ASSERT(EQ(ROOT(zero_hex, root_hex), 0x0.0))
+        ASSERT(EQ(BASE(ROOT(zero_hex, root_hex)), 0d16))
+        ASSERT(EQ(ROOT(negative_odd_dec, root_hex), -0x3.0))
+        ASSERT(EQ(BASE(ROOT(negative_odd_dec, root_hex)), 0d16))
+        
+  - name: root-int
+    language: Prefix
+    source: |
+        INT exact_hex = 0x64
+        INT floor_dec = 0d17
+        INT zero_hex = 0x0
+        INT unit_hex = 0x1
+        INT root_dec = 0d2
+        INT root_hex = 0x2
+        INT neg_one_dec = -0d1
+        
+        ASSERT(EQ(ROOT(exact_hex, root_dec), 0xA))
+        ASSERT(ISINT(ROOT(exact_hex, root_dec)))
+        ASSERT(EQ(BASE(ROOT(exact_hex, root_dec)), 0d16))
+        
+        ASSERT(EQ(ROOT(floor_dec, root_hex), 0x4))
+        ASSERT(EQ(BASE(ROOT(floor_dec, root_hex)), 0d16))
+        
+        ASSERT(EQ(ROOT(zero_hex, 0d5), 0x0))
+        ASSERT(EQ(BASE(ROOT(zero_hex, 0d5)), 0d16))
+        ASSERT(EQ(ROOT(unit_hex, neg_one_dec), 0x1))
+        ASSERT(EQ(BASE(ROOT(unit_hex, neg_one_dec)), 0d16))
+        
+failing:
+  - name: froot-neg-even
+    language: Prefix
+    source: |
+        FROOT(-0d1.0, 0d2.0)
+        
+  - name: iroot-int-zero-exponent
+    language: Prefix
+    source: |
+        IROOT(0d10, 0d0)
+        
+  - name: root-arity-one
+    language: Prefix
+    source: |
+        ROOT(0d16)
+        
+  - name: root-arity-three
+    language: Prefix
+    source: |
+        ROOT(0d16, 0d2, 0d2)
+        
+  - name: root-flt-negative-even
+    language: Prefix
+    source: |
+        ROOT(-0d16.0, 0d2.0)
+        
+  - name: root-flt-zero-exponent
+    language: Prefix
+    source: |
+        ROOT(0d16.0, 0d0.0)
+        
+  - name: root-int-invalid-negative
+    language: Prefix
+    source: |
+        ROOT(0d2, -0d1)
+        
+  - name: root-int-zero-exponent
+    language: Prefix
+    source: |
+        ROOT(0d16, 0d0)
+        
+  - name: root-type-bool
+    language: Prefix
+    source: |
+        ROOT(TRUE, FALSE)
+        
+  - name: root-type-str
+    language: Prefix
+    source: |
+        ROOT("16", "2")
+        

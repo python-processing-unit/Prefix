@@ -1,7 +1,0 @@
-IMPORT("path")
-
-STR p = path.TEMPFILE("prefix-writefile-hex.bin")
-
-ASSERT(WRITEFILE("507265666978", p, coding = "hex"))
-ASSERT(EQ(READFILE(p), "Prefix"))
-ASSERT(EQ(READFILE(p, coding = "hexadecimal"), "507265666978"))

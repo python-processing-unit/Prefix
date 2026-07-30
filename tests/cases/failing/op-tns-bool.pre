@@ -1,2 +1,0 @@
-BOOL sample_bool = TRUE
-TNS(sample_bool)

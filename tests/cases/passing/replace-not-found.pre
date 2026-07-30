@@ -1,1 +1,0 @@
-ASSERT(EQ(REPLACE("prefix", "zzz", "X"), "prefix"))

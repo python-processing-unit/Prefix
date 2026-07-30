@@ -1,3 +1,0 @@
-FUNC sample = LAMBDA INT: (value){
-    RETURN(value)
-}

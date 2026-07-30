@@ -1,2 +1,0 @@
-ASSERT(EQ(REPLACE("abc", "ac", "Z"), "abc"))
-ASSERT(EQ(REPLACE("a  b  c", "  ", "-"), "a-b-c"))

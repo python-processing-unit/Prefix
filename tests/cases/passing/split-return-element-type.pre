@@ -1,4 +1,0 @@
-TNS parts = SPLIT("left|right", "|")
-
-ASSERT(EQ(TYPE(parts[0d1]), "STR"))
-ASSERT(EQ(TYPE(parts[0d2]), "STR"))

@@ -1,2 +1,0 @@
-ASSERT(EQ(TYPE(INCLUDE("path")), "BOOL"))
-REFUTE(INCLUDE("path"))

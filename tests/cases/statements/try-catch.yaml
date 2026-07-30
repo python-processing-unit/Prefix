@@ -1,0 +1,55 @@
+passing:
+  - name: try-catch-err
+    language: Prefix
+    source: |
+        TRY{
+            ASSERT(FALSE)
+        } CATCH(err) {
+            ASSERT(EXIST("err"))
+        }
+        REFUTE(EXIST("err"))
+        
+  - name: try-catch
+    language: Prefix
+    source: |
+        TRY{
+            ASSERT(TRUE)
+        } CATCH {
+            ASSERT(FALSE)
+        }
+        TRY{
+            ASSERT(FALSE)
+        } CATCH {
+            ASSERT(TRUE)
+        }
+        
+failing:
+  - name: catch-no-try
+    language: Prefix
+    source: |
+        CATCH{}
+        
+  - name: try-catch-err-pseudotype
+    language: Prefix
+    source: |
+        TRY{
+            ASSERT(FALSE)
+        } CATCH(SYMBOL: err) {
+            ASSERT(EXIST("err"))
+        }
+        
+  - name: try-catch-seperated
+    language: Prefix
+    source: |
+        TRY{
+            ASSERT(FALSE)
+        }
+        CATCH {
+            ASSERT(TRUE)
+        }
+        
+  - name: try-no-catch
+    language: Prefix
+    source: |
+        TRY{}
+        

@@ -1,8 +1,0 @@
-IMPORT("path", "helper")
-
-FUNC STR describe(){
-    RETURN("exported")
-}
-
-REFUTE(EXPORT("describe", "helper"))
-ASSERT(EQ(helper.describe(), "exported"))

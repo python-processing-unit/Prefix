@@ -1,3 +1,0 @@
-FUNC sample(INT value){
-    RETURN(value)
-}

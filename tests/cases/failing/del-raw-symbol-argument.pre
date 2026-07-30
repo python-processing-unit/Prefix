@@ -1,2 +1,0 @@
-BOOL x = TRUE
-DEL(x)

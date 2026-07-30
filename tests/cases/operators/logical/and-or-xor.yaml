@@ -1,0 +1,44 @@
+passing:
+  - name: and
+    language: Prefix
+    source: |
+        ASSERT(AND(TRUE, TRUE))
+        REFUTE(AND(TRUE, FALSE))
+        
+  - name: or
+    language: Prefix
+    source: |
+        REFUTE(OR(FALSE, FALSE))
+        ASSERT(OR(FALSE, TRUE))
+        
+  - name: xor
+    language: Prefix
+    source: |
+        REFUTE(XOR(FALSE, FALSE))
+        ASSERT(XOR(TRUE, FALSE))
+        
+failing:
+  - name: and-arity-three
+    language: Prefix
+    source: |
+        AND(TRUE, TRUE, TRUE)
+        
+  - name: and-arity-zero
+    language: Prefix
+    source: AND()
+  - name: or-arity-three
+    language: Prefix
+    source: |
+        OR(TRUE, TRUE, TRUE)
+        
+  - name: or-arity-zero
+    language: Prefix
+    source: OR()
+  - name: xor-arity-three
+    language: Prefix
+    source: |
+        XOR(TRUE, TRUE, TRUE)
+        
+  - name: xor-arity-zero
+    language: Prefix
+    source: XOR()

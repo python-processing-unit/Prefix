@@ -1,1 +1,0 @@
-ASSERT(EQ(INV(<"pi" = 0d3.5>), <0d3.5 = "pi">))

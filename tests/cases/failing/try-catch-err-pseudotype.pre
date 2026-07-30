@@ -1,5 +1,0 @@
-TRY{
-    ASSERT(FALSE)
-} CATCH(SYMBOL: err) {
-    ASSERT(EXIST("err"))
-}

@@ -1,1 +1,0 @@
-ASSERT(EQ(TYPE(OS()), "STR"))

@@ -1,4 +1,0 @@
-MAP x = <"v" = 0d1>
-MAP a = @x
-
-MAP x = @a

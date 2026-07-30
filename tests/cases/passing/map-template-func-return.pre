@@ -1,6 +1,0 @@
-! MAP template return type
-FUNC MAP{<"ok" = TRUE>} make_ok() {
-    RETURN(<"ok" = TRUE>)
-}
-MAP result = make_ok()
-ASSERT(result<"ok">)

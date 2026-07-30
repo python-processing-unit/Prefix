@@ -1,0 +1,138 @@
+passing:
+  - name: writefile-ansi
+    language: Prefix
+    source: |
+        IMPORT("path")
+        
+        STR p = path.TEMPFILE("prefix-writefile-ansi.txt")
+        
+        ASSERT(WRITEFILE("Prefix", p, coding = "ANSI"))
+        ASSERT(EQ(READFILE(p, coding = "ANSI"), "Prefix"))
+        
+  - name: writefile-bin-alias
+    language: Prefix
+    source: |
+        IMPORT("path")
+        
+        STR p = path.TEMPFILE("prefix-writefile-bin.bin")
+        
+        ASSERT(WRITEFILE("0100000101111010", p, coding = "bin"))
+        ASSERT(EQ(READFILE(p, coding = "bin"), "0100000101111010"))
+        ASSERT(EQ(READFILE(p), "Az"))
+        
+  - name: writefile-binary
+    language: Prefix
+    source: |
+        IMPORT("path")
+        
+        STR p = path.TEMPFILE("prefix-writefile-binary.bin")
+        
+        ASSERT(WRITEFILE("0100000101111010", p, coding = "binary"))
+        ASSERT(EQ(READFILE(p, coding = "binary"), "0100000101111010"))
+        ASSERT(EQ(READFILE(p), "Az"))
+        
+  - name: writefile-fail-dir
+    language: Prefix
+    source: |
+        IMPORT("path")
+        
+        STR d = path.TEMPFILE("prefix-writefile-fail-dir")
+        
+        IF(EQ(OS(),"win")){
+            ASSERT(EQ(CL(JOIN("powershell -NoProfile -NonInteractive -Command \"New-Item -ItemType Directory -Force -Path '", path.WINPATH(d), "'\"")), 0d0))
+        } ELSE {
+            ASSERT(EQ(CL(JOIN("mkdir -p ", d)), 0d0))
+        }
+        
+        REFUTE(WRITEFILE("x", d))
+        
+  - name: writefile-hex
+    language: Prefix
+    source: |
+        IMPORT("path")
+        
+        STR p = path.TEMPFILE("prefix-writefile-hex.bin")
+        
+        ASSERT(WRITEFILE("507265666978", p, coding = "hex"))
+        ASSERT(EQ(READFILE(p), "Prefix"))
+        ASSERT(EQ(READFILE(p, coding = "hexadecimal"), "507265666978"))
+        
+  - name: writefile-utf16-be
+    language: Prefix
+    source: |
+        IMPORT("path")
+        
+        STR p = path.TEMPFILE("prefix-writefile-utf16-be.txt")
+        
+        ASSERT(WRITEFILE("Prefix", p, coding = "UTF-16 BE"))
+        ASSERT(EQ(READFILE(p, coding = "UTF-16 BE"), "Prefix"))
+        
+  - name: writefile-utf16-le
+    language: Prefix
+    source: |
+        IMPORT("path")
+        
+        STR p = path.TEMPFILE("prefix-writefile-utf16-le.txt")
+        
+        ASSERT(WRITEFILE("Prefix", p, coding = "UTF-16 LE"))
+        ASSERT(EQ(READFILE(p, coding = "UTF-16 LE"), "Prefix"))
+        
+  - name: writefile-utf8-bom
+    language: Prefix
+    source: |
+        IMPORT("path")
+        
+        STR p = path.TEMPFILE("prefix-writefile-utf8-bom.txt")
+        
+        ASSERT(WRITEFILE("Prefix", p, coding = "UTF-8 BOM"))
+        ASSERT(EQ(READFILE(p), "Prefix"))
+        ASSERT(EQ(READFILE(p, coding = "utf-8-bom"), "Prefix"))
+        
+  - name: writefile-utf8
+    language: Prefix
+    source: |
+        IMPORT("path")
+        
+        STR p = path.TEMPFILE("prefix-writefile-utf8.txt")
+        
+        ASSERT(WRITEFILE("Prefix", p))
+        ASSERT(EQ(READFILE(p), "Prefix"))
+        ASSERT(EQ(READFILE(p, coding = "UTF-8"), "Prefix"))
+        
+failing:
+  - name: writefile-binary-badchars
+    language: Prefix
+    source: |
+        IMPORT("path")
+        
+        STR p = path.TEMPFILE("prefix-writefile-bad-binary2.txt")
+        
+        WRITEFILE("010a0101", p, coding = "binary")
+        
+  - name: writefile-binary-badlen
+    language: Prefix
+    source: |
+        IMPORT("path")
+        
+        STR p = path.TEMPFILE("prefix-writefile-bad-binary.txt")
+        
+        WRITEFILE("101", p, coding = "binary")
+        
+  - name: writefile-hex-badlen
+    language: Prefix
+    source: |
+        IMPORT("path")
+        
+        STR p = path.TEMPFILE("prefix-writefile-bad-hex.txt")
+        
+        WRITEFILE("abc", p, coding = "hex")
+        
+  - name: writefile-unsupported-coding
+    language: Prefix
+    source: |
+        IMPORT("path")
+        
+        STR p = path.TEMPFILE("prefix-writefile-unsupported.txt")
+        
+        WRITEFILE("Prefix", p, coding = "UTF-7")
+        

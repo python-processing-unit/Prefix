@@ -1,0 +1,45 @@
+passing:
+  - name: flt
+    language: Prefix
+    source: |
+        FLT a = 0d1.5
+        FLT b = -0d0.25
+        FLT c = 0b1.1
+        FLT d = 0xA.F
+        FLT e = 0r16F.8
+        FLT f = INF
+        FLT g = -INF
+        FLT h = NaN
+        
+        ASSERT(EQ(a, 0d1.5))
+        ASSERT(EQ(b, -0d0.25))
+        ASSERT(EQ(c, 0b1.1))
+        ASSERT(EQ(d, 0xA.F))
+        ASSERT(EQ(e, 0r16F.8))
+        
+failing:
+  - name: flt-invalid-digit
+    language: Prefix
+    source: |
+        FLT a = 0b2.0
+        
+  - name: flt-negative-nan
+    language: Prefix
+    source: |
+        FLT bad = -NaN
+        
+  - name: flt-no-fraction
+    language: Prefix
+    source: |
+        FLT a = 0d1.
+        
+  - name: flt-no-integer
+    language: Prefix
+    source: |
+        FLT a = 0d.5
+        
+  - name: flt-plus-sign
+    language: Prefix
+    source: |
+        FLT a = +0d1.0
+        

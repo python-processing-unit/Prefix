@@ -1,0 +1,57 @@
+passing:
+  - name: run-empty-source
+    language: Prefix
+    source: |
+        INT marker = 0d1
+        RUN("")
+        ASSERT(EQ(marker, 0d1))
+  - name: run-parse-error
+    language: Prefix
+    source: |
+        INT step = 0d0
+        BOOL caught = FALSE
+        
+        TRY{
+            RUN("step = 0d1; IF(TRUE){")
+            ASSERT(FALSE)
+        } CATCH {
+            caught = TRUE
+        }
+        
+        ASSERT(caught)
+        ASSERT(EQ(step, 0d0))
+  - name: run-runtime-error
+    language: Prefix
+    source: |
+        INT step = 0d0
+        BOOL caught = FALSE
+        
+        TRY{
+            RUN("step = 0d1; ASSERT(FALSE); step = 0d2")
+            ASSERT(FALSE)
+        } CATCH {
+            caught = TRUE
+        }
+        
+        ASSERT(caught)
+        ASSERT(EQ(step, 0d1))
+  - name: run-top-level-env
+    language: Prefix
+    source: |
+        INT counter = 0d2
+        
+        RUN("ASSERT(EQ(counter, 0d2)); counter = +(counter, 0d3)")
+        ASSERT(EQ(counter, 0d5))
+        
+        RUN("INT created = -(counter, 0d1)")
+        ASSERT(EQ(created, 0d4))
+failing:
+  - name: run-arity-two
+    language: Prefix
+    source: 'RUN("", "")'
+  - name: run-arity-zero
+    language: Prefix
+    source: RUN()
+  - name: run-non-str
+    language: Prefix
+    source: RUN(0d1)

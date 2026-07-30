@@ -1,0 +1,65 @@
+passing:
+  - name: await-expression-handle
+    language: Prefix
+    source: |
+        THR worker = ASYNC{}
+        THR awaited = AWAIT(worker)
+        
+        ASSERT(EQ(TYPE(awaited), "THR"))
+        ASSERT(EQ(awaited, worker))
+        REFUTE(BOOL(awaited))
+  - name: await-finished-thread
+    language: Prefix
+    source: |
+        THR(worker){}
+        
+        AWAIT(worker)
+        
+        ASSERT(EQ(AWAIT(worker), worker))
+        REFUTE(BOOL(worker))
+  - name: await-shared-mutation
+    language: Prefix
+    source: |
+        INT shared = 0d0
+        
+        THR(worker){
+            FOR(i, 0d256){
+            }
+            shared = 0d1
+        }
+        
+        THR awaited = AWAIT(worker)
+        
+        ASSERT(EQ(awaited, worker))
+        ASSERT(EQ(shared, 0d1))
+        REFUTE(BOOL(worker))
+failing:
+  - name: await-arity-two
+    language: Prefix
+    source: |
+        THR(worker){}
+        AWAIT(worker, worker)
+  - name: await-arity-zero
+    language: Prefix
+    source: AWAIT()
+  - name: await-type-bool
+    language: Prefix
+    source: AWAIT(TRUE)
+  - name: await-type-flt
+    language: Prefix
+    source: AWAIT(0d1.0)
+  - name: await-type-func
+    language: Prefix
+    source: 'AWAIT(LAMBDA BOOL: (){})'
+  - name: await-type-int
+    language: Prefix
+    source: AWAIT(0d1)
+  - name: await-type-map
+    language: Prefix
+    source: AWAIT(<>)
+  - name: await-type-str
+    language: Prefix
+    source: AWAIT("thread")
+  - name: await-type-tns
+    language: Prefix
+    source: AWAIT([0d1])

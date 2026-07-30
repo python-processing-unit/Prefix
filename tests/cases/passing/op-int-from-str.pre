@@ -1,3 +1,0 @@
-ASSERT(EQ(INT("0x1A"), 0d26))
-ASSERT(EQ(INT(""), 0d0))
-ASSERT(EQ(INT("prefix"), 0d1))

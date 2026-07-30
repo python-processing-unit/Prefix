@@ -1,6 +1,0 @@
-FLT result_root_normal = FROOT(0d16.0, 0d2.0)
-ASSERT(EQ(result_root_normal, 0d4.0))
-
-! FROOT positive example: cube root of 8.0 (merged from froot.pre)
-FLT result = FROOT(0d8.0, 0d3.0)
-ASSERT(EQ(result, 0d2.0))

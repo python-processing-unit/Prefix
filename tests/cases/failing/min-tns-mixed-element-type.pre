@@ -1,4 +1,0 @@
-! TNS arguments must share the same scalar element type per specification
-TNS a = [0d1]
-TNS b = ["x"]
-_ = MIN(a, b)

@@ -1,1 +1,0 @@
-ASSERT(EQ(DEEPCOPY(0d1.5), 0d1.5))

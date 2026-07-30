@@ -1,5 +1,0 @@
-INT c = 0d0
-WHILE(LT(c, 0d10)){
-    +(@c, 0d1)
-}
-ASSERT(EQ(c, 0d10))

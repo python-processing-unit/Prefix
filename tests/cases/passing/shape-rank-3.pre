@@ -1,3 +1,0 @@
-TNS cube = [[[0d1, 0d2]], [[0d3, 0d4]], [[0d5, 0d6]]]
-
-ASSERT(EQ(SHAPE(cube), [0d3, 0d1, 0d2]))

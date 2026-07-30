@@ -1,3 +1,0 @@
-! MATCH() with "match" subkey containing invalid metadata: unknown subkey
-! This should return false because "badkey" is unknown in match metadata
-REFUTE(MATCH(<"x" = 0d1>, <"match" = <"badkey" = 0d1>>))

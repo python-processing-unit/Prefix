@@ -1,0 +1,104 @@
+passing:
+  - name: scat-1d-basic
+    language: Prefix
+    source: |
+        TNS src = [0d9, 0d8]
+        TNS dst = [0d1, 0d2, 0d3, 0d4]
+        TNS out = SCAT(src, dst, [[0d2, 0d3]])
+        
+        ASSERT(EQ(TYPE(out), "TNS"))
+        ASSERT(EQ(out, [0d1, 0d9, 0d8, 0d4]))
+        ASSERT(EQ(dst, [0d1, 0d2, 0d3, 0d4]))
+        
+  - name: scat-2d-rect
+    language: Prefix
+    source: |
+        TNS src = [[0d7, 0d8], [0d9, 0d10]]
+        TNS dst = [[0d1, 0d2, 0d3], [0d4, 0d5, 0d6], [0d11, 0d12, 0d13]]
+        TNS out = SCAT(src, dst, [[0d2, 0d3], [0d1, 0d2]])
+        
+        ASSERT(EQ(out, [[0d1, 0d2, 0d3], [0d7, 0d8, 0d6], [0d9, 0d10, 0d13]]))
+        ASSERT(EQ(SHAPE(out), [0d3, 0d3]))
+        
+  - name: scat-3d-rect
+    language: Prefix
+    source: |
+        TNS src = [[[0d99, 0d98]], [[0d97, 0d96]]]
+        TNS dst = [[[0d1, 0d2], [0d3, 0d4]], [[0d5, 0d6], [0d7, 0d8]]]
+        TNS out = SCAT(src, dst, [[0d1, 0d2], [0d2, 0d2], [0d1, 0d2]])
+        
+        ASSERT(EQ(out, [[[0d1, 0d2], [0d99, 0d98]], [[0d5, 0d6], [0d97, 0d96]]]))
+        
+  - name: scat-inclusive-singleton
+    language: Prefix
+    source: |
+        TNS out = SCAT([0d55], [0d10, 0d20, 0d30], [[0d3, 0d3]])
+        
+        ASSERT(EQ(out, [0d10, 0d20, 0d55]))
+        
+failing:
+  - name: scat-arity-four
+    language: Prefix
+    source: |
+        SCAT([0d1], [0d2], [[0d1, 0d1]], [0d3])
+        
+  - name: scat-arity-two
+    language: Prefix
+    source: |
+        SCAT([0d1], [0d2])
+        
+  - name: scat-arity-zero
+    language: Prefix
+    source: |
+        SCAT()
+        
+  - name: scat-first-non-tns
+    language: Prefix
+    source: |
+        SCAT(0d1, [0d1, 0d2], [[0d1, 0d1]])
+        
+  - name: scat-ind-dim-count-mismatch
+    language: Prefix
+    source: |
+        SCAT([[0d9]], [[0d1, 0d2], [0d3, 0d4]], [[0d1, 0d1]])
+        
+  - name: scat-ind-pair-malformed
+    language: Prefix
+    source: |
+        SCAT([0d9], [0d1, 0d2], [[0d1]])
+        
+  - name: scat-out-of-range-high
+    language: Prefix
+    source: |
+        SCAT([0d9], [0d1, 0d2, 0d3], [[0d3, 0d4]])
+        
+  - name: scat-out-of-range-low
+    language: Prefix
+    source: |
+        SCAT([0d9], [0d1, 0d2, 0d3], [[0d0, 0d1]])
+        
+  - name: scat-pointer-writeback
+    language: Prefix
+    source: |
+        // SCAT should write back to destination pointer operands.
+        TNS dst1 = [0d1, 0d2, 0d3]
+        TNS src1 = [0d9]
+        TNS ind1 = [[0d2, 0d2]]
+        SCAT(@dst1, src1, ind1)
+        ASSERT(EQ(dst1, [0d1, 0d9, 0d3]))
+        
+  - name: scat-second-non-tns
+    language: Prefix
+    source: |
+        SCAT([0d1], 0d2, [[0d1, 0d1]])
+        
+  - name: scat-shape-mismatch
+    language: Prefix
+    source: |
+        SCAT([0d9], [0d1, 0d2, 0d3], [[0d1, 0d2]])
+        
+  - name: scat-third-non-tns
+    language: Prefix
+    source: |
+        SCAT([0d1], [0d1, 0d2], 0d1)
+        

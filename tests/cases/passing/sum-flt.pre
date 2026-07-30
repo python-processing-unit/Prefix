@@ -1,3 +1,0 @@
-! SUM with two FLT arguments
-FLT result = SUM(0d1.5, 0d2.5)
-ASSERT(EQ(result, 0d4.0))

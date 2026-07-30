@@ -1,8 +1,0 @@
-MAP source = <"plain" = 0d2, "nested" = <"value" = 0d3>>
-MAP copied = COPY(@source)
-
-copied<"plain"> = 0d9
-ASSERT(EQ(source<"plain">, 0d2))
-
-copied<"nested", "value"> = 0d8
-ASSERT(EQ(source<"nested", "value">, 0d8))

@@ -1,3 +1,0 @@
-INT marker = 0d1
-RUN("")
-ASSERT(EQ(marker, 0d1))

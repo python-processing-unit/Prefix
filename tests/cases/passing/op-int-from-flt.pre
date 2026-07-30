@@ -1,2 +1,0 @@
-ASSERT(EQ(INT(0b1.1), 0d1))
-ASSERT(EQ(INT(-0b1.1), -0d1))
