@@ -94,7 +94,7 @@ static SymbolThread *find_or_create_symbol_thread(NsBuffer *buf, const char *nam
 static void execute_op(NsOp *op) {
     switch (op->op) {
     case NS_OP_DEFINE:
-        op->result_ok = env_define_direct(op->env, op->name, op->decl_type, op->decl_base, op->template);
+        op->result_ok = env_define_direct(op->env, op->name, op->decl_type, op->decl_base, op->schema);
         break;
     case NS_OP_ASSIGN:
         op->result_ok =
@@ -401,15 +401,15 @@ static void free_op(NsOp *op) {
 /*  Public: buffered write entry points                                */
 /* ------------------------------------------------------------------ */
 
-bool ns_buffer_define(struct Env *env, const char *name, DeclType type, int base, Value template) {
+bool ns_buffer_define(struct Env *env, const char *name, DeclType type, int base, Value schema) {
     NsOp *op = make_op(NS_OP_DEFINE, env, name);
     op->decl_type = type;
     op->decl_base = base;
-    op->template = value_alias(template);
+    op->schema = value_alias(schema);
     enqueue_op(op);
     wait_op(op);
     bool r = op->result_ok;
-    value_free(op->template);
+    value_free(op->schema);
     free_op(op);
     return r;
 }

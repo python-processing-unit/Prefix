@@ -2029,20 +2029,20 @@ static void ser_env(JsonBuf *jb, SerCtx *ctx, Interpreter *interp, Env *env, Thr
     }
     jb_append_char(jb, '}');
 
-    /* Serialize MAP templates */
-    json_obj_field(jb, &def_first, "templates");
+    /* Serialize MAP schemas */
+    json_obj_field(jb, &def_first, "schemas");
     jb_append_char(jb, '{');
-    bool tmpl_first = true;
+    bool schema_first = true;
     for (size_t i = 0; i < env->count; i++) {
         EnvEntry *entry = &env->entries[i];
-        if (entry->decl_type == TYPE_MAP && entry->template.type == VAL_MAP) {
-            if (!tmpl_first) {
+        if (entry->decl_type == TYPE_MAP && entry->schema.type == VAL_MAP) {
+            if (!schema_first) {
                 jb_append_char(jb, ',');
             }
-            tmpl_first = false;
+            schema_first = false;
             jb_append_json_string(jb, entry->name);
             jb_append_char(jb, ':');
-            ser_value(jb, ctx, interp, entry->template);
+            ser_value(jb, ctx, interp, entry->schema);
         }
     }
     jb_append_char(jb, '}');
@@ -3560,17 +3560,17 @@ static Env *deser_env(JsonValue *obj, UnserCtx *ctx, Interpreter *interp, const 
             }
         }
 
-        /* Deserialize MAP templates */
-        JsonValue *templates = json_obj_get(def, "templates");
-        if (templates && templates->type == JSON_OBJ) {
-            for (size_t i = 0; i < templates->as.obj.count; i++) {
-                JsonPair *p = &templates->as.obj.items[i];
+        /* Deserialize MAP schemas */
+        JsonValue *schemas = json_obj_get(def, "schemas");
+        if (schemas && schemas->type == JSON_OBJ) {
+            for (size_t i = 0; i < schemas->as.obj.count; i++) {
+                JsonPair *p = &schemas->as.obj.items[i];
                 EnvEntry *entry = env_find_local_entry(env, p->key);
                 if (entry) {
-                    Value tmpl = deser_val(p->value, ctx, interp, err);
+                    Value s = deser_val(p->value, ctx, interp, err);
                     if (*err == NULL) {
-                        value_free(entry->template);
-                        entry->template = tmpl;
+                        value_free(entry->schema);
+                        entry->schema = s;
                     }
                 }
             }
@@ -8173,7 +8173,7 @@ static Value builtin_type(Interpreter *interp, Value *args, int argc, Expr **arg
 
 // Format a MAP value as its canonical literal form "<key = val, ...>"
 // Returns a newly allocated string that the caller must free.
-static char *map_template_to_str(Value v) {
+static char *map_schema_to_str(Value v) {
     if (v.type != VAL_MAP || !v.as.map) {
         return strdup("<>");
     }
@@ -8232,7 +8232,7 @@ static char *map_template_to_str(Value v) {
         } else if (val.type == VAL_BOOL) {
             jb_append_str(&jb, val.as.boolean ? "TRUE" : "FALSE");
         } else if (val.type == VAL_MAP) {
-            char *inner = map_template_to_str(val);
+            char *inner = map_schema_to_str(val);
             jb_append_str(&jb, inner);
             free(inner);
         } else {
@@ -8270,8 +8270,8 @@ static Value builtin_signature(Interpreter *interp, Value *args, int argc, Expr 
                 rname = "ANY";
             }
             strcat(buf, rname);
-            if (f->return_template_value.type == VAL_MAP) {
-                char *ts = map_template_to_str(f->return_template_value);
+            if (f->return_schema_value.type == VAL_MAP) {
+                char *ts = map_schema_to_str(f->return_schema_value);
                 strcat(buf, "{");
                 strcat(buf, ts);
                 strcat(buf, "}");
@@ -8294,8 +8294,8 @@ static Value builtin_signature(Interpreter *interp, Value *args, int argc, Expr 
                     strcat(buf, "~");
                 }
                 strcat(buf, tname);
-                if (f->param_template_values && f->param_template_values[i].type == VAL_MAP) {
-                    char *ts = map_template_to_str(f->param_template_values[i]);
+                if (f->param_schema_values && f->param_schema_values[i].type == VAL_MAP) {
+                    char *ts = map_schema_to_str(f->param_schema_values[i]);
                     strcat(buf, "{");
                     strcat(buf, ts);
                     strcat(buf, "}");
@@ -8361,29 +8361,29 @@ static Value builtin_signature(Interpreter *interp, Value *args, int argc, Expr 
     if (strcmp(tname, "UNKNOWN") == 0) {
         tname = "ANY";
     }
-    // Build template string for MAP if template is present
-    char *template_str = NULL;
-    if (entry->decl_type == TYPE_MAP && entry->template.type == VAL_MAP) {
-        char *inner = map_template_to_str(entry->template);
+    // Build schema string for MAP if schema is present
+    char *schema_str = NULL;
+    if (entry->decl_type == TYPE_MAP && entry->schema.type == VAL_MAP) {
+        char *inner = map_schema_to_str(entry->schema);
         size_t ilen = strlen(inner);
-        template_str = malloc(ilen + 3);
-        if (template_str) {
-            template_str[0] = '{';
-            memcpy(template_str + 1, inner, ilen);
-            template_str[1 + ilen] = '}';
-            template_str[2 + ilen] = '\0';
+        schema_str = malloc(ilen + 3);
+        if (schema_str) {
+            schema_str[0] = '{';
+            memcpy(schema_str + 1, inner, ilen);
+            schema_str[1 + ilen] = '}';
+            schema_str[2 + ilen] = '\0';
         }
         free(inner);
     }
-    const char *tmpl = template_str ? template_str : "";
-    size_t len = strlen(tname) + strlen(tmpl) + 2 + strlen(name) + 1;
+    const char *s = schema_str ? schema_str : "";
+    size_t len = strlen(tname) + strlen(s) + 2 + strlen(name) + 1;
     char *res = malloc(len + 1);
     if (!res) {
-        free(template_str);
+        free(schema_str);
         RUNTIME_ERROR(interp, "Out of memory", line, col);
     }
-    snprintf(res, len + 1, "%s%s %s", tname, tmpl, name);
-    free(template_str);
+    snprintf(res, len + 1, "%s%s %s", tname, s, name);
+    free(schema_str);
     Value out = value_str(res);
     free(res);
     return out;
@@ -9561,7 +9561,7 @@ static int match_map_internal(Map *m, Map *tpl, int typing, int recurse, int sha
             }
         }
         // recurse: if true and both are maps, apply recursively to the
-        // corresponding nested template map (not to unrelated nested maps).
+        // corresponding nested schema map (not to unrelated nested maps).
         if (recurse && mval.type == VAL_MAP && tval.type == VAL_MAP) {
             Map *mm = mval.as.map;
             Map *tt = tval.as.map;
@@ -9627,7 +9627,7 @@ static int match_read_metadata(Map *tpl, int *typing, int *recurse, int *shape, 
     return 1;
 }
 
-// MATCH(map, template, typing=0, recurse=0, shape=0):INT
+// MATCH(map, schema, typing=0, recurse=0, shape=0):INT
 static Value builtin_match(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
     (void)arg_nodes;
     (void)env;
@@ -9731,8 +9731,8 @@ static Value builtin_assign(Interpreter *interp, Value *args, int argc, Expr **a
         }
         if (!existing) {
             Value tmpl = value_null();
-            if (target->as.typed_ident.template_expr) {
-                tmpl = eval_expr(interp, target->as.typed_ident.template_expr, env);
+            if (target->as.typed_ident.schema_expr) {
+                tmpl = eval_expr(interp, target->as.typed_ident.schema_expr, env);
                 if (interp->error) {
                     char *err = interp->error;
                     int err_line = interp->error_line;
@@ -9743,7 +9743,7 @@ static Value builtin_assign(Interpreter *interp, Value *args, int argc, Expr **a
                 }
                 if (tmpl.type != VAL_MAP) {
                     value_free(tmpl);
-                    RUNTIME_ERROR(interp, "MAP template must evaluate to a MAP", line, col);
+                    RUNTIME_ERROR(interp, "MAP schema must evaluate to a MAP", line, col);
                 }
             }
             env_define(assign_env, name, expected, expected_base, tmpl);
@@ -11688,7 +11688,7 @@ static Value builtin_parallel(Interpreter *interp, Value *args, int argc, Expr *
 static const char *builtin_params_round[] = {"x", "ndigits", "mode"};
 static const char *builtin_params_bytes[] = {"x", "endian"};
 static const char *builtin_params_split[] = {"s", "delimiter"};
-static const char *builtin_params_match[] = {"value", "template", "typing", "recurse", "shape"};
+static const char *builtin_params_match[] = {"value", "schema", "typing", "recurse", "shape"};
 static const char *builtin_params_readfile[] = {"path", "coding"};
 static const char *builtin_params_writefile[] = {"data", "path", "coding"};
 static const char *builtin_params_pause[] = {"thr", "seconds"};

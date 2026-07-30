@@ -115,16 +115,16 @@ static Expr *parse_expression(Parser *parser);
 
 typedef struct {
     DeclType type;
-    int base;            // 0 = parent, 2..64 = named INT/FLT base
-    Expr *template_expr; // NEW: MAP template expression, NULL for non-MAP or bare MAP
-    Token end_tok;       // last token of the annotation (type name, closing '}', or closing brace)
+    int base;          // 0 = parent, 2..64 = named INT/FLT base
+    Expr *schema_expr; // NEW: MAP schema expression, NULL for non-MAP or bare MAP
+    Token end_tok;     // last token of the annotation (type name, closing '}', or closing brace)
 } TypeAnnotation;
 
 static TypeAnnotation parse_type_annotation(Parser *parser) {
     TypeAnnotation ta;
     ta.type = TYPE_UNKNOWN;
     ta.base = 0;
-    ta.template_expr = NULL;
+    ta.schema_expr = NULL;
     memset(&ta.end_tok, 0, sizeof(ta.end_tok));
     if (!is_type_token(parser->current_token.type)) {
         return ta;
@@ -164,18 +164,18 @@ static TypeAnnotation parse_type_annotation(Parser *parser) {
             advance(parser); // consume '}'
         }
     } else if (ta.type == TYPE_MAP && match(parser, TOKEN_LBRACE)) {
-        // Parse MAP template expression
+        // Parse MAP schema expression
         if (parser->current_token.type == TOKEN_RBRACE) {
-            report_error(parser, "MAP{} requires a template expression; use MAP without braces for bare MAP");
+            report_error(parser, "MAP{} requires a schema expression; use MAP without braces for bare MAP");
             ta.type = TYPE_UNKNOWN;
             return ta;
         }
-        ta.template_expr = parse_expression(parser);
-        if (!ta.template_expr) {
+        ta.schema_expr = parse_expression(parser);
+        if (!ta.schema_expr) {
             ta.type = TYPE_UNKNOWN;
             return ta;
         }
-        if (!consume(parser, TOKEN_RBRACE, "Expected '}' after MAP template")) {
+        if (!consume(parser, TOKEN_RBRACE, "Expected '}' after MAP schema")) {
             ta.type = TYPE_UNKNOWN;
             return ta;
         }
@@ -578,7 +578,7 @@ static bool starts_named_type_annotation(Parser *parser) {
         return true;
     }
     // Named number types: INT{base} or FLT{base} followed by a name
-    // MAP template: MAP{expr} followed by a name
+    // MAP schema: MAP{expr} followed by a name
     if (parser->next_token.type == TOKEN_LBRACE) {
         DeclType t = parse_type_name(parser->current_token.literal);
         if (t == TYPE_INT || t == TYPE_FLT || t == TYPE_MAP) {
@@ -596,7 +596,7 @@ static bool looks_like_func_definition(Parser *parser) {
         return true;
     }
     // Named number return type: FUNC INT{base} name(...)
-    // MAP template return type: FUNC MAP{expr} name(...)
+    // MAP schema return type: FUNC MAP{expr} name(...)
     if (parser->lookahead2_token.type == TOKEN_LBRACE) {
         DeclType t = parse_type_name(parser->next_token.literal);
         if (t == TYPE_INT || t == TYPE_FLT || t == TYPE_MAP) {
@@ -636,7 +636,7 @@ static bool parse_param_list(Parser *parser, ParamList *params) {
         param.name = parser->current_token.literal;
         param.coerced = coerced;
         param.default_value = NULL;
-        param.template_expr = ptype.template_expr;
+        param.schema_expr = ptype.schema_expr;
         advance(parser);
         if (match(parser, TOKEN_EQUALS)) {
             param.default_value = parse_expression(parser);
@@ -660,7 +660,7 @@ static Expr *parse_typed_ident_expr(Parser *parser) {
     }
     char *name = parser->current_token.literal;
     advance(parser);
-    return expr_typed_ident(ta.type, ta.base, name, ta.template_expr, type_tok.line, type_tok.column);
+    return expr_typed_ident(ta.type, ta.base, name, ta.schema_expr, type_tok.line, type_tok.column);
 }
 
 static Expr *parse_primary(Parser *parser) {
@@ -792,7 +792,7 @@ static Expr *parse_primary(Parser *parser) {
 
         consume(parser, TOKEN_RPAREN, "Expected ')' after parameters");
         Stmt *body = parse_block(parser);
-        return expr_lambda(params, ret.type, ret.base, ret.template_expr, body, lambda_tok.line, lambda_tok.column);
+        return expr_lambda(params, ret.type, ret.base, ret.schema_expr, body, lambda_tok.line, lambda_tok.column);
     }
     if (parser->current_token.type == TOKEN_IDENT) {
         Token idtok = parser->current_token;
@@ -1191,7 +1191,7 @@ static Stmt *parse_func(Parser *parser) {
     }
     consume(parser, TOKEN_RPAREN, "Expected ')' after parameters");
     Stmt *body = parse_block(parser);
-    Stmt *stmt = stmt_func(name, ret.type, ret.base, ret.template_expr, body, tok.line, tok.column);
+    Stmt *stmt = stmt_func(name, ret.type, ret.base, ret.schema_expr, body, tok.line, tok.column);
     stmt->as.func_stmt.params = params;
     return stmt;
 }
@@ -1294,7 +1294,7 @@ static Stmt *parse_statement(Parser *parser) {
                 if (!expr) {
                     return NULL;
                 }
-                return stmt_assign(true, ta.type, ta.base, NULL, base, expr, ta.template_expr, type_tok.line,
+                return stmt_assign(true, ta.type, ta.base, NULL, base, expr, ta.schema_expr, type_tok.line,
                                    type_tok.column);
             }
             report_error(parser, "Expected '=' after typed indexed target");
@@ -1306,10 +1306,10 @@ static Stmt *parse_statement(Parser *parser) {
             if (!expr) {
                 return NULL;
             }
-            return stmt_assign(true, ta.type, ta.base, name, NULL, expr, ta.template_expr, type_tok.line,
+            return stmt_assign(true, ta.type, ta.base, name, NULL, expr, ta.schema_expr, type_tok.line,
                                type_tok.column);
         }
-        return stmt_decl(ta.type, ta.base, name, ta.template_expr, type_tok.line, type_tok.column);
+        return stmt_decl(ta.type, ta.base, name, ta.schema_expr, type_tok.line, type_tok.column);
     }
     switch (parser->current_token.type) {
     case TOKEN_IF:
@@ -1450,10 +1450,10 @@ static Stmt *parse_statement(Parser *parser) {
             if (!expr) {
                 return NULL;
             }
-            return stmt_assign(true, ta.type, ta.base, name, NULL, expr, ta.template_expr, type_tok.line,
+            return stmt_assign(true, ta.type, ta.base, name, NULL, expr, ta.schema_expr, type_tok.line,
                                type_tok.column);
         }
-        return stmt_decl(ta.type, ta.base, name, ta.template_expr, type_tok.line, type_tok.column);
+        return stmt_decl(ta.type, ta.base, name, ta.schema_expr, type_tok.line, type_tok.column);
     }
 
     if (parser->current_token.type == TOKEN_IDENT && parser->next_token.type == TOKEN_EQUALS) {
