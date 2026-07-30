@@ -61,7 +61,7 @@ Expr *expr_ident(char *name, int line, int column) {
     return expr;
 }
 
-Expr *expr_typed_ident(DeclType decl_type, int decl_base, char *name, Expr *template_expr, int line, int column) {
+Expr *expr_typed_ident(DeclType decl_type, int decl_base, char *name, Expr *schema_expr, int line, int column) {
     Expr *expr = ast_alloc(sizeof(Expr));
     expr->type = EXPR_TYPED_IDENT;
     expr->line = line;
@@ -69,7 +69,7 @@ Expr *expr_typed_ident(DeclType decl_type, int decl_base, char *name, Expr *temp
     expr->as.typed_ident.decl_type = decl_type;
     expr->as.typed_ident.decl_base = decl_base;
     expr->as.typed_ident.name = name;
-    expr->as.typed_ident.template_expr = template_expr;
+    expr->as.typed_ident.schema_expr = schema_expr;
     return expr;
 }
 
@@ -156,7 +156,7 @@ Expr *expr_fmt_str(ExprList parts, int line, int column) {
     return expr;
 }
 
-Expr *expr_lambda(ParamList params, DeclType return_type, int return_base, Expr *return_template_expr, Stmt *body,
+Expr *expr_lambda(ParamList params, DeclType return_type, int return_base, Expr *return_schema_expr, Stmt *body,
                   int line, int column) {
     Expr *expr = ast_alloc(sizeof(Expr));
     expr->type = EXPR_LAMBDA;
@@ -165,7 +165,7 @@ Expr *expr_lambda(ParamList params, DeclType return_type, int return_base, Expr 
     expr->as.lambda.params = params;
     expr->as.lambda.return_type = return_type;
     expr->as.lambda.return_base = return_base;
-    expr->as.lambda.return_template_expr = return_template_expr;
+    expr->as.lambda.return_schema_expr = return_schema_expr;
     expr->as.lambda.body = body;
     return expr;
 }
@@ -236,7 +236,7 @@ Stmt *stmt_expr(Expr *expr, int line, int column) {
 }
 
 Stmt *stmt_assign(bool has_type, DeclType decl_type, int decl_base, char *name, Expr *target, Expr *value,
-                  Expr *template_expr, int line, int column) {
+                  Expr *schema_expr, int line, int column) {
     Stmt *stmt = ast_alloc(sizeof(Stmt));
     stmt->type = STMT_ASSIGN;
     stmt->line = line;
@@ -247,11 +247,11 @@ Stmt *stmt_assign(bool has_type, DeclType decl_type, int decl_base, char *name, 
     stmt->as.assign.name = name;
     stmt->as.assign.target = target;
     stmt->as.assign.value = value;
-    stmt->as.assign.template_expr = template_expr;
+    stmt->as.assign.schema_expr = schema_expr;
     return stmt;
 }
 
-Stmt *stmt_decl(DeclType decl_type, int decl_base, char *name, Expr *template_expr, int line, int column) {
+Stmt *stmt_decl(DeclType decl_type, int decl_base, char *name, Expr *schema_expr, int line, int column) {
     Stmt *stmt = ast_alloc(sizeof(Stmt));
     stmt->type = STMT_DECL;
     stmt->line = line;
@@ -259,7 +259,7 @@ Stmt *stmt_decl(DeclType decl_type, int decl_base, char *name, Expr *template_ex
     stmt->as.decl.decl_type = decl_type;
     stmt->as.decl.decl_base = decl_base;
     stmt->as.decl.name = name;
-    stmt->as.decl.template_expr = template_expr;
+    stmt->as.decl.schema_expr = schema_expr;
     return stmt;
 }
 
@@ -305,8 +305,7 @@ Stmt *stmt_parfor(char *counter, Expr *target, Stmt *body, int line, int column)
     return stmt;
 }
 
-Stmt *stmt_func(char *name, DeclType ret, int return_base, Expr *return_template_expr, Stmt *body, int line,
-                int column) {
+Stmt *stmt_func(char *name, DeclType ret, int return_base, Expr *return_schema_expr, Stmt *body, int line, int column) {
     Stmt *stmt = ast_alloc(sizeof(Stmt));
     stmt->type = STMT_FUNC;
     stmt->line = line;
@@ -314,7 +313,7 @@ Stmt *stmt_func(char *name, DeclType ret, int return_base, Expr *return_template
     stmt->as.func_stmt.name = name;
     stmt->as.func_stmt.return_type = ret;
     stmt->as.func_stmt.return_base = return_base;
-    stmt->as.func_stmt.return_template_expr = return_template_expr;
+    stmt->as.func_stmt.return_schema_expr = return_schema_expr;
     stmt->as.func_stmt.body = body;
     return stmt;
 }
@@ -448,7 +447,7 @@ void free_expr(Expr *expr) {
         break;
     case EXPR_TYPED_IDENT:
         free(expr->as.typed_ident.name);
-        free_expr(expr->as.typed_ident.template_expr);
+        free_expr(expr->as.typed_ident.schema_expr);
         break;
     case EXPR_PTR:
         free(expr->as.ptr_name);
@@ -472,10 +471,10 @@ void free_expr(Expr *expr) {
         for (size_t i = 0; i < expr->as.lambda.params.count; i++) {
             free(expr->as.lambda.params.items[i].name);
             free_expr(expr->as.lambda.params.items[i].default_value);
-            free_expr(expr->as.lambda.params.items[i].template_expr);
+            free_expr(expr->as.lambda.params.items[i].schema_expr);
         }
         free(expr->as.lambda.params.items);
-        free_expr(expr->as.lambda.return_template_expr);
+        free_expr(expr->as.lambda.return_schema_expr);
         free_stmt(expr->as.lambda.body);
         break;
     case EXPR_FMT_STR:
@@ -523,11 +522,11 @@ void free_stmt(Stmt *stmt) {
             free_expr(stmt->as.assign.target);
         }
         free_expr(stmt->as.assign.value);
-        free_expr(stmt->as.assign.template_expr);
+        free_expr(stmt->as.assign.schema_expr);
         break;
     case STMT_DECL:
         free(stmt->as.decl.name);
-        free_expr(stmt->as.decl.template_expr);
+        free_expr(stmt->as.decl.schema_expr);
         break;
     case STMT_IF:
         free_expr(stmt->as.if_stmt.condition);
@@ -555,10 +554,10 @@ void free_stmt(Stmt *stmt) {
         for (size_t i = 0; i < stmt->as.func_stmt.params.count; i++) {
             free(stmt->as.func_stmt.params.items[i].name);
             free_expr(stmt->as.func_stmt.params.items[i].default_value);
-            free_expr(stmt->as.func_stmt.params.items[i].template_expr);
+            free_expr(stmt->as.func_stmt.params.items[i].schema_expr);
         }
         free(stmt->as.func_stmt.params.items);
-        free_expr(stmt->as.func_stmt.return_template_expr);
+        free_expr(stmt->as.func_stmt.return_schema_expr);
         free_stmt(stmt->as.func_stmt.body);
         break;
     case STMT_RETURN:

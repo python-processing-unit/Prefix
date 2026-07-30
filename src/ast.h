@@ -24,7 +24,7 @@ typedef struct Param {
     char *name;
     bool coerced;
     Expr *default_value; // optional
-    Expr *template_expr; // NEW: MAP template expression, NULL if none
+    Expr *schema_expr;   // NEW: MAP schema expression, NULL if none
 } Param;
 
 typedef struct ParamList {
@@ -79,7 +79,7 @@ struct Expr {
             DeclType decl_type;
             int decl_base; // 0 = parent INT/FLT, 2..64 = named base
             char *name;
-            Expr *template_expr; // NEW: MAP template expression, NULL if none
+            Expr *schema_expr; // NEW: MAP schema expression, NULL if none
         } typed_ident;
         struct {
             Expr *callee;
@@ -98,8 +98,8 @@ struct Expr {
         struct {
             ParamList params;
             DeclType return_type;
-            int return_base;            // 0 = parent INT/FLT, 2..64 = named base
-            Expr *return_template_expr; // NEW: MAP return template, NULL if none
+            int return_base;          // 0 = parent INT/FLT, 2..64 = named base
+            Expr *return_schema_expr; // NEW: MAP return schema, NULL if none
             Stmt *body;
         } lambda;
         ExprList tns_items;
@@ -164,13 +164,13 @@ struct Stmt {
             char *name;
             Expr *target;
             Expr *value;
-            Expr *template_expr; // NEW: MAP template expression, NULL if none
+            Expr *schema_expr; // NEW: MAP schema expression, NULL if none
         } assign;
         struct {
             DeclType decl_type;
             int decl_base; // 0 = parent INT/FLT, 2..64 = named base
             char *name;
-            Expr *template_expr; // NEW: MAP template expression, NULL if none
+            Expr *schema_expr; // NEW: MAP schema expression, NULL if none
         } decl;
         struct {
             Expr *condition;
@@ -197,8 +197,8 @@ struct Stmt {
             char *name;
             ParamList params;
             DeclType return_type;
-            int return_base;            // 0 = parent INT/FLT, 2..64 = named base
-            Expr *return_template_expr; // NEW: MAP return template, NULL if none
+            int return_base;          // 0 = parent INT/FLT, 2..64 = named base
+            Expr *return_schema_expr; // NEW: MAP return schema, NULL if none
             Stmt *body;
         } func_stmt;
         struct {
@@ -237,7 +237,7 @@ Expr *expr_flt(double value, int base, int base_is_nan, int line, int column);
 Expr *expr_str(char *value, int line, int column);
 Expr *expr_ptr(char *name, int line, int column);
 Expr *expr_ident(char *name, int line, int column);
-Expr *expr_typed_ident(DeclType decl_type, int decl_base, char *name, Expr *template_expr, int line, int column);
+Expr *expr_typed_ident(DeclType decl_type, int decl_base, char *name, Expr *schema_expr, int line, int column);
 Expr *expr_call(Expr *callee, int line, int column);
 void call_kw_add(Expr *call, char *name, Expr *value);
 Expr *expr_tns(int line, int column);
@@ -246,7 +246,7 @@ Expr *expr_map(int line, int column);
 Expr *expr_index(Expr *target, int line, int column, bool is_map);
 Expr *expr_range(Expr *start, Expr *end, int line, int column);
 Expr *expr_wildcard(int line, int column);
-Expr *expr_lambda(ParamList params, DeclType return_type, int return_base, Expr *return_template_expr, Stmt *body,
+Expr *expr_lambda(ParamList params, DeclType return_type, int return_base, Expr *return_schema_expr, Stmt *body,
                   int line, int column);
 Expr *expr_fmt_str(ExprList parts, int line, int column);
 void expr_list_add(ExprList *list, Expr *expr);
@@ -255,14 +255,13 @@ Stmt *stmt_block(int line, int column);
 Stmt *stmt_async(Stmt *body, int line, int column);
 Stmt *stmt_expr(Expr *expr, int line, int column);
 Stmt *stmt_assign(bool has_type, DeclType decl_type, int decl_base, char *name, Expr *target, Expr *value,
-                  Expr *template_expr, int line, int column);
-Stmt *stmt_decl(DeclType decl_type, int decl_base, char *name, Expr *template_expr, int line, int column);
+                  Expr *schema_expr, int line, int column);
+Stmt *stmt_decl(DeclType decl_type, int decl_base, char *name, Expr *schema_expr, int line, int column);
 Stmt *stmt_if(Expr *cond, Stmt *then_branch, int line, int column);
 Stmt *stmt_while(Expr *cond, Stmt *body, int line, int column);
 Stmt *stmt_for(char *counter, Expr *target, Stmt *body, int line, int column);
 Stmt *stmt_parfor(char *counter, Expr *target, Stmt *body, int line, int column);
-Stmt *stmt_func(char *name, DeclType ret, int return_base, Expr *return_template_expr, Stmt *body, int line,
-                int column);
+Stmt *stmt_func(char *name, DeclType ret, int return_base, Expr *return_schema_expr, Stmt *body, int line, int column);
 Stmt *stmt_return(Expr *value, int line, int column);
 Stmt *stmt_pop(Expr *expr, int line, int column);
 Stmt *stmt_break(Expr *value, int line, int column);

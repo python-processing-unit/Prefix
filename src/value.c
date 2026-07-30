@@ -1090,7 +1090,7 @@ static Value value_map_get_locked(Value mapval, Value key, int *found) {
 }
 
 // Minimal match implementation for env-check path (defaults: typing=0, recurse=0, shape=0).
-// Supports "match" metadata override from the template.
+// Supports "match" metadata override from the schema.
 // Thread-safe: acquires locks on both maps during comparison.
 bool value_map_matches(Value map, Value templ) {
     if (map.type != VAL_MAP || templ.type != VAL_MAP) {

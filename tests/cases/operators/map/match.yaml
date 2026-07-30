@@ -14,51 +14,51 @@ passing:
     language: Prefix
     source: |
         MAP typed_candidate = <"value" = 0d1, "other" = "text">
-        MAP typed_template = <"match" = <"typing" = 0d1>, "value" = 0d1>
-        MAP typed_mismatch_template = <"match" = <"typing" = 0d1>, "value" = "ignored">
+        MAP typed_schema = <"match" = <"typing" = 0d1>, "value" = 0d1>
+        MAP typed_mismatch_schema = <"match" = <"typing" = 0d1>, "value" = "ignored">
         
         MAP missing_candidate = <"outer" = <"present" = 0d1>>
-        MAP missing_template = <"match" = <"recurse" = 0d1>, "outer" = <"missing" = 0d1>>
+        MAP missing_schema = <"match" = <"recurse" = 0d1>, "outer" = <"missing" = 0d1>>
         
         MAP shape_candidate = <"tensor" = [[0d1, 0d2], [0d3, 0d4]]>
-        MAP shape_template = <"match" = <"shape" = 0d1>, "tensor" = [0d9, 0d8, 0d7, 0d6]>
+        MAP shape_schema = <"match" = <"shape" = 0d1>, "tensor" = [0d9, 0d8, 0d7, 0d6]>
         
         MAP explicit_typing_candidate = <"value" = 0d1>
-        MAP explicit_typing_template = <"match" = <"typing" = 0d1>, "value" = "ignored">
+        MAP explicit_typing_schema = <"match" = <"typing" = 0d1>, "value" = "ignored">
         
         MAP explicit_recurse_candidate = <"outer" = <"present" = 0d1>>
-        MAP explicit_recurse_template = <"match" = <"recurse" = 0d1>, "outer" = <"missing" = 0d1>>
+        MAP explicit_recurse_schema = <"match" = <"recurse" = 0d1>, "outer" = <"missing" = 0d1>>
         
         MAP explicit_shape_candidate = <"tensor" = [[0d1, 0d2], [0d3, 0d4]]>
-        MAP explicit_shape_template = <"match" = <"shape" = 0d1>, "tensor" = [0d9, 0d8, 0d7, 0d6]>
+        MAP explicit_shape_schema = <"match" = <"shape" = 0d1>, "tensor" = [0d9, 0d8, 0d7, 0d6]>
         
         MAP nested_candidate = <"outer" = <"value" = 0d1>>
-        MAP nested_template = <"outer" = <"match" = <"typing" = 0d1>, "value" = 0d1>>
-        MAP nested_mismatch_template = <"outer" = <"match" = <"typing" = 0d1>, "value" = "ignored">>
+        MAP nested_schema = <"outer" = <"match" = <"typing" = 0d1>, "value" = 0d1>>
+        MAP nested_mismatch_schema = <"outer" = <"match" = <"typing" = 0d1>, "value" = "ignored">>
         
         MAP normal_match_candidate = <"match" = "same", "other" = 0d1>
-        MAP normal_match_template = <"match" = "same">
+        MAP normal_match_schema = <"match" = "same">
         
-        ASSERT(MATCH(typed_candidate, typed_template))
-        REFUTE(MATCH(typed_candidate, typed_mismatch_template))
+        ASSERT(MATCH(typed_candidate, typed_schema))
+        REFUTE(MATCH(typed_candidate, typed_mismatch_schema))
         ASSERT(MATCH(typed_candidate, <"match" = <"typing" = 0d0>, "value" = "ignored">))
-        REFUTE(MATCH(missing_candidate, missing_template))
-        REFUTE(MATCH(shape_candidate, shape_template))
+        REFUTE(MATCH(missing_candidate, missing_schema))
+        REFUTE(MATCH(shape_candidate, shape_schema))
         
-        ASSERT(MATCH(explicit_typing_candidate, explicit_typing_template, typing = 0d0))
-        REFUTE(MATCH(explicit_typing_candidate, explicit_typing_template, typing = 0d1))
-        ASSERT(MATCH(explicit_recurse_candidate, explicit_recurse_template, recurse = 0d0))
-        REFUTE(MATCH(explicit_recurse_candidate, explicit_recurse_template, recurse = 0d1))
-        ASSERT(MATCH(explicit_shape_candidate, explicit_shape_template, shape = 0d0))
-        REFUTE(MATCH(explicit_shape_candidate, explicit_shape_template, shape = 0d1))
+        ASSERT(MATCH(explicit_typing_candidate, explicit_typing_schema, typing = 0d0))
+        REFUTE(MATCH(explicit_typing_candidate, explicit_typing_schema, typing = 0d1))
+        ASSERT(MATCH(explicit_recurse_candidate, explicit_recurse_schema, recurse = 0d0))
+        REFUTE(MATCH(explicit_recurse_candidate, explicit_recurse_schema, recurse = 0d1))
+        ASSERT(MATCH(explicit_shape_candidate, explicit_shape_schema, shape = 0d0))
+        REFUTE(MATCH(explicit_shape_candidate, explicit_shape_schema, shape = 0d1))
         
-        ASSERT(MATCH(nested_candidate, nested_template, recurse = 0d1))
-        REFUTE(MATCH(nested_candidate, nested_mismatch_template, recurse = 0d1))
-        ASSERT(MATCH(nested_candidate, nested_mismatch_template, recurse = 0d1, typing = 0d0))
-        ASSERT(MATCH(nested_candidate, nested_mismatch_template, recurse = 0d0))
+        ASSERT(MATCH(nested_candidate, nested_schema, recurse = 0d1))
+        REFUTE(MATCH(nested_candidate, nested_mismatch_schema, recurse = 0d1))
+        ASSERT(MATCH(nested_candidate, nested_mismatch_schema, recurse = 0d1, typing = 0d0))
+        ASSERT(MATCH(nested_candidate, nested_mismatch_schema, recurse = 0d0))
         
-        ASSERT(MATCH(normal_match_candidate, normal_match_template))
-        REFUTE(MATCH(<"other" = 0d1>, normal_match_template))
+        ASSERT(MATCH(normal_match_candidate, normal_match_schema))
+        REFUTE(MATCH(<"other" = 0d1>, normal_match_schema))
         
         REFUTE(MATCH(<>, <"match" = "not metadata">))
         REFUTE(MATCH(<>, <"match" = <"typing" = "bad">>))
@@ -70,24 +70,24 @@ passing:
     language: Prefix
     source: |
         MAP missing_candidate = <"outer" = <"present" = 0d1>>
-        MAP missing_template = <"outer" = <"missing" = 0d1>>
+        MAP missing_schema = <"outer" = <"missing" = 0d1>>
         
         MAP type_candidate = <"outer" = <"value" = 0d1>>
-        MAP type_template = <"outer" = <"value" = "x">>
+        MAP type_schema = <"outer" = <"value" = "x">>
         
         MAP shape_candidate = <"outer" = <"tensor" = [[0d1, 0d2], [0d3, 0d4]]>>
-        MAP shape_template = <"outer" = <"tensor" = [0d9, 0d8, 0d7, 0d6]>>
+        MAP shape_schema = <"outer" = <"tensor" = [0d9, 0d8, 0d7, 0d6]>>
         
-        ASSERT(MATCH(missing_candidate, missing_template))
-        REFUTE(MATCH(missing_candidate, missing_template, recurse = 0d1))
+        ASSERT(MATCH(missing_candidate, missing_schema))
+        REFUTE(MATCH(missing_candidate, missing_schema, recurse = 0d1))
         
-        ASSERT(MATCH(type_candidate, type_template, typing = 0d1))
-        ASSERT(MATCH(type_candidate, type_template, recurse = 0d1))
-        REFUTE(MATCH(type_candidate, type_template, typing = 0d1, recurse = -0d1))
+        ASSERT(MATCH(type_candidate, type_schema, typing = 0d1))
+        ASSERT(MATCH(type_candidate, type_schema, recurse = 0d1))
+        REFUTE(MATCH(type_candidate, type_schema, typing = 0d1, recurse = -0d1))
         
-        ASSERT(MATCH(shape_candidate, shape_template, shape = 0d1))
-        ASSERT(MATCH(shape_candidate, shape_template, recurse = 0d1))
-        REFUTE(MATCH(shape_candidate, shape_template, shape = 0d1, recurse = 0d1))
+        ASSERT(MATCH(shape_candidate, shape_schema, shape = 0d1))
+        ASSERT(MATCH(shape_candidate, shape_schema, recurse = 0d1))
+        REFUTE(MATCH(shape_candidate, shape_schema, shape = 0d1, recurse = 0d1))
         
   - name: match-shape
     language: Prefix

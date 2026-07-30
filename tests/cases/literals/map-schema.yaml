@@ -1,49 +1,49 @@
 passing:
-  - name: map-template-assign-typed
+  - name: map-schema-assign-typed
     language: Prefix
     source: |
-        ! ASSIGN with typed ident + template
+        ! ASSIGN with typed ident + schema
         ASSIGN(MAP{<"count" = 0d0>} cnt, <"count" = 0d99>)
         ASSERT(ISMAP(cnt))
         ASSERT(EQ(cnt<"count">, 0d99))
-  - name: map-template-basic
+  - name: map-schema-basic
     language: Prefix
     source: |
         ! MAP{<"x" = 0d1>} with matching value
-        MAP{<"x" = 0d1>} template_var
-        template_var = <"x" = 0d42>
-        ASSERT(MATCH(template_var, <"x" = 0d1>))
-  - name: map-template-empty-key
+        MAP{<"x" = 0d1>} schema_var
+        schema_var = <"x" = 0d42>
+        ASSERT(MATCH(schema_var, <"x" = 0d1>))
+  - name: map-schema-empty-key
     language: Prefix
     source: |
-        ! MAP with a template having no keys
-        MAP{<>} template_var
-        template_var = <"anything" = 0d1>
-        ASSERT(ISMAP(template_var))
-  - name: map-template-func-param
+        ! MAP with a schema having no keys
+        MAP{<>} schema_var
+        schema_var = <"anything" = 0d1>
+        ASSERT(ISMAP(schema_var))
+  - name: map-schema-func-param
     language: Prefix
     source: |
-        ! MAP template in function parameter
+        ! MAP schema in function parameter
         FUNC MAP test(MAP{<"x" = 0d1>} m) {
             RETURN(m)
         }
         MAP candidate = <"x" = 0d5>
         MAP result = test(candidate)
         ASSERT(EQ(result<"x">, 0d5))
-  - name: map-template-func-return
+  - name: map-schema-func-return
     language: Prefix
     source: |
-        ! MAP template return type
+        ! MAP schema return type
         FUNC MAP{<"ok" = TRUE>} make_ok() {
             RETURN(<"ok" = TRUE>)
         }
         MAP result = make_ok()
         ASSERT(result<"ok">)
-  - name: map-template-match-builtin
+  - name: map-schema-match-builtin
     language: Prefix
     source: |
         ! MATCH() builtin with named MAP using "match" metadata subkey
-        ! The named MAP template's "match" subkey is ignored by env validation
+        ! The named MAP schema's "match" subkey is ignored by env validation
         ! But MATCH() recognizes it for typing/shape/recurse control
         MAP{<"val" = 0d1, "y" = 0d2, "match" = <"typing" = 0d1>>} var
         var = <"val" = 0d42, "y" = 0d99>
@@ -77,17 +77,17 @@ passing:
         var5 = <"match" = "regular", "x" = 0d99>
         ASSERT(MATCH(var5, <"match" = "regular", "x" = 0d1>))
         
-  - name: map-template-match-invalid-metadata
+  - name: map-schema-match-invalid-metadata
     language: Prefix
     source: |
         ! MATCH() with "match" subkey containing invalid metadata: unknown subkey
         ! This should return false because "badkey" is unknown in match metadata
         REFUTE(MATCH(<"x" = 0d1>, <"match" = <"badkey" = 0d1>>))
         
-  - name: map-template-match-key-allowed
+  - name: map-schema-match-key-allowed
     language: Prefix
     source: |
-        ! Named MAP template with "match" subkey is allowed (value_map_matches ignores it)
+        ! Named MAP schema with "match" subkey is allowed (value_map_matches ignores it)
         MAP{<"x" = 0d1, "match" = <"typing" = 0d1>>} has_match
         has_match = <"x" = 0d99>
         ASSERT(ISMAP(has_match))
@@ -108,73 +108,73 @@ passing:
         has_empty_match = <"c" = 0d7>
         ASSERT(EQ(has_empty_match<"c">, 0d7))
         
-        ! Verify "match" key in nested template
+        ! Verify "match" key in nested schema
         MAP{<"nested" = <"match" = <"typing" = 0d1>, "val" = 0d1>>} has_nested_match
         has_nested_match = <"nested" = <"val" = 0d5>>
         ASSERT(EQ(has_nested_match<"nested", "val">, 0d5))
         
-  - name: map-template-runtime-expr
+  - name: map-schema-runtime-expr
     language: Prefix
     source: |
-        ! Template expression that evaluates to a MAP at declaration time
+        ! Schema expression that evaluates to a MAP at declaration time
         MAP proto = <"a" = 0d1, "b" = 0d2>
         MAP{proto} shaped
         shaped = <"a" = 0d10, "b" = 0d20>
         ASSERT(MATCH(shaped, proto))
-  - name: map-template-signature
+  - name: map-schema-signature
     language: Prefix
     source: |
         ! SIGNATURE of named MAP variable
         MAP{<"x" = 0d1>} var = <"x" = 0d42>
         ASSERT(EQ(SIGNATURE(var), "MAP{<\"x\" = 0d1>} var"))
         
-        ! SIGNATURE of plain MAP variable (no template)
+        ! SIGNATURE of plain MAP variable (no schema)
         MAP plain = <"y" = 0d1>
         ASSERT(EQ(SIGNATURE(plain), "MAP plain"))
         
-        ! SIGNATURE of empty-template MAP variable
-        MAP{<>} empty_tmpl = <"anything" = 0d1>
-        ASSERT(EQ(SIGNATURE(empty_tmpl), "MAP{<>} empty_tmpl"))
+        ! SIGNATURE of empty-schema MAP variable
+        MAP{<>} empty_s = <"anything" = 0d1>
+        ASSERT(EQ(SIGNATURE(empty_s), "MAP{<>} empty_s"))
         
-        ! SIGNATURE of function with MAP return template
-        FUNC MAP{<"ok" = TRUE>} fn_ret_tmpl() {
+        ! SIGNATURE of function with MAP return schema
+        FUNC MAP{<"ok" = TRUE>} fn_ret_s() {
             RETURN(<"ok" = TRUE>)
         }
-        ASSERT(EQ(SIGNATURE(fn_ret_tmpl), "MAP{<\"ok\" = TRUE>} fn_ret_tmpl()"))
+        ASSERT(EQ(SIGNATURE(fn_ret_s), "MAP{<\"ok\" = TRUE>} fn_ret_s()"))
         
-        ! SIGNATURE of function with MAP param template
+        ! SIGNATURE of function with MAP param schema
         FUNC MAP process(MAP{<"a" = 0d1>} input) {
             RETURN(input)
         }
         ASSERT(EQ(SIGNATURE(process), "MAP process(MAP{<\"a\" = 0d1>} input)"))
         
-        ! SIGNATURE of function with both return and param templates
-        FUNC MAP{<"result" = 0d1>} full_tmpl(MAP{<"key" = "val">} m) {
+        ! SIGNATURE of function with both return and param schemas
+        FUNC MAP{<"result" = 0d1>} full_s(MAP{<"key" = "val">} m) {
             RETURN(<"result" = 0d1>)
         }
-        ASSERT(EQ(SIGNATURE(full_tmpl), "MAP{<\"result\" = 0d1>} full_tmpl(MAP{<\"key\" = \"val\">} m)"))
+        ASSERT(EQ(SIGNATURE(full_s), "MAP{<\"result\" = 0d1>} full_s(MAP{<\"key\" = \"val\">} m)"))
         
-        ! SIGNATURE of function with coerced param and template
+        ! SIGNATURE of function with coerced param and schema
         FUNC MAP full_coerce(~MAP{<"in" = 0d1>} m) {
             RETURN(m)
         }
         ASSERT(EQ(SIGNATURE(full_coerce), "MAP full_coerce(~MAP{<\"in\" = 0d1>} m)"))
         
 failing:
-  - name: map-template-arg-mismatch
+  - name: map-schema-arg-mismatch
     language: Prefix
     source: |
         FUNC MAP test(MAP{<"req" = 0d1>} m) {
             RETURN(m)
         }
         test(<"nope" = 0d1>)
-  - name: map-template-empty-braces
+  - name: map-schema-empty-braces
     language: Prefix
     source: 'MAP{} empty'
-  - name: map-template-match-key-required
+  - name: map-schema-match-key-required
     language: Prefix
     source: |
-        ! Named MAP template with "match" key as a regular literal (not metadata MAP)
+        ! Named MAP schema with "match" key as a regular literal (not metadata MAP)
         ! When "match"'s value is a STR (not a MAP), it's treated as a required key
         MAP{<"x" = 0d1, "match" = "literal">} has_literal_match
         ! This should pass: "match" = "literal" is a regular required key
@@ -187,39 +187,39 @@ failing:
         ! This should fail because "match" key is missing
         needs_match = <"y" = 0d99>
         
-  - name: map-template-mismatch
+  - name: map-schema-mismatch
     language: Prefix
     source: |
         MAP{<"x" = 0d1>} var
         var = <"y" = 0d2>
-  - name: map-template-not-map-func-param
+  - name: map-schema-not-map-func-param
     language: Prefix
     source: |
         FUNC MAP func_with_bad_param(MAP{0d1} p) { RETURN(p); }
         func_with_bad_param(<>)
         
-  - name: map-template-not-map-func-return
+  - name: map-schema-not-map-func-return
     language: Prefix
     source: |
         FUNC MAP{0d1} bad_func() { RETURN(<>); }
         bad_func()
         
-  - name: map-template-not-map-lambda-param
+  - name: map-schema-not-map-lambda-param
     language: Prefix
     source: |
         MAP g = FUNC MAP (MAP{0d1} p) { RETURN(p); }
         g(<>)
         
-  - name: map-template-not-map-lambda-return
+  - name: map-schema-not-map-lambda-return
     language: Prefix
     source: |
         MAP f = FUNC MAP{0d1} () { RETURN(<>); }
         f()
         
-  - name: map-template-not-map
+  - name: map-schema-not-map
     language: Prefix
     source: 'MAP{0d1} bad'
-  - name: map-template-return-mismatch
+  - name: map-schema-return-mismatch
     language: Prefix
     source: |
         FUNC MAP{<"x" = 0d1>} bad_return() { RETURN(<"y" = 0d2>); }

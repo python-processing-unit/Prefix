@@ -666,14 +666,13 @@ static void *safe_malloc(size_t size) {
     return ptr;
 }
 
-static Func *create_runtime_function(const char *name, DeclType return_type, int return_base,
-                                     Value return_template_value, ParamList *src_params, Value *param_template_values,
-                                     Stmt *body, Env *closure) {
+static Func *create_runtime_function(const char *name, DeclType return_type, int return_base, Value return_schema_value,
+                                     ParamList *src_params, Value *param_schema_values, Stmt *body, Env *closure) {
     Func *f = safe_malloc(sizeof(Func));
     f->name = name ? strdup(name) : NULL;
     f->return_type = return_type;
     f->return_base = return_base;
-    f->return_template_value = value_alias(return_template_value);
+    f->return_schema_value = value_alias(return_schema_value);
     f->body = body;
     f->params.count = src_params ? src_params->count : 0;
     f->params.items = NULL;
@@ -686,14 +685,14 @@ static Func *create_runtime_function(const char *name, DeclType return_type, int
             f->params.items[i].name = strdup(src_params->items[i].name);
             f->params.items[i].coerced = src_params->items[i].coerced;
             f->params.items[i].default_value = src_params->items[i].default_value;
-            f->params.items[i].template_expr = NULL;
+            f->params.items[i].schema_expr = NULL;
         }
     }
-    f->param_template_values = NULL;
-    if (param_template_values && src_params && src_params->count > 0) {
-        f->param_template_values = safe_malloc(sizeof(Value) * src_params->count);
+    f->param_schema_values = NULL;
+    if (param_schema_values && src_params && src_params->count > 0) {
+        f->param_schema_values = safe_malloc(sizeof(Value) * src_params->count);
         for (size_t i = 0; i < src_params->count; i++) {
-            f->param_template_values[i] = value_alias(param_template_values[i]);
+            f->param_schema_values[i] = value_alias(param_schema_values[i]);
         }
     }
     f->closure = closure;
@@ -708,12 +707,12 @@ static void free_runtime_function(Func *f) {
     if (f->name) {
         free(f->name);
     }
-    value_free(f->return_template_value);
-    if (f->param_template_values) {
+    value_free(f->return_schema_value);
+    if (f->param_schema_values) {
         for (size_t i = 0; i < f->params.count; i++) {
-            value_free(f->param_template_values[i]);
+            value_free(f->param_schema_values[i]);
         }
-        free(f->param_template_values);
+        free(f->param_schema_values);
     }
     for (size_t i = 0; i < f->params.count; i++) {
         free(f->params.items[i].name);
@@ -1372,62 +1371,62 @@ Value eval_expr(Interpreter *interp, Expr *expr, Env *env) {
             }
         }
 
-        // Evaluate return template and param templates
-        Value ret_tmpl = value_null();
-        if (expr->as.lambda.return_template_expr) {
-            ret_tmpl = eval_expr(interp, expr->as.lambda.return_template_expr, env);
+        // Evaluate return schema and param schemas
+        Value ret_schema = value_null();
+        if (expr->as.lambda.return_schema_expr) {
+            ret_schema = eval_expr(interp, expr->as.lambda.return_schema_expr, env);
             if (interp->error) {
-                value_free(ret_tmpl);
+                value_free(ret_schema);
                 return value_null();
             }
-            if (ret_tmpl.type != VAL_MAP) {
-                interp->error = strdup("MAP template must evaluate to a MAP");
+            if (ret_schema.type != VAL_MAP) {
+                interp->error = strdup("MAP schema must evaluate to a MAP");
                 interp->error_line = expr->line;
                 interp->error_col = expr->column;
-                value_free(ret_tmpl);
+                value_free(ret_schema);
                 return value_null();
             }
         }
         size_t nparams = expr->as.lambda.params.count;
-        Value *param_templates = NULL;
+        Value *param_schemas = NULL;
         if (nparams > 0) {
-            param_templates = safe_malloc(sizeof(Value) * nparams);
+            param_schemas = safe_malloc(sizeof(Value) * nparams);
             for (size_t pi = 0; pi < nparams; pi++) {
-                param_templates[pi] = value_null();
+                param_schemas[pi] = value_null();
                 Param *p = &expr->as.lambda.params.items[pi];
-                if (p->template_expr) {
-                    param_templates[pi] = eval_expr(interp, p->template_expr, env);
+                if (p->schema_expr) {
+                    param_schemas[pi] = eval_expr(interp, p->schema_expr, env);
                     if (interp->error) {
-                        value_free(ret_tmpl);
+                        value_free(ret_schema);
                         for (size_t j = 0; j <= pi; j++) {
-                            value_free(param_templates[j]);
+                            value_free(param_schemas[j]);
                         }
-                        free(param_templates);
+                        free(param_schemas);
                         return value_null();
                     }
-                    if (param_templates[pi].type != VAL_MAP) {
-                        interp->error = strdup("MAP template must evaluate to a MAP");
-                        interp->error_line = p->template_expr->line;
-                        interp->error_col = p->template_expr->column;
-                        value_free(ret_tmpl);
+                    if (param_schemas[pi].type != VAL_MAP) {
+                        interp->error = strdup("MAP schema must evaluate to a MAP");
+                        interp->error_line = p->schema_expr->line;
+                        interp->error_col = p->schema_expr->column;
+                        value_free(ret_schema);
                         for (size_t j = 0; j <= pi; j++) {
-                            value_free(param_templates[j]);
+                            value_free(param_schemas[j]);
                         }
-                        free(param_templates);
+                        free(param_schemas);
                         return value_null();
                     }
                 }
             }
         }
 
-        Func *f = create_runtime_function(NULL, expr->as.lambda.return_type, expr->as.lambda.return_base, ret_tmpl,
-                                          &expr->as.lambda.params, param_templates, expr->as.lambda.body, env);
-        value_free(ret_tmpl);
-        if (param_templates) {
+        Func *f = create_runtime_function(NULL, expr->as.lambda.return_type, expr->as.lambda.return_base, ret_schema,
+                                          &expr->as.lambda.params, param_schemas, expr->as.lambda.body, env);
+        value_free(ret_schema);
+        if (param_schemas) {
             for (size_t pi = 0; pi < nparams; pi++) {
-                value_free(param_templates[pi]);
+                value_free(param_schemas[pi]);
             }
-            free(param_templates);
+            free(param_schemas);
         }
         return value_func(f);
     }
@@ -2022,12 +2021,12 @@ Value eval_expr(Interpreter *interp, Expr *expr, Env *env) {
                 return value_null();
             }
 
-            // Template check for MAP-typed params
-            if (param->type == TYPE_MAP && user_func->param_template_values &&
-                user_func->param_template_values[i].type == VAL_MAP && bind_val.type == VAL_MAP) {
-                if (!value_map_matches(bind_val, user_func->param_template_values[i])) {
+            // Schema check for MAP-typed params
+            if (param->type == TYPE_MAP && user_func->param_schema_values &&
+                user_func->param_schema_values[i].type == VAL_MAP && bind_val.type == VAL_MAP) {
+                if (!value_map_matches(bind_val, user_func->param_schema_values[i])) {
                     char buf[128];
-                    snprintf(buf, sizeof(buf), "Template mismatch for parameter '%s'", param->name);
+                    snprintf(buf, sizeof(buf), "Schema mismatch for parameter '%s'", param->name);
                     interp->error = strdup(buf);
                     interp->error_line = expr->line;
                     interp->error_col = expr->column;
@@ -2185,12 +2184,12 @@ Value eval_expr(Interpreter *interp, Expr *expr, Env *env) {
                 value_free(res.value);
                 return value_null();
             }
-            // Template check on return value
-            if (user_func->return_type == TYPE_MAP && user_func->return_template_value.type == VAL_MAP &&
+            // Schema check on return value
+            if (user_func->return_type == TYPE_MAP && user_func->return_schema_value.type == VAL_MAP &&
                 res.value.type == VAL_MAP) {
-                if (!value_map_matches(res.value, user_func->return_template_value)) {
+                if (!value_map_matches(res.value, user_func->return_schema_value)) {
                     char buf[128];
-                    snprintf(buf, sizeof(buf), "Return template mismatch in function '%s'",
+                    snprintf(buf, sizeof(buf), "Return schema mismatch in function '%s'",
                              user_func->name ? user_func->name : "<lambda>");
                     interp->error = strdup(buf);
                     interp->error_line = expr->line;
@@ -3198,8 +3197,8 @@ static ExecResult exec_stmt(Interpreter *interp, Stmt *stmt, Env *env, LabelMap 
                 decl_env = env->parent;
             }
             Value tmpl = value_null();
-            if (stmt->as.decl.template_expr) {
-                tmpl = eval_expr(interp, stmt->as.decl.template_expr, env);
+            if (stmt->as.decl.schema_expr) {
+                tmpl = eval_expr(interp, stmt->as.decl.schema_expr, env);
                 if (interp->error) {
                     ExecResult err = make_error(interp->error, interp->error_line, interp->error_col);
                     clear_error(interp);
@@ -3208,7 +3207,7 @@ static ExecResult exec_stmt(Interpreter *interp, Stmt *stmt, Env *env, LabelMap 
                 }
                 if (tmpl.type != VAL_MAP) {
                     value_free(tmpl);
-                    return make_error("MAP template must evaluate to a MAP", stmt->line, stmt->column);
+                    return make_error("MAP schema must evaluate to a MAP", stmt->line, stmt->column);
                 }
             }
             env_define(decl_env, stmt->as.decl.name, stmt->as.decl.decl_type, stmt->as.decl.decl_base, tmpl);
@@ -3328,8 +3327,8 @@ static ExecResult exec_stmt(Interpreter *interp, Stmt *stmt, Env *env, LabelMap 
             }
             if (!existing) {
                 Value tmpl = value_null();
-                if (stmt->as.assign.template_expr) {
-                    tmpl = eval_expr(interp, stmt->as.assign.template_expr, env);
+                if (stmt->as.assign.schema_expr) {
+                    tmpl = eval_expr(interp, stmt->as.assign.schema_expr, env);
                     if (interp->error) {
                         ExecResult err = make_error(interp->error, interp->error_line, interp->error_col);
                         clear_error(interp);
@@ -3340,7 +3339,7 @@ static ExecResult exec_stmt(Interpreter *interp, Stmt *stmt, Env *env, LabelMap 
                     if (tmpl.type != VAL_MAP) {
                         value_free(v);
                         value_free(tmpl);
-                        return make_error("MAP template must evaluate to a MAP", stmt->line, stmt->column);
+                        return make_error("MAP schema must evaluate to a MAP", stmt->line, stmt->column);
                     }
                 }
                 env_define(assign_env, stmt->as.assign.name, expected, expected_base, tmpl);
@@ -3358,8 +3357,8 @@ static ExecResult exec_stmt(Interpreter *interp, Stmt *stmt, Env *env, LabelMap 
                         value_free(v);
                         return make_error(buf, stmt->line, stmt->column);
                     }
-                    if (echeck->decl_type == TYPE_MAP && echeck->template.type == VAL_MAP && v.type == VAL_MAP) {
-                        snprintf(buf, sizeof(buf), "Map template mismatch for variable '%s'", stmt->as.assign.name);
+                    if (echeck->decl_type == TYPE_MAP && echeck->schema.type == VAL_MAP && v.type == VAL_MAP) {
+                        snprintf(buf, sizeof(buf), "Map schema mismatch for variable '%s'", stmt->as.assign.name);
                         value_free(v);
                         return make_error(buf, stmt->line, stmt->column);
                     }
@@ -3380,9 +3379,9 @@ static ExecResult exec_stmt(Interpreter *interp, Stmt *stmt, Env *env, LabelMap 
                         value_free(v);
                         return make_error(buf, stmt->line, stmt->column);
                     }
-                    if (echeck->decl_type == TYPE_MAP && echeck->template.type == VAL_MAP && v.type == VAL_MAP) {
+                    if (echeck->decl_type == TYPE_MAP && echeck->schema.type == VAL_MAP && v.type == VAL_MAP) {
                         char buf[256];
-                        snprintf(buf, sizeof(buf), "Map template mismatch for variable '%s'", stmt->as.assign.name);
+                        snprintf(buf, sizeof(buf), "Map schema mismatch for variable '%s'", stmt->as.assign.name);
                         value_free(v);
                         return make_error(buf, stmt->line, stmt->column);
                     }
@@ -3431,60 +3430,60 @@ static ExecResult exec_stmt(Interpreter *interp, Stmt *stmt, Env *env, LabelMap 
         }
 
         // Register user-defined function in the interpreter
-        Value ret_tmpl = value_null();
-        if (stmt->as.func_stmt.return_template_expr) {
-            ret_tmpl = eval_expr(interp, stmt->as.func_stmt.return_template_expr, env);
+        Value ret_schema = value_null();
+        if (stmt->as.func_stmt.return_schema_expr) {
+            ret_schema = eval_expr(interp, stmt->as.func_stmt.return_schema_expr, env);
             if (interp->error) {
                 ExecResult err = make_error(interp->error, interp->error_line, interp->error_col);
                 clear_error(interp);
-                value_free(ret_tmpl);
+                value_free(ret_schema);
                 return err;
             }
-            if (ret_tmpl.type != VAL_MAP) {
-                value_free(ret_tmpl);
-                return make_error("MAP template must evaluate to a MAP", stmt->line, stmt->column);
+            if (ret_schema.type != VAL_MAP) {
+                value_free(ret_schema);
+                return make_error("MAP schema must evaluate to a MAP", stmt->line, stmt->column);
             }
         }
         size_t nparams = stmt->as.func_stmt.params.count;
-        Value *param_templates = NULL;
+        Value *param_schemas = NULL;
         if (nparams > 0) {
-            param_templates = safe_malloc(sizeof(Value) * nparams);
+            param_schemas = safe_malloc(sizeof(Value) * nparams);
             for (size_t pi = 0; pi < nparams; pi++) {
-                param_templates[pi] = value_null();
+                param_schemas[pi] = value_null();
                 Param *p = &stmt->as.func_stmt.params.items[pi];
-                if (p->template_expr) {
-                    param_templates[pi] = eval_expr(interp, p->template_expr, env);
+                if (p->schema_expr) {
+                    param_schemas[pi] = eval_expr(interp, p->schema_expr, env);
                     if (interp->error) {
                         ExecResult err = make_error(interp->error, interp->error_line, interp->error_col);
                         clear_error(interp);
-                        value_free(ret_tmpl);
+                        value_free(ret_schema);
                         for (size_t j = 0; j <= pi; j++) {
-                            value_free(param_templates[j]);
+                            value_free(param_schemas[j]);
                         }
-                        free(param_templates);
+                        free(param_schemas);
                         return err;
                     }
-                    if (param_templates[pi].type != VAL_MAP) {
-                        value_free(ret_tmpl);
+                    if (param_schemas[pi].type != VAL_MAP) {
+                        value_free(ret_schema);
                         for (size_t j = 0; j <= pi; j++) {
-                            value_free(param_templates[j]);
+                            value_free(param_schemas[j]);
                         }
-                        free(param_templates);
-                        return make_error("MAP template must evaluate to a MAP", p->template_expr->line,
-                                          p->template_expr->column);
+                        free(param_schemas);
+                        return make_error("MAP schema must evaluate to a MAP", p->schema_expr->line,
+                                          p->schema_expr->column);
                     }
                 }
             }
         }
         Func *f = create_runtime_function(stmt->as.func_stmt.name, stmt->as.func_stmt.return_type,
-                                          stmt->as.func_stmt.return_base, ret_tmpl, &stmt->as.func_stmt.params,
-                                          param_templates, stmt->as.func_stmt.body, env);
-        value_free(ret_tmpl);
-        if (param_templates) {
+                                          stmt->as.func_stmt.return_base, ret_schema, &stmt->as.func_stmt.params,
+                                          param_schemas, stmt->as.func_stmt.body, env);
+        value_free(ret_schema);
+        if (param_schemas) {
             for (size_t pi = 0; pi < nparams; pi++) {
-                value_free(param_templates[pi]);
+                value_free(param_schemas[pi]);
             }
-            free(param_templates);
+            free(param_schemas);
         }
 
         if (builtin_lookup(f->name)) {
