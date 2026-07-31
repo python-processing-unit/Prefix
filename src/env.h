@@ -29,6 +29,9 @@ typedef struct Env {
     size_t count;
     size_t capacity;
     int refcount;
+    EnvEntry **ht_slots;
+    size_t ht_capacity;
+    size_t ht_count;
 } Env;
 
 Env *env_create(Env *parent);
@@ -48,6 +51,9 @@ bool env_exists(Env *env, const char *name);
 // Caller must NOT free the returned pointer.
 // Returns NULL if not found.
 EnvEntry *env_get_entry(Env *env, const char *name);
+
+// Local lookup helper (O(1) with hash table, falls back to linear scan).
+EnvEntry *env_find_local(Env *env, const char *name);
 
 // Create or update an alias (pointer) binding: `name` will become an alias to `target_name`.
 // If declare_if_missing is true, `name` will be defined if absent. Returns true on success.

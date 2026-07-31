@@ -19,7 +19,78 @@
 #include <string.h>
 
 /* Forward declarations for local helpers used before their definitions. */
-static EnvEntry *env_find_local(Env *env, const char *name);
+
+/* ================================================================== */
+/*  Open-addressing hash table for O(1) local name lookup             */
+/* ================================================================== */
+
+#define ENV_HT_LOAD_NUM 7
+#define ENV_HT_LOAD_DEN 10
+
+static size_t env_hash_name(const char *name) {
+    size_t h = 5381;
+    int c;
+    while ((c = (unsigned char)*name++) != 0) {
+        h = ((h << 5) + h) ^ (size_t)c;
+    }
+    return h;
+}
+
+static void env_ht_rebuild(Env *env) {
+    size_t old_cap = env->ht_capacity;
+    EnvEntry **old_slots = env->ht_slots;
+    size_t new_cap = old_cap == 0 ? 8 : old_cap * 2;
+    env->ht_slots = calloc(new_cap, sizeof(EnvEntry *));
+    env->ht_capacity = new_cap;
+    env->ht_count = 0;
+    for (size_t i = 0; i < env->count; i++) {
+        EnvEntry *entry = &env->entries[i];
+        if (!entry->name) {
+            continue;
+        }
+        size_t mask = new_cap - 1;
+        size_t idx = env_hash_name(entry->name) & mask;
+        while (env->ht_slots[idx] != NULL) {
+            idx = (idx + 1) & mask;
+        }
+        env->ht_slots[idx] = entry;
+        env->ht_count++;
+    }
+    free(old_slots);
+}
+
+static void env_ht_insert(Env *env, EnvEntry *entry) {
+    if (env->ht_capacity == 0) {
+        size_t new_cap = 8;
+        env->ht_slots = calloc(new_cap, sizeof(EnvEntry *));
+        env->ht_capacity = new_cap;
+        env->ht_count = 0;
+    } else if (env->ht_count + 1 > env->ht_capacity * ENV_HT_LOAD_NUM / ENV_HT_LOAD_DEN) {
+        env_ht_rebuild(env);
+    }
+    size_t mask = env->ht_capacity - 1;
+    size_t idx = env_hash_name(entry->name) & mask;
+    while (env->ht_slots[idx] != NULL) {
+        idx = (idx + 1) & mask;
+    }
+    env->ht_slots[idx] = entry;
+    env->ht_count++;
+}
+
+static EnvEntry *env_ht_find(Env *env, const char *name) {
+    if (env->ht_capacity == 0) {
+        return NULL;
+    }
+    size_t mask = env->ht_capacity - 1;
+    size_t idx = env_hash_name(name) & mask;
+    while (env->ht_slots[idx] != NULL) {
+        if (strcmp(env->ht_slots[idx]->name, name) == 0) {
+            return env->ht_slots[idx];
+        }
+        idx = (idx + 1) & mask;
+    }
+    return NULL;
+}
 
 /* ================================================================== */
 /*  Thread-local snapshots for env_get_entry                           */
@@ -157,6 +228,7 @@ void env_free(Env *env) {
         }
     }
     free(env->entries);
+    free(env->ht_slots);
     free(env);
 }
 
@@ -164,7 +236,11 @@ void env_free(Env *env) {
 /*  Raw internal lookup helpers (no buffer interaction)                */
 /* ================================================================== */
 
-static EnvEntry *env_find_local(Env *env, const char *name) {
+EnvEntry *env_find_local(Env *env, const char *name) {
+    EnvEntry *entry = env_ht_find(env, name);
+    if (entry) {
+        return entry;
+    }
     for (size_t i = 0; i < env->count; i++) {
         if (strcmp(env->entries[i].name, name) == 0) {
             return &env->entries[i];
@@ -261,6 +337,7 @@ bool env_define_direct(Env *env, const char *name, DeclType type, int base, Valu
             exit(1);
         }
         env->capacity = new_cap;
+        env_ht_rebuild(env);
     }
     EnvEntry *entry = &env->entries[env->count++];
     entry->name = strdup(name);
@@ -273,6 +350,7 @@ bool env_define_direct(Env *env, const char *name, DeclType type, int base, Valu
     entry->alias_target = NULL;
     entry->alias_target_env = NULL;
     entry->value = value_null();
+    env_ht_insert(env, entry);
     return true;
 }
 
