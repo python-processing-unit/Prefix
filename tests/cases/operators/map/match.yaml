@@ -4,67 +4,67 @@ passing:
     source: |
         map candidate = <"alpha" = 0d1, "beta" = "dog">
         
-        ASSERT(MATCH(candidate, <>))
-        ASSERT(MATCH(candidate, <"alpha" = 0d99>))
-        ASSERT(MATCH(candidate, <"alpha" = "ignored", "beta" = 0d0>))
-        REFUTE(MATCH(candidate, <"gamma" = 0d0>))
-        ASSERT(EQ(TYPE(MATCH(candidate, <"alpha" = 0d0>)), "bool"))
+        ASSERT(VALIDATE(candidate, <>))
+        ASSERT(VALIDATE(candidate, <"alpha" = 0d99>))
+        ASSERT(VALIDATE(candidate, <"alpha" = "ignored", "beta" = 0d0>))
+        REFUTE(VALIDATE(candidate, <"gamma" = 0d0>))
+        ASSERT(EQ(TYPE(VALIDATE(candidate, <"alpha" = 0d0>)), "bool"))
         
   - name: match-metadata
     language: Prefix
     source: |
         map typed_candidate = <"value" = 0d1, "other" = "text">
-        map typed_schema = <"match" = <"typing" = 0d1>, "value" = 0d1>
-        map typed_mismatch_schema = <"match" = <"typing" = 0d1>, "value" = "ignored">
+        map typed_schema = <"validate" = <"typing" = 0d1>, "value" = 0d1>
+        map typed_mismatch_schema = <"validate" = <"typing" = 0d1>, "value" = "ignored">
         
         map missing_candidate = <"outer" = <"present" = 0d1>>
-        map missing_schema = <"match" = <"recurse" = 0d1>, "outer" = <"missing" = 0d1>>
+        map missing_schema = <"validate" = <"recurse" = 0d1>, "outer" = <"missing" = 0d1>>
         
         map shape_candidate = <"tensor" = [[0d1, 0d2], [0d3, 0d4]]>
-        map shape_schema = <"match" = <"shape" = 0d1>, "tensor" = [0d9, 0d8, 0d7, 0d6]>
+        map shape_schema = <"validate" = <"shape" = 0d1>, "tensor" = [0d9, 0d8, 0d7, 0d6]>
         
         map explicit_typing_candidate = <"value" = 0d1>
-        map explicit_typing_schema = <"match" = <"typing" = 0d1>, "value" = "ignored">
+        map explicit_typing_schema = <"validate" = <"typing" = 0d1>, "value" = "ignored">
         
         map explicit_recurse_candidate = <"outer" = <"present" = 0d1>>
-        map explicit_recurse_schema = <"match" = <"recurse" = 0d1>, "outer" = <"missing" = 0d1>>
+        map explicit_recurse_schema = <"validate" = <"recurse" = 0d1>, "outer" = <"missing" = 0d1>>
         
         map explicit_shape_candidate = <"tensor" = [[0d1, 0d2], [0d3, 0d4]]>
-        map explicit_shape_schema = <"match" = <"shape" = 0d1>, "tensor" = [0d9, 0d8, 0d7, 0d6]>
+        map explicit_shape_schema = <"validate" = <"shape" = 0d1>, "tensor" = [0d9, 0d8, 0d7, 0d6]>
         
         map nested_candidate = <"outer" = <"value" = 0d1>>
-        map nested_schema = <"outer" = <"match" = <"typing" = 0d1>, "value" = 0d1>>
-        map nested_mismatch_schema = <"outer" = <"match" = <"typing" = 0d1>, "value" = "ignored">>
+        map nested_schema = <"outer" = <"validate" = <"typing" = 0d1>, "value" = 0d1>>
+        map nested_mismatch_schema = <"outer" = <"validate" = <"typing" = 0d1>, "value" = "ignored">>
         
         map normal_match_candidate = <"match" = "same", "other" = 0d1>
         map normal_match_schema = <"match" = "same">
         
-        ASSERT(MATCH(typed_candidate, typed_schema))
-        REFUTE(MATCH(typed_candidate, typed_mismatch_schema))
-        ASSERT(MATCH(typed_candidate, <"match" = <"typing" = 0d0>, "value" = "ignored">))
-        REFUTE(MATCH(missing_candidate, missing_schema))
-        REFUTE(MATCH(shape_candidate, shape_schema))
+        ASSERT(VALIDATE(typed_candidate, typed_schema))
+        REFUTE(VALIDATE(typed_candidate, typed_mismatch_schema))
+        ASSERT(VALIDATE(typed_candidate, <"validate" = <"typing" = 0d0>, "value" = "ignored">))
+        REFUTE(VALIDATE(missing_candidate, missing_schema))
+        REFUTE(VALIDATE(shape_candidate, shape_schema))
         
-        ASSERT(MATCH(explicit_typing_candidate, explicit_typing_schema, typing = 0d0))
-        REFUTE(MATCH(explicit_typing_candidate, explicit_typing_schema, typing = 0d1))
-        ASSERT(MATCH(explicit_recurse_candidate, explicit_recurse_schema, recurse = 0d0))
-        REFUTE(MATCH(explicit_recurse_candidate, explicit_recurse_schema, recurse = 0d1))
-        ASSERT(MATCH(explicit_shape_candidate, explicit_shape_schema, shape = 0d0))
-        REFUTE(MATCH(explicit_shape_candidate, explicit_shape_schema, shape = 0d1))
+        ASSERT(VALIDATE(explicit_typing_candidate, explicit_typing_schema, typing = 0d0))
+        REFUTE(VALIDATE(explicit_typing_candidate, explicit_typing_schema, typing = 0d1))
+        ASSERT(VALIDATE(explicit_recurse_candidate, explicit_recurse_schema, recurse = 0d0))
+        REFUTE(VALIDATE(explicit_recurse_candidate, explicit_recurse_schema, recurse = 0d1))
+        ASSERT(VALIDATE(explicit_shape_candidate, explicit_shape_schema, shape = 0d0))
+        REFUTE(VALIDATE(explicit_shape_candidate, explicit_shape_schema, shape = 0d1))
         
-        ASSERT(MATCH(nested_candidate, nested_schema, recurse = 0d1))
-        REFUTE(MATCH(nested_candidate, nested_mismatch_schema, recurse = 0d1))
-        ASSERT(MATCH(nested_candidate, nested_mismatch_schema, recurse = 0d1, typing = 0d0))
-        ASSERT(MATCH(nested_candidate, nested_mismatch_schema, recurse = 0d0))
+        ASSERT(VALIDATE(nested_candidate, nested_schema, recurse = 0d1))
+        REFUTE(VALIDATE(nested_candidate, nested_mismatch_schema, recurse = 0d1))
+        ASSERT(VALIDATE(nested_candidate, nested_mismatch_schema, recurse = 0d1, typing = 0d0))
+        ASSERT(VALIDATE(nested_candidate, nested_mismatch_schema, recurse = 0d0))
         
-        ASSERT(MATCH(normal_match_candidate, normal_match_schema))
-        REFUTE(MATCH(<"other" = 0d1>, normal_match_schema))
+        ASSERT(VALIDATE(normal_match_candidate, normal_match_schema))
+        REFUTE(VALIDATE(<"other" = 0d1>, normal_match_schema))
         
-        REFUTE(MATCH(<>, <"match" = "not metadata">))
-        REFUTE(MATCH(<>, <"match" = <"typing" = "bad">>))
-        REFUTE(MATCH(<>, <"match" = <"unknown" = 0d1>>))
-        ASSERT(MATCH(<>, <"match" = <"typing" = -0d1>>))
-        ASSERT(MATCH(<>, <"match" = <>>))
+        REFUTE(VALIDATE(<>, <"match" = "not metadata">))
+        REFUTE(VALIDATE(<>, <"validate" = <"typing" = "bad">>))
+        REFUTE(VALIDATE(<>, <"validate" = <"unknown" = 0d1>>))
+        ASSERT(VALIDATE(<>, <"validate" = <"typing" = -0d1>>))
+        ASSERT(VALIDATE(<>, <"validate" = <>>))
         
   - name: match-recurse
     language: Prefix
@@ -78,135 +78,135 @@ passing:
         map shape_candidate = <"outer" = <"tensor" = [[0d1, 0d2], [0d3, 0d4]]>>
         map shape_schema = <"outer" = <"tensor" = [0d9, 0d8, 0d7, 0d6]>>
         
-        ASSERT(MATCH(missing_candidate, missing_schema))
-        REFUTE(MATCH(missing_candidate, missing_schema, recurse = 0d1))
+        ASSERT(VALIDATE(missing_candidate, missing_schema))
+        REFUTE(VALIDATE(missing_candidate, missing_schema, recurse = 0d1))
         
-        ASSERT(MATCH(type_candidate, type_schema, typing = 0d1))
-        ASSERT(MATCH(type_candidate, type_schema, recurse = 0d1))
-        REFUTE(MATCH(type_candidate, type_schema, typing = 0d1, recurse = -0d1))
+        ASSERT(VALIDATE(type_candidate, type_schema, typing = 0d1))
+        ASSERT(VALIDATE(type_candidate, type_schema, recurse = 0d1))
+        REFUTE(VALIDATE(type_candidate, type_schema, typing = 0d1, recurse = -0d1))
         
-        ASSERT(MATCH(shape_candidate, shape_schema, shape = 0d1))
-        ASSERT(MATCH(shape_candidate, shape_schema, recurse = 0d1))
-        REFUTE(MATCH(shape_candidate, shape_schema, shape = 0d1, recurse = 0d1))
+        ASSERT(VALIDATE(shape_candidate, shape_schema, shape = 0d1))
+        ASSERT(VALIDATE(shape_candidate, shape_schema, recurse = 0d1))
+        REFUTE(VALIDATE(shape_candidate, shape_schema, shape = 0d1, recurse = 0d1))
         
   - name: match-shape
     language: Prefix
     source: |
         map candidate = <"tensor" = [[0d1, 0d2], [0d3, 0d4]], "scalar" = 0d1>
         
-        ASSERT(MATCH(candidate, <"tensor" = [0d9, 0d8, 0d7, 0d6]>))
-        ASSERT(MATCH(candidate, <"tensor" = [[0d9, 0d8], [0d7, 0d6]]>, shape = 0d1))
-        REFUTE(MATCH(candidate, <"tensor" = [0d9, 0d8, 0d7, 0d6]>, shape = -0d1))
-        ASSERT(MATCH(candidate, <"scalar" = "different type">, shape = 0d1))
+        ASSERT(VALIDATE(candidate, <"tensor" = [0d9, 0d8, 0d7, 0d6]>))
+        ASSERT(VALIDATE(candidate, <"tensor" = [[0d9, 0d8], [0d7, 0d6]]>, shape = 0d1))
+        REFUTE(VALIDATE(candidate, <"tensor" = [0d9, 0d8, 0d7, 0d6]>, shape = -0d1))
+        ASSERT(VALIDATE(candidate, <"scalar" = "different type">, shape = 0d1))
         
   - name: match-typing
     language: Prefix
     source: |
         map candidate = <"value" = 0d1, "other" = "text">
         
-        ASSERT(MATCH(candidate, <"value" = "1">))
-        ASSERT(MATCH(candidate, <"value" = 0d99>, typing = 0d1))
-        ASSERT(MATCH(candidate, <"other" = "different">, typing = 0d7))
-        REFUTE(MATCH(candidate, <"value" = "1">, typing = -0d1))
+        ASSERT(VALIDATE(candidate, <"value" = "1">))
+        ASSERT(VALIDATE(candidate, <"value" = 0d99>, typing = 0d1))
+        ASSERT(VALIDATE(candidate, <"other" = "different">, typing = 0d7))
+        REFUTE(VALIDATE(candidate, <"value" = "1">, typing = -0d1))
         
 failing:
   - name: match-arity-one
     language: Prefix
     source: |
-        MATCH(<>)
+        VALIDATE(<>)
         
   - name: match-arity-six
     language: Prefix
     source: |
-        MATCH(<>, <>, 0d1, 0d1, 0d1, 0d1)
+        VALIDATE(<>, <>, 0d1, 0d1, 0d1, 0d1)
         
   - name: match-arity-zero
     language: Prefix
     source: |
-        MATCH()
+        VALIDATE()
         
   - name: match-first-bool
     language: Prefix
     source: |
-        MATCH(true, <>)
+        VALIDATE(true, <>)
         
   - name: match-first-flt
     language: Prefix
     source: |
-        MATCH(0d1.5, <>)
+        VALIDATE(0d1.5, <>)
         
   - name: match-first-func
     language: Prefix
     source: |
-        MATCH(LAMBDA int: (){}, <>)
+        VALIDATE(LAMBDA int: (){}, <>)
         
   - name: match-first-int
     language: Prefix
     source: |
-        MATCH(0d1, <>)
+        VALIDATE(0d1, <>)
         
   - name: match-first-str
     language: Prefix
     source: |
-        MATCH("map", <>)
+        VALIDATE("map", <>)
         
   - name: match-first-thr
     language: Prefix
     source: |
-        MATCH(async{}, <>)
+        VALIDATE(async{}, <>)
         
   - name: match-first-tns
     language: Prefix
     source: |
-        MATCH([0d1], <>)
+        VALIDATE([0d1], <>)
         
   - name: match-recurse-not-int
     language: Prefix
     source: |
-        MATCH(<>, <>, recurse = "1")
+        VALIDATE(<>, <>, recurse = "1")
         
   - name: match-second-bool
     language: Prefix
     source: |
-        MATCH(<>, true)
+        VALIDATE(<>, true)
         
   - name: match-second-flt
     language: Prefix
     source: |
-        MATCH(<>, 0d1.5)
+        VALIDATE(<>, 0d1.5)
         
   - name: match-second-func
     language: Prefix
     source: |
-        MATCH(<>, LAMBDA int: (){})
+        VALIDATE(<>, LAMBDA int: (){})
         
   - name: match-second-int
     language: Prefix
     source: |
-        MATCH(<>, 0d1)
+        VALIDATE(<>, 0d1)
         
   - name: match-second-str
     language: Prefix
     source: |
-        MATCH(<>, "map")
+        VALIDATE(<>, "map")
         
   - name: match-second-thr
     language: Prefix
     source: |
-        MATCH(<>, async{})
+        VALIDATE(<>, async{})
         
   - name: match-second-tns
     language: Prefix
     source: |
-        MATCH(<>, [0d1])
+        VALIDATE(<>, [0d1])
         
   - name: match-shape-not-int
     language: Prefix
     source: |
-        MATCH(<>, <>, shape = "1")
+        VALIDATE(<>, <>, shape = "1")
         
   - name: match-typing-not-int
     language: Prefix
     source: |
-        MATCH(<>, <>, typing = "1")
+        VALIDATE(<>, <>, typing = "1")
         
