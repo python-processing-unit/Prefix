@@ -1,40 +1,5 @@
 /* Centralized site CSS for Prefix documentation */
-/* Self-hosted fonts (local workspace) */
-@font-face {
-  font-family: 'Prefix Open Sans';
-  src: url('open-sans/OpenSans-Regular.ttf') format('truetype');
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
-@font-face {
-  font-family: 'Prefix Open Sans';
-  src: url('open-sans/OpenSans-Bold.ttf') format('truetype');
-  font-weight: 700;
-  font-style: normal;
-  font-display: swap;
-}
-@font-face {
-  font-family: 'Prefix Open Sans';
-  src: url('open-sans/OpenSans-Semibold.ttf') format('truetype');
-  font-weight: 600;
-  font-style: normal;
-  font-display: swap;
-}
-@font-face {
-  font-family: 'Prefix Open Sans';
-  src: url('open-sans/OpenSans-Italic.ttf') format('truetype');
-  font-weight: 400;
-  font-style: italic;
-  font-display: swap;
-}
-@font-face {
-  font-family: 'Prefix Open Sans';
-  src: url('open-sans/OpenSans-BoldItalic.ttf') format('truetype');
-  font-weight: 700;
-  font-style: italic;
-  font-display: swap;
-}
+@import url('https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,400;1,8..60,700&display=swap');
 
 @font-face {
   font-family: 'Prefix Source Code Pro';
@@ -44,11 +9,11 @@
   font-display: swap;
 }
 
-body{background:#222;color:#99ddff;font-family:'Prefix Open Sans', Open Sans, sans-serif;margin:0;padding:1rem}
+body{background:#222;color:#99ddff;font-family:'Source Serif 4', serif;font-size:18.5px;margin:0;padding:1rem}
 .container{max-width:1000px;margin:0 auto;text-align:justify;text-justify:inter-word}
+h1,h2,h3,h4,h5,h6{font-weight:600}
 .container h1{position:relative;text-align:center;margin-top:0;min-height:3rem;line-height:3rem;-webkit-font-smoothing: antialiased;-moz-osx-font-smoothing: grayscale;}
 .container h1 .grey{color:#3b3b3b}
-.container h1 .semibold{font-weight:600}
 .container.changelog h2{text-align: center}
 .title-icon{position:absolute;left:0;top:50%;transform:translateY(-50%);display:block;width:3rem;height:3rem}
 pre, code{background:#3c3c3c;color:inherit;font-family:'Prefix Source Code Pro', 'Source Code Pro', monospace;padding:.25rem .5rem}
