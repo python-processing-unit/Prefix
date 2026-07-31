@@ -1263,21 +1263,9 @@ static DeclType decl_type_from_name(const char *name) {
     return TYPE_UNKNOWN;
 }
 
-static EnvEntry *env_find_local_entry(Env *env, const char *name) {
-    if (!env || !name) {
-        return NULL;
-    }
-    for (size_t i = 0; i < env->count; i++) {
-        if (strcmp(env->entries[i].name, name) == 0) {
-            return &env->entries[i];
-        }
-    }
-    return NULL;
-}
-
 static Env *env_find_owner(Env *env, const char *name) {
     for (Env *e = env; e != NULL; e = e->parent) {
-        if (env_find_local_entry(e, name)) {
+        if (env_find_local(e, name)) {
             return e;
         }
     }
@@ -3514,7 +3502,7 @@ static Env *deser_env(JsonValue *obj, UnserCtx *ctx, Interpreter *interp, const 
             for (size_t i = 0; i < declared->as.obj.count; i++) {
                 JsonPair *p = &declared->as.obj.items[i];
                 DeclType dt = decl_type_from_name(p->value && p->value->type == JSON_STR ? p->value->as.str : NULL);
-                if (!env_find_local_entry(env, p->key)) {
+                if (!env_find_local(env, p->key)) {
                     env_define(env, p->key, dt, 0, value_null());
                 }
             }
@@ -3525,10 +3513,10 @@ static Env *deser_env(JsonValue *obj, UnserCtx *ctx, Interpreter *interp, const 
             for (size_t i = 0; i < values->as.obj.count; i++) {
                 JsonPair *p = &values->as.obj.items[i];
                 JsonValue *vv = p->value;
-                if (!env_find_local_entry(env, p->key)) {
+                if (!env_find_local(env, p->key)) {
                     env_define(env, p->key, TYPE_UNKNOWN, 0, value_null());
                 }
-                EnvEntry *entry = env_find_local_entry(env, p->key);
+                EnvEntry *entry = env_find_local(env, p->key);
                 if (vv && vv->type == JSON_OBJ) {
                     JsonValue *vt = json_obj_get(vv, "t");
                     if (vt && vt->type == JSON_STR && strcmp(vt->as.str, "PTR") == 0) {
@@ -3565,7 +3553,7 @@ static Env *deser_env(JsonValue *obj, UnserCtx *ctx, Interpreter *interp, const 
         if (schemas && schemas->type == JSON_OBJ) {
             for (size_t i = 0; i < schemas->as.obj.count; i++) {
                 JsonPair *p = &schemas->as.obj.items[i];
-                EnvEntry *entry = env_find_local_entry(env, p->key);
+                EnvEntry *entry = env_find_local(env, p->key);
                 if (entry) {
                     Value s = deser_val(p->value, ctx, interp, err);
                     if (*err == NULL) {
@@ -3581,10 +3569,10 @@ static Env *deser_env(JsonValue *obj, UnserCtx *ctx, Interpreter *interp, const 
             for (size_t i = 0; i < frozen->as.arr.count; i++) {
                 JsonValue *it = frozen->as.arr.items[i];
                 if (it && it->type == JSON_STR) {
-                    EnvEntry *e = env_find_local_entry(env, it->as.str);
+                    EnvEntry *e = env_find_local(env, it->as.str);
                     if (!e) {
                         env_define(env, it->as.str, TYPE_UNKNOWN, 0, value_null());
-                        e = env_find_local_entry(env, it->as.str);
+                        e = env_find_local(env, it->as.str);
                     }
                     if (e) {
                         e->frozen = true;
@@ -3598,10 +3586,10 @@ static Env *deser_env(JsonValue *obj, UnserCtx *ctx, Interpreter *interp, const 
             for (size_t i = 0; i < perma->as.arr.count; i++) {
                 JsonValue *it = perma->as.arr.items[i];
                 if (it && it->type == JSON_STR) {
-                    EnvEntry *e = env_find_local_entry(env, it->as.str);
+                    EnvEntry *e = env_find_local(env, it->as.str);
                     if (!e) {
                         env_define(env, it->as.str, TYPE_UNKNOWN, 0, value_null());
-                        e = env_find_local_entry(env, it->as.str);
+                        e = env_find_local(env, it->as.str);
                     }
                     if (e) {
                         e->permafrozen = true;
