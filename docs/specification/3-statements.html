@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Prefix Specification</title>
+  <link rel="icon" href="../icon.png" />
+  <link rel="stylesheet" href="../style.css" />
+</head>
+<body>
+  <div class="container" id="content">Rendering specification…</div>
+
+  <!-- Markdown source is embedded below. marked.js renders it; the TOC is auto-generated. -->
+  <script id="md" type="text/markdown">
+# <a href="../index.html"><img class="title-icon" alt="Prefix icon" src="../icon.png"></a> <span class="semibold">Pre<span class="grey">fix</span></span> Specification
+
+
+## 3. Statements
+
+A Prefix program MUST consist of zero or more statements separated by logical newlines. Each top-level expression statement or assignment MUST occupy its own logical line.
+
+---
+
+### 3.1 Blocks and statement forms
+
+Blocks MUST be enclosed in matching curly braces as `{ statement1 ... statementN }`. Blocks are used as the bodies of conditionals, loops, thread constructs, exception handlers, and function definitions.
+
+The core statement forms of the language MUST include typed declarations, assignments, expression statements, conditional execution, loops, asynchronous execution, exception handling, loop-control statements, and low-level jump statements.
+
+---
+
+### 3.2 Declarations and assignment
+
+A symbol MAY be declared without a value using `TYPE name`. Such a declaration records the symbol's static type but does not create a readable runtime binding until an assignment occurs. The type and name MUST be separated by one or more space characters, and no other character MAY appear between them.
+
+For `int` and `float` types, a declaration MAY name a specific numeric base by writing `TYPE{base} name`, where `base` is an `int` literal in the range `2` through `64`. A named-base type is a subtype of its parent numeric type: `int{base}` values are `int`s and `float{base}` values are `float`s, but an assignment to a named-base binding requires the value's base to match the declared base. The parent types `int` and `float` (equivalent to `int{0}` and `float{0}`) accept values of any valid numeric base.
+
+For `map` types, a declaration MAY specify a schema `map` by writing `map{schema} name`, where `schema` is any expression that evaluates to a `map`. A named-`map` type is a subtype of its parent `map` type: `map{schema}` values are `map`s, but an assignment to a named-`map` binding requires the assigned value to match the schema according to the default key-presence rules of the `MATCH` operator. The parent type `map` accepts any `map` value.
+
+The first assignment to a symbol MUST use a typed form such as `TYPE name = expression`, `TYPE{base} name = expression`, or `map{schema} name = expression`, with one or more spaces between the type annotation and the name and optional spaces around `=`. Subsequent assignments MAY omit the type annotation, but the symbol's type MUST remain unchanged for the lifetime of that name, including after deletion and re-assignment.
+
+Assignments to undeclared identifiers without a type annotation MUST raise a runtime error. A binding MUST remain allocated until it is deleted with `DEL("name")`.
+
+The built-in `ASSIGN(target, expression)` MUST provide expression-position assignment. The `target` MAY be a plain identifier or an indexed target. If the identifier does not yet exist, the typed form `ASSIGN(TYPE name, expression)` MUST be used, and that typed form is valid only for plain identifiers.
+
+Indexed assignment to a tensor MUST use the form `tensor[i1, i2, ..., iN] = expression`. The base symbol MUST already be a `tensor`, the index count MUST match the tensor rank, indices MUST follow the language's one-based and negative-index rules, and the assignment MUST preserve the static element type at the selected position.
+
+Indexed assignment to a map MUST use the same form as ordinary map access, such as `map<k1, k2> = expression`. Intermediate nested maps MUST be created on demand when assigning to deeper keys. Reassigning an existing key to a value of a different static type MUST raise a runtime error.
+
+If a tensor target uses slice indices such as `lo:hi` or `#`, the right-hand side MUST evaluate to a `tensor` whose shape exactly matches the selected slice, and every written element MUST satisfy the target's static type constraints.
+
+---
+
+### 3.3 Conditionals and conditions
+
+Conditional execution MUST use `if(condition){ ... }`, optionally followed by one or more `elseif(condition){ ... }` clauses and at most one trailing `else{ ... }` clause. An `elseif` or `else` MUST immediately follow a preceding `if` or `elseif`; otherwise it is a syntax error.
+
+The interpreter MUST evaluate the initial `if` condition first, then each `elseif` condition in order until one is truthy. If no earlier branch is taken and an `else` clause is present, its block MUST execute.
+
+Conditions MUST accept values of any type. When evaluating a condition, the runtime MUST coerce the value to its boolean representation according to that type's conversion rules (see [4](#4-types.html#4-types) for type-specific boolean semantics).
+
+---
+
+### 3.4 Exception handling
+
+Structured exception handling MUST use either `try{ ... }catch{ ... }` or `try{ ... }catch(SYMBOL name){ ... }`. A `try` block MUST be followed immediately by exactly one `catch` block, and a standalone `catch` is a syntax error.
+
+If the `try` block completes without a runtime error, the `catch` block MUST be skipped. If a runtime error occurs while executing the `try` block, execution of that block MUST stop and the matching `catch` block MUST execute.
+
+In the parameterized form, `catch(SYMBOL name)` MUST create a temporary `str` binding named `name` in the handler's lexical environment containing the triggering error message. That temporary binding MUST shadow any existing binding of the same name only for the duration of the `catch` block.
+
+`try` and `catch` MUST intercept interpreter-level errors. Errors raised inside `async` or other background execution contexts MUST be reported through the runtime's error-reporting mechanisms and MUST NOT synchronously transfer control to a surrounding `catch` block in another thread.
+
+---
+
+### 3.5 Loops
+
+`while(condition){ ... }` MUST repeatedly evaluate its condition before each iteration and MUST terminate when the condition becomes false.
+
+`for(counter, target){ ... }` MUST evaluate `target` exactly once at loop entry, require that value to be an `int`, initialize `counter` to `1`, and execute the body once for each value through `target`, inclusive. The loop counter MUST be loop-local and MUST NOT persist after the loop finishes, though other symbols declared in the body remain bound in the enclosing environment.
+
+`parfor(counter, target){ ... }` MUST evaluate `target` once, require an `int`, then execute the iterations `1..target` concurrently. The interpreter MUST wait for all iterations to finish before continuing. The loop counter is iteration-local and does not persist afterward, while other symbols declared in iteration bodies are merged back into the enclosing environment. Concurrent writes to shared identifiers are therefore race-prone, and the resulting value is implementation-defined.
+
+Runtime errors raised inside a `parfor` iteration MUST be collected and re-raised after all iterations have joined. `continue()` inside `parfor` MUST end only the current iteration. `break(n)` inside any `parfor` iteration MUST terminate the `parfor` as a whole by preventing new iterations from starting, waiting for in-flight iterations to finish, and then propagating the break to surrounding loop handlers.
+
+---
+
+### 3.6 Asynchronous execution and threads
+
+The statement form `async{ ... }` MUST start a background task that executes the enclosed block asynchronously relative to the main flow of execution while sharing the same lexical environment. Mutations performed inside the block are therefore visible to the rest of the program as they occur.
+
+When `async{ ... }` appears in statement position, its resulting `thread` handle is ignored. When it appears in expression position, it MUST evaluate to a `thread` handle. If that expression is supplied as an argument to an enclosing call expression, the runtime MUST defer starting the worker until the enclosing call expression has completed.
+
+The statement form `thread(symbol){ ... }` MUST create a background task and bind its handle to `symbol` with static type `thread` in the current environment.
+
+Runtime errors raised inside asynchronous execution MUST be recorded by the interpreter's error-reporting and state-logging mechanisms and MUST NOT synchronously abort the main thread.
+
+---
+
+### 3.7 Loop control and jumps
+
+`break(n)` MUST terminate the innermost `n` enclosing loops. The argument `n` MUST evaluate to a strictly positive integer. Using `break` outside a loop, passing `n <= 0`, or requesting more loop exits than are currently available MUST raise a runtime error.
+
+`continue()` MUST skip the remainder of the current iteration of the innermost enclosing loop and proceed to the next iteration. If no further iteration would occur, `continue()` MUST have the same effect as `break(1)`. Using `continue()` outside a loop MUST raise a runtime error.
+
+`gotopoint(n)` MUST register a jump target identified by the runtime value `n`, where `n` MAY be either `int` or `str`. Negative integer gotopoint identifiers are invalid.
+
+`goto(n)` MUST jump to a previously registered gotopoint with matching type and value. The jump target MUST be visible within the same containing function or top-level scope unless an implementation explicitly widens that scope. `goto` MAY jump either forward or backward. Jumping to an unregistered target MUST raise a runtime error.
+
+Implementations MUST record `break`, `continue`, `gotopoint`, and `goto` in the state log so deterministic replay and traceback generation remain possible.
+
+---
+
+  </script>
+
+  <script src="./index.js"></script>
+  <script src="../render-md.js"></script>
+</body>
+</html>

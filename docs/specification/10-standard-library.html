@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Prefix Specification</title>
+  <link rel="icon" href="../icon.png" />
+  <link rel="stylesheet" href="../style.css" />
+</head>
+<body>
+  <div class="container" id="content">Rendering specification…</div>
+
+  <!-- Markdown source is embedded below. marked.js renders it; the TOC is auto-generated. -->
+  <script id="md" type="text/markdown">
+# <a href="../index.html"><img class="title-icon" alt="Prefix icon" src="../icon.png"></a> <span class="semibold">Pre<span class="grey">fix</span></span> Specification
+
+
+## 10. Standard library
+
+The standard library is a set of packages and modules bundled with the interpreter that provide a set of common utilities.
+
+Bundled standard-library modules MUST live under `lib/std/`. User-installed modules and packages MUST live under `lib/usr/`. Module and package search paths used by `IMPORT` and `IMPORT_PATH` MUST consult `lib/std/` immediately before `lib/usr/`, so bundled modules are preferred over user-installed copies.
+
+Bundled extensions shipped with the interpreter MUST live under `ext/std/`. User-installed extensions MUST live under `ext/usr/`. Extension search paths MUST consult `ext/std/` immediately before `ext/usr/`, so bundled extensions are preferred over user-installed copies with the same name.
+
+At present, most of the standard library is not defined by the specification, and any reasonable set of standard utilities is acceptable for a conforming implementation. Backwards-incompatible changes to the standard library MUST NOT increment the major version number of the specification, unless the incompatible change is altering a behaviour defined in this specification.
+
+### 10.1 Path
+
+Path is a standard-library module that provides utilities for working with filesystem paths. It is implemented as a single module importable under the name `path`.
+
+#### 10.1.1 API
+
+- `str NORMALIZE_PATH(str path)` = Replace all backslashes in the path with forward slashes.
+- `str WINPATH(str path)` = Replace all forward slashes in the path with backslashes.
+- `str BASEPATH(str path)` = Return the directory part of the path, excluding the file name.
+- `str BASENAME(str path)` = Return the file name part of the path, excluding the directory.
+- `tensor SPLITEXT(str path)` = Split the path into a tensor containing the base name and the extension.
+- `str EXTNAME(str path)` = Return the file extension from the path, without the dot.
+- `str DELEXT(str path)` = Return the path without the file extension.
+- `str TEMPFILE(str prefix, str suffix)` = Modify the path to originate in the system's temporary directory.
+- `str interpreter` = The path to the Prefix interpreter executable.
+- `str interpreter_dir` = The directory containing the Prefix interpreter executable.
+- `str script` = The path to the currently executing script.
+- `str script_dir` = The directory containing the currently executing script.
+
+  
+  </script>
+
+  <script src="./index.js"></script>
+  <script src="../render-md.js"></script>
+</body>
+</html>

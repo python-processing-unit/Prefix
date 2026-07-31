@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Prefix Specification</title>
+  <link rel="icon" href="../icon.png" />
+  <link rel="stylesheet" href="../style.css" />
+</head>
+<body>
+  <div class="container" id="content">Rendering specification…</div>
+
+  <!-- Markdown source is embedded below. marked.js renders it; the TOC is auto-generated. -->
+  <script id="md" type="text/markdown">
+# <a href="../index.html"><img class="title-icon" alt="Prefix icon" src="../icon.png"></a> <span class="semibold">Pre<span class="grey">fix</span></span> Specification
+
+
+## 2. Lexical structure
+
+Source files MUST consist of ASCII characters. Non-ASCII characters MUST NOT appear in syntactic elements that enter the program namespace, such as identifiers.
+
+---
+
+### 2.1 Whitespace, comments, and logical lines
+
+Whitespace consists of the space character (`U+0020`), horizontal tab, carriage return, and line feed. Whitespace MAY appear freely between tokens and is otherwise ignored, except that logical newlines delimit top-level statements.
+
+Comments MUST begin with `!` and continue to the end of the current line. Comments have no effect on execution.
+
+The semicolon character (`;`) MUST act as a newline-token alias outside string literals. Each `;` therefore separates statements exactly as a physical newline would.
+
+The caret character (`^`) MUST act as a line-continuation marker when it is immediately followed by a newline or by a comment and that comment's terminating newline. In those cases the continuation marker and intervening text are ignored by the lexer. A caret inside a string literal has no continuation meaning. Any other use of `^` MUST raise a syntax error.
+
+---
+
+### 2.2 Tokens and reserved words
+
+The lexer MUST distinguish at least the following token classes: numeric literals, string literals, identifiers, keywords and built-ins, and delimiters. The base delimiters of the language are `(`, `)`, `{`, `}`, `[`, `]`, `<`, `>`, `,`, `:`, `=`, and `~`. The pointer marker `@` MUST be tokenized separately and MUST NOT be treated as part of an identifier.
+
+Keywords and built-in names MUST be matched case-sensitively and MUST be written in their canonical uppercase forms. If a reserved word is written in any other case, it MUST be tokenized as an identifier instead.
+
+The character `-` MUST introduce a negative numeric literal when it is followed, optionally after horizontal whitespace, by a `0`-prefixed numeric base marker. The exact spelling `-INF` MUST remain reserved for negative infinity, and the exact spelling `-NaN` MUST remain invalid. In all other cases, `-` MAY participate in identifiers subject to [2.3](#23-identifiers).
+
+The character `~` MUST be reserved for coerced function parameters and MUST NOT appear inside identifiers.
+
+---
+
+### 2.3 Identifiers
+
+Identifiers MUST be non-empty and case-sensitive. Variables and user-defined functions share a single flat namespace, so one name MUST NOT denote both a variable and a function. A user-defined function name MUST NOT conflict with any built-in operator or function name.
+
+Identifiers MUST NOT contain non-ASCII characters or any of the following characters: `{`, `}`, `[`, `]`, `(`, `)`, `=`, `,`, `!`, `~`, or `@`. The first character of an identifier MUST NOT be a decimal digit (`0`-`9`), and the first two characters of an identifier MUST NOT be `-0`.
+
+The first identifier character MAY be a letter `A-Z` or `a-z`, `*`, or one of `/`, `$`, `%`, `&`, `_`, `+`, `|`, `?`, or `-`. If the first identifier character is `-`, the second character MUST be valid as an opening character. Subsequent identifier characters MAY additionally include the decimal digits `0-9`, `*`, and `-`. The exact spelling `-INF` is reserved by [4.3.2](#4-types.html#432-special-values). This permissive ASCII-only character set preserves an unambiguous distinction between identifiers and numeric literals, which MUST begin with a decimal digit.
+
+---
+
+### 2.4 Pointer token
+
+The syntax `@name` MUST form a pointer literal, where `@` is a dedicated lexical token and `name` is an identifier resolved in the current lexical environment. Because `@` is a separate token, it MUST NOT appear inside identifier names.
+
+---
+
+  </script>
+
+  <script src="./index.js"></script>
+  <script src="../render-md.js"></script>
+</body>
+</html>

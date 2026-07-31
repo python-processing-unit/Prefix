@@ -1,0 +1,287 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Prefix Specification</title>
+  <link rel="icon" href="../icon.png" />
+  <link rel="stylesheet" href="../style.css" />
+</head>
+<body>
+  <div class="container" id="content">Rendering specification…</div>
+
+  <!-- Markdown source is embedded below. marked.js renders it; the TOC is auto-generated. -->
+  <script id="md" type="text/markdown">
+# <a href="../index.html"><img class="title-icon" alt="Prefix icon" src="../icon.png"></a> <span class="semibold">Pre<span class="grey">fix</span></span> Specification
+
+
+## 4. Types
+
+Prefix MUST support eight types: `bool` (booleans), `str` (strings), `int` (integers), `float` (floating-point numbers), `tensor` (tensors), `map` (maps), `func` (functions), and `thread` (threads). The type of a symbol is determined when it is first declared, and cannot be changed, even after deletion of the original symbol.
+
+`int` and `float` additionally support named-base variants written `int{base}` and `float{base}`, where `base` is a numeric base in the range `2` through `64` or `0` to denote the parent type. A named-base type and its parent are the same runtime type, but static type checking treats mismatched bases as incompatible. `int` and `float` (base `0`) accept any valid numeric base; `int{base}` and `float{base}` only accept values whose stored base equals the declared base.
+
+`map` additionally supports named-schema variants written `map{schema}`, where `schema` is any expression that evaluates to a `map`. A named-schema type and its parent are the same runtime type, but static type checking treats mismatched schemas as incompatible. `map` accepts any `map` value; `map{schema}` only accepts values whose entries satisfy the schema under the default key-presence rules of the `MATCH` operator. Named `map` types with different schemas are treated as distinct types.
+
+---
+
+### 4.0 Booleans
+
+`bool` MUST represent the two truth values of the language.
+
+---
+
+#### 4.0.1 Boolean literals
+
+The only `bool` literals are `TRUE` and `FALSE`.
+
+---
+
+#### 4.0.2 Boolean representation
+
+When a `bool` is used in a boolean context, `FALSE` MUST remain false and `TRUE` MUST remain true.
+
+When a `bool` is converted to `str`, `TRUE` MUST render as `TRUE` and `FALSE` MUST render as `FALSE`.
+
+---
+
+### 4.1 Strings
+
+`str` MUST consist of a sequence of Unicode characters.
+
+---
+
+#### 4.1.1 String literals
+
+`str` literals MUST be enclosed in either single quotes (`'`) or double quotes (`"`). The closing quote character MUST match the opening quote character.
+
+---
+
+#### 4.1.2 Escape sequences
+
+The character `\` MUST begin an escape sequence in a `str` literal. The following escape sequences MUST be supported:
+
+- `\\` = U+005C
+
+- `\"` = U+0022
+
+- `\'` = U+0027
+
+- `\a` = U+0007
+
+- `\b` = U+0008
+
+- `\f` = U+000C
+
+- `\n` = U+000A
+
+- `\r` = U+000D
+
+- `\t` = U+0009
+
+- `\v` = U+000B
+
+- `\e` = U+001B
+
+- `\xHH` = exactly two hexadecimal digits (`0-9`|`A-F`|`a-f`). Produces code point U+00..U+FF specified by 0xHH.
+
+- `\uHHHH` = exactly four hexadecimal digits (`0-9`|`A-F`|`a-f`). Produces code point U+HHHH.
+
+- `\UHHHHHHHH` = exactly eight hexadecimal digits (`0-9`|`A-F`|`a-f`). Produces code point U+HHHHHHHH.
+
+- `\R` = raw mode toggle. In raw mode, all escape sequences (with the exception of `\R`) are treated as plain text until the next `\R` or the end of the string literal.
+
+- `\F` = formatted mode toggle. When formatted mode is on, `{` and `}` delimit embedded expressions within the string literal. The embedded expression is parsed, evaluated, coerced to `str`, and concatenated into the resulting string. Braces inside the embedded expression are matched by depth: the first `}` that closes the outer `{` terminates the interpolation. Nested braces inside the expression (e.g., block bodies, map literals) are consumed as part of the expression. Raw mode supersedes formatted mode: when raw mode is active, `{` and `}` are treated as literal characters even if formatted mode is also active.
+
+If an invalid escape sequence (or a non-Hexadecimal value when one is expected by the escape sequence) is encountered in a `str` literal, an error MUST be raised.
+
+---
+
+#### 4.1.3 Boolean representation
+
+When a `str` is used in a boolean context, an empty string MUST be treated as `FALSE`, and any non-empty string MUST be treated as `TRUE`.
+
+---
+
+### 4.2 Integers
+
+`int` MUST be conceptually unbounded integers with an attached numeric base. Implementations MAY implement a size limit, but MUST support at least 32-bit signed integers. Implementations SHOULD support at least 64-bit signed integers.
+
+---
+
+#### 4.2.1 Integer literals
+
+Non-decimal `int` literals MUST include a base prefix. Valid prefixes are `0b`, `0o`, `0d`, `0x`, `0t`, `0c`, `0s`, and `0rNN` where `NN` is two decimal digits and `2 <= NN <= 64`.
+
+An `int` literal that begins with a decimal digit (`0`-`9`) and does NOT include a base prefix MUST be evaluated as a decimal (base-10) literal. A numeric literal that begins with a decimal digit and includes a base prefix (that is, one or more digits precede the base prefix) MUST raise an error.
+
+`int` literals MUST support negative values via prefixing with a `-` before the base prefix, and positive values with no sign. `int` literals MUST NOT support a `+` prefix.
+
+Literal digits MUST match the selected base's alphabet. Bases smaller than 2 or larger than 64 MUST raise an error.
+
+---
+
+#### 4.2.2 Boolean representation
+
+When an `int` is used in a boolean context, `0` MUST be treated as `FALSE`, and any non-zero value MUST be treated as `TRUE`.
+
+---
+
+### 4.3 Floating-point numbers
+
+`float` MUST be a compliant implementation of IEEE 754 floating-point numbers and carry an attached numeric base (or base-NaN for special values). `float` SHOULD use 64-bit double-precision representation.
+
+---
+
+#### 4.3.1 Floating-point literals
+
+Non-decimal `float` literals MUST include a base prefix using the same prefix forms as `int` literals.
+
+A `float` literal that begins with a decimal digit (`0`-`9`) and does NOT include a base prefix MUST be evaluated as a decimal (base-10) literal. A `float` literal that begins with a decimal digit and includes a base prefix (that is, one or more digits precede the base prefix) MUST raise an error.
+
+`float` literals MUST consist of an integer part (preceded by the base prefix, if present), a radix point (`.`), and a fractional part. The integer and fractional parts MUST each contain at least one digit in the selected base.
+
+`float` literals MUST support negative values via prefixing with a `-` before the base prefix, and positive values with no sign. `float` literals MUST NOT support a `+` prefix.
+
+---
+
+#### 4.3.2 Special values
+
+`float` MUST support the following special values:
+
+- `INF` - Infinity. `INF` MUST support negative values via prefixing with a `-` (`-INF`).
+
+- `NaN` - Quiet Not a Number. `NaN` MUST NOT support negative values. Attempting to create a negative `NaN` MUST cause an error.
+
+`INF`, `-INF`, and `NaN` MUST NOT include a base prefix and are considered base-NaN.
+
+When numeric values are converted to `str`, they MUST render in their own base and MUST include the base prefix. `INF`, `-INF`, and `NaN` render without a base prefix.
+
+Mathematical operations MUST produce results in the highest base present among numeric operands.
+
+---
+
+#### 4.3.3 Boolean representation
+
+When a `float` is used in a boolean context, `0.0` MUST be treated as `FALSE`, and any non-zero value MUST be treated as `TRUE`.
+
+---
+
+### 4.4 Tensors
+
+`tensor` MUST represent a non-scalar aggregate of elements. The elements MAY be of type `bool`, `int`, `float`, `str`, `map`, `thread`, `func`, or `tensor`. `tensor` values MUST be atomic (de-referenced) types, where assigning a `tensor` to another identifier copies the container object by default.
+
+---
+
+#### 4.4.1 Tensor literals
+
+`tensor` literals MUST be enclosed in square brackets (`[` and `]`). Each pair of matching brackets MUST introduce a dimension, and nested brackets MUST form a rectangular shape where all sublists at a given depth have the same length. A `tensor` literal that mixes sub-brackets of differing lengths MUST raise a syntax error.
+
+If an element evaluates to a `tensor` value, it MUST occupy a single position and MUST NOT contribute additional dimensions to the shape.
+
+---
+
+#### 4.4.2 Tensor indexing
+
+`tensor` indexing MUST use square brackets (`[` and `]`) with a comma-separated list of indices. Indexing MUST be one-based. Negative indices MUST count backwards from the end of the dimension.
+
+Slice indexing MUST be supported in any index position using a range of the form `lo:hi`. The selected slice MUST be inclusive of both endpoints. The symbol `#` MAY be used in an index position to denote a full-dimension slice, selecting every element along that axis.
+
+---
+
+#### 4.4.3 Boolean representation
+
+When a `tensor` is used in a boolean context, a `tensor` MUST be treated as `TRUE` if it contains any truthy elements, and `FALSE` otherwise.
+
+---
+
+### 4.5 Maps
+
+`map` MUST represent an N-dimensional associative container mapping keys to values of a single static type. `map` values MUST be atomic (de-referenced) types, where assigning a `map` to another identifier copies the container object by default. Maps MUST preserve insertion order.
+
+---
+
+#### 4.5.1 Map literals
+
+`map` literals MUST be enclosed in angle brackets (`<` and `>`), consisting of a comma-separated list of key-value bindings of the form `key = value`. Values MAY themselves be maps.
+
+The literal `SELF` MAY be evaluated inside `map` literals. When used as a value within a map literal, `SELF` MUST denote a pointer (alias) to the enclosing `map` being constructed.
+
+---
+
+#### 4.5.2 Map indexing
+
+`map` indexing MUST use angle brackets (`<` and `>`) with a comma-separated list of keys. Each key MUST evaluate to a scalar value of type `int`, `float`, or `str`. Tensor values MUST NOT be permitted as keys. The number of keys supplied MAY vary between lookups.
+
+Looking up a key that does not exist MUST raise a runtime error.
+
+Intermediate nested maps MUST be created on-demand when assigning to deeper keys. Assigning a value of a different type to an existing key MUST raise a runtime error.
+
+When a `map` index expression is used in call position and the indexed value resolves to a `func`, the interpreter MUST bind `SELF` for the duration of that call to the `map` value that supplied the function. If the `map` expression refers to a visible pointer alias to a `map` binding, `SELF` MUST alias the underlying binding so that mutations through `SELF` update the original map. Otherwise `SELF` MUST follow normal `map` value semantics, so calling through a non-pointer value mutates only the local copy.
+
+---
+
+#### 4.5.3 Boolean representation
+
+When a `map` is used in a boolean context, a `map` MUST be treated as `TRUE` if it contains any key-value pairs, and `FALSE` otherwise.
+
+---
+
+### 4.6 Functions
+
+`func` MUST represent a reference to a user-defined function body, including its lexical closure. `func` values MAY be assigned to variables, stored in `tensor` or `map` objects, passed as arguments, or returned.
+
+---
+
+#### 4.6.1 Function literals
+
+`func` statements MUST define explicit parameter and return types. The definition MUST use the `func` keyword followed by the return type, the function name, a comma-separated list of typed parameters in parentheses, and the body in curly braces. Type annotations in function definitions MUST use the `TYPE name` form, with one or more space characters between the type and the name.
+
+Parameters MAY declare a call-time default value. Positional parameters MUST appear before any parameters with defaults. A `return(value)` statement terminates the function; the returned value MUST match the declared return type. Functions with a `map`, `tensor`, `func`, or `thread` return type MUST execute an explicit `return` or raise a runtime error.
+
+---
+
+#### 4.6.2 Lambdas
+
+Lambdas MUST construct an anonymous `func` value without binding it to a name in the global function table. They MUST be defined using the `LAMBDA` keyword.
+
+Evaluating a `LAMBDA` expression MUST capture the current lexical environment to produce a first-class `func` value. Parameter typing, default values, and return type semantics MUST follow the same rules as `func` definitions.
+
+---
+
+#### 4.6.3 Coerced type parameters
+
+If the type declaration of a `func` parameter is prefixed with `~`, the parameter MUST accept values of any type that can be converted to the declared type, and convert them to the declared type at call time. If conversion is not possible, a runtime error MUST be raised.
+
+---
+
+#### 4.6.4 Boolean representation
+
+When a `func` is used in a boolean context, a `func` MUST be treated as `TRUE`.
+
+---
+
+### 4.7 Threads
+
+`thread` MUST represent a handle to a background task that executes asynchronously relative to the rest of the program.
+
+---
+
+#### 4.7.1 Thread literals
+
+`thread` handles MUST be created using the `async{ ... }` expression or the `thread(symbol){ ... }` statement. The block inside them MUST run synchronously within itself but asynchronously with the caller thread. The spun task MUST share the main program namespace (executing with the same lexical environment).
+
+---
+
+#### 4.7.2 Boolean representation
+
+When a `thread` is used in a boolean context, a completed or stopped `thread` MUST be treated as `FALSE`, and any other state MUST be treated as `TRUE`.
+
+---
+
+  </script>
+
+  <script src="./index.js"></script>
+  <script src="../render-md.js"></script>
+</body>
+</html>

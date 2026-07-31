@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Prefix Specification</title>
+  <link rel="icon" href="../icon.png" />
+  <link rel="stylesheet" href="../style.css" />
+</head>
+<body>
+  <div class="container" id="content">Rendering specification…</div>
+
+  <!-- Markdown source is embedded below. marked.js renders it; the TOC is auto-generated. -->
+  <script id="md" type="text/markdown">
+# <a href="../index.html"><img class="title-icon" alt="Prefix icon" src="../icon.png"></a> <span class="semibold">Pre<span class="grey">fix</span></span> Specification
+
+
+## 6. Execution model
+
+The execution model defines how the interpreter advances program state and how runtime effects are recorded.
+
+Implementations MUST describe execution in terms of a deterministic small-step transition function that consumes a seed configuration and produces a sequence of serializable states. The state log produced by these transitions MUST be sufficient for deterministic replay, diagnostics, and tooling integration.
+
+---
+
+### 6.1 Seed configuration and machine state
+
+Execution MUST begin from a seed configuration. At minimum, that seed configuration MUST contain the parsed program representation, the initial lexical environments, the module cache state, the initial control position, and explicit models of external inputs, I/O history, and any other nondeterministic data sources that execution may consult.
+
+Each machine state MUST contain enough information for the interpreter to compute the next transition without relying on hidden process state. The state representation MAY be implementation-specific, but it MUST preserve the currently active control location, the visible environments, any pending call frames, the set of live asynchronous or parallel tasks, and the execution-log metadata needed for replay and traceback construction.
+
+Two executions that begin from equivalent seed configurations and consume the same recorded nondeterministic choices MUST be observationally equivalent: they MUST visit the same sequence of abstract machine states and produce the same externally visible results.
+
+---
+
+### 6.2 Small-step transition semantics
+
+The interpreter MUST advance execution by repeatedly applying a single, fixed transition function to the current machine state. That transition function MUST be program-independent: the same transition rules apply to every Prefix program, with the current state supplying the specific code location, environment contents, and pending effects.
+
+Expression evaluation, statement execution, function call and return, module loading, thread creation, loop control transfer, exception propagation, and I/O MUST all be modeled as one or more explicit state transitions. A transition MAY be purely internal, or it MAY emit an observable effect record such as consumed input, produced output, or a runtime error.
+
+Execution MUST terminate only when the interpreter reaches a terminal state. Terminal states include normal completion of the top-level program, explicit process termination, and unhandled runtime failure.
+
+---
+
+### 6.3 State logging and observable effects
+
+Every non-private execution MUST produce a state log whose entries are ordered by a monotonically increasing rewrite-step index. Each logged transition MUST identify at least the source state, the resulting state, and the rewrite or transition rule that was applied. When a transition corresponds to a source location, the implementation SHOULD also record that source location together with a short statement excerpt.
+
+Observable effects MUST be represented explicitly in the execution record rather than being left implicit in host-language side effects. This includes printed output, consumed input, extension hook activity, runtime error creation, thread lifecycle events, and scheduler decisions that influence visible behavior.
+
+Logging configuration MAY change how much diagnostic data is retained, but it MUST NOT change the language semantics of the running program. In particular, enabling verbose tracing or disabling snapshots for privacy MUST affect diagnostics only, except that disabling the state logger necessarily removes replay artifacts that depend on that log.
+
+---
+
+### 6.4 Concurrency, scheduling, and interleaving
+
+`async`, `thread`, and `parfor` introduce multiple runnable execution contexts that share the language's lexical environment according to the rules defined elsewhere in this specification. Unless a construct states otherwise, the implementation MAY choose any scheduling order for runnable contexts.
+
+Scheduling decisions that can affect observable behavior MUST be treated as explicit nondeterministic choices. When replay logging is enabled, those choices MUST be recorded in sufficient detail for the implementation to reproduce the same interleaving on replay.
+
+Each individual rewrite step MUST belong to exactly one active execution context. The implementation MAY choose statement-level or finer-grained interleaving, but whatever granularity it uses for a given execution MUST be reflected in the state log strongly enough to explain shared-state races, asynchronous errors, and cross-thread visibility of mutations.
+
+Runtime errors raised in background or parallel contexts MUST be attributed to the originating execution context in the log and reported according to the control-flow rules in [3.4](#3-statements.html#34-exception-handling), [3.5](#3-statements.html#35-loops), and [7](#7-tracebacks-and-error-handling.html#7-tracebacks-and-error-handling). A surrounding handler in another execution context MUST NOT intercept such an error synchronously unless some future language construct explicitly specifies that behavior.
+
+---
+
+### 6.5 Deterministic replay requirements
+
+When state logging is enabled, the interpreter MUST support deterministic replay from the seed configuration together with the recorded sequence of external inputs and nondeterministic choices. Replay MUST reconstruct the same transition sequence, the same observable effects, and the same terminal outcome as the original execution.
+
+Replay tooling SHOULD be able to resume from any serialized intermediate state whose required predecessor data is available. If an implementation redacts or omits diagnostic data, it MUST clearly indicate that omission and MUST NOT present the resulting replay record as complete when it is not.
+
+The state log defined by this section is the normative source for tracebacks, diagnostics, and replay-oriented tooling. Any alternate implementation strategy remains conforming only if it preserves the same externally visible execution behavior and can expose an equivalent serialized transition history.
+
+---
+
+  </script>
+
+  <script src="./index.js"></script>
+  <script src="../render-md.js"></script>
+</body>
+</html>

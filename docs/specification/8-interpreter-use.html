@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Prefix Specification</title>
+  <link rel="icon" href="../icon.png" />
+  <link rel="stylesheet" href="../style.css" />
+</head>
+<body>
+  <div class="container" id="content">Rendering specification…</div>
+
+  <!-- Markdown source is embedded below. marked.js renders it; the TOC is auto-generated. -->
+  <script id="md" type="text/markdown">
+# <a href="../index.html"><img class="title-icon" alt="Prefix icon" src="../icon.png"></a> <span class="semibold">Pre<span class="grey">fix</span></span> Specification
+
+
+## 8. Interpreter use
+
+This section defines how the reference interpreter accepts source input, loads extensions, exposes diagnostics flags, and operates in interactive mode.
+
+---
+
+### 8.1 Invocation and program source
+
+The interpreter MUST accept a single program argument. Without `-source`, that argument MUST be interpreted as a path to a Prefix source file. With `-source`, the same argument MUST instead be interpreted as source text and parsed directly without reading a file.
+
+If no program argument and no `-source` text are supplied, the interpreter MUST enter REPL mode. When the only supplied positional arguments are extensions, the interpreter MUST load those extensions and then enter the REPL.
+
+---
+
+### 8.2 Extensions and `EXTEND`
+
+The interpreter MAY accept zero or more compiled extension-library arguments before the program argument. Those libraries MUST be loaded before parsing so that extension-defined operators and hooks are available during parse and execution.
+
+A compiled extension MUST be a platform-specific dynamic library (`.dll` on Windows, `.so` on Unix-like systems, and `.dylib` on macOS) and MUST export a public initialization function named `prefix_extension_init`. The interpreter MUST call that function with the extension context defined in `prefix_extension.h`, which provides the API version constant together with registration callbacks for operators, custom types, event handlers, periodic hooks, and optional REPL replacement.
+
+Compiled extensions MUST be built against the public extension API declared in `prefix_extension.h`. That API MUST expose at least `PREFIX_EXTENSION_API_VERSION`, operator-registration callbacks, custom-type hooks, event-handler registration, periodic-hook registration, REPL-replacement registration, and helper facilities for constructing and inspecting Prefix runtime values.
+
+At load time, the interpreter MUST use the host platform's dynamic-library facilities to load the extension, locate the exported `prefix_extension_init` symbol, invoke it with the extension context, and record all registered operators and hooks. On Windows this SHOULD use `LoadLibraryEx`; on Unix-like systems this SHOULD use `dlopen` or an equivalent facility.
+
+Extensions that opt into module-qualified registration MUST do so with a dedicated operator-registration flag. Only operators registered with that flag MAY be exposed under the extension name as a dotted prefix rather than injected into the global built-in namespace. `PREFIX_EXTENSION_ASMODULE` by itself MUST NOT imply module-qualified exposure. Event-handler registration MUST support the runtime lifecycle hooks defined by the interpreter, including program start and end, error reporting, statement boundaries, and call boundaries.
+
+The extension context MUST provide registration surfaces equivalent to the following:
+
+- `register_operator(name, handler_fn, flags)` to add new callable operators. The `flags` parameter MUST include `PREFIX_EXTENSION_ASMODULE` together with a separate module-restriction option equivalent to `PREFIX_EXTENSION_MODULE_RESTRICTED`. An operator MUST be exposed under the extension name as a dotted prefix such as `mymod.FOO` only when that module-restriction flag is present.
+
+- `register_periodic_hook(N, handler_fn)` to request execution after rewrite steps whose `step_index % N == 0`.
+
+- `register_event_handler(event_name, handler_fn)` for lifecycle events including `program_start`, `program_end`, `on_error`, `before_statement`, `after_statement`, `before_call`, and `after_call`.
+
+- `register_repl_handler(repl_fn)` to replace or augment the default REPL implementation.
+
+The interpreter MUST NOT load `.prex` pointer files.
+
+Runtime extension loading from Prefix source MUST use `EXTEND(str ext)`, defined in [9.1.8](#9-built-ins.html#918-function-and-module-operators). The `ext` specifier MUST exclude the platform filename suffix (`.dll`, `.so`, `.dylib`) and MAY use package semantics with `..`. When `ext` names a package, the loader MUST attempt `ext..init`.
+
+`EXTEND` MUST resolve extension libraries using the same extension search roots used by compiled-library loading: the calling module directory when available, then current working directory, then interpreter `ext/std`, `ext/usr`, `lib/std`, and `lib/usr` roots with bundled roots consulted before user roots.
+
+---
+
+### 8.3 Flags, diagnostics, and exit codes
+
+With `-verbose`, tracebacks MUST include the environment snapshots and state-log references required by [7](#7-tracebacks-and-error-handling.html#7-tracebacks-and-error-handling). With `-private`, the interpreter MUST disable the state logger and suppress environment snapshots while still emitting a traceback that clearly states that snapshot data has been withheld.
+
+The interpreter MAY support additional flags and alternative argument ordering, but the semantics of the program argument, `-source`, `-verbose`, and `-private` MUST remain stable for tooling.
+
+Normal program termination MUST return process exit code `0`. Uncaught runtime failure MUST return exit code `1`. Any explicit process-termination request issued by the program MUST terminate the interpreter immediately and return the supplied integer as the process exit code.
+
+---
+
+### 8.4 REPL behaviour
+
+The REPL MUST execute Prefix statements using the same parser, runtime, built-ins, and state-logging semantics as file-mode execution. It MUST present a primary prompt for new input and a continuation prompt while the user is entering a multi-line construct.
+
+A complete single-line top-level statement MUST be parsed and executed immediately. If the user begins a multi-line block, the REPL MUST buffer input until the block is complete and then execute the collected text as a unit.
+
+Top-level bindings and the state log MUST persist for the lifetime of the REPL session unless the user explicitly deletes symbols. Errors raised in the REPL MUST produce tracebacks using the same concise and verbose formats as file execution.
+
+The REPL MUST support immediate termination through the language's normal process-termination mechanism. Implementations MAY additionally provide meta-commands such as `.exit` or an EOF shortcut.
+
+---
+
+  </script>
+
+  <script src="./index.js"></script>
+  <script src="../render-md.js"></script>
+</body>
+</html>
