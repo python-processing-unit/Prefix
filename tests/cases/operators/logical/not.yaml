@@ -2,17 +2,17 @@ passing:
   - name: not
     language: Prefix
     source: |
-        ASSERT(EQ(NOT(FALSE), TRUE))
-        ASSERT(EQ(NOT(TRUE), FALSE))
-        ASSERT(EQ(NOT(0d0), TRUE))
-        ASSERT(EQ(NOT(0d1), FALSE))
-        ASSERT(EQ(NOT(""), TRUE))
-        ASSERT(EQ(NOT("x"), FALSE))
+        ASSERT(EQ(NOT(false), true))
+        ASSERT(EQ(NOT(true), false))
+        ASSERT(EQ(NOT(0d0), true))
+        ASSERT(EQ(NOT(0d1), false))
+        ASSERT(EQ(NOT(""), true))
+        ASSERT(EQ(NOT("x"), false))
         
 failing:
   - name: not-arity-two
     language: Prefix
-    source: 'NOT(TRUE, FALSE)'
+    source: 'NOT(true, false)'
   - name: not-arity-zero
     language: Prefix
     source: NOT()

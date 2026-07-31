@@ -77,7 +77,7 @@ failing:
   - name: convert-base-wrong-type
     language: Prefix
     source: |
-        CONVERT(0d42, TRUE)
+        CONVERT(0d42, true)
         
   - name: convert-value-map
     language: Prefix

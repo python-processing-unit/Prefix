@@ -132,5 +132,5 @@ func bool SHOW(tensor img){
     ! Use NULL hwnd (0), operation "open", empty params and dir, showcmd=1
     win32.WIN_CALL("shell32", "ShellExecuteW", "PSSSSI", "P", 0d0, "open", img_path, "", "", 0d1)
     DEL("img_path")
-    return(FALSE)
+    return(false)
 }

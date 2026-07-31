@@ -435,7 +435,7 @@ failing:
   - name: include-type-bool
     language: Prefix
     source: |
-        INCLUDE(TRUE)
+        INCLUDE(true)
         
   - name: include-type-flt
     language: Prefix

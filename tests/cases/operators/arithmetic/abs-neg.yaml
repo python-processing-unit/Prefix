@@ -86,7 +86,7 @@ failing:
   - name: abs-type-bool
     language: Prefix
     source: |
-        bool b = TRUE
+        bool b = true
         ABS(b)
         
   - name: abs-type-str
@@ -98,7 +98,7 @@ failing:
   - name: neg-type-bool
     language: Prefix
     source: |
-        bool b = TRUE
+        bool b = true
         NEG(b)
         
   - name: neg-type-str

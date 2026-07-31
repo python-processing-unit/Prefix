@@ -46,7 +46,7 @@ failing:
     source: INV()
   - name: inv-bool
     language: Prefix
-    source: INV(TRUE)
+    source: INV(true)
   - name: inv-duplicate-values
     language: Prefix
     source: 'INV(<"a" = "dup", "b" = "dup">)'
@@ -70,7 +70,7 @@ failing:
     source: INV([0d1])
   - name: inv-value-bool
     language: Prefix
-    source: 'INV(<"a" = TRUE>)'
+    source: 'INV(<"a" = true>)'
   - name: inv-value-func
     language: Prefix
     source: 'INV(<"a" = LAMBDA int: (){}>)'

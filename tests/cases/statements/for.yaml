@@ -28,4 +28,4 @@ failing:
         
   - name: for-target-not-int
     language: Prefix
-    source: 'for(i, TRUE){}'
+    source: 'for(i, true){}'

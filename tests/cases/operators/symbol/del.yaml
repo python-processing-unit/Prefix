@@ -2,14 +2,14 @@ passing:
   - name: del-frozen
     language: Prefix
     source: |
-        bool frozen_symbol = TRUE
+        bool frozen_symbol = true
         REFUTE(FREEZE("frozen_symbol"))
         
-        bool frozen_delete_failed = FALSE
+        bool frozen_delete_failed = false
         try{
             DEL("frozen_symbol")
         } catch {
-            frozen_delete_failed = TRUE
+            frozen_delete_failed = true
         }
         ASSERT(frozen_delete_failed)
         ASSERT(EXIST("frozen_symbol"))
@@ -18,14 +18,14 @@ passing:
         REFUTE(DEL("frozen_symbol"))
         REFUTE(EXIST("frozen_symbol"))
         
-        bool permafrozen_symbol = TRUE
+        bool permafrozen_symbol = true
         REFUTE(PERMAFREEZE("permafrozen_symbol"))
         
-        bool permafrozen_delete_failed = FALSE
+        bool permafrozen_delete_failed = false
         try{
             DEL("permafrozen_symbol")
         } catch {
-            permafrozen_delete_failed = TRUE
+            permafrozen_delete_failed = true
         }
         ASSERT(permafrozen_delete_failed)
         ASSERT(EXIST("permafrozen_symbol"))
@@ -37,11 +37,11 @@ passing:
         REFUTE(DEL('top<"drop">'))
         ASSERT(EQ(top, <"keep" = 0d1>))
         
-        bool top_missing = FALSE
+        bool top_missing = false
         try{
             top<"drop">
         } catch {
-            top_missing = TRUE
+            top_missing = true
         }
         ASSERT(top_missing)
         
@@ -60,16 +60,16 @@ passing:
   - name: del-symbol
     language: Prefix
     source: |
-        bool symbol = TRUE
+        bool symbol = true
         ASSERT(EXIST("symbol"))
         REFUTE(DEL("symbol"))
         REFUTE(EXIST("symbol"))
         
-        bool deleted_read_failed = FALSE
+        bool deleted_read_failed = false
         try{
         	symbol
         } catch {
-        	deleted_read_failed = TRUE
+        	deleted_read_failed = true
         }
         ASSERT(deleted_read_failed)
         
@@ -83,7 +83,7 @@ failing:
   - name: del-already-deleted-symbol
     language: Prefix
     source: |
-        bool x = TRUE
+        bool x = true
         DEL("x")
         DEL("x")
         
@@ -118,12 +118,12 @@ failing:
   - name: del-raw-symbol-argument
     language: Prefix
     source: |
-        bool x = TRUE
+        bool x = true
         DEL(x)
   - name: del-type-mismatch-after-delete
     language: Prefix
     source: |
         int x = 0d1
         DEL("x")
-        bool x = TRUE
+        bool x = true
         

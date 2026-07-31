@@ -3,7 +3,7 @@ passing:
     language: Prefix
     source: |
         try{
-            ASSERT(FALSE)
+            ASSERT(false)
         } catch(err) {
             ASSERT(EXIST("err"))
         }
@@ -13,14 +13,14 @@ passing:
     language: Prefix
     source: |
         try{
-            ASSERT(TRUE)
+            ASSERT(true)
         } catch {
-            ASSERT(FALSE)
+            ASSERT(false)
         }
         try{
-            ASSERT(FALSE)
+            ASSERT(false)
         } catch {
-            ASSERT(TRUE)
+            ASSERT(true)
         }
         
 failing:
@@ -33,7 +33,7 @@ failing:
     language: Prefix
     source: |
         try{
-            ASSERT(FALSE)
+            ASSERT(false)
         } catch(SYMBOL: err) {
             ASSERT(EXIST("err"))
         }
@@ -42,10 +42,10 @@ failing:
     language: Prefix
     source: |
         try{
-            ASSERT(FALSE)
+            ASSERT(false)
         }
         catch {
-            ASSERT(TRUE)
+            ASSERT(true)
         }
         
   - name: try-no-catch

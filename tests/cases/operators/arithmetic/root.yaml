@@ -112,7 +112,7 @@ failing:
   - name: root-type-bool
     language: Prefix
     source: |
-        ROOT(TRUE, FALSE)
+        ROOT(true, false)
         
   - name: root-type-str
     language: Prefix

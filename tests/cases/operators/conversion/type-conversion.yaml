@@ -2,8 +2,8 @@ passing:
   - name: op-bool-from-bool
     language: Prefix
     source: |
-        ASSERT(bool(TRUE))
-        REFUTE(bool(FALSE))
+        ASSERT(bool(true))
+        REFUTE(bool(false))
         
   - name: op-bool-from-flt
     language: Prefix
@@ -19,7 +19,7 @@ passing:
     language: Prefix
     source: |
         func bool sample_func(){
-            return(TRUE)
+            return(true)
         }
         
         ASSERT(bool(sample_func))
@@ -45,14 +45,14 @@ passing:
   - name: op-bool-from-thr
     language: Prefix
     source: |
-        bool thr_release = FALSE
+        bool thr_release = false
         thread(worker){
             while(NOT(thr_release)){
             }
         }
         
         ASSERT(bool(worker))
-        thr_release = TRUE
+        thr_release = true
         while(worker){
         }
         REFUTE(bool(worker))
@@ -60,14 +60,14 @@ passing:
   - name: op-bool-from-tns
     language: Prefix
     source: |
-        REFUTE(bool([FALSE, 0d0, ""]))
-        ASSERT(bool([FALSE, 0d0, TRUE]))
+        REFUTE(bool([false, 0d0, ""]))
+        ASSERT(bool([false, 0d0, true]))
         
   - name: op-flt-from-bool
     language: Prefix
     source: |
-        ASSERT(EQ(float(TRUE), 0d1.0))
-        ASSERT(EQ(float(FALSE), 0d0.0))
+        ASSERT(EQ(float(true), 0d1.0))
+        ASSERT(EQ(float(false), 0d0.0))
         
   - name: op-flt-from-flt
     language: Prefix
@@ -95,8 +95,8 @@ passing:
   - name: op-int-from-bool
     language: Prefix
     source: |
-        ASSERT(EQ(int(TRUE), 0d1))
-        ASSERT(EQ(int(FALSE), 0d0))
+        ASSERT(EQ(int(true), 0d1))
+        ASSERT(EQ(int(false), 0d0))
         
   - name: op-int-from-flt
     language: Prefix
@@ -119,8 +119,8 @@ passing:
   - name: op-str-from-bool
     language: Prefix
     source: |
-        ASSERT(EQ(str(TRUE), "TRUE"))
-        ASSERT(EQ(str(FALSE), "FALSE"))
+        ASSERT(EQ(str(true), "true"))
+        ASSERT(EQ(str(false), "false"))
         
   - name: op-str-from-flt
     language: Prefix
@@ -184,13 +184,13 @@ failing:
     language: Prefix
     source: |
         func bool str_func(){
-            return(TRUE)
+            return(true)
         }
         
         str(str_func)
   - name: op-str-lambda
     language: Prefix
-    source: 'str(LAMBDA bool: (){ return(TRUE) })'
+    source: 'str(LAMBDA bool: (){ return(true) })'
   - name: op-str-map
     language: Prefix
     source: str(<>)
@@ -201,4 +201,4 @@ failing:
         str(str_thr)
   - name: op-str-tns
     language: Prefix
-    source: str([TRUE])
+    source: str([true])

@@ -56,7 +56,7 @@ failing:
   - name: shape-bool
     language: Prefix
     source: |
-        SHAPE(TRUE)
+        SHAPE(true)
         
   - name: shape-flt
     language: Prefix

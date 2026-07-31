@@ -37,29 +37,29 @@ Built-in operator names MUST be matched case-sensitively and MUST be written in 
 
 - `bool DEL(str target)` = MUST evaluate `target`, require the result to be a `str`, and parse that string as exactly one Prefix target expression. The parsed target MUST be either a plain identifier such as `name` or an indexed identifier such as `name<key>` or `name<k1, k2, ...>`. If the parsed target is a plain identifier, `DEL` MUST delete the readable runtime binding designated by that identifier. Deletion MUST preserve the symbol's recorded static type as defined in [5.1](#5-namespaces-and-symbols.html#51-declarations-bindings-and-lifetime). Deleting an undeclared, never-assigned, or already-deleted symbol MUST raise a runtime error. Deleting a frozen or permanently frozen binding MUST raise a runtime error.
 
-- When the parsed `DEL` target is indexed, the base target MUST resolve to a `map` value and all intermediate lookups MUST resolve to nested `map` values; indexing a non-`map` MUST raise a runtime error. The map entry identified by the final key in the chain MUST be deleted. If an intermediate key does not exist, the operation MUST be a no-op. After deletion the modified map MUST be written back to the environment. `DEL` MUST return `FALSE` on success, including indexed no-op cases.
+- When the parsed `DEL` target is indexed, the base target MUST resolve to a `map` value and all intermediate lookups MUST resolve to nested `map` values; indexing a non-`map` MUST raise a runtime error. The map entry identified by the final key in the chain MUST be deleted. If an intermediate key does not exist, the operation MUST be a no-op. After deletion the modified map MUST be written back to the environment. `DEL` MUST return `false` on success, including indexed no-op cases.
 
 - `ANY ASSIGN(target, ANY value)` = MUST evaluate `value`, assign it to `target`, and return the assigned value. `target` MAY be a plain identifier, a tensor indexed target, or a map indexed target. If a plain identifier has not yet been declared, the typed form `ASSIGN(TYPE name, value)` MUST be used. The typed form MUST NOT be used with indexed targets.
 
-- `bool EXIST(str name)` = MUST evaluate `name`, require the result to be a `str`, and return `TRUE` if that string's contents resolve to a visible readable binding in the current lexical environment chain and `FALSE` otherwise.
+- `bool EXIST(str name)` = MUST evaluate `name`, require the result to be a `str`, and return `true` if that string's contents resolve to a visible readable binding in the current lexical environment chain and `false` otherwise.
 
-- `bool isbool/isint/isfloat/isstr/istensor/ismap/isfunc/isthread(ANY value)` = MUST return `TRUE` if the runtime type of `value` is respectively `bool`, `int`, `float`, `str`, `tensor`, `map`, `func`, or `thread`, and `FALSE` otherwise.
+- `bool isbool/isint/isfloat/isstr/istensor/ismap/isfunc/isthread(ANY value)` = MUST return `true` if the runtime type of `value` is respectively `bool`, `int`, `float`, `str`, `tensor`, `map`, `func`, or `thread`, and `false` otherwise.
 
 - `str TYPE(ANY value)` = MUST return the runtime type name of `value` as a `str`. For core language values, the result MUST be one of `bool`, `int`, `float`, `str`, `tensor`, `map`, `func`, or `thread`. For null or otherwise unrecognized internal values, the result MUST be `NULL`. Extension-defined values MUST report their registered type names.
 
 - `str SIGNATURE(SYMBOL name)` = MUST return a textual signature for `name`. If `name` denotes a user-defined function, the result MUST use the canonical function-signature form of this specification. For any other visible binding, the result MUST be `TYPE name`.
 
-- `bool FREEZE(str name)`, `bool THAW(str name)`, and `bool PERMAFREEZE(str name)` = MUST modify the mutability state of the binding designated by `name`. `FREEZE` MUST prevent reassignment and deletion until thawed. `PERMAFREEZE` MUST permanently prevent reassignment, deletion, and later thawing. `THAW` MUST clear a non-permanent freeze, MUST raise a runtime error when applied to a permanently frozen binding, and MUST otherwise succeed as a no-op when applied to a binding that is not currently frozen. `FREEZE`, `THAW`, and `PERMAFREEZE` MUST each return `FALSE` on success and MUST raise a runtime error if `name` is undefined.
+- `bool FREEZE(str name)`, `bool THAW(str name)`, and `bool PERMAFREEZE(str name)` = MUST modify the mutability state of the binding designated by `name`. `FREEZE` MUST prevent reassignment and deletion until thawed. `PERMAFREEZE` MUST permanently prevent reassignment, deletion, and later thawing. `THAW` MUST clear a non-permanent freeze, MUST raise a runtime error when applied to a permanently frozen binding, and MUST otherwise succeed as a no-op when applied to a binding that is not currently frozen. `FREEZE`, `THAW`, and `PERMAFREEZE` MUST each return `false` on success and MUST raise a runtime error if `name` is undefined.
 
-- `bool FROZEN(str name)` and `bool PERMAFROZEN(str name)` = MUST report the freeze state of `name`. `FROZEN` MUST return `TRUE` for any frozen or permanently frozen binding and `FALSE` otherwise. `PERMAFROZEN` MUST return `TRUE` only for permanently frozen bindings and `FALSE` otherwise. If `name` is undefined, both operators MUST return `FALSE`.
+- `bool FROZEN(str name)` and `bool PERMAFROZEN(str name)` = MUST report the freeze state of `name`. `FROZEN` MUST return `true` for any frozen or permanently frozen binding and `false` otherwise. `PERMAFROZEN` MUST return `true` only for permanently frozen bindings and `false` otherwise. If `name` is undefined, both operators MUST return `false`.
 
 ---
 
 #### 9.1.2 Conversion and construction operators
 
-- `bool bool(ANY value)`, `int int(bool|int|float|str value)`, and `float float(bool|int|float|str value)` = MUST perform explicit scalar conversion. `bool(value)` MUST apply the language's truthiness rules and return a `bool`. Converting a `float` to `int` MUST truncate toward zero. Converting `bool` to `int` or `float` MUST map `TRUE` to `1` or `1.0` and `FALSE` to `0` or `0.0`. Converting a `str` to `int` MUST parse a base-prefixed integer literal, and if parsing fails the result MUST follow the string's boolean representation. Converting a `str` to `float` MUST parse a base-prefixed floating-point literal or the special values `INF`, `-INF`, and `NaN`; invalid input MUST raise a runtime error. Passing any other type MUST raise a runtime error.
+- `bool bool(ANY value)`, `int int(bool|int|float|str value)`, and `float float(bool|int|float|str value)` = MUST perform explicit scalar conversion. `bool(value)` MUST apply the language's truthiness rules and return a `bool`. Converting a `float` to `int` MUST truncate toward zero. Converting `bool` to `int` or `float` MUST map `true` to `1` or `1.0` and `false` to `0` or `0.0`. Converting a `str` to `int` MUST parse a base-prefixed integer literal, and if parsing fails the result MUST follow the string's boolean representation. Converting a `str` to `float` MUST parse a base-prefixed floating-point literal or the special values `INF`, `-INF`, and `NaN`; invalid input MUST raise a runtime error. Passing any other type MUST raise a runtime error.
 
-- `str str(bool|str|int|float value)` = MUST convert `value` to a `str`. For `bool`, the result MUST be `TRUE` or `FALSE`. For `int` and `float`, the result MUST be the base-prefixed numeric spelling, except that `INF`, `-INF`, and `NaN` render without a prefix. For `str`, the result MUST be a copy.
+- `str str(bool|str|int|float value)` = MUST convert `value` to a `str`. For `bool`, the result MUST be `true` or `false`. For `int` and `float`, the result MUST be the base-prefixed numeric spelling, except that `INF`, `-INF`, and `NaN` render without a prefix. For `str`, the result MUST be a copy.
 
 - `int|float CONVERT(int|float value, int base)` and `int BASE(int|float value)` = MUST expose numeric-base manipulation. `CONVERT` MUST return `value` represented in `base`, where `base` MUST be between `2` and `64`, inclusive. `BASE` MUST return the stored base of a numeric value. Asking for an invalid base MUST raise a runtime error.
 
@@ -105,13 +105,13 @@ Built-in operator names MUST be matched case-sensitively and MUST be written in 
 
 - `bool ALL(ANY a1, ..., ANY aN)` and `bool ANY(ANY a1, ..., ANY aN)` = MUST compute boolean conjunction and disjunction across the supplied arguments and return the result as `bool`.
 
-- `bool bool(ANY value)` = MUST return the truthiness of `value` as `FALSE` or `TRUE` according to the boolean rules of the value's runtime type.
+- `bool bool(ANY value)` = MUST return the truthiness of `value` as `false` or `true` according to the boolean rules of the value's runtime type.
 
 - `int BAND/BOR/BXOR(int a, int b)`, `int BNOT(int value)`, and `int SHL/SHR(int a, int b)` = MUST perform bitwise boolean operations and bit shifting on integer operands. These operators MUST reject `int` with a radix besides 2.
 
 - `bool EQ/NEQ(ANY a, ANY b)` = MUST test equality or inequality using the language's normal value-comparison rules.
 
-- `bool GT/LT/GTE/LTE(int|float a, int|float b)` = MUST perform the corresponding ordered comparison on like-typed numeric operands and return `TRUE` when the relation holds and `FALSE` otherwise. Mixed `int` and `float` comparisons MUST raise a runtime error.
+- `bool GT/LT/GTE/LTE(int|float a, int|float b)` = MUST perform the corresponding ordered comparison on like-typed numeric operands and return `true` when the relation holds and `false` otherwise. Mixed `int` and `float` comparisons MUST raise a runtime error.
 
 ---
 
@@ -151,7 +151,7 @@ Built-in operator names MUST be matched case-sensitively and MUST be written in 
 
 - `tensor CONV(tensor x, tensor kernel, int stride_w = 1, int stride_h = 1, int pad_w = 0, int pad_h = 0, tensor bias = [])` = MUST support both the legacy two-argument N-dimensional convolution form and the extended 2-D multi-output form. In the legacy form, `kernel` MUST have the same rank as `x`, every kernel dimension length MUST be odd, boundary sampling MUST clamp to the nearest valid index, and the result MUST have the same shape as `x`. In the extended form, when any keyword argument is supplied and `x` is rank 3 while `kernel` is rank 4 with shape `[kw, kh, in_c, out_c]`, the operator MUST perform 2-D convolution with the given strides, explicit zero padding, and optional per-output-channel bias, returning shape `[out_w, out_h, out_c]`. Where both inputs are `int`, the output MUST be `int`; otherwise it MUST be `float`.
 
-- `bool IN(ANY value, tensor tensor)` = MUST return `TRUE` if any tensor element is equal to `value` and `FALSE` otherwise.
+- `bool IN(ANY value, tensor tensor)` = MUST return `true` if any tensor element is equal to `value` and `false` otherwise.
 
 - `tensor M+, M-, M*, M/(tensor x, tensor y)` = MUST perform elementwise tensor-tensor arithmetic. The input shapes MUST match exactly, the element types MUST be uniformly numeric and mutually compatible, and division by zero MUST raise a runtime error.
 
@@ -165,9 +165,9 @@ Built-in operator names MUST be matched case-sensitively and MUST be written in 
 
 - `tensor KEYS(map map)` and `tensor VALUES(map map)` = MUST return one-dimensional tensors containing, respectively, the keys and values of `map` in insertion order.
 
-- `bool KEYIN(int|float|str key, map map)` and `bool VALUEIN(ANY value, map map)` = MUST return `TRUE` when the given key or value occurs in `map` and `FALSE` otherwise.
+- `bool KEYIN(int|float|str key, map map)` and `bool VALUEIN(ANY value, map map)` = MUST return `true` when the given key or value occurs in `map` and `false` otherwise.
 
-- `bool MATCH(map map, map schema, int typing = 0, int recurse = 0, int shape = 0)` = MUST return `TRUE` if every key in `schema` is present in `map` and, when `typing`, `shape`, or `recurse` is nonzero, the corresponding matched values also satisfy type, shape, and recursive nesting constraints. If `schema` contains a key `"match"` whose value is a `map`, that entry is metadata and is not itself required in `map`: the effective value of each parameter is the explicit keyword argument if supplied, otherwise the metadata subkey if present and valid, otherwise the implicit default `0`. Each metadata key MUST be an `int`, and an invalid `"match"` entry, unknown metadata subkey name, or metadata subkey value that is not `int` MUST cause `MATCH` to return `FALSE` rather than raising an error. A non-`map` `"match"` value is matched as an ordinary key.
+- `bool MATCH(map map, map schema, int typing = 0, int recurse = 0, int shape = 0)` = MUST return `true` if every key in `schema` is present in `map` and, when `typing`, `shape`, or `recurse` is nonzero, the corresponding matched values also satisfy type, shape, and recursive nesting constraints. If `schema` contains a key `"match"` whose value is a `map`, that entry is metadata and is not itself required in `map`: the effective value of each parameter is the explicit keyword argument if supplied, otherwise the metadata subkey if present and valid, otherwise the implicit default `0`. Each metadata key MUST be an `int`, and an invalid `"match"` entry, unknown metadata subkey name, or metadata subkey value that is not `int` MUST cause `MATCH` to return `false` rather than raising an error. A non-`map` `"match"` value is matched as an ordinary key.
 
 - `map INV(map map)` = MUST return a new map whose keys and values are reversed. Every value in `map` MUST be a scalar key type (`int`, `float`, or `str`), and duplicate values MUST raise a runtime error.
 
@@ -177,15 +177,15 @@ Built-in operator names MUST be matched case-sensitively and MUST be written in 
 
 - `RUN(str source)` = MUST parse and execute `source` as Prefix code in the caller's current lexical environment. Parse failure or runtime failure inside the executed source MUST raise a runtime error.
 
-- `bool ASSERT(ANY value)` = MUST raise a runtime error if `value` is falsey according to the language's truthiness rules. On success, it MUST return `TRUE`.
+- `bool ASSERT(ANY value)` = MUST raise a runtime error if `value` is falsey according to the language's truthiness rules. On success, it MUST return `true`.
 
-- `bool REFUTE(~bool cond)` = MUST raise a runtime error if `cond` is truthy according to the language's truthiness rules. On success, it MUST return `TRUE`.
+- `bool REFUTE(~bool cond)` = MUST raise a runtime error if `cond` is truthy according to the language's truthiness rules. On success, it MUST return `true`.
 
 - `THROW()` or `THROW(int|str a1, ..., int|str aN)` = MUST raise a runtime error. When one or more arguments are supplied, the error message MUST be formed by concatenating those arguments using the same rendering rules as `PRINT`, but without a trailing newline. When no arguments are supplied, the error message MUST be `"Exception thrown"`.
 
-- `bool MAIN()` = MUST return `TRUE` when the call site is in the primary program source and `FALSE` when the call site is executing from imported module code. The result MUST depend on the source location of the call expression rather than on the dynamic caller stack.
+- `bool MAIN()` = MUST return `true` when the call site is in the primary program source and `false` when the call site is executing from imported module code. The result MUST depend on the source location of the call expression rather than on the dynamic caller stack.
 
--- `bool EXTEND(str ext)` = MUST load the compiled extension designated by `ext`. The specifier `ext` MUST exclude the platform filename suffix and MAY use package-style `..` separators. If `ext` resolves to a package, the loader MUST attempt `ext..init`. Relative extension names MUST resolve using the calling module's source directory when available, then the current working directory, then the configured extension roots `ext/std`, `ext/usr`, `lib/std`, and `lib/usr` (with bundled roots searched before user roots). Repeating an `EXTEND` request for an already-loaded extension exposure MUST be idempotent. On success, `EXTEND` MUST return `FALSE`.
+-- `bool EXTEND(str ext)` = MUST load the compiled extension designated by `ext`. The specifier `ext` MUST exclude the platform filename suffix and MAY use package-style `..` separators. If `ext` resolves to a package, the loader MUST attempt `ext..init`. Relative extension names MUST resolve using the calling module's source directory when available, then the current working directory, then the configured extension roots `ext/std`, `ext/usr`, `lib/std`, and `lib/usr` (with bundled roots searched before user roots). Repeating an `EXTEND` request for an already-loaded extension exposure MUST be idempotent. On success, `EXTEND` MUST return `false`.
 
   Operators registered with the module-restriction flag (for example `PREFIX_EXTENSION_MODULE_RESTRICTED`) MUST be exposed only under the extending module's namespace. Importing that module MUST expose the extension namespace qualifier under the importing module's qualified name. `PREFIX_EXTENSION_ASMODULE` by itself MUST NOT restrict an operator to the extending module's namespace or cause that qualified exposure. Extension side effects outside operator registration (for example process-global hooks or host-side state) remain global.
 
@@ -197,13 +197,13 @@ Built-in operator names MUST be matched case-sensitively and MUST be written in 
 
   On first import, the module source MUST execute in its own isolated top-level environment. Unqualified identifiers during that execution MUST resolve within the module's own namespace. After execution completes, that namespace MUST be cached and reused by subsequent imports in the same interpreter process. Multiple aliases for the same module MUST provide distinct qualified views into the same cached module instance.
 
-  Module import MUST NOT implicitly load companion extension pointer files. Runtime extensions for module code MUST be loaded explicitly via `EXTEND` inside the module. On success, `IMPORT` MUST return `FALSE`.
+  Module import MUST NOT implicitly load companion extension pointer files. Runtime extensions for module code MUST be loaded explicitly via `EXTEND` inside the module. On success, `IMPORT` MUST return `false`.
 
-- `bool IMPORT_PATH(str path)` or `bool IMPORT_PATH(str path, str alias)` = MUST load a module from an explicit filesystem path and expose it under `alias` or, if omitted, under a basename-derived module name. The argument MUST at minimum accept an absolute path to a `.pre` source file. The module's basename, excluding the `.pre` suffix, MUST be used as the default qualified module name when no alias is supplied. The loaded module MUST otherwise obey the same isolation, caching, and exposure rules as `IMPORT`. Runtime extensions for that module MUST be loaded explicitly via `EXTEND`. On success, `IMPORT_PATH` MUST return `FALSE`.
+- `bool IMPORT_PATH(str path)` or `bool IMPORT_PATH(str path, str alias)` = MUST load a module from an explicit filesystem path and expose it under `alias` or, if omitted, under a basename-derived module name. The argument MUST at minimum accept an absolute path to a `.pre` source file. The module's basename, excluding the `.pre` suffix, MUST be used as the default qualified module name when no alias is supplied. The loaded module MUST otherwise obey the same isolation, caching, and exposure rules as `IMPORT`. Runtime extensions for that module MUST be loaded explicitly via `EXTEND`. On success, `IMPORT_PATH` MUST return `false`.
 
-- `bool INCLUDE(str module)` = MUST load the named module using the same search rules as `IMPORT`, execute it in its own isolated environment on first load, and cache that environment for subsequent calls. After the module loads, its exported bindings MUST be injected directly into the caller's environment under their original unqualified names. Unlike `IMPORT`, `INCLUDE` MUST NOT create a qualified namespace for the module and MUST NOT assign the module name itself as a binding in the caller. Re-importing an already loaded module MUST reuse the cached module namespace rather than re-executing the module. On success, `INCLUDE` MUST return `FALSE`.
+- `bool INCLUDE(str module)` = MUST load the named module using the same search rules as `IMPORT`, execute it in its own isolated environment on first load, and cache that environment for subsequent calls. After the module loads, its exported bindings MUST be injected directly into the caller's environment under their original unqualified names. Unlike `IMPORT`, `INCLUDE` MUST NOT create a qualified namespace for the module and MUST NOT assign the module name itself as a binding in the caller. Re-importing an already loaded module MUST reuse the cached module namespace rather than re-executing the module. On success, `INCLUDE` MUST return `false`.
 
-- `bool EXPORT(str symbol, str module)` = MUST copy the caller's current binding for `symbol` into the namespace of the already imported module designated by `module`, making the exported binding available through that module's qualified namespace. `EXPORT` MUST return `FALSE` on success and MUST raise a runtime error if `module` is not currently imported.
+- `bool EXPORT(str symbol, str module)` = MUST copy the caller's current binding for `symbol` into the namespace of the already imported module designated by `module`, making the exported binding available through that module's qualified namespace. `EXPORT` MUST return `false` on success and MUST raise a runtime error if `module` is not currently imported.
 
 ---
 
@@ -211,7 +211,7 @@ Built-in operator names MUST be matched case-sensitively and MUST be written in 
 
 The expression form `async{ ... }` and the statement form `thread(symbol){ ... }` are defined in [3.6](#3-statements.html#36-asynchronous-execution-and-threads). The operators in this subsection act on `thread` handles.
 
-- `bool PARALLEL(tensor functions)` or `bool PARALLEL(func f1, func f2, ..., func fN)` = MUST invoke each supplied function concurrently with no arguments, wait for all invocations to complete, and return `FALSE` on success. Any non-`func` argument or any worker failure MUST raise a runtime error.
+- `bool PARALLEL(tensor functions)` or `bool PARALLEL(func f1, func f2, ..., func fN)` = MUST invoke each supplied function concurrently with no arguments, wait for all invocations to complete, and return `false` on success. Any non-`func` argument or any worker failure MUST raise a runtime error.
 
 - `thread AWAIT(thread thread)` = MUST block until `thread` has finished and then return the same thread handle.
 
@@ -219,7 +219,7 @@ The expression form `async{ ... }` and the statement form `thread(symbol){ ... }
 
 - `thread RESUME(thread thread)` = MUST resume a paused thread. Resuming a thread that is not paused MUST raise a runtime error.
 
-- `bool PAUSED(thread thread)` = MUST return `TRUE` when `thread` is paused and `FALSE` otherwise.
+- `bool PAUSED(thread thread)` = MUST return `true` when `thread` is paused and `false` otherwise.
 
 - `thread STOP(thread thread)` = MUST cooperatively stop `thread`, mark it finished, and return the resulting handle.
 
@@ -332,11 +332,11 @@ The operator semantics that use this format are defined next.
 
 - `str READFILE(str path, str coding = "UTF-8")` = MUST read the filesystem object at `path` and return its contents as a `str`. Supported `coding` values MUST include `UTF-8`, `UTF-8 BOM`, `UTF-16 LE`, `UTF-16 BE`, `ANSI`, `binary`, and `hexadecimal`, along with the aliases `bin` for `binary` and `hex` for `hexadecimal`. Coding names MUST be matched case-insensitively. Text decoders MUST tolerate invalid data using replacement semantics. `UTF-8` MUST accept and strip a BOM if present. `ANSI` MUST map to Windows-1252 on Windows and Latin-1 on other hosts. `binary` MUST return an 8-bit-per-byte bitstring, and `hexadecimal` MUST return lowercase hexadecimal text. Read failure MUST raise a runtime error.
 
-- `bool WRITEFILE(str blob, str path, str coding = "UTF-8")` = MUST write `blob` to `path` using the selected coding rules. Coding names MUST be matched case-insensitively. `UTF-8 BOM` MUST emit a BOM. `ANSI` MUST map to Windows-1252 on Windows and Latin-1 on other hosts. `binary` MUST require a bitstring whose length is a multiple of 8, and `hexadecimal` MUST require valid hexadecimal text. Invalid coding names or malformed binary or hexadecimal input MUST raise a runtime error. Ordinary I/O failure MUST cause the operator to return `FALSE`; successful writes MUST return `TRUE`.
+- `bool WRITEFILE(str blob, str path, str coding = "UTF-8")` = MUST write `blob` to `path` using the selected coding rules. Coding names MUST be matched case-insensitively. `UTF-8 BOM` MUST emit a BOM. `ANSI` MUST map to Windows-1252 on Windows and Latin-1 on other hosts. `binary` MUST require a bitstring whose length is a multiple of 8, and `hexadecimal` MUST require valid hexadecimal text. Invalid coding names or malformed binary or hexadecimal input MUST raise a runtime error. Ordinary I/O failure MUST cause the operator to return `false`; successful writes MUST return `true`.
 
-- `bool EXISTFILE(str path)` = MUST return `TRUE` if a filesystem object exists at `path` and `FALSE` otherwise.
+- `bool EXISTFILE(str path)` = MUST return `true` if a filesystem object exists at `path` and `false` otherwise.
 
-- `bool DELETEFILE(str path)` = MUST delete the filesystem object at `path` and return `TRUE` on success. Missing files, permission failures, and other deletion failures MUST raise a runtime error.
+- `bool DELETEFILE(str path)` = MUST delete the filesystem object at `path` and return `true` on success. Missing files, permission failures, and other deletion failures MUST raise a runtime error.
 
 - `str OS()` = MUST return a short lowercase ASCII string describing the host operating-system family, such as `win`, `linux`, `macos`, or `unix`.
 
@@ -346,19 +346,19 @@ The operator semantics that use this format are defined next.
 
 #### 9.1.12 Console and process operators
 
-- `bool PRINT(~str arg1, ..., ~str argN)` = MUST convert each argument to `str`, concatenate the rendered arguments, append a trailing newline, write the result to the console output, record the corresponding I/O event in the execution log, and return `FALSE`.
+- `bool PRINT(~str arg1, ..., ~str argN)` = MUST convert each argument to `str`, concatenate the rendered arguments, append a trailing newline, write the result to the console output, record the corresponding I/O event in the execution log, and return `false`.
 
 - `str INPUT()` or `str INPUT(str prompt)` = MUST read a single line of text from the console input and return it as a `str`. If `prompt` is supplied, the interpreter MUST write it to the console before reading input. The resulting input event MUST be recorded in the execution log, and if a prompt was supplied the recorded event MUST include that prompt text.
 
-- `bool WARN(~str arg1, ..., ~str argN)` = MUST behave like `PRINT`, except that output MUST occur only when the interpreter was started with `-verbose`, the rendered line MUST be prefixed with `WARNING: `, and the operator MUST return `TRUE` when output occurred and `FALSE` otherwise. Arguments outside `int` and `str` MUST raise a runtime error.
+- `bool WARN(~str arg1, ..., ~str argN)` = MUST behave like `PRINT`, except that output MUST occur only when the interpreter was started with `-verbose`, the rendered line MUST be prefixed with `WARNING: `, and the operator MUST return `true` when output occurred and `false` otherwise. Arguments outside `int` and `str` MUST raise a runtime error.
 
 - `int CL(str command)` = MUST execute `command` using the host command shell and return the resulting subprocess exit code as an `int`. Failure to start the subprocess MUST raise a runtime error. The execution log MUST record the command text and resulting exit code.
 
 - `EXIT()` or `EXIT(int code)` = MUST immediately terminate the interpreter and return process exit code `0` or the supplied integer `code`, respectively. The termination event MUST be recorded in the execution log when logging is enabled.
 
-- `bool SHUSH()` = MUST suppress forwarding of console output produced by operators such as `PRINT`, `WARN`, and shell-output capture from `CL`, while leaving the corresponding I/O events available for deterministic logging and replay. `INPUT` prompts MUST continue to be forwarded while shushing is active. `SHUSH` MUST return `FALSE`.
+- `bool SHUSH()` = MUST suppress forwarding of console output produced by operators such as `PRINT`, `WARN`, and shell-output capture from `CL`, while leaving the corresponding I/O events available for deterministic logging and replay. `INPUT` prompts MUST continue to be forwarded while shushing is active. `SHUSH` MUST return `false`.
 
-- `bool UNSHUSH()` = MUST clear the shush state established by `SHUSH` so that subsequent console output is forwarded normally again. `UNSHUSH` MUST return `FALSE`.
+- `bool UNSHUSH()` = MUST clear the shush state established by `SHUSH` so that subsequent console output is forwarded normally again. `UNSHUSH` MUST return `false`.
 
 ---
 

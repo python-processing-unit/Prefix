@@ -22,13 +22,13 @@ passing:
   - name: valuein-any-type
     language: Prefix
     source: |
-        map bool_map = <"t" = TRUE, "f" = FALSE>
+        map bool_map = <"t" = true, "f" = false>
         map int_map = <"i" = 0d7>
         map flt_map = <"p" = 0d2.5>
         map str_map = <"s" = "text">
         map tns_map = <"vec" = [0d1, 0d2]>
         
-        ASSERT(VALUEIN(TRUE, bool_map))
+        ASSERT(VALUEIN(true, bool_map))
         ASSERT(VALUEIN(0d7, int_map))
         ASSERT(VALUEIN(0d2.5, flt_map))
         ASSERT(VALUEIN("text", str_map))
@@ -63,7 +63,7 @@ failing:
   - name: keyin-first-bool
     language: Prefix
     source: |
-        KEYIN(TRUE, <"a" = 0d1>)
+        KEYIN(true, <"a" = 0d1>)
         
   - name: keyin-first-func
     language: Prefix
@@ -88,7 +88,7 @@ failing:
   - name: keyin-second-bool
     language: Prefix
     source: |
-        KEYIN("a", TRUE)
+        KEYIN("a", true)
         
   - name: keyin-second-flt
     language: Prefix
@@ -138,7 +138,7 @@ failing:
   - name: valuein-second-bool
     language: Prefix
     source: |
-        VALUEIN("a", TRUE)
+        VALUEIN("a", true)
         
   - name: valuein-second-flt
     language: Prefix

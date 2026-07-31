@@ -2,7 +2,7 @@ passing:
   - name: print-coerce-scalars
     language: Prefix
     source: |
-        ASSERT(NOT(PRINT(TRUE)))
+        ASSERT(NOT(PRINT(true)))
         ASSERT(NOT(PRINT(0d42)))
         ASSERT(NOT(PRINT(0d1.5)))
   - name: print-output-concat-newline
@@ -23,7 +23,7 @@ passing:
           $programPath = Join-Path $tempDir 'program.pre'
         
           Set-Content -Path $programPath -Encoding Ascii -Value @'
-        PRINT("left=", TRUE, ",right=", 0d42, ",flt=", INF)
+        PRINT("left=", true, ",right=", 0d42, ",flt=", INF)
         '@
         
           $startInfo = New-Object System.Diagnostics.ProcessStartInfo
@@ -49,7 +49,7 @@ passing:
             throw "Expected no stderr output, got:`n$stderr"
           }
         
-          if (-not [regex]::IsMatch($stdout, '\Aleft=TRUE,right=0d42,flt=INF(?:\r\n|\n)\z')) {
+          if (-not [regex]::IsMatch($stdout, '\Aleft=true,right=0d42,flt=INF(?:\r\n|\n)\z')) {
             $escapedStdout = $stdout.Replace("`r", '\r').Replace("`n", '\n')
             throw "Unexpected stdout: $escapedStdout"
           }
@@ -59,7 +59,7 @@ passing:
         }
   - name: print-return-type
     language: Prefix
-    source: 'ASSERT(EQ(PRINT("value"), FALSE))'
+    source: 'ASSERT(EQ(PRINT("value"), false))'
 failing:
   - name: print-arity-zero
     language: Prefix

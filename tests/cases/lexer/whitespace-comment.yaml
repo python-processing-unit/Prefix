@@ -3,54 +3,54 @@ passing:
     language: Prefix
     source: |
         bool ^! comment
-        x = TRUE
+        x = true
         
   - name: comment
     language: Prefix
     source: |
-        bool x = TRUE ! foo
+        bool x = true ! foo
         
   - name: statement-using-caret
     language: Prefix
     source: |
         bool ^
-        x = TRUE
+        x = true
         
   - name: statements-semicolon-delimiter
     language: Prefix
     source: |
-        bool x = TRUE ; bool y = FALSE
+        bool x = true ; bool y = false
         
   - name: whitespace
     language: Prefix
     source: |
-        bool x = TRUE
-        bool x = TRUE
-        bool x = TRUE
-        bool x = TRUE
-        bool x= TRUE
-        bool x =TRUE
-        bool x=TRUE
+        bool x = true
+        bool x = true
+        bool x = true
+        bool x = true
+        bool x= true
+        bool x =true
+        bool x=true
         
 failing:
   - name: statement-with-caret
     language: Prefix
     source: |
-        bool x ^ = TRUE
+        bool x ^ = true
         
   - name: statement-with-delimiter
     language: Prefix
     source: |
         bool 
-         x = TRUE
+         x = true
         
   - name: statement-with-semicolon
     language: Prefix
     source: |
-        bool ; x = TRUE
+        bool ; x = true
         
   - name: statements-no-delimiter
     language: Prefix
     source: |
-        bool x = TRUE bool y = FALSE
+        bool x = true bool y = false
         

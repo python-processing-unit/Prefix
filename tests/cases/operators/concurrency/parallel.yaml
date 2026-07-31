@@ -2,71 +2,71 @@ passing:
   - name: parallel-tensor-func-values
     language: Prefix
     source: |
-        tensor seen = [FALSE, FALSE]
+        tensor seen = [false, false]
         
         func first = LAMBDA bool (){
             for(i, 0d500){}
-            seen[0d1] = TRUE
+            seen[0d1] = true
         }
         
         func second = LAMBDA bool (){
             for(i, 0d500){}
-            seen[0d2] = TRUE
+            seen[0d2] = true
         }
         
         tensor workers = [first, second]
         
-        ASSERT(EQ(PARALLEL(workers), FALSE))
-        ASSERT(EQ(seen, [TRUE, TRUE]))
+        ASSERT(EQ(PARALLEL(workers), false))
+        ASSERT(EQ(seen, [true, true]))
   - name: parallel-tensor-literal
     language: Prefix
     source: |
-        tensor seen = [FALSE, FALSE]
+        tensor seen = [false, false]
         
         func bool first(){
             for(i, 0d500){}
-            seen[0d1] = TRUE
+            seen[0d1] = true
         }
         
         func bool second(){
             for(i, 0d500){}
-            seen[0d2] = TRUE
+            seen[0d2] = true
         }
         
-        ASSERT(EQ(PARALLEL([first, second]), FALSE))
-        ASSERT(EQ(seen, [TRUE, TRUE]))
+        ASSERT(EQ(PARALLEL([first, second]), false))
+        ASSERT(EQ(seen, [true, true]))
   - name: parallel-variadic
     language: Prefix
     source: |
-        tensor seen = [FALSE, FALSE, FALSE]
+        tensor seen = [false, false, false]
         
         func bool first(){
             for(i, 0d500){
             }
-            seen[0d1] = TRUE
+            seen[0d1] = true
         }
         
         func bool second(){
             for(i, 0d500){
             }
-            seen[0d2] = TRUE
+            seen[0d2] = true
         }
         
         func bool third(){
             for(i, 0d500){
             }
-            seen[0d3] = TRUE
+            seen[0d3] = true
         }
         
-        ASSERT(EQ(PARALLEL(first, second, third), FALSE))
-        ASSERT(EQ(seen, [TRUE, TRUE, TRUE]))
+        ASSERT(EQ(PARALLEL(first, second, third), false))
+        ASSERT(EQ(seen, [true, true, true]))
 failing:
   - name: parallel-arity-zero
     language: Prefix
     source: PARALLEL()
   - name: parallel-non-func-arg
     language: Prefix
-    source: PARALLEL(TRUE)
+    source: PARALLEL(true)
   - name: parallel-tensor-non-func
     language: Prefix
     source: |
@@ -85,7 +85,7 @@ failing:
     language: Prefix
     source: |
         func bool requires_arg(int value){
-            return(TRUE)
+            return(true)
         }
         
         PARALLEL(requires_arg)

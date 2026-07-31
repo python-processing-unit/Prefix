@@ -2,12 +2,12 @@ passing:
   - name: throw-concat-message
     language: Prefix
     source: |
-        bool caught = FALSE
+        bool caught = false
         
         try{
             THROW("left=", 0d42, ",right=", -0b10)
         } catch(err) {
-            caught = TRUE
+            caught = true
             PRINT(err) ! debug
             ASSERT(EQ(err, "left=0d42,right=-0b10"))
         }
@@ -30,12 +30,12 @@ passing:
   - name: throw-default-message
     language: Prefix
     source: |
-        bool caught = FALSE
+        bool caught = false
         
         try{
             THROW()
         } catch(err) {
-            caught = TRUE
+            caught = true
             ASSERT(EQ(err, 'Exception thrown'))
         }
         
@@ -43,12 +43,12 @@ passing:
   - name: throw-empty-message
     language: Prefix
     source: |
-        bool caught = FALSE
+        bool caught = false
         
         try{
             THROW('')
         } catch(err) {
-            caught = TRUE
+            caught = true
             ASSERT(EQ(err, 'Exception thrown'))
             ASSERT(EQ(SLEN(err), 0d16))
         }
@@ -57,12 +57,12 @@ passing:
   - name: throw-string-message
     language: Prefix
     source: |
-        bool caught = FALSE
+        bool caught = false
         
         try{
             THROW('prefix')
         } catch(err) {
-            caught = TRUE
+            caught = true
             ASSERT(EQ(err, 'prefix'))
         }
         

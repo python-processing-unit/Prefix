@@ -2,7 +2,7 @@ passing:
   - name: type
     language: Prefix
     source: |
-        bool sample_bool = TRUE
+        bool sample_bool = true
         int sample_int = 0d1
         float sample_flt = 0d1.5
         str sample_str = "prefix"

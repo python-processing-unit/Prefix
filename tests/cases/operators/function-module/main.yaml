@@ -87,12 +87,12 @@ passing:
   - name: main-in-condition
     language: Prefix
     source: |
-        bool branch_taken = FALSE
+        bool branch_taken = false
         
         if(MAIN()){
-            branch_taken = TRUE
+            branch_taken = true
         } else {
-            ASSERT(FALSE)
+            ASSERT(false)
         }
         
         ASSERT(branch_taken)

@@ -2,21 +2,21 @@ passing:
   - name: async-error-not-caught
     language: Prefix
     source: |
-        bool caught = FALSE
+        bool caught = false
         
         try{
             thread worker = async{
                 FREEZE("not_declared")
             }
         } catch {
-            caught = TRUE
+            caught = true
         }
         
         REFUTE(caught)
         
         
         ! Also ensure awaiting the failed thread does not synchronously raise
-        bool caught_await = FALSE
+        bool caught_await = false
         
         thread worker2 = async{
             FREEZE("not_declared")
@@ -25,7 +25,7 @@ passing:
         try{
             AWAIT(worker2)
         } catch {
-            caught_await = TRUE
+            caught_await = true
         }
         
         REFUTE(caught_await)

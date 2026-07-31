@@ -9,9 +9,9 @@ passing:
             for(j, 0d3){
                 +(@inner, 0d1)
                 break(0d2)
-                ASSERT(FALSE)
+                ASSERT(false)
             }
-            ASSERT(FALSE)
+            ASSERT(false)
         }
         ASSERT(EQ(outer, 0d1))
         ASSERT(EQ(inner, 0d1))
@@ -22,10 +22,10 @@ passing:
     language: Prefix
     source: |
         int c = 0d0
-        while(TRUE){
+        while(true){
             +(@c, 0d1)
             break(0d1)
-            ASSERT(FALSE)
+            ASSERT(false)
         }
         ASSERT(EQ(c, 0d1))
         
@@ -60,7 +60,7 @@ failing:
   - name: break-no-argument
     language: Prefix
     source: |
-        while(TRUE){
+        while(true){
             break()
         }
         
@@ -72,28 +72,28 @@ failing:
   - name: break-target-not-int
     language: Prefix
     source: |
-        while(TRUE){
-            break(TRUE)
+        while(true){
+            break(true)
         }
         
   - name: break-too-deep
     language: Prefix
     source: |
-        while(TRUE){
+        while(true){
             break(0d2)
         }
         
   - name: break-zero
     language: Prefix
     source: |
-        while(TRUE){
+        while(true){
             break(0d0)
         }
         
   - name: continue-no-parens
     language: Prefix
     source: |
-        while(TRUE){
+        while(true){
             continue
         }
         
@@ -105,7 +105,7 @@ failing:
   - name: continue-with-argument
     language: Prefix
     source: |
-        while(TRUE){
+        while(true){
             continue(0d1)
         }
         

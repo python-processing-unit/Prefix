@@ -64,7 +64,7 @@ failing:
     source: CL()
   - name: cl-type-bool
     language: Prefix
-    source: CL(TRUE)
+    source: CL(true)
   - name: cl-type-flt
     language: Prefix
     source: CL(0d1.0)

@@ -131,7 +131,7 @@ failing:
   - name: input-type-bool
     language: Prefix
     source: |
-        INPUT(TRUE)
+        INPUT(true)
         
   - name: input-type-flt
     language: Prefix

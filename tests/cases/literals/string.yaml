@@ -3,27 +3,27 @@ passing:
     language: Prefix
     source: |
         if(""){
-            ASSERT(FALSE)
+            ASSERT(false)
         } else {
-            ASSERT(TRUE)
+            ASSERT(true)
         }
         
         if(''){
-            ASSERT(FALSE)
+            ASSERT(false)
         } else {
-            ASSERT(TRUE)
+            ASSERT(true)
         }
         
         if("x"){
-            ASSERT(TRUE)
+            ASSERT(true)
         } else {
-            ASSERT(FALSE)
+            ASSERT(false)
         }
         
         if('x'){
-            ASSERT(TRUE)
+            ASSERT(true)
         } else {
-            ASSERT(FALSE)
+            ASSERT(false)
         }
   - name: string-literals
     language: Prefix

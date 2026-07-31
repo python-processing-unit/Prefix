@@ -2,75 +2,75 @@ passing:
   - name: ident-includes-chars
     language: Prefix
     source: |
-        bool A = TRUE
-        bool B = TRUE
-        bool C = TRUE
-        bool D = TRUE
-        bool E = TRUE
-        bool F = TRUE
-        bool G = TRUE
-        bool H = TRUE
-        bool I = TRUE
-        bool J = TRUE
-        bool K = TRUE
-        bool L = TRUE
-        bool M = TRUE
-        bool N = TRUE
-        bool O = TRUE
-        bool P = TRUE
-        bool Q = TRUE
-        bool R = TRUE
-        bool S = TRUE
-        bool T = TRUE
-        bool U = TRUE
-        bool V = TRUE
-        bool W = TRUE
-        bool X = TRUE
-        bool Y = TRUE
-        bool Z = TRUE
-        bool a = TRUE
-        bool b = TRUE
-        bool c = TRUE
-        bool d = TRUE
-        bool e = TRUE
-        bool f = TRUE
-        bool g = TRUE
-        bool h = TRUE
-        bool i = TRUE
-        bool j = TRUE
-        bool k = TRUE
-        bool l = TRUE
-        bool m = TRUE
-        bool n = TRUE
-        bool o = TRUE
-        bool p = TRUE
-        bool q = TRUE
-        bool r = TRUE
-        bool s = TRUE
-        bool t = TRUE
-        bool u = TRUE
-        bool v = TRUE
-        bool w = TRUE
-        bool x = TRUE
-        bool y = TRUE
-        bool z = TRUE
-        bool / = TRUE
-        bool $ = TRUE
-        bool % = TRUE
-        bool & = TRUE
-        bool _ = TRUE
-        bool + = TRUE
-        bool | = TRUE
-        bool ? = TRUE
-        bool * = TRUE
+        bool A = true
+        bool B = true
+        bool C = true
+        bool D = true
+        bool E = true
+        bool F = true
+        bool G = true
+        bool H = true
+        bool I = true
+        bool J = true
+        bool K = true
+        bool L = true
+        bool M = true
+        bool N = true
+        bool O = true
+        bool P = true
+        bool Q = true
+        bool R = true
+        bool S = true
+        bool T = true
+        bool U = true
+        bool V = true
+        bool W = true
+        bool X = true
+        bool Y = true
+        bool Z = true
+        bool a = true
+        bool b = true
+        bool c = true
+        bool d = true
+        bool e = true
+        bool f = true
+        bool g = true
+        bool h = true
+        bool i = true
+        bool j = true
+        bool k = true
+        bool l = true
+        bool m = true
+        bool n = true
+        bool o = true
+        bool p = true
+        bool q = true
+        bool r = true
+        bool s = true
+        bool t = true
+        bool u = true
+        bool v = true
+        bool w = true
+        bool x = true
+        bool y = true
+        bool z = true
+        bool / = true
+        bool $ = true
+        bool % = true
+        bool & = true
+        bool _ = true
+        bool + = true
+        bool | = true
+        bool ? = true
+        bool * = true
         
   - name: ident-includes-dash
     language: Prefix
     source: |
-        bool - = TRUE
-        bool -lead = TRUE
-        bool mid-dash = TRUE
-        bool a-0tail = TRUE
+        bool - = true
+        bool -lead = true
+        bool mid-dash = true
+        bool a-0tail = true
         
         ASSERT(-)
         ASSERT(-lead)
@@ -80,36 +80,36 @@ failing:
   - name: open-parentheses-in-ident
     language: Prefix
     source: |
-        bool x( = TRUE
+        bool x( = true
         
   - name: open-square-bracket-in-ident
     language: Prefix
     source: |
-        bool x[ = TRUE
+        bool x[ = true
         
   - name: tilde-in-ident
     language: Prefix
     source: |
-        bool x~ = TRUE
+        bool x~ = true
         
   - name: zero-starts-ident
     language: Prefix
     source: |
-        bool 0x = TRUE
+        bool 0x = true
         
   - name: digit-starts-ident
     language: Prefix
     source: |
-        bool 1x = TRUE
+        bool 1x = true
         
   - name: nine-starts-ident
     language: Prefix
     source: |
-        bool 9lives = TRUE
+        bool 9lives = true
         
   - name: dash-before-digit
     language: Prefix
     source: |
-        bool -1abc = TRUE
+        bool -1abc = true
         
 

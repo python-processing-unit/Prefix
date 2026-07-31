@@ -2,7 +2,7 @@ passing:
   - name: tflt
     language: Prefix
     source: |
-        tensor source = [[TRUE, FALSE, 0d7, -0b11, 0d1.75, -0d1.75], ["0d2.5", "-0d3.25", "0d0.5", "INF", "-INF", "NaN"]]
+        tensor source = [[true, false, 0d7, -0b11, 0d1.75, -0d1.75], ["0d2.5", "-0d3.25", "0d0.5", "INF", "-INF", "NaN"]]
         tensor converted = tfloat(source)
         ASSERT(EQ(TYPE(converted), "tensor"))
         ASSERT(EQ(converted[0d1], [0d1.0, 0d0.0, 0d7.0, -0d3.0, 0d1.75, -0d1.75]))
@@ -15,17 +15,17 @@ passing:
   - name: tint
     language: Prefix
     source: |
-        tensor source = [[TRUE, FALSE, 0d7, -0b11, 0d1.75, -0d1.75], ["0x1A", "-0d9", "", "prefix", "0b101", "0d0"]]
+        tensor source = [[true, false, 0d7, -0b11, 0d1.75, -0d1.75], ["0x1A", "-0d9", "", "prefix", "0b101", "0d0"]]
         tensor converted = tint(source)
         ASSERT(EQ(TYPE(converted), "tensor"))
         ASSERT(EQ(converted, [[0d1, 0d0, 0d7, -0d3, 0d1, -0d1], [0d26, -0d9, 0d0, 0d1, 0d5, 0d0]]))
   - name: tstr
     language: Prefix
     source: |
-        tensor source = [[TRUE, FALSE, 0b101, -0d7, 0d1.5, -0d1.5], ["prefix", "", INF, -INF, NaN, 0x1A]]
+        tensor source = [[true, false, 0b101, -0d7, 0d1.5, -0d1.5], ["prefix", "", INF, -INF, NaN, 0x1A]]
         tensor converted = tstr(source)
         ASSERT(EQ(TYPE(converted), "tensor"))
-        ASSERT(EQ(converted, [["TRUE", "FALSE", "0b101", "-0d7", "0d1.5", "-0d1.5"], ["prefix", "", "INF", "-INF", "NaN", "0x1A"]]))
+        ASSERT(EQ(converted, [["true", "false", "0b101", "-0d7", "0d1.5", "-0d1.5"], ["prefix", "", "INF", "-INF", "NaN", "0x1A"]]))
 failing:
   - name: tconvert-pointer-writeback
     language: Prefix
@@ -60,4 +60,4 @@ failing:
     language: Prefix
     source: |
         map bad = <>
-        tstr([TRUE, bad])
+        tstr([true, bad])

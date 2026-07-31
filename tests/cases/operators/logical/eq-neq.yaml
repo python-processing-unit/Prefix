@@ -2,9 +2,9 @@ passing:
   - name: eq-scalars
     language: Prefix
     source: |
-        ASSERT(isbool(EQ(TRUE, TRUE)))
-        ASSERT(EQ(TRUE, TRUE))
-        REFUTE(EQ(TRUE, FALSE))
+        ASSERT(isbool(EQ(true, true)))
+        ASSERT(EQ(true, true))
+        REFUTE(EQ(true, false))
         
         ASSERT(EQ(0d42, 0d42))
         REFUTE(EQ(0d42, 0d43))
@@ -42,9 +42,9 @@ passing:
   - name: neq-scalars
     language: Prefix
     source: |
-        ASSERT(isbool(NEQ(TRUE, FALSE)))
-        ASSERT(NEQ(TRUE, FALSE))
-        REFUTE(NEQ(TRUE, TRUE))
+        ASSERT(isbool(NEQ(true, false)))
+        ASSERT(NEQ(true, false))
+        REFUTE(NEQ(true, true))
         
         ASSERT(NEQ(0d42, 0d43))
         REFUTE(NEQ(0d42, 0d42))

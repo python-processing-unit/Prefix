@@ -27,7 +27,7 @@ failing:
   - name: op-tns-bool
     language: Prefix
     source: |
-        bool sample_bool = TRUE
+        bool sample_bool = true
         tensor(sample_bool)
   - name: op-tns-flt
     language: Prefix

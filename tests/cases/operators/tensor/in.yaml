@@ -26,7 +26,7 @@ passing:
     language: Prefix
     source: |
         ASSERT(IN("beta", ["alpha", "beta", "gamma"]))
-        ASSERT(IN(FALSE, [TRUE, FALSE]))
+        ASSERT(IN(false, [true, false]))
         
 failing:
   - name: in-arity-one

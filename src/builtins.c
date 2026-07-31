@@ -6431,7 +6431,7 @@ static Value builtin_str(Interpreter *interp, Value *args, int argc, Expr **arg_
         return value_str(args[0].as.s);
     }
     if (args[0].type == VAL_BOOL) {
-        return value_str((int)args[0].as.boolean ? "TRUE" : "FALSE");
+        return value_str((int)args[0].as.boolean ? "true" : "false");
     }
     if (args[0].type == VAL_INT) {
         char *s = int_to_base_prefixed_str(args[0].as.i, numeric_base_of(args[0]));
@@ -7387,7 +7387,7 @@ static Value builtin_print(Interpreter *interp, Value *args, int argc, Expr **ar
         switch (args[i].type) {
         case VAL_BOOL: {
             if (forward) {
-                printf("%s", (int)args[i].as.boolean ? "TRUE" : "FALSE");
+                printf("%s", (int)args[i].as.boolean ? "true" : "false");
             }
             break;
         }
@@ -7452,7 +7452,7 @@ static Value builtin_warn(Interpreter *interp, Value *args, int argc, Expr **arg
 
         switch (args[i].type) {
         case VAL_BOOL:
-            piece = (int)args[i].as.boolean ? "TRUE" : "FALSE";
+            piece = (int)args[i].as.boolean ? "true" : "false";
             break;
         case VAL_INT:
             tmp = int_to_base_prefixed_str(args[i].as.i, numeric_base_of(args[i]));
@@ -8050,7 +8050,7 @@ static Value builtin_throw(Interpreter *interp, Value *args, int argc, Expr **ar
     for (int i = 0; i < argc; i++) {
         switch (args[i].type) {
         case VAL_BOOL:
-            jb_append_str(&jb, (int)args[i].as.boolean ? "TRUE" : "FALSE");
+            jb_append_str(&jb, (int)args[i].as.boolean ? "true" : "false");
             break;
         case VAL_INT: {
             char *s = int_to_base_prefixed_str(args[i].as.i, numeric_base_of(args[i]));
@@ -8235,7 +8235,7 @@ static char *map_schema_to_str(Value v) {
             jb_append_str(&jb, s);
             free(s);
         } else if (val.type == VAL_BOOL) {
-            jb_append_str(&jb, val.as.boolean ? "TRUE" : "FALSE");
+            jb_append_str(&jb, val.as.boolean ? "true" : "false");
         } else if (val.type == VAL_MAP) {
             char *inner = map_schema_to_str(val);
             jb_append_str(&jb, inner);

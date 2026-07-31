@@ -2,8 +2,8 @@ passing:
   - name: isbool
     language: Prefix
     source: |
-        bool sample_bool_true = TRUE
-        bool sample_bool_false = FALSE
+        bool sample_bool_true = true
+        bool sample_bool_false = false
         int sample_int = -0d7
         float sample_flt = 0d3.5
         str sample_str = "prefix"
@@ -29,7 +29,7 @@ passing:
   - name: isflt
     language: Prefix
     source: |
-        bool sample_bool_true = TRUE
+        bool sample_bool_true = true
         int sample_int = -0d7
         float sample_flt = 0d3.5
         str sample_str = "prefix"
@@ -54,8 +54,8 @@ passing:
   - name: isfunc
     language: Prefix
     source: |
-        bool sample_bool_true = TRUE
-        bool sample_bool_false = FALSE
+        bool sample_bool_true = true
+        bool sample_bool_false = false
         int sample_int = -0d7
         float sample_flt = 0d3.5
         str sample_str = "prefix"
@@ -81,7 +81,7 @@ passing:
   - name: isint
     language: Prefix
     source: |
-        bool sample_bool_true = TRUE
+        bool sample_bool_true = true
         int sample_int = -0d7
         float sample_flt = 0d3.5
         str sample_str = "prefix"
@@ -106,8 +106,8 @@ passing:
   - name: ismap
     language: Prefix
     source: |
-        bool sample_bool_true = TRUE
-        bool sample_bool_false = FALSE
+        bool sample_bool_true = true
+        bool sample_bool_false = false
         int sample_int = -0d7
         float sample_flt = 0d3.5
         str sample_str = "prefix"
@@ -133,7 +133,7 @@ passing:
   - name: isstr
     language: Prefix
     source: |
-        bool sample_bool_true = TRUE
+        bool sample_bool_true = true
         int sample_int = -0d7
         float sample_flt = 0d3.5
         str sample_str = "prefix"
@@ -158,7 +158,7 @@ passing:
   - name: isthr
     language: Prefix
     source: |
-        bool sample_bool_true = TRUE
+        bool sample_bool_true = true
         int sample_int = -0d7
         float sample_flt = 0d3.5
         str sample_str = "prefix"
@@ -183,7 +183,7 @@ passing:
   - name: istns
     language: Prefix
     source: |
-        bool sample_bool_true = TRUE
+        bool sample_bool_true = true
         int sample_int = -0d7
         float sample_flt = 0d3.5
         str sample_str = "prefix"
@@ -208,20 +208,20 @@ passing:
 failing:
   - name: isfunc-arity-two
     language: Prefix
-    source: 'isfunc(TRUE, FALSE)'
+    source: 'isfunc(true, false)'
   - name: isfunc-arity-zero
     language: Prefix
     source: isfunc()
   - name: ismap-arity-two
     language: Prefix
-    source: 'ismap(TRUE, FALSE)'
+    source: 'ismap(true, false)'
   - name: ismap-arity-zero
     language: Prefix
     source: ismap()
   - name: isthr-arity-two
     language: Prefix
     source: |
-        isthread(TRUE, FALSE)
+        isthread(true, false)
         
   - name: isthr-arity-zero
     language: Prefix

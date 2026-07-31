@@ -30,7 +30,7 @@ failing:
   - name: bytes-first-bool
     language: Prefix
     source: |
-        BYTES(TRUE)
+        BYTES(true)
         
   - name: bytes-first-flt
     language: Prefix
@@ -51,7 +51,7 @@ failing:
   - name: bytes-first-thr
     language: Prefix
     source: |
-        BYTES(async{ TRUE })
+        BYTES(async{ true })
         
   - name: bytes-first-tns
     language: Prefix
@@ -71,7 +71,7 @@ failing:
   - name: bytes-second-bool
     language: Prefix
     source: |
-        BYTES(0d1, endian = TRUE)
+        BYTES(0d1, endian = true)
         
   - name: bytes-second-flt
     language: Prefix
@@ -97,7 +97,7 @@ failing:
   - name: bytes-second-thr
     language: Prefix
     source: |
-        BYTES(0d1, endian = async{ TRUE })
+        BYTES(0d1, endian = async{ true })
         
   - name: bytes-second-tns
     language: Prefix

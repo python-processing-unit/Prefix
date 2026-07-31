@@ -55,7 +55,7 @@ passing:
   - name: ser-map
     language: Prefix
     source: |
-        map ordered = <"alpha" = 0d1, 0d2 = "two", 0d3.5 = TRUE>
+        map ordered = <"alpha" = 0d1, 0d2 = "two", 0d3.5 = true>
         
         ASSERT(EQ(SER(ordered), '\R{"t":"map","v":[{"k":{"t":"str","v":"alpha"},"v":{"t":"int","v":"0d1"}},{"k":{"t":"int","v":"0d2"},"v":{"t":"str","v":"two"}},{"k":{"t":"float","v":"0d3.5"},"v":{"t":"bool","v":true}}]}'))
         
@@ -65,8 +65,8 @@ passing:
   - name: ser-scalars
     language: Prefix
     source: |
-        ASSERT(EQ(SER(TRUE), '{"t":"bool","v":true}'))
-        ASSERT(EQ(SER(FALSE), '{"t":"bool","v":false}'))
+        ASSERT(EQ(SER(true), '{"t":"bool","v":true}'))
+        ASSERT(EQ(SER(false), '{"t":"bool","v":false}'))
         
         ASSERT(EQ(SER(0d42), '{"t":"int","v":"0d42"}'))
         ASSERT(EQ(SER(-0xA), '{"t":"int","v":"-0xA"}'))
@@ -129,7 +129,7 @@ passing:
 failing:
   - name: ser-arity-two
     language: Prefix
-    source: 'SER(TRUE, FALSE)'
+    source: 'SER(true, false)'
   - name: ser-arity-zero
     language: Prefix
     source: SER()

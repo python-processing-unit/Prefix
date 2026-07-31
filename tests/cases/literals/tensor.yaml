@@ -41,14 +41,14 @@ passing:
         }
         
         try {
-            vec[TRUE]
+            vec[true]
         } catch(err) {
             ASSERT(EQ(err, 'Index expression must evaluate to int'))
              +(@errors_caught, 0d1)
         }
         
         try {
-            vec[TRUE:0d1]
+            vec[true:0d1]
         } catch(err) {
             ASSERT(EQ(err, 'Range bounds must be int'))
              +(@errors_caught, 0d1)
@@ -69,16 +69,16 @@ passing:
         tensor zero_row = [0d0, 0d0]
         tensor row = [0d1, 0d2]
         
-        if([FALSE, 0d0, 0d0.0, "", zero_row]){
-            ASSERT(FALSE)
+        if([false, 0d0, 0d0.0, "", zero_row]){
+            ASSERT(false)
         } else {
-            ASSERT(TRUE)
+            ASSERT(true)
         }
         
-        if([FALSE, 0d0, row]){
-            ASSERT(TRUE)
+        if([false, 0d0, row]){
+            ASSERT(true)
         } else {
-            ASSERT(FALSE)
+            ASSERT(false)
         }
         
   - name: tns-literals-matrices
@@ -104,9 +104,9 @@ passing:
         tensor row = [0d1, 0d2]
         thread(worker){}
         
-        tensor mixed = [TRUE, 0d2, 0d3.5, "four", sample_map, ID, worker, row]
+        tensor mixed = [true, 0d2, 0d3.5, "four", sample_map, ID, worker, row]
         
-        ASSERT(EQ(mixed[0d1], TRUE))
+        ASSERT(EQ(mixed[0d1], true))
         ASSERT(EQ(mixed[0d2], 0d2))
         ASSERT(EQ(mixed[0d3], 0d3.5))
         ASSERT(EQ(mixed[0d4], "four"))

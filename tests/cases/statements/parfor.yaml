@@ -9,7 +9,7 @@ passing:
             parfor(i, 0d5){
                 break(0d2)
             }
-            ASSERT(FALSE)
+            ASSERT(false)
         }
         
         ASSERT(EQ(outer, 0d1))
@@ -52,18 +52,18 @@ passing:
     language: Prefix
     source: |
         tensor seen = [0d0, 0d0, 0d0]
-        bool caught = FALSE
+        bool caught = false
         
         try{
             parfor(i, 0d3){
                 seen[i] = i
                 if(EQ(i, 0d2)){
-                    ASSERT(FALSE)
+                    ASSERT(false)
                 }
             }
-            ASSERT(FALSE)
+            ASSERT(false)
         } catch {
-            caught = TRUE
+            caught = true
         }
         
         ASSERT(caught)
@@ -102,7 +102,7 @@ passing:
   - name: parfor-zero-and-restore-counter
     language: Prefix
     source: |
-        bool i = TRUE
+        bool i = true
         int runs = 0d0
         parfor(i, 0d5){
             +(@runs, 0d1)
@@ -134,5 +134,5 @@ failing:
   - name: parfor-target-not-int
     language: Prefix
     source: |
-        parfor(i, TRUE){}
+        parfor(i, true){}
         

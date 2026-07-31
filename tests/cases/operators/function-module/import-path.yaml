@@ -215,7 +215,7 @@ failing:
         str tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
         str helper_path = JOIN(tests_dir, "/helpers/import_path_basic_target.pre")
         
-        IMPORT_PATH(helper_path, TRUE)
+        IMPORT_PATH(helper_path, true)
   - name: import_path-alias-type-flt
     language: Prefix
     source: |
@@ -298,7 +298,7 @@ failing:
         ASSERT(EQ(hidden, 0d7))
   - name: import_path-type-bool
     language: Prefix
-    source: IMPORT_PATH(TRUE)
+    source: IMPORT_PATH(true)
   - name: import_path-type-flt
     language: Prefix
     source: IMPORT_PATH(0d1.0)

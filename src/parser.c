@@ -679,12 +679,12 @@ static Expr *parse_primary(Parser *parser) {
     Token token = parser->current_token;
     // Recognize float literal names `INF` and `NaN` as primary expressions
     if (parser->current_token.type == TOKEN_IDENT) {
-        if (strcmp(parser->current_token.literal, "TRUE") == 0) {
+        if (strcmp(parser->current_token.literal, "true") == 0) {
             Token t = parser->current_token;
             advance(parser);
             return expr_bool(true, t.line, t.column);
         }
-        if (strcmp(parser->current_token.literal, "FALSE") == 0) {
+        if (strcmp(parser->current_token.literal, "false") == 0) {
             Token t = parser->current_token;
             advance(parser);
             return expr_bool(false, t.line, t.column);

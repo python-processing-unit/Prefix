@@ -63,7 +63,7 @@ passing:
         . $helperPath
         
         $input = @'
-        bool persisted = TRUE
+        bool persisted = true
         
         PRINT(persisted)
         .exit
@@ -75,7 +75,7 @@ passing:
         Assert-NoErrorOutput $result
         
         $stdout = Format-VisibleText $result.Stdout
-        if (-not ($stdout -match 'TRUE')) {
+        if (-not ($stdout -match 'true')) {
           throw "Unexpected stdout: $stdout"
         }
         

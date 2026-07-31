@@ -44,7 +44,7 @@ failing:
     source: AWAIT()
   - name: await-type-bool
     language: Prefix
-    source: AWAIT(TRUE)
+    source: AWAIT(true)
   - name: await-type-flt
     language: Prefix
     source: AWAIT(0d1.0)
