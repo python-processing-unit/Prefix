@@ -4,6 +4,8 @@
 #include "ast.h"
 #include "env.h"
 
+struct Thread; // forward declaration (defined in value.h)
+
 typedef struct {
     DeclType type;
     char *name;
@@ -98,6 +100,15 @@ typedef struct Interpreter {
     int trace_next_step_index;
     char trace_last_state_id[24];
     char trace_last_rule[32];
+    // Registry of live background threads (async/thread) spawned by this
+    // interpreter. interpreter_destroy() checks it and, while any worker is
+    // still live, skips freeing shared state (global_env/modules) because a
+    // still-running worker could touch freed memory; the OS reclaims it at
+    // process exit.
+    struct Thread **bg_threads;
+    size_t bg_thread_count;
+    size_t bg_thread_cap;
+    mtx_t bg_threads_lock;
 } Interpreter;
 
 // Initialize/destroy a reusable interpreter session.
