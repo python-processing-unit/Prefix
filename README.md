@@ -11,12 +11,12 @@ Prefix is a programming language focused on explicit, readable code.
 ! ---------- modular inverse via the extended Euclidean algorithm ----------
 func int modinv(int a, int m){
     a = MOD(a, m)
-    if(LT(a, 0d0)){ a = +(a, m) }
+    if(LT(a, 0)){ a = +(a, m) }
     int r0 = m
     int r1 = a
-    int t0 = 0d0
-    int t1 = 0d1
-    while(NEQ(r1, 0d0)){
+    int t0 = 0
+    int t1 = 1
+    while(NEQ(r1, 0)){
         int q = /(r0, r1)
         int nr = -(r0, *(q, r1))
         int nt = -(t0, *(q, t1))
@@ -25,11 +25,11 @@ func int modinv(int a, int m){
         t0 = t1
         t1 = nt
     }
-    if(NEQ(r0, 0d1)){
+    if(NEQ(r0, 0)){
         THROW("modinv: arguments not coprime")
     }
     int inv = MOD(t0, m)
-    if(LT(inv, 0d0)){ inv = +(inv, m) }
+    if(LT(inv, 0)){ inv = +(inv, m) }
     return(inv)
 }
 
@@ -38,9 +38,9 @@ func int modinv(int a, int m){
 ! The modulus is kept below 2^31 so that products of two consecutive
 ! differences (each < m) never overflow Prefix's signed 64-bit int.
 int m = 0x186A1
-int a = 0d16807
-int c = 0d12345
-int seed = 0d48271
+int a = 16807
+int c = 12345
+int seed = 48271
 
 func int step(int s){
     return(MOD(+( *(a, s), c), m))
@@ -49,7 +49,7 @@ func int step(int s){
 ! ---------- collect observed outputs (all the attacker sees) ----------
 map obs
 int s = seed
-for(i, 0d8){
+for(i, 8){
     obs<i> = s
     s = step(s)
 }
@@ -61,18 +61,18 @@ DEL("s")
 ! u_k = t_{k+1} * t_{k-1} - t_k^2 is a multiple of m.  GCD of several
 ! |u_k| yields m.
 map d
-for(i, 0d7){
-    d<i> = -(obs<+(i, 0d1)>, obs<i>)
+for(i, 7){
+    d<i> = -(obs<+(i, 1)>, obs<i>)
 }
 
-int mrec = 0d0
-int k = 0d2
-while(LTE(k, 0d6)){
-    int lo = -(k, 0d1)
-    int hi = +(k, 0d1)
+int mrec = 0
+int k = 2
+while(LTE(k, 6)){
+    int lo = -(k, 1)
+    int hi = +(k, 1)
     int tk = d<k>
     mrec = GCD(mrec, ABS(-( *(d<hi>, d<lo>), *(tk, tk) )))
-    k = +(k, 0d1)
+    k = +(k, 1)
 }
 DEL("d")
 DEL("k")
@@ -100,11 +100,11 @@ DEL("x1")
 DEL("modinv")
 
 ! ---------- verify by regenerating the whole sequence ----------
-int ok = 0d1
+int ok = 1
 int v = x0
-for(i, 0d8){
+for(i, 8){
     if(NEQ(v, obs<i>)){
-        ok = 0d0
+        ok = 0
     }
     v = MOD(+( *(arec, v), crec), mrec)
 }
@@ -124,7 +124,7 @@ DEL("step")
 PRINT("next output predicted: ", next_pred)
 PRINT("next output actual  : ", next_true)
 
-ASSERT(EQ(ok, 0d1))
+ASSERT(EQ(ok, 1))
 ASSERT(EQ(mrec, m))
 ASSERT(EQ(arec, a))
 ASSERT(EQ(crec, c))

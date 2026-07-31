@@ -30,6 +30,28 @@ passing:
         int s = 0s_
         int r = 0r15E
         
+  - name: int-decimal-no-prefix
+    language: Prefix
+    source: |
+        int a = 123
+        int b = 0
+        int c = 42
+        int d = 007
+        
+        ASSERT(EQ(a, 0d123))
+        ASSERT(EQ(b, 0d0))
+        ASSERT(EQ(c, 0d42))
+        ASSERT(EQ(d, 0d7))
+        
+  - name: int-decimal-base-annotation
+    language: Prefix
+    source: |
+        int{10} a = 0d42
+        int{2} b = 0b101
+        
+        ASSERT(EQ(a, 0d42))
+        ASSERT(EQ(b, 0b101))
+        
 failing:
   - name: int-invalid-digit
     language: Prefix
@@ -37,6 +59,21 @@ failing:
         int a = 0b2
         int b = 0o8
         int c = 0xG
+        
+  - name: int-decimal-invalid-digit
+    language: Prefix
+    source: |
+        int a = 12A
+        
+  - name: int-digit-before-prefix
+    language: Prefix
+    source: |
+        int a = 10x5
+        
+  - name: int-digit-before-prefix-r
+    language: Prefix
+    source: |
+        int a = 10r16FF
         
   - name: int-missing-digits
     language: Prefix

@@ -462,7 +462,7 @@ static bool is_number_body_char(char c) {
 }
 
 static bool is_identifier_start_char(char c) {
-    return strchr("abcdefghijklmnopqrstuvwxyz123456789/ABCDEFGHIJKLMNOPQRSTUVWXYZ$%&_+|?*", c) != NULL;
+    return strchr("abcdefghijklmnopqrstuvwxyz/ABCDEFGHIJKLMNOPQRSTUVWXYZ$%&_+|?*", c) != NULL;
 }
 
 static bool is_identifier_body_char(char c) {
@@ -650,7 +650,8 @@ Token lexer_next_token(Lexer *lexer) {
                 return number_token(lexer, true);
             }
 
-            if ((peek_next(lexer) == '0') || matches_reserved_signed_special(lexer, lookahead, "INF") ||
+            if ((isdigit((unsigned char)peek_next(lexer))) ||
+                matches_reserved_signed_special(lexer, lookahead, "INF") ||
                 matches_reserved_signed_special(lexer, lookahead, "NaN")) {
                 advance(lexer);
                 return make_token(lexer, TOKEN_DASH, "-", 1);
@@ -659,7 +660,7 @@ Token lexer_next_token(Lexer *lexer) {
             return identifier_token(lexer);
         }
 
-        if (c == '0' && is_base_prefix_char(peek_next(lexer))) {
+        if (isdigit((unsigned char)c)) {
             return number_token(lexer, false);
         }
 
@@ -752,39 +753,42 @@ static Token number_token(Lexer *lexer, bool is_negative_start) {
         value[len_val++] = '-';
     }
 
-    if (peek(lexer) != '0') {
+    bool prefixed = (peek(lexer) == '0' && is_base_prefix_char(peek_next(lexer)));
+
+    if (is_negative_start && !prefixed) {
         free(value);
         return error_token(lexer, "Invalid numeric literal; expected base prefix");
     }
-    if (len_val + 1 >= capacity) {
-        capacity *= 2;
-        value = safe_realloc(value, capacity);
-    }
-    value[len_val++] = advance(lexer); // 0
 
-    if (!is_base_prefix_char(peek(lexer))) {
-        free(value);
-        return error_token(lexer, "Invalid numeric literal base prefix");
-    }
-    if (len_val + 1 >= capacity) {
-        capacity *= 2;
-        value = safe_realloc(value, capacity);
-    }
-    char pref = advance(lexer);
-    value[len_val++] = pref;
-
-    if (pref == 'r') {
-        if (!isdigit((unsigned char)peek(lexer)) || !isdigit((unsigned char)peek_next(lexer))) {
-            free(value);
-            return error_token(lexer, "0r literals require two decimal base digits");
-        }
-        if (len_val + 2 >= capacity) {
+    if (prefixed) {
+        if (len_val + 1 >= capacity) {
             capacity *= 2;
             value = safe_realloc(value, capacity);
         }
-        value[len_val++] = advance(lexer);
-        value[len_val++] = advance(lexer);
+        value[len_val++] = advance(lexer); // 0
+
+        if (len_val + 1 >= capacity) {
+            capacity *= 2;
+            value = safe_realloc(value, capacity);
+        }
+        char pref = advance(lexer);
+        value[len_val++] = pref;
+
+        if (pref == 'r') {
+            if (!isdigit((unsigned char)peek(lexer)) || !isdigit((unsigned char)peek_next(lexer))) {
+                free(value);
+                return error_token(lexer, "0r literals require two decimal base digits");
+            }
+            if (len_val + 2 >= capacity) {
+                capacity *= 2;
+                value = safe_realloc(value, capacity);
+            }
+            value[len_val++] = advance(lexer);
+            value[len_val++] = advance(lexer);
+        }
     }
+
+    size_t digits_start = len_val;
 
     bool has_any = false;
     bool has_dot = false;
@@ -839,6 +843,21 @@ static Token number_token(Lexer *lexer, bool is_negative_start) {
     if (has_dot && !has_frac) {
         free(value);
         return error_token(lexer, "Float literal requires fractional digits");
+    }
+
+    if (!prefixed) {
+        for (size_t i = digits_start; i < len_val; i++) {
+            if (value[i] == '0' && i + 1 < len_val && is_base_prefix_char(value[i + 1])) {
+                free(value);
+                return error_token(lexer, "Numeric literal beginning with a digit must not include a base prefix");
+            }
+        }
+        for (size_t i = digits_start; i < len_val; i++) {
+            if (value[i] != '.' && !isdigit((unsigned char)value[i])) {
+                free(value);
+                return error_token(lexer, "Invalid digit in decimal literal");
+            }
+        }
     }
 
     value[len_val] = '\0';

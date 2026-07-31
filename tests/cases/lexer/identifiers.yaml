@@ -54,15 +54,6 @@ passing:
         bool x = TRUE
         bool y = TRUE
         bool z = TRUE
-        bool 2 = TRUE
-        bool 3 = TRUE
-        bool 4 = TRUE
-        bool 5 = TRUE
-        bool 6 = TRUE
-        bool 7 = TRUE
-        bool 8 = TRUE
-        bool 9 = TRUE
-        bool 1 = TRUE
         bool / = TRUE
         bool $ = TRUE
         bool % = TRUE
@@ -106,3 +97,19 @@ failing:
     source: |
         bool 0x = TRUE
         
+  - name: digit-starts-ident
+    language: Prefix
+    source: |
+        bool 1x = TRUE
+        
+  - name: nine-starts-ident
+    language: Prefix
+    source: |
+        bool 9lives = TRUE
+        
+  - name: dash-before-digit
+    language: Prefix
+    source: |
+        bool -1abc = TRUE
+        
+

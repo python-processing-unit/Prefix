@@ -17,11 +17,32 @@ passing:
         ASSERT(EQ(d, 0xA.F))
         ASSERT(EQ(e, 0r16F.8))
         
+  - name: flt-decimal-no-prefix
+    language: Prefix
+    source: |
+        float a = 1.5
+        float b = 0.25
+        float c = 12.75
+        
+        ASSERT(EQ(a, 0d1.5))
+        ASSERT(EQ(b, 0d0.25))
+        ASSERT(EQ(c, 0d12.75))
+        
 failing:
   - name: flt-invalid-digit
     language: Prefix
     source: |
         float a = 0b2.0
+        
+  - name: flt-digit-before-prefix
+    language: Prefix
+    source: |
+        float a = 10x1.F
+        
+  - name: flt-decimal-invalid-digit
+    language: Prefix
+    source: |
+        float a = 1.5F
         
   - name: flt-negative-nan
     language: Prefix

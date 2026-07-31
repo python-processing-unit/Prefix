@@ -469,6 +469,10 @@ static int parse_prefixed_int_literal(const char *lit, int64_t *out_value, int *
 
     size_t prefix_len = 0;
     int base = base_from_literal_prefix(s, &prefix_len);
+    if (base < 0 && isdigit((unsigned char)s[0])) {
+        base = 10;
+        prefix_len = 0;
+    }
     if (base < 2 || base > 64) {
         return 0;
     }
@@ -510,6 +514,10 @@ static int parse_prefixed_float_literal(const char *lit, double *out_value, int 
 
     size_t prefix_len = 0;
     int base = base_from_literal_prefix(s, &prefix_len);
+    if (base < 0 && isdigit((unsigned char)s[0])) {
+        base = 10;
+        prefix_len = 0;
+    }
     if (base < 2 || base > 64) {
         return 0;
     }
