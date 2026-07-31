@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Prefix Specification</title>
+  <link rel="icon" href="../icon.png" />
+  <link rel="stylesheet" href="../style.css" />
+</head>
+<body>
+  <div class="container" id="content">Rendering specification…</div>
+
+  <!-- Markdown source is embedded below. marked.js renders it; the TOC is auto-generated. -->
+  <script id="md" type="text/markdown">
+# <a href="../index.html"><img class="title-icon" alt="Prefix icon" src="../icon.png"></a> <span class="semibold">Pre<span class="grey">fix</span></span> Specification
+
+
+## 7. Tracebacks and error handling
+
+Structured exception handling is defined in [3.4](#3-statements.html#34-exception-handling). This section defines how unhandled runtime failures MUST be reported and how those reports are tied to the serialized execution log.
+
+---
+
+### 7.1 Runtime failures and traceback triggers
+
+A traceback MUST be produced whenever a runtime error prevents normal forward execution, including but not limited to undefined identifier access, type mismatch, divide-by-zero, invalid control-flow transfer, or failed assertion.
+
+Errors raised inside background execution contexts MUST be recorded through the same error-reporting and state-logging mechanisms, but they MUST NOT synchronously transfer control to an exception handler running on a different thread. Nested handlers MUST continue to obey the language's innermost-handler rule.
+
+---
+
+### 7.2 Required traceback contents
+
+The interpreter MUST emit a deterministic, human-readable traceback derived from the state log. Frames MUST be listed from the outermost call site to the innermost frame where the failure occurred.
+
+Each frame MUST include the active function name, or `<top-level>` for global code, together with a precise source location, a short excerpt of the relevant statement, and references that identify the corresponding serialized states in the state log. The innermost frame MUST additionally identify the failing rewrite step that produced the error.
+
+---
+
+### 7.3 State-log linkage
+
+When verbose logging is enabled, the state log MUST make at least the following fields available for traceback construction:
+
+- `step_index`, a monotonically increasing rewrite-step counter.
+
+- `state_id`, a stable identifier for each serialized state.
+
+- `source_location`, when applicable, including file, line, and statement text.
+
+- `frame_id`, when a call frame is active.
+
+- `env_snapshot`, containing the selected local environment and any included global bindings.
+
+- `rewrite_record`, containing the rewrite rule name, its inputs or parameters, and the `from_state_id` and `to_state_id` pair.
+
+Implementations MAY redact or elide large or sensitive values, but they MUST clearly indicate when snapshot data has been omitted.
+
+---
+
+### 7.4 Presentation modes
+
+The default traceback form MUST be a concise textual stack trace. The interpreter MUST also support a verbose mode that includes per-frame state snapshots and full rewrite records, and a machine-readable form suitable for editors and diagnostics tooling.
+
+The following concise textual layout is RECOMMENDED:
+
+```text
+Traceback (most recent call last):
+  File "<file>", line <line>, in <function_or_<top-level>>
+    <statement excerpt>
+    State log index: <step_index>  State id: <state_id>
+```
+
+The final line of the traceback MUST identify the runtime error, the failing rewrite rule when known, and the `step_index` at which execution failed.
+
+---
+
+### 7.5 Point of origin and replay integration
+
+The traceback MUST clearly identify the point of origin of the failure by including the source location and failing step index. When available, implementations SHOULD also identify the exact token or sub-expression that triggered the error and SHOULD include a small surrounding source excerpt.
+
+The disassembler or replay tooling MUST support jumping from a traceback frame to the referenced state-log entry and source location. Because the state log records I/O and nondeterministic choices explicitly, the failing step MUST be replayable exactly from the seed configuration together with the recorded inputs.
+
+---
+
+  </script>
+
+  <script src="./index.js"></script>
+  <script src="../render-md.js"></script>
+</body>
+</html>

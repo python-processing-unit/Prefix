@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Prefix Specification</title>
+  <link rel="icon" href="../icon.png" />
+  <link rel="stylesheet" href="../style.css" />
+</head>
+<body>
+  <div class="container" id="content">Rendering specification…</div>
+
+  <!-- Markdown source is embedded below. marked.js renders it; the TOC is auto-generated. -->
+  <script id="md" type="text/markdown">
+# <a href="../index.html"><img class="title-icon" alt="Prefix icon" src="../icon.png"></a> <span class="semibold">Pre<span class="grey">fix</span></span> Specification
+
+
+## 5. Namespaces and symbols
+
+Prefix MUST maintain a typed lexical environment mapping identifiers to bindings. Variables and user-defined functions share a single flat identifier namespace within each scope. Imported modules expose distinct qualified namespaces under the module name or an explicit import alias.
+
+---
+
+### 5.1 Declarations, bindings, and lifetime
+
+A declaration MUST record the symbol's static type without necessarily creating a readable runtime value. A readable binding is created only when a value is first assigned. In all type annotations, the type and name MUST be separated by one or more space characters, and other characters MUST NOT appear between them.
+
+`int` and `float` type annotations MAY include a base specifier written immediately after the type name with no intervening whitespace, in the form `int{base}` or `float{base}`. The `{base}` suffix is part of the type annotation and therefore MUST appear before the required space that separates the type from the declared name. For example, `int{0d2} value` declares a binary integer, while `float{0x} value` declares a hexadecimal float. A base of `0` (typically written as the bare type name) denotes the parent type and accepts any valid numeric base.
+
+`map` type annotations MAY include a schema specifier written immediately after the type name with no intervening whitespace, in the form `map{schema}`. The `{schema}` suffix is part of the type annotation and therefore MUST appear before the required space that separates the type from the declared name. For example, `map{<"x" = 0d1>} value` declares a map that requires an `"x"` key with integer value. The `schema` MUST evaluate to a `map`. Signatures produced by the `SIGNATURE` built-in MUST include the schema in the type annotation for named `map` bindings.
+
+Reading an undeclared symbol, a declared-but-never-assigned symbol, or a deleted symbol MUST raise a runtime error. Removing a binding MUST preserve its recorded static type, so any later re-assignment to the same name MUST still match the original type.
+
+Re-assignment MUST preserve the declared type for the lifetime of the symbol, including after deletion and re-creation. Symbol existence, lifetime, and mutability MAY be inspected or modified only through the language's dedicated symbol-management facilities.
+
+---
+
+### 5.2 Lexical environments and scope
+
+The top-level program MUST execute in a global environment. Function calls MUST create new activation records that close over the lexical environment captured when the callable was defined.
+
+Unqualified identifier lookup MUST search the current environment first and then enclosing lexical environments. Loop counters introduced by iterative constructs are loop-local: any prior binding with the same name MUST be restored when the loop completes. Other symbols first declared inside loop bodies remain bound in the enclosing environment after the loop finishes.
+
+Modules loaded through the language's import facilities MUST execute in their own top-level environments. Their bindings are exposed only through qualified names, and repeated imports of the same module MUST reuse the same cached module namespace rather than re-executing the module source.
+
+---
+
+### 5.3 Function symbols and call binding
+
+Named function definitions MUST bind callable values into the surrounding environment. Anonymous function forms MUST instead produce callable values without introducing a new top-level name.
+
+Calls MAY target any expression that evaluates to a callable value. Arguments MUST be evaluated left-to-right. Positional arguments MUST bind from left to right, and named arguments MUST appear only after all positional arguments. Unknown names, duplicate names, or too many positional arguments MUST raise a runtime error.
+
+Default parameter expressions MUST be evaluated at call time in the function's lexical environment after earlier parameters have been bound. For an ordinary parameter, the supplied or defaulted value MUST already have the declared type. For a coerced parameter, the runtime MUST attempt conversion to the declared type and MUST raise a runtime error if that conversion fails.
+
+Any explicit return value MUST match the declared return type. If execution reaches the end of a function body without an explicit return, the runtime MUST apply the following default-return rules: `bool` functions MUST return `FALSE`, `int` functions MUST return `0`, `float` functions MUST return `0.0`, and `str` functions MUST return the empty string. Functions declared with return type `tensor`, `map`, `func`, or `thread` MUST raise a runtime error if control reaches the end of the body without an explicit `return`.
+
+---
+
+### 5.4 Pointers, aliasing, and symbol state
+
+The language's pointer mechanism MUST create an alias to an existing visible binding. Pointer creation MUST resolve any existing pointer chain so the new pointer refers to the underlying non-pointer target. Reading through a symbol bound to a pointer MUST behave as an ordinary dereference, so plain reads yield the pointed-to value.
+
+Assigning through a symbol whose current binding is a pointer MUST update the pointed-to target rather than replace the pointer object. Pointer cycles, including direct self-reference, MUST be rejected as runtime errors.
+
+When a built-in operator produces a transformed value from one or more operand arguments, any operand argument that is a pointer literal MUST be written back through the alias for that operand. Arguments that act only as flags, modes, delimiters, bounds, or other control inputs MUST NOT be written back unless they are themselves part of the transformed output.
+
+Because `tensor` and `map` are atomic container types, ordinary assignment of those values MUST duplicate the container object by default. Shared mutable aliasing for containers therefore requires the explicit alias mechanism.
+
+Bindings MAY be frozen or permanently frozen by the runtime's symbol-state facilities. A frozen binding MUST reject reassignment and deletion. A permanently frozen binding MUST additionally reject re-enabling mutation. Creating a new pointer to a frozen binding MUST raise a runtime error, though an existing aliased binding MAY itself later become frozen.
+
+---
+
+### 5.5 Execution state and replay
+
+Program execution MUST begin from a seed configuration containing the parsed program, the initial environments, and explicit models of I/O and nondeterministic inputs. The interpreter MUST advance execution by repeatedly applying a fixed, program-independent small-step transition function.
+
+Each intermediate machine state MUST be serializable and sufficiently human-readable for tracing and replay. The interpreter's state log MUST record the sequence of visited states, control-flow decisions, I/O events, and nondeterministic choices so that execution can be replayed deterministically from the seed configuration together with the recorded inputs.
+
+---
+
+  </script>
+
+  <script src="./index.js"></script>
+  <script src="../render-md.js"></script>
+</body>
+</html>
