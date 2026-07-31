@@ -8,7 +8,7 @@ passing:
   - name: inv-pointer-writeback
     language: Prefix
     source: |
-        MAP src = <"left" = "x", "right" = "y">
+        map src = <"left" = "x", "right" = "y">
         
         INV(@src)
         
@@ -16,14 +16,14 @@ passing:
   - name: inv-return-type
     language: Prefix
     source: |
-        ASSERT(EQ(TYPE(INV(<"one" = 0d1>)), "MAP"))
-        MAP m = <"a" = "x">
-        ASSERT(EQ(TYPE(INV(m)), "MAP"))
+        ASSERT(EQ(TYPE(INV(<"one" = 0d1>)), "map"))
+        map m = <"a" = "x">
+        ASSERT(EQ(TYPE(INV(m)), "map"))
         
   - name: inv-source-unchanged
     language: Prefix
     source: |
-        MAP src = <"left" = "x", "right" = "y">
+        map src = <"left" = "x", "right" = "y">
         
         INV(src)
         
@@ -55,7 +55,7 @@ failing:
     source: INV(0d1.5)
   - name: inv-func
     language: Prefix
-    source: 'INV(LAMBDA INT: (){})'
+    source: 'INV(LAMBDA int: (){})'
   - name: inv-int
     language: Prefix
     source: INV(0d1)
@@ -73,7 +73,7 @@ failing:
     source: 'INV(<"a" = TRUE>)'
   - name: inv-value-func
     language: Prefix
-    source: 'INV(<"a" = LAMBDA INT: (){}>)'
+    source: 'INV(<"a" = LAMBDA int: (){}>)'
   - name: inv-value-map
     language: Prefix
     source: 'INV(<"a" = <"x" = 0d1>>)'

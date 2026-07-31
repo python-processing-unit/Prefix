@@ -2,13 +2,13 @@ passing:
   - name: int-literals-extended
     language: Prefix
     source: |
-        INT a = 0d123
-        INT b = -0d42
-        INT c = 0x1A3
-        INT d = 0b1010
-        INT e = 0o755
-        INT g = 0r16FF
-        INT h = -0r16FF
+        int a = 0d123
+        int b = -0d42
+        int c = 0x1A3
+        int d = 0b1010
+        int e = 0o755
+        int g = 0r16FF
+        int h = -0r16FF
         
         ASSERT(EQ(a, 0d123))
         ASSERT(EQ(b, -0d42))
@@ -21,51 +21,51 @@ passing:
   - name: int
     language: Prefix
     source: |
-        INT b = 0b1
-        INT o = 0o7
-        INT d = 0d9
-        INT h = 0xF
-        INT t = 0tV
-        INT c = 0cz
-        INT s = 0s_
-        INT r = 0r15E
+        int b = 0b1
+        int o = 0o7
+        int d = 0d9
+        int h = 0xF
+        int t = 0tV
+        int c = 0cz
+        int s = 0s_
+        int r = 0r15E
         
 failing:
   - name: int-invalid-digit
     language: Prefix
     source: |
-        INT a = 0b2
-        INT b = 0o8
-        INT c = 0xG
+        int a = 0b2
+        int b = 0o8
+        int c = 0xG
         
   - name: int-missing-digits
     language: Prefix
     source: |
-        INT a = 0d
+        int a = 0d
         
   - name: int-plus-sign
     language: Prefix
     source: |
-        INT a = +0d1
+        int a = +0d1
         
   - name: int-r-bad-format
     language: Prefix
     source: |
-        INT a = 0r1
-        INT b = 0r1A123
+        int a = 0r1
+        int b = 0r1A123
         
   - name: int-r-base-too-large
     language: Prefix
     source: |
-        INT b = 0r651
+        int b = 0r651
         
   - name: int-r-base-too-small
     language: Prefix
     source: |
-        INT a = 0r011
+        int a = 0r011
         
   - name: int-r-missing-digits
     language: Prefix
     source: |
-        INT a = 0r10
+        int a = 0r10
         

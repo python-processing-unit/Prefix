@@ -2,13 +2,13 @@ passing:
   - name: freeze
     language: Prefix
     source: |
-        BOOL frozen_value = TRUE
+        bool frozen_value = TRUE
         
         REFUTE(FREEZE("frozen_value"))
         ASSERT(FROZEN("frozen_value"))
         REFUTE(PERMAFROZEN("frozen_value"))
         
-        BOOL freeze_undefined_failed = FALSE
+        bool freeze_undefined_failed = FALSE
         TRY{
             FREEZE("not_declared")
         } CATCH {
@@ -16,7 +16,7 @@ passing:
         }
         ASSERT(freeze_undefined_failed)
         
-        BOOL reassignment_failed = FALSE
+        bool reassignment_failed = FALSE
         TRY{
             frozen_value = FALSE
         } CATCH {
@@ -25,7 +25,7 @@ passing:
         ASSERT(reassignment_failed)
         ASSERT(EQ(frozen_value, TRUE))
         
-        BOOL deletion_failed = FALSE
+        bool deletion_failed = FALSE
         TRY{
             DEL("frozen_value")
         } CATCH {
@@ -42,7 +42,7 @@ passing:
   - name: frozen
     language: Prefix
     source: |
-        BOOL normal_value = TRUE
+        bool normal_value = TRUE
         REFUTE(FROZEN("normal_value"))
         
         REFUTE(FREEZE("normal_value"))
@@ -57,13 +57,13 @@ passing:
   - name: permafreeze
     language: Prefix
     source: |
-        BOOL locked_value = TRUE
+        bool locked_value = TRUE
         
         REFUTE(PERMAFREEZE("locked_value"))
         ASSERT(FROZEN("locked_value"))
         ASSERT(PERMAFROZEN("locked_value"))
         
-        BOOL permafreeze_undefined_failed = FALSE
+        bool permafreeze_undefined_failed = FALSE
         TRY{
             PERMAFREEZE("not_declared")
         } CATCH {
@@ -71,7 +71,7 @@ passing:
         }
         ASSERT(permafreeze_undefined_failed)
         
-        BOOL reassignment_failed = FALSE
+        bool reassignment_failed = FALSE
         TRY{
             locked_value = FALSE
         } CATCH {
@@ -80,7 +80,7 @@ passing:
         ASSERT(reassignment_failed)
         ASSERT(EQ(locked_value, TRUE))
         
-        BOOL deletion_failed = FALSE
+        bool deletion_failed = FALSE
         TRY{
             DEL("locked_value")
         } CATCH {
@@ -89,7 +89,7 @@ passing:
         ASSERT(deletion_failed)
         ASSERT(EXIST("locked_value"))
         
-        BOOL thaw_failed = FALSE
+        bool thaw_failed = FALSE
         TRY{
             THAW("locked_value")
         } CATCH {
@@ -101,7 +101,7 @@ passing:
   - name: permafrozen
     language: Prefix
     source: |
-        BOOL normal_value = TRUE
+        bool normal_value = TRUE
         REFUTE(PERMAFROZEN("normal_value"))
         
         REFUTE(PERMAFREEZE("normal_value"))
@@ -111,7 +111,7 @@ passing:
   - name: thaw
     language: Prefix
     source: |
-        BOOL thaw_value = TRUE
+        bool thaw_value = TRUE
         
         REFUTE(THAW("thaw_value"))
         ASSERT(thaw_value)
@@ -124,7 +124,7 @@ passing:
         thaw_value = FALSE
         ASSERT(EQ(thaw_value, FALSE))
         
-        BOOL thaw_undefined_failed = FALSE
+        bool thaw_undefined_failed = FALSE
         TRY{
             THAW("not_declared")
         } CATCH {
@@ -136,16 +136,16 @@ failing:
   - name: alias-cycle
     language: Prefix
     source: |
-        MAP x = <"v" = 0d1>
-        MAP a = @x
+        map x = <"v" = 0d1>
+        map a = @x
         
-        MAP x = @a
+        map x = @a
         
   - name: alias-to-frozen
     language: Prefix
     source: |
-        INT t = 0d1
+        int t = 0d1
         FREEZE("t")
         
-        INT p = @t
+        int p = @t
         

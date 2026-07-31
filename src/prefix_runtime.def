@@ -2,14 +2,14 @@ LIBRARY prefix_runtime
 EXPORTS
     expr_bool
     expr_int
-    expr_flt
+    expr_float
     expr_str
     expr_ptr
     expr_ident
     expr_typed_ident
     expr_call
     call_kw_add
-    expr_tns
+    expr_tensor
     expr_async
     expr_map
     expr_index
@@ -31,7 +31,7 @@ EXPORTS
     stmt_pop
     stmt_break
     stmt_continue
-    stmt_thr
+    stmt_thread
     stmt_try
     stmt_goto
     stmt_gotopoint
@@ -105,34 +105,34 @@ EXPORTS
     ns_buffer_permafreeze
     parser_init
     parser_parse
-    value_tns_new
-    value_tns_from_values
-    value_tns_get
-    value_tns_slice
+    value_tensor_new
+    value_tensor_from_values
+    value_tensor_get
+    value_tensor_slice
     value_map_new
     value_map_set
     value_map_get
     value_map_delete
     value_map_set_self
     value_map_get_ptr
-    value_tns_get_ptr
+    value_tensor_get_ptr
     value_null
     value_bool
     value_int
-    value_flt
+    value_float
     value_int_base
-    value_flt_base
-    value_flt_nan_base
+    value_float_base
+    value_float_nan_base
     value_str
     value_func
-    value_thr_new
-    value_thr_is_running
-    value_thr_set_finished
-    value_thr_get_finished
-    value_thr_set_paused
-    value_thr_get_paused
-    value_thr_set_started
-    value_thr_get_started
+    value_thread_new
+    value_thread_is_running
+    value_thread_set_finished
+    value_thread_get_finished
+    value_thread_set_paused
+    value_thread_get_paused
+    value_thread_set_started
+    value_thread_get_started
     value_copy
     value_alias
     value_deep_copy

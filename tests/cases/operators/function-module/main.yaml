@@ -18,7 +18,7 @@ passing:
           $programPath = Join-Path $tempDir 'program.pre'
         
           Set-Content -Path $modulePath -Encoding Ascii -Value @'
-        FUNC BOOL imported_main(){
+        func bool imported_main(){
             RETURN(MAIN())
         }
         '@
@@ -59,9 +59,9 @@ passing:
           $programPath = Join-Path $tempDir 'program.pre'
         
           Set-Content -Path $modulePath -Encoding Ascii -Value @'
-        BOOL top_result = MAIN()
+        bool top_result = MAIN()
         
-        FUNC BOOL read_top_result(){
+        func bool read_top_result(){
             RETURN(top_result)
         }
         '@
@@ -72,7 +72,7 @@ passing:
         IMPORT_PATH("$moduleLiteral", "helper")
         
         ASSERT(NOT(helper.read_top_result()))
-        ASSERT(EQ(TYPE(helper.read_top_result()), "BOOL"))
+        ASSERT(EQ(TYPE(helper.read_top_result()), "bool"))
         "@
         
           $output = & $exePath $programPath 2>&1
@@ -87,7 +87,7 @@ passing:
   - name: main-in-condition
     language: Prefix
     source: |
-        BOOL branch_taken = FALSE
+        bool branch_taken = FALSE
         
         IF(MAIN()){
             branch_taken = TRUE
@@ -99,14 +99,14 @@ passing:
   - name: main-primary-function
     language: Prefix
     source: |
-        FUNC BOOL from_primary_function(){
+        func bool from_primary_function(){
             RETURN(MAIN())
         }
         
         ASSERT(from_primary_function())
   - name: main-return-type
     language: Prefix
-    source: 'ASSERT(EQ(TYPE(MAIN()), "BOOL"))'
+    source: 'ASSERT(EQ(TYPE(MAIN()), "bool"))'
   - name: main-source-location
     language: PowerShell
     source: |
@@ -126,15 +126,15 @@ passing:
           $programPath = Join-Path $tempDir 'program.pre'
         
           Set-Content -Path $modulePath -Encoding Ascii -Value @'
-        FUNC BOOL imported_main(){
+        func bool imported_main(){
             RETURN(MAIN())
         }
         
-        FUNC BOOL call_callback(FUNC callback){
+        func bool call_callback(func callback){
             RETURN(callback())
         }
         
-        FUNC BOOL call_imported_main(){
+        func bool call_imported_main(){
             RETURN(imported_main())
         }
         '@
@@ -144,7 +144,7 @@ passing:
           Set-Content -Path $programPath -Encoding Ascii -Value @"
         IMPORT_PATH("$moduleLiteral", "helper")
         
-        FUNC BOOL local_main(){
+        func bool local_main(){
             RETURN(MAIN())
         }
         

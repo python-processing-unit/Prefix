@@ -7,8 +7,8 @@ passing:
   - name: string-formatted-mode
     language: Prefix
     source: |
-        STR x = "0d1"
-        INT y = 0d2
+        str x = "0d1"
+        int y = 0d2
         ASSERT(EQ("\Fx: {x}; y: {y}", "x: 0d1; y: 0d2"))
         ASSERT(EQ("\F{x}", "0d1"))
         ASSERT(EQ("\Fhello{ x }world", "hello0d1world"))

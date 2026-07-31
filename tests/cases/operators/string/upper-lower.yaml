@@ -2,14 +2,14 @@ passing:
   - name: lower
     language: Prefix
     source: |
-        ASSERT(EQ(TYPE(LOWER("PREFIX")), "STR"))
+        ASSERT(EQ(TYPE(LOWER("PREFIX")), "str"))
         ASSERT(EQ(LOWER("PREFIX"), "prefix"))
         ASSERT(EQ(LOWER("Prefix 123!"), "prefix 123!"))
         ASSERT(EQ(LOWER(""), ""))
   - name: upper
     language: Prefix
     source: |
-        ASSERT(EQ(TYPE(UPPER("prefix")), "STR"))
+        ASSERT(EQ(TYPE(UPPER("prefix")), "str"))
         ASSERT(EQ(UPPER("prefix"), "PREFIX"))
         ASSERT(EQ(UPPER("Prefix 123!"), "PREFIX 123!"))
         ASSERT(EQ(UPPER(""), ""))

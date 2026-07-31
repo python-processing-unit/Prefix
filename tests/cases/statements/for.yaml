@@ -2,13 +2,13 @@ passing:
   - name: for-zero-and-restore-counter
     language: Prefix
     source: |
-        STR i = "foo"
+        str i = "foo"
         FOR(i, 0d10){}
         ASSERT(EQ(i, "foo"))
   - name: for
     language: Prefix
     source: |
-        INT sum = 0d0
+        int sum = 0d0
         FOR(i, 0d4){
             +(@sum, i)
         }

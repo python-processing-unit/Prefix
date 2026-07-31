@@ -28,12 +28,12 @@ passing:
   - name: string-literals
     language: Prefix
     source: |
-        STR empty_single = ''
-        STR empty_double = ""
-        STR single = 'alpha'
-        STR double = "beta"
-        STR mixed_single = 'double "quote"'
-        STR mixed_double = "single 'quote'"
+        str empty_single = ''
+        str empty_double = ""
+        str single = 'alpha'
+        str double = "beta"
+        str mixed_single = 'double "quote"'
+        str mixed_double = "single 'quote'"
         
         ASSERT(EQ(empty_single, empty_double))
         ASSERT(EQ(single, "alpha"))
@@ -45,15 +45,15 @@ failing:
   - name: string-mismatched-quote
     language: Prefix
     source: |
-        STR bad = "oops'
+        str bad = "oops'
         
   - name: string-unterminated-double
     language: Prefix
     source: |
-        STR bad = "oops
+        str bad = "oops
         
   - name: string-unterminated-single
     language: Prefix
     source: |
-        STR bad = 'oops
+        str bad = 'oops
         

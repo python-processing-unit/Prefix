@@ -2,7 +2,7 @@ passing:
   - name: op-gt
     language: Prefix
     source: |
-        ASSERT(ISBOOL(GT(0d2, 0d1)))
+        ASSERT(isbool(GT(0d2, 0d1)))
         ASSERT(GT(0d2, 0d1))
         REFUTE(GT(0d1, 0d1))
         ASSERT(GT(0d1.5, 0d1.4))
@@ -10,7 +10,7 @@ passing:
   - name: op-gte
     language: Prefix
     source: |
-        ASSERT(ISBOOL(GTE(0d2, 0d1)))
+        ASSERT(isbool(GTE(0d2, 0d1)))
         ASSERT(GTE(0d2, 0d1))
         ASSERT(GTE(0d1, 0d1))
         REFUTE(GTE(0d1, 0d2))
@@ -20,7 +20,7 @@ passing:
   - name: op-lt
     language: Prefix
     source: |
-        ASSERT(ISBOOL(LT(0d1, 0d2)))
+        ASSERT(isbool(LT(0d1, 0d2)))
         ASSERT(LT(0d1, 0d2))
         REFUTE(LT(0d1, 0d1))
         ASSERT(LT(0d1.4, 0d1.5))
@@ -28,7 +28,7 @@ passing:
   - name: op-lte
     language: Prefix
     source: |
-        ASSERT(ISBOOL(LTE(0d1, 0d2)))
+        ASSERT(isbool(LTE(0d1, 0d2)))
         ASSERT(LTE(0d1, 0d2))
         ASSERT(LTE(0d1, 0d1))
         REFUTE(LTE(0d2, 0d1))

@@ -24,11 +24,11 @@ static void set_runtime_error(Interpreter *interp, const char *msg, int line, in
     interp->error_col = col;
 }
 
-// Helper: get C string from Value (must be STR)
+// Helper: get C string from Value (must be str)
 static const char *value_as_cstr(Interpreter *interp, Value v, const char *name, int line, int col) {
     (void)name;
     if (v.type != VAL_STR) {
-        set_runtime_error(interp, "argument must be STR", line, col);
+        set_runtime_error(interp, "argument must be str", line, col);
         return NULL;
     }
     return v.as.s;
@@ -38,7 +38,7 @@ static const char *value_as_cstr(Interpreter *interp, Value v, const char *name,
 static long long value_as_int(Interpreter *interp, Value v, const char *name, int line, int col) {
     (void)name;
     if (v.type != VAL_INT) {
-        set_runtime_error(interp, "argument must be INT", line, col);
+        set_runtime_error(interp, "argument must be int", line, col);
         return 0;
     }
     return v.as.i;
@@ -162,7 +162,7 @@ static Value op_win_free_library(Interpreter *interp, Value *args, int argc, Exp
     if (interp->error) {
         return value_null();
     }
-    BOOL ok = FreeLibrary((HMODULE)(intptr_t)h);
+    bool ok = FreeLibrary((HMODULE)(intptr_t)h);
     if (!ok) {
         DWORD err = GetLastError();
         char em[128];
@@ -269,7 +269,7 @@ static Value op_win_read_file(Interpreter *interp, Value *args, int argc, Expr *
         return value_null();
     }
     DWORD read = 0;
-    BOOL ok = ReadFile((HANDLE)(intptr_t)handle, buf, (DWORD)length, &read, NULL);
+    bool ok = ReadFile((HANDLE)(intptr_t)handle, buf, (DWORD)length, &read, NULL);
     if (!ok) {
         DWORD err = GetLastError();
         free(buf);
@@ -296,15 +296,15 @@ static Value op_win_write_file(Interpreter *interp, Value *args, int argc, Expr 
     if (interp->error) {
         return value_null();
     }
-    // Accept STR for data
+    // Accept str for data
     if (args[1].type != VAL_STR) {
-        set_runtime_error(interp, "data must be STR", line, col);
+        set_runtime_error(interp, "data must be str", line, col);
         return value_null();
     }
     const char *data = args[1].as.s;
     DWORD towrite = (DWORD)strlen(data);
     DWORD written = 0;
-    BOOL ok = WriteFile((HANDLE)(intptr_t)handle, data, towrite, &written, NULL);
+    bool ok = WriteFile((HANDLE)(intptr_t)handle, data, towrite, &written, NULL);
     if (!ok) {
         DWORD err = GetLastError();
         char em[128];
@@ -327,7 +327,7 @@ static Value op_win_close_handle(Interpreter *interp, Value *args, int argc, Exp
     if (interp->error) {
         return value_null();
     }
-    BOOL ok = CloseHandle((HANDLE)(intptr_t)handle);
+    bool ok = CloseHandle((HANDLE)(intptr_t)handle);
     if (!ok) {
         DWORD err = GetLastError();
         char em[128];
@@ -389,7 +389,7 @@ static Value op_win_virtual_free(Interpreter *interp, Value *args, int argc, Exp
     if (interp->error) {
         return value_null();
     }
-    BOOL ok = VirtualFree(addr, size, free_type);
+    bool ok = VirtualFree(addr, size, free_type);
     if (!ok) {
         DWORD err = GetLastError();
         char em[128];
@@ -454,7 +454,7 @@ static Value op_win_call(Interpreter *interp, Value *args, int argc, Expr **arg_
             arg_types = args[2].as.s;
         }
     } else {
-        set_runtime_error(interp, "arg types must be STR", line, col);
+        set_runtime_error(interp, "arg types must be str", line, col);
         return value_null();
     }
     const char *ret_type = NULL;
@@ -463,7 +463,7 @@ static Value op_win_call(Interpreter *interp, Value *args, int argc, Expr **arg_
             ret_type = args[3].as.s;
         }
     } else {
-        set_runtime_error(interp, "ret type must be STR", line, col);
+        set_runtime_error(interp, "ret type must be str", line, col);
         return value_null();
     }
     (void)ret_type;
@@ -531,12 +531,12 @@ static Value op_win_call(Interpreter *interp, Value *args, int argc, Expr **arg_
                     vargs[i] = (uintptr_t)av.as.i;
                 }
             } else {
-                set_runtime_error(interp, "expected INT arg", line, col);
+                set_runtime_error(interp, "expected int arg", line, col);
                 return value_null();
             }
         } else if (c == 'S') {
             if (av.type != VAL_STR) {
-                set_runtime_error(interp, "expected STR arg", line, col);
+                set_runtime_error(interp, "expected str arg", line, col);
                 return value_null();
             }
             // convert to wchar and pass pointer
@@ -546,7 +546,7 @@ static Value op_win_call(Interpreter *interp, Value *args, int argc, Expr **arg_
             vargs[i] = (uintptr_t)w;
         } else if (c == 's') {
             if (av.type != VAL_STR) {
-                set_runtime_error(interp, "expected STR arg", line, col);
+                set_runtime_error(interp, "expected str arg", line, col);
                 return value_null();
             }
             vargs[i] = (uintptr_t)av.as.s;

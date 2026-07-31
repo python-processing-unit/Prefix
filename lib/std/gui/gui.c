@@ -159,7 +159,7 @@ static int clamp_u8_i64(int64_t v) {
 static int64_t expect_int(Interpreter *interp, Value v, const char *opname, int line, int col, int *ok) {
     if (v.type != VAL_INT) {
         char buf[160];
-        snprintf(buf, sizeof(buf), "%s expects INT argument", opname);
+        snprintf(buf, sizeof(buf), "%s expects int argument", opname);
         set_runtime_error(interp, buf, line, col);
         if (ok) {
             *ok = 0;
@@ -175,7 +175,7 @@ static int64_t expect_int(Interpreter *interp, Value v, const char *opname, int 
 static const char *expect_str(Interpreter *interp, Value v, const char *opname, int line, int col, int *ok) {
     if (v.type != VAL_STR) {
         char buf[160];
-        snprintf(buf, sizeof(buf), "%s expects STR argument", opname);
+        snprintf(buf, sizeof(buf), "%s expects str argument", opname);
         set_runtime_error(interp, buf, line, col);
         if (ok) {
             *ok = 0;
@@ -316,11 +316,11 @@ static int gui_ensure_class(void) {
     return 1;
 }
 
-static Value make_dims_tns(int w, int h) {
+static Value make_dims_tensor(int w, int h) {
     size_t shape[1] = {2};
-    Value out = value_tns_new(TYPE_INT, 1, shape);
-    out.as.tns->data[0] = value_int((int64_t)w);
-    out.as.tns->data[1] = value_int((int64_t)h);
+    Value out = value_tensor_new(TYPE_INT, 1, shape);
+    out.as.tensor->data[0] = value_int((int64_t)w);
+    out.as.tensor->data[1] = value_int((int64_t)h);
     return out;
 }
 
@@ -333,12 +333,12 @@ static int extract_image_rgba(Interpreter *interp, Value v, uint8_t **out_rgba, 
     *out_w = 0;
     *out_h = 0;
 
-    if (v.type != VAL_TNS || !v.as.tns) {
-        set_runtime_error(interp, "GUI_SHOW_IMAGE expects TNS image", line, col);
+    if (v.type != VAL_TENSOR || !v.as.tensor) {
+        set_runtime_error(interp, "GUI_SHOW_IMAGE expects tensor image", line, col);
         return 0;
     }
 
-    Tensor *t = v.as.tns;
+    Tensor *t = v.as.tensor;
     if (t->ndim != 3 || !(t->shape[2] == 3 || t->shape[2] == 4)) {
         set_runtime_error(interp, "GUI_SHOW_IMAGE expects an image tensor shaped [w][h][3|4]", line, col);
         return 0;
@@ -367,7 +367,7 @@ static int extract_image_rgba(Interpreter *interp, Value v, uint8_t **out_rgba, 
                 Value e = t->data[base + ((size_t)ch * t->strides[2])];
                 if (e.type != VAL_INT) {
                     free(rgba);
-                    set_runtime_error(interp, "GUI_SHOW_IMAGE failed: image tensor channels must be INT", line, col);
+                    set_runtime_error(interp, "GUI_SHOW_IMAGE failed: image tensor channels must be int", line, col);
                     return 0;
                 }
                 rgba[pixel_i + (size_t)ch] = (uint8_t)clamp_u8_i64(e.as.i);
@@ -720,7 +720,7 @@ static Value op_screen(Interpreter *interp, Value *args, int argc, Expr **arg_no
     if (h < 1) {
         h = 1;
     }
-    return make_dims_tns(w, h);
+    return make_dims_tensor(w, h);
 }
 
 static Value op_window(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
@@ -752,7 +752,7 @@ static Value op_window(Interpreter *interp, Value *args, int argc, Expr **arg_no
     if (h < 1) {
         h = 1;
     }
-    return make_dims_tns(w, h);
+    return make_dims_tensor(w, h);
 }
 
 static Value op_screenshot(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
@@ -830,8 +830,8 @@ static Value op_screenshot(Interpreter *interp, Value *args, int argc, Expr **ar
     shape[0] = (size_t)width;
     shape[1] = (size_t)height;
     shape[2] = 4;
-    Value out = value_tns_new(TYPE_INT, 3, shape);
-    Tensor *t = out.as.tns;
+    Value out = value_tensor_new(TYPE_INT, 3, shape);
+    Tensor *t = out.as.tensor;
 
     for (int y = 0; y < height; y++) {
         for (int x = 0; x < width; x++) {

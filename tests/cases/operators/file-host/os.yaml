@@ -7,7 +7,7 @@ passing:
     source: 'ASSERT(GT(SLEN(OS()), 0d0))'
   - name: os-return-type
     language: Prefix
-    source: 'ASSERT(EQ(TYPE(OS()), "STR"))'
+    source: 'ASSERT(EQ(TYPE(OS()), "str"))'
   - name: os
     language: Prefix
     source: 'ASSERT(IN(OS(), ["win", "linux", "macos", "unix"]))'

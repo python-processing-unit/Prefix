@@ -2,55 +2,55 @@ passing:
   - name: pause-async-deferred-arg
     language: Prefix
     source: |
-        BOOL released = FALSE
+        bool released = FALSE
         
-        THR paused = PAUSE(ASYNC{
+        thread paused = PAUSE(ASYNC{
             WHILE(NOT(released)){}
         }, seconds = 0d0.05)
         
-        ASSERT(EQ(TYPE(paused), "THR"))
-        ASSERT(BOOL(paused))
+        ASSERT(EQ(TYPE(paused), "thread"))
+        ASSERT(bool(paused))
         ASSERT(PAUSED(paused))
         
         released = TRUE
         
         AWAIT(paused)
         
-        REFUTE(BOOL(paused))
+        REFUTE(bool(paused))
         REFUTE(PAUSED(paused))
         
   - name: pause-async-handle-autoresume
     language: Prefix
     source: |
-        BOOL released = FALSE
+        bool released = FALSE
         
-        THR worker = ASYNC{
+        thread worker = ASYNC{
             WHILE(NOT(released)){}
         }
         
-        THR paused = PAUSE(worker, seconds = 0d0.05)
+        thread paused = PAUSE(worker, seconds = 0d0.05)
         
-        ASSERT(EQ(TYPE(paused), "THR"))
+        ASSERT(EQ(TYPE(paused), "thread"))
         ASSERT(EQ(paused, worker))
-        ASSERT(BOOL(worker))
+        ASSERT(bool(worker))
         ASSERT(PAUSED(worker))
         
         released = TRUE
         
         AWAIT(worker)
         
-        REFUTE(BOOL(worker))
+        REFUTE(bool(worker))
         REFUTE(PAUSED(worker))
   - name: pause-explicit-negative-duration
     language: Prefix
     source: |
-        BOOL released = FALSE
+        bool released = FALSE
         
-        THR(worker){
+        thread(worker){
             WHILE(NOT(released)){}
         }
         
-        THR paused = PAUSE(worker, seconds = -0d1.0)
+        thread paused = PAUSE(worker, seconds = -0d1.0)
         
         ASSERT(EQ(paused, worker))
         ASSERT(PAUSED(worker))
@@ -61,30 +61,30 @@ passing:
         
         AWAIT(RESUME(worker))
         
-        REFUTE(BOOL(worker))
+        REFUTE(bool(worker))
         REFUTE(PAUSED(worker))
   - name: pause-second-positional
     language: Prefix
     source: |
-        THR(worker){}
+        thread(worker){}
         PAUSE(worker, 0d0.0)
         
   - name: pause-thread-handle
     language: Prefix
     source: |
-        BOOL released = FALSE
+        bool released = FALSE
         
-        THR(worker){
+        thread(worker){
             WHILE(NOT(released)){}
         }
         
-        ASSERT(BOOL(worker))
+        ASSERT(bool(worker))
         
-        THR paused = PAUSE(worker)
+        thread paused = PAUSE(worker)
         
-        ASSERT(EQ(TYPE(paused), "THR"))
+        ASSERT(EQ(TYPE(paused), "thread"))
         ASSERT(EQ(paused, worker))
-        ASSERT(BOOL(worker))
+        ASSERT(bool(worker))
         ASSERT(PAUSED(worker))
         
         released = TRUE
@@ -93,13 +93,13 @@ passing:
         
         AWAIT(RESUME(worker))
         
-        REFUTE(BOOL(worker))
+        REFUTE(bool(worker))
         REFUTE(PAUSED(worker))
 failing:
   - name: pause-already-paused
     language: Prefix
     source: |
-        THR(worker){
+        thread(worker){
             WHILE(TRUE){}
         }
         
@@ -109,7 +109,7 @@ failing:
   - name: pause-arity-three
     language: Prefix
     source: |
-        THR(worker){}
+        thread(worker){}
         PAUSE(worker, 0d0.0, 0d0.0)
   - name: pause-arity-zero
     language: Prefix
@@ -117,38 +117,38 @@ failing:
   - name: pause-second-bool
     language: Prefix
     source: |
-        THR(worker){}
+        thread(worker){}
         PAUSE(worker, seconds = TRUE)
   - name: pause-second-func
     language: Prefix
     source: |
-        THR(worker){}
-        PAUSE(worker, seconds = LAMBDA BOOL: (){})
+        thread(worker){}
+        PAUSE(worker, seconds = LAMBDA bool: (){})
   - name: pause-second-int
     language: Prefix
     source: |
-        THR(worker){}
+        thread(worker){}
         PAUSE(worker, seconds = 0d1)
   - name: pause-second-map
     language: Prefix
     source: |
-        THR(worker){}
+        thread(worker){}
         PAUSE(worker, seconds = <>)
   - name: pause-second-str
     language: Prefix
     source: |
-        THR(worker){}
+        thread(worker){}
         PAUSE(worker, seconds = "seconds")
   - name: pause-second-thr
     language: Prefix
     source: |
-        THR(worker){}
-        THR(delay){}
+        thread(worker){}
+        thread(delay){}
         PAUSE(worker, seconds = delay)
   - name: pause-second-tns
     language: Prefix
     source: |
-        THR(worker){}
+        thread(worker){}
         PAUSE(worker, seconds = [0d1])
   - name: pause-type-bool
     language: Prefix
@@ -158,7 +158,7 @@ failing:
     source: PAUSE(0d1.0)
   - name: pause-type-func
     language: Prefix
-    source: 'PAUSE(LAMBDA BOOL: (){})'
+    source: 'PAUSE(LAMBDA bool: (){})'
   - name: pause-type-int
     language: Prefix
     source: PAUSE(0d1)
@@ -174,7 +174,7 @@ failing:
   - name: resume-not-paused
     language: Prefix
     source: |
-        THR worker = ASYNC{
+        thread worker = ASYNC{
             FOR(i, 0d100000){}
         }
         

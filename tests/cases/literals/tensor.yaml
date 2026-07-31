@@ -2,9 +2,9 @@ passing:
   - name: tns-indexing
     language: Prefix
     source: |
-        TNS vec = [0d1, 0d2, 0d3]
-        TNS matrix = [[0d1, 0d2], [0d3, 0d4]]
-        TNS cube = [[[0d1, 0d2], [0d3, 0d4]], [[0d5, 0d6], [0d7, 0d8]]]
+        tensor vec = [0d1, 0d2, 0d3]
+        tensor matrix = [[0d1, 0d2], [0d3, 0d4]]
+        tensor cube = [[[0d1, 0d2], [0d3, 0d4]], [[0d5, 0d6], [0d7, 0d8]]]
         
         ASSERT(EQ(vec[0d1], 0d1))
         ASSERT(EQ(vec[0d3], 0d3))
@@ -31,7 +31,7 @@ passing:
         ASSERT(EQ(matrix[0d1:-0d1, 0d1], [0d1, 0d3]))
         ASSERT(EQ(cube[# , 0d2, 0d1], [0d3, 0d7]))
         
-        INT errors_caught = 0d0
+        int errors_caught = 0d0
         
         TRY {
             vec[0d4]
@@ -43,21 +43,21 @@ passing:
         TRY {
             vec[TRUE]
         } CATCH(err) {
-            ASSERT(EQ(err, 'Index expression must evaluate to INT'))
+            ASSERT(EQ(err, 'Index expression must evaluate to int'))
              +(@errors_caught, 0d1)
         }
         
         TRY {
             vec[TRUE:0d1]
         } CATCH(err) {
-            ASSERT(EQ(err, 'Range bounds must be INT'))
+            ASSERT(EQ(err, 'Range bounds must be int'))
              +(@errors_caught, 0d1)
         }
         
         TRY {
             0d1[0d1]
         } CATCH(err) {
-            ASSERT(EQ(err, "Square-bracket indexing '[...]' is only allowed on TNS values"))
+            ASSERT(EQ(err, "Square-bracket indexing '[...]' is only allowed on tensor values"))
              +(@errors_caught, 0d1)
         }
         
@@ -66,8 +66,8 @@ passing:
   - name: tns-literals-ifs
     language: Prefix
     source: |
-        TNS zero_row = [0d0, 0d0]
-        TNS row = [0d1, 0d2]
+        tensor zero_row = [0d0, 0d0]
+        tensor row = [0d1, 0d2]
         
         IF([FALSE, 0d0, 0d0.0, "", zero_row]){
             ASSERT(FALSE)
@@ -84,8 +84,8 @@ passing:
   - name: tns-literals-matrices
     language: Prefix
     source: |
-        TNS matrix = [[0d1, 0d2], [0d3, 0d4]]
-        TNS cube = [[[0d1], [0d2]], [[0d3], [0d4]]]
+        tensor matrix = [[0d1, 0d2], [0d3, 0d4]]
+        tensor cube = [[[0d1], [0d2]], [[0d3], [0d4]]]
         
         ASSERT(EQ(matrix, [[0d1, 0d2], [0d3, 0d4]]))
         ASSERT(EQ(matrix[0d1, 0d2], 0d2))
@@ -95,16 +95,16 @@ passing:
   - name: tns-literals-mixed
     language: Prefix
     source: |
-        FUNC INT ID(INT x){
+        func int ID(int x){
             RETURN(x)
         }
         
-        MAP sample_map = <"n" = 0d5>
-        TNS zero_row = [0d0, 0d0]
-        TNS row = [0d1, 0d2]
-        THR(worker){}
+        map sample_map = <"n" = 0d5>
+        tensor zero_row = [0d0, 0d0]
+        tensor row = [0d1, 0d2]
+        thread(worker){}
         
-        TNS mixed = [TRUE, 0d2, 0d3.5, "four", sample_map, ID, worker, row]
+        tensor mixed = [TRUE, 0d2, 0d3.5, "four", sample_map, ID, worker, row]
         
         ASSERT(EQ(mixed[0d1], TRUE))
         ASSERT(EQ(mixed[0d2], 0d2))
@@ -122,27 +122,27 @@ failing:
   - name: tns-empty-index
     language: Prefix
     source: |
-        TNS vec = [0d1, 0d2]
+        tensor vec = [0d1, 0d2]
         vec[]
         
   - name: tns-empty
     language: Prefix
     source: |
-        TNS empty = []
+        tensor empty = []
         
   - name: tns-mixed-nested-value
     language: Prefix
     source: |
-        TNS row = [0d1, 0d2]
-        TNS bad = [[0d1, 0d2], row]
+        tensor row = [0d1, 0d2]
+        tensor bad = [[0d1, 0d2], row]
         
   - name: tns-nested-empty
     language: Prefix
     source: |
-        TNS bad = [[]]
+        tensor bad = [[]]
         
   - name: tns-ragged
     language: Prefix
     source: |
-        TNS bad = [[0d1], [0d2, 0d3]]
+        tensor bad = [[0d1], [0d2, 0d3]]
         

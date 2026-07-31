@@ -43,16 +43,16 @@ static int module_export_bindings(Interpreter *interp, Env *caller_env, Env *mod
     do {                                                                                                               \
         if ((v).type != VAL_INT) {                                                                                     \
             char buf[128];                                                                                             \
-            snprintf(buf, sizeof(buf), "%s expects INT argument", name);                                               \
+            snprintf(buf, sizeof(buf), "%s expects int argument", name);                                               \
             RUNTIME_ERROR(interp, buf, line, col);                                                                     \
         }                                                                                                              \
     } while (0)
 
-#define EXPECT_FLT(v, name, interp, line, col)                                                                         \
+#define EXPECT_FLOAT(v, name, interp, line, col)                                                                       \
     do {                                                                                                               \
-        if ((v).type != VAL_FLT) {                                                                                     \
+        if ((v).type != VAL_FLOAT) {                                                                                   \
             char buf[128];                                                                                             \
-            snprintf(buf, sizeof(buf), "%s expects FLT argument", name);                                               \
+            snprintf(buf, sizeof(buf), "%s expects float argument", name);                                             \
             RUNTIME_ERROR(interp, buf, line, col);                                                                     \
         }                                                                                                              \
     } while (0)
@@ -61,16 +61,16 @@ static int module_export_bindings(Interpreter *interp, Env *caller_env, Env *mod
     do {                                                                                                               \
         if ((v).type != VAL_STR) {                                                                                     \
             char buf[128];                                                                                             \
-            snprintf(buf, sizeof(buf), "%s expects STR argument", name);                                               \
+            snprintf(buf, sizeof(buf), "%s expects str argument", name);                                               \
             RUNTIME_ERROR(interp, buf, line, col);                                                                     \
         }                                                                                                              \
     } while (0)
 
 #define EXPECT_NUM(v, name, interp, line, col)                                                                         \
     do {                                                                                                               \
-        if ((v).type != VAL_INT && (v).type != VAL_FLT) {                                                              \
+        if ((v).type != VAL_INT && (v).type != VAL_FLOAT) {                                                            \
             char buf[128];                                                                                             \
-            snprintf(buf, sizeof(buf), "%s expects INT or FLT argument", name);                                        \
+            snprintf(buf, sizeof(buf), "%s expects int or float argument", name);                                      \
             RUNTIME_ERROR(interp, buf, line, col);                                                                     \
         }                                                                                                              \
     } while (0)
@@ -148,14 +148,14 @@ static bool writeback_ptr_range(Interpreter *interp, Expr **arg_nodes, Env *env,
     return true;
 }
 
-// Checked FLT -> INT coercion helper.
+// Checked float -> int coercion helper.
 // Returns true and sets *out on success. On failure, sets interp->error
 // and returns false (caller should return value_null()).
 static bool coerce_flt_to_int_checked(Interpreter *interp, double f, int64_t *out, const char *opname, int line,
                                       int col) {
     if (isnan(f) || isinf(f)) {
         char buf[128];
-        snprintf(buf, sizeof(buf), "%s cannot coerce FLT to INT", opname);
+        snprintf(buf, sizeof(buf), "%s cannot coerce float to int", opname);
         interp->error = strdup(buf);
         interp->error_line = line;
         interp->error_col = col;
@@ -163,7 +163,7 @@ static bool coerce_flt_to_int_checked(Interpreter *interp, double f, int64_t *ou
     }
     if (f > (double)INT64_MAX || f < (double)INT64_MIN) {
         char buf[128];
-        snprintf(buf, sizeof(buf), "%s cannot coerce FLT to INT (out of range)", opname);
+        snprintf(buf, sizeof(buf), "%s cannot coerce float to int (out of range)", opname);
         interp->error = strdup(buf);
         interp->error_line = line;
         interp->error_col = col;
@@ -711,10 +711,10 @@ static const char *base_prefix_str(int base, char *buf, size_t buflen) {
 }
 
 static int numeric_base_of(Value v) {
-    if (v.type != VAL_INT && v.type != VAL_FLT) {
+    if (v.type != VAL_INT && v.type != VAL_FLOAT) {
         return 2;
     }
-    if (v.type == VAL_FLT && v.num_base_nan) {
+    if (v.type == VAL_FLOAT && v.num_base_nan) {
         return 0;
     }
     return is_valid_numeric_base(v.num_base) ? v.num_base : 2;
@@ -776,7 +776,7 @@ static char *int_to_base_prefixed_str(int64_t val, int base) {
     return out;
 }
 
-static char *flt_to_base_prefixed_str(double val, int base, int base_is_nan) {
+static char *float_to_base_prefixed_str(double val, int base, int base_is_nan) {
     if (isinf(val)) {
         return strdup(signbit(val) ? "-INF" : "INF");
     }
@@ -1212,21 +1212,21 @@ static void jb_append_json_string(JsonBuf *jb, const char *s) {
 const char *decl_type_name(DeclType dt) {
     switch (dt) {
     case TYPE_BOOL:
-        return "BOOL";
+        return "bool";
     case TYPE_INT:
-        return "INT";
-    case TYPE_FLT:
-        return "FLT";
+        return "int";
+    case TYPE_FLOAT:
+        return "float";
     case TYPE_STR:
-        return "STR";
-    case TYPE_TNS:
-        return "TNS";
+        return "str";
+    case TYPE_TENSOR:
+        return "tensor";
     case TYPE_MAP:
-        return "MAP";
+        return "map";
     case TYPE_FUNC:
-        return "FUNC";
-    case TYPE_THR:
-        return "THR";
+        return "func";
+    case TYPE_THREAD:
+        return "thread";
     default:
         return "UNKNOWN";
     }
@@ -1236,29 +1236,29 @@ static DeclType decl_type_from_name(const char *name) {
     if (!name) {
         return TYPE_UNKNOWN;
     }
-    if (strcmp(name, "BOOL") == 0) {
+    if (strcmp(name, "bool") == 0) {
         return TYPE_BOOL;
     }
-    if (strcmp(name, "INT") == 0) {
+    if (strcmp(name, "int") == 0) {
         return TYPE_INT;
     }
-    if (strcmp(name, "FLT") == 0) {
-        return TYPE_FLT;
+    if (strcmp(name, "float") == 0) {
+        return TYPE_FLOAT;
     }
-    if (strcmp(name, "STR") == 0) {
+    if (strcmp(name, "str") == 0) {
         return TYPE_STR;
     }
-    if (strcmp(name, "TNS") == 0) {
-        return TYPE_TNS;
+    if (strcmp(name, "tensor") == 0) {
+        return TYPE_TENSOR;
     }
-    if (strcmp(name, "MAP") == 0) {
+    if (strcmp(name, "map") == 0) {
         return TYPE_MAP;
     }
-    if (strcmp(name, "FUNC") == 0) {
+    if (strcmp(name, "func") == 0) {
         return TYPE_FUNC;
     }
-    if (strcmp(name, "THR") == 0) {
-        return TYPE_THR;
+    if (strcmp(name, "thread") == 0) {
+        return TYPE_THREAD;
     }
     return TYPE_UNKNOWN;
 }
@@ -1682,12 +1682,12 @@ typedef struct {
     size_t func_count;
     size_t func_cap;
     int next_func_id;
-    Thr **thrs;
-    char **thr_ids;
-    int *thr_state; // 0 = none, 1 = in_progress, 2 = done
-    size_t thr_count;
-    size_t thr_cap;
-    int next_thr_id;
+    Thread **threads;
+    char **thread_ids;
+    int *thread_state; // 0 = none, 1 = in_progress, 2 = done
+    size_t thread_count;
+    size_t thread_cap;
+    int next_thread_id;
 } SerCtx;
 
 static void ser_ctx_init(SerCtx *ctx) { memset(ctx, 0, sizeof(*ctx)); }
@@ -1699,8 +1699,8 @@ static void ser_ctx_free(SerCtx *ctx) {
     for (size_t i = 0; i < ctx->func_count; i++) {
         free(ctx->func_ids[i]);
     }
-    for (size_t i = 0; i < ctx->thr_count; i++) {
-        free(ctx->thr_ids[i]);
+    for (size_t i = 0; i < ctx->thread_count; i++) {
+        free(ctx->thread_ids[i]);
     }
     free(ctx->envs);
     free(ctx->env_ids);
@@ -1708,9 +1708,9 @@ static void ser_ctx_free(SerCtx *ctx) {
     free(ctx->funcs);
     free(ctx->func_ids);
     free(ctx->func_state);
-    free(ctx->thrs);
-    free(ctx->thr_ids);
-    free(ctx->thr_state);
+    free(ctx->threads);
+    free(ctx->thread_ids);
+    free(ctx->thread_state);
 }
 
 static const char *ser_env_id(SerCtx *ctx, Env *env, int *state) {
@@ -1779,37 +1779,37 @@ static const char *ser_func_id(SerCtx *ctx, Func *func, int *state) {
     return ctx->func_ids[ctx->func_count - 1];
 }
 
-static const char *ser_thr_id(SerCtx *ctx, Thr *thr, int *state) {
-    for (size_t i = 0; i < ctx->thr_count; i++) {
-        if (ctx->thrs[i] == thr) {
+static const char *ser_thread_id(SerCtx *ctx, Thread *thr, int *state) {
+    for (size_t i = 0; i < ctx->thread_count; i++) {
+        if (ctx->threads[i] == thr) {
             if (state) {
-                *state = ctx->thr_state[i];
+                *state = ctx->thread_state[i];
             }
-            return ctx->thr_ids[i];
+            return ctx->thread_ids[i];
         }
     }
-    if (ctx->thr_count + 1 > ctx->thr_cap) {
-        size_t new_cap = ctx->thr_cap == 0 ? 4 : ctx->thr_cap * 2;
-        ctx->thrs = realloc(ctx->thrs, new_cap * sizeof(Thr *));
-        ctx->thr_ids = realloc(ctx->thr_ids, new_cap * sizeof(char *));
-        ctx->thr_state = realloc(ctx->thr_state, new_cap * sizeof(int));
-        if (!ctx->thrs || !ctx->thr_ids || !ctx->thr_state) {
+    if (ctx->thread_count + 1 > ctx->thread_cap) {
+        size_t new_cap = ctx->thread_cap == 0 ? 4 : ctx->thread_cap * 2;
+        ctx->threads = realloc(ctx->threads, new_cap * sizeof(Thread *));
+        ctx->thread_ids = realloc(ctx->thread_ids, new_cap * sizeof(char *));
+        ctx->thread_state = realloc(ctx->thread_state, new_cap * sizeof(int));
+        if (!ctx->threads || !ctx->thread_ids || !ctx->thread_state) {
             fprintf(stderr, "Out of memory\n");
             exit(1);
         }
-        ctx->thr_cap = new_cap;
+        ctx->thread_cap = new_cap;
     }
-    ctx->next_thr_id++;
+    ctx->next_thread_id++;
     char buf[32];
-    snprintf(buf, sizeof(buf), "t%d", ctx->next_thr_id);
-    ctx->thrs[ctx->thr_count] = thr;
-    ctx->thr_ids[ctx->thr_count] = strdup(buf);
-    ctx->thr_state[ctx->thr_count] = 0;
+    snprintf(buf, sizeof(buf), "t%d", ctx->next_thread_id);
+    ctx->threads[ctx->thread_count] = thr;
+    ctx->thread_ids[ctx->thread_count] = strdup(buf);
+    ctx->thread_state[ctx->thread_count] = 0;
     if (state) {
         *state = 0;
     }
-    ctx->thr_count++;
-    return ctx->thr_ids[ctx->thr_count - 1];
+    ctx->thread_count++;
+    return ctx->thread_ids[ctx->thread_count - 1];
 }
 
 static void json_obj_field(JsonBuf *jb, bool *first, const char *key) {
@@ -1822,16 +1822,16 @@ static void json_obj_field(JsonBuf *jb, bool *first, const char *key) {
 }
 
 typedef struct {
-    Thr *target;
+    Thread *target;
     Map **seen_maps;
     size_t seen_map_count;
     size_t seen_map_cap;
     Tensor **seen_tensors;
     size_t seen_tensor_count;
     size_t seen_tensor_cap;
-} ThrContainCtx;
+} ThreadContainCtx;
 
-static int thr_contain_seen_map(ThrContainCtx *ctx, Map *map) {
+static int thread_contain_seen_map(ThreadContainCtx *ctx, Map *map) {
     for (size_t i = 0; i < ctx->seen_map_count; i++) {
         if (ctx->seen_maps[i] == map) {
             return 1;
@@ -1850,7 +1850,7 @@ static int thr_contain_seen_map(ThrContainCtx *ctx, Map *map) {
     return 0;
 }
 
-static int thr_contain_seen_tensor(ThrContainCtx *ctx, Tensor *tns) {
+static int thread_contain_seen_tensor(ThreadContainCtx *ctx, Tensor *tns) {
     for (size_t i = 0; i < ctx->seen_tensor_count; i++) {
         if (ctx->seen_tensors[i] == tns) {
             return 1;
@@ -1869,38 +1869,38 @@ static int thr_contain_seen_tensor(ThrContainCtx *ctx, Tensor *tns) {
     return 0;
 }
 
-static int value_contains_thr_rec(ThrContainCtx *ctx, Value v) {
+static int value_contains_thread_rec(ThreadContainCtx *ctx, Value v) {
     if (!ctx || !ctx->target) {
         return 0;
     }
     switch (v.type) {
-    case VAL_THR:
-        return v.as.thr == ctx->target;
+    case VAL_THREAD:
+        return v.as.thread == ctx->target;
     case VAL_MAP:
         if (!v.as.map) {
             return 0;
         }
-        if (thr_contain_seen_map(ctx, v.as.map)) {
+        if (thread_contain_seen_map(ctx, v.as.map)) {
             return 0;
         }
         for (size_t i = 0; i < v.as.map->count; i++) {
-            if (value_contains_thr_rec(ctx, v.as.map->items[i].key)) {
+            if (value_contains_thread_rec(ctx, v.as.map->items[i].key)) {
                 return 1;
             }
-            if (value_contains_thr_rec(ctx, v.as.map->items[i].value)) {
+            if (value_contains_thread_rec(ctx, v.as.map->items[i].value)) {
                 return 1;
             }
         }
         return 0;
-    case VAL_TNS:
-        if (!v.as.tns) {
+    case VAL_TENSOR:
+        if (!v.as.tensor) {
             return 0;
         }
-        if (thr_contain_seen_tensor(ctx, v.as.tns)) {
+        if (thread_contain_seen_tensor(ctx, v.as.tensor)) {
             return 0;
         }
-        for (size_t i = 0; i < v.as.tns->length; i++) {
-            if (value_contains_thr_rec(ctx, v.as.tns->data[i])) {
+        for (size_t i = 0; i < v.as.tensor->length; i++) {
+            if (value_contains_thread_rec(ctx, v.as.tensor->data[i])) {
                 return 1;
             }
         }
@@ -1910,10 +1910,10 @@ static int value_contains_thr_rec(ThrContainCtx *ctx, Value v) {
     }
 }
 
-static int value_contains_thr(Value v, Thr *target) {
-    ThrContainCtx ctx = {0};
+static int value_contains_thread(Value v, Thread *target) {
+    ThreadContainCtx ctx = {0};
     ctx.target = target;
-    int found = value_contains_thr_rec(&ctx, v);
+    int found = value_contains_thread_rec(&ctx, v);
     free(ctx.seen_maps);
     free(ctx.seen_tensors);
     return found;
@@ -1937,7 +1937,7 @@ static void ser_expr(JsonBuf *jb, SerCtx *ctx, Interpreter *interp, Expr *expr);
 static void ser_stmt(JsonBuf *jb, SerCtx *ctx, Interpreter *interp, Stmt *stmt);
 static void ser_value(JsonBuf *jb, SerCtx *ctx, Interpreter *interp, Value v);
 
-static void ser_env(JsonBuf *jb, SerCtx *ctx, Interpreter *interp, Env *env, Thr *omit_thr) {
+static void ser_env(JsonBuf *jb, SerCtx *ctx, Interpreter *interp, Env *env, Thread *omit_thr) {
     if (!env) {
         jb_append_str(jb, "null");
         return;
@@ -1983,7 +1983,7 @@ static void ser_env(JsonBuf *jb, SerCtx *ctx, Interpreter *interp, Env *env, Thr
         if (!entry->initialized && !entry->alias_target) {
             continue;
         }
-        if (omit_thr && entry->initialized && !entry->alias_target && value_contains_thr(entry->value, omit_thr)) {
+        if (omit_thr && entry->initialized && !entry->alias_target && value_contains_thread(entry->value, omit_thr)) {
             continue;
         }
         if (!val_first) {
@@ -2029,7 +2029,7 @@ static void ser_env(JsonBuf *jb, SerCtx *ctx, Interpreter *interp, Env *env, Thr
     }
     jb_append_char(jb, '}');
 
-    /* Serialize MAP schemas */
+    /* Serialize map schemas */
     json_obj_field(jb, &def_first, "schemas");
     jb_append_char(jb, '{');
     bool schema_first = true;
@@ -2107,7 +2107,7 @@ static void ser_expr(JsonBuf *jb, SerCtx *ctx, Interpreter *interp, Expr *expr) 
         json_obj_field(jb, &first, "value");
         jb_append_str(jb, (int)expr->as.bool_value ? "true" : "false");
         json_obj_field(jb, &first, "literal_type");
-        jb_append_json_string(jb, "BOOL");
+        jb_append_json_string(jb, "bool");
         jb_append_char(jb, '}');
         return;
     }
@@ -2123,11 +2123,11 @@ static void ser_expr(JsonBuf *jb, SerCtx *ctx, Interpreter *interp, Expr *expr) 
         json_obj_field(jb, &first, "base");
         jb_append_fmt(jb, "%d", expr->as.int_value.base);
         json_obj_field(jb, &first, "literal_type");
-        jb_append_json_string(jb, "INT");
+        jb_append_json_string(jb, "int");
         jb_append_char(jb, '}');
         return;
     }
-    case EXPR_FLT: {
+    case EXPR_FLOAT: {
         jb_append_char(jb, '{');
         bool first = true;
         json_obj_field(jb, &first, "n");
@@ -2153,7 +2153,7 @@ static void ser_expr(JsonBuf *jb, SerCtx *ctx, Interpreter *interp, Expr *expr) 
             jb_append_fmt(jb, "%d", expr->as.flt_value.base);
         }
         json_obj_field(jb, &first, "literal_type");
-        jb_append_json_string(jb, "FLT");
+        jb_append_json_string(jb, "float");
         jb_append_char(jb, '}');
         return;
     }
@@ -2167,11 +2167,11 @@ static void ser_expr(JsonBuf *jb, SerCtx *ctx, Interpreter *interp, Expr *expr) 
         json_obj_field(jb, &first, "value");
         jb_append_json_string(jb, expr->as.str_value ? expr->as.str_value : "");
         json_obj_field(jb, &first, "literal_type");
-        jb_append_json_string(jb, "STR");
+        jb_append_json_string(jb, "str");
         jb_append_char(jb, '}');
         return;
     }
-    case EXPR_TNS: {
+    case EXPR_TENSOR: {
         jb_append_char(jb, '{');
         bool first = true;
         json_obj_field(jb, &first, "n");
@@ -2659,7 +2659,7 @@ static void ser_stmt(JsonBuf *jb, SerCtx *ctx, Interpreter *interp, Stmt *stmt) 
         jb_append_char(jb, '}');
         return;
     }
-    case STMT_THR: {
+    case STMT_THREAD: {
         jb_append_char(jb, '{');
         bool first = true;
         json_obj_field(jb, &first, "n");
@@ -2667,9 +2667,9 @@ static void ser_stmt(JsonBuf *jb, SerCtx *ctx, Interpreter *interp, Stmt *stmt) 
         json_obj_field(jb, &first, "loc");
         ser_loc(jb, stmt->line, stmt->column);
         json_obj_field(jb, &first, "symbol");
-        jb_append_json_string(jb, stmt->as.thr_stmt.name ? stmt->as.thr_stmt.name : "");
+        jb_append_json_string(jb, stmt->as.thread_stmt.name ? stmt->as.thread_stmt.name : "");
         json_obj_field(jb, &first, "block");
-        ser_stmt(jb, ctx, interp, stmt->as.thr_stmt.body);
+        ser_stmt(jb, ctx, interp, stmt->as.thread_stmt.body);
         jb_append_char(jb, '}');
         return;
     }
@@ -2705,7 +2705,7 @@ static void ser_value(JsonBuf *jb, SerCtx *ctx, Interpreter *interp, Value v) {
         jb_append_char(jb, '{');
         bool first = true;
         json_obj_field(jb, &first, "t");
-        jb_append_json_string(jb, "BOOL");
+        jb_append_json_string(jb, "bool");
         json_obj_field(jb, &first, "v");
         jb_append_str(jb, (int)v.as.boolean ? "true" : "false");
         jb_append_char(jb, '}');
@@ -2716,19 +2716,19 @@ static void ser_value(JsonBuf *jb, SerCtx *ctx, Interpreter *interp, Value v) {
         jb_append_char(jb, '{');
         bool first = true;
         json_obj_field(jb, &first, "t");
-        jb_append_json_string(jb, "INT");
+        jb_append_json_string(jb, "int");
         json_obj_field(jb, &first, "v");
         jb_append_json_string(jb, s);
         jb_append_char(jb, '}');
         free(s);
         return;
     }
-    case VAL_FLT: {
-        char *fs = flt_to_base_prefixed_str(v.as.f, numeric_base_of(v), v.num_base_nan);
+    case VAL_FLOAT: {
+        char *fs = float_to_base_prefixed_str(v.as.f, numeric_base_of(v), v.num_base_nan);
         jb_append_char(jb, '{');
         bool first = true;
         json_obj_field(jb, &first, "t");
-        jb_append_json_string(jb, "FLT");
+        jb_append_json_string(jb, "float");
         json_obj_field(jb, &first, "v");
         jb_append_json_string(jb, fs);
         jb_append_char(jb, '}');
@@ -2739,18 +2739,18 @@ static void ser_value(JsonBuf *jb, SerCtx *ctx, Interpreter *interp, Value v) {
         jb_append_char(jb, '{');
         bool first = true;
         json_obj_field(jb, &first, "t");
-        jb_append_json_string(jb, "STR");
+        jb_append_json_string(jb, "str");
         json_obj_field(jb, &first, "v");
         jb_append_json_string(jb, v.as.s ? v.as.s : "");
         jb_append_char(jb, '}');
         return;
     }
-    case VAL_TNS: {
-        Tensor *t = v.as.tns;
+    case VAL_TENSOR: {
+        Tensor *t = v.as.tensor;
         jb_append_char(jb, '{');
         bool first = true;
         json_obj_field(jb, &first, "t");
-        jb_append_json_string(jb, "TNS");
+        jb_append_json_string(jb, "tensor");
         json_obj_field(jb, &first, "shape");
         jb_append_char(jb, '[');
         for (size_t i = 0; i < t->ndim; i++) {
@@ -2777,7 +2777,7 @@ static void ser_value(JsonBuf *jb, SerCtx *ctx, Interpreter *interp, Value v) {
         jb_append_char(jb, '{');
         bool first = true;
         json_obj_field(jb, &first, "t");
-        jb_append_json_string(jb, "MAP");
+        jb_append_json_string(jb, "map");
         json_obj_field(jb, &first, "v");
         jb_append_char(jb, '[');
         for (size_t i = 0; i < m->count; i++) {
@@ -2804,7 +2804,7 @@ static void ser_value(JsonBuf *jb, SerCtx *ctx, Interpreter *interp, Value v) {
             jb_append_char(jb, '{');
             bool first = true;
             json_obj_field(jb, &first, "t");
-            jb_append_json_string(jb, "FUNC");
+            jb_append_json_string(jb, "func");
             json_obj_field(jb, &first, "id");
             jb_append_json_string(jb, id);
             json_obj_field(jb, &first, "ref");
@@ -2821,7 +2821,7 @@ static void ser_value(JsonBuf *jb, SerCtx *ctx, Interpreter *interp, Value v) {
         jb_append_char(jb, '{');
         bool first = true;
         json_obj_field(jb, &first, "t");
-        jb_append_json_string(jb, "FUNC");
+        jb_append_json_string(jb, "func");
         json_obj_field(jb, &first, "id");
         jb_append_json_string(jb, id);
         json_obj_field(jb, &first, "name");
@@ -2897,34 +2897,34 @@ static void ser_value(JsonBuf *jb, SerCtx *ctx, Interpreter *interp, Value v) {
         }
         return;
     }
-    case VAL_THR: {
-        Thr *th = v.as.thr;
+    case VAL_THREAD: {
+        Thread *th = v.as.thread;
         Value thv = value_null();
-        thv.type = VAL_THR;
-        thv.as.thr = th;
+        thv.type = VAL_THREAD;
+        thv.as.thread = th;
         int state = 0;
-        const char *id = ser_thr_id(ctx, th, &state);
+        const char *id = ser_thread_id(ctx, th, &state);
         (void)state;
         jb_append_char(jb, '{');
         bool first = true;
         json_obj_field(jb, &first, "t");
-        jb_append_json_string(jb, "THR");
+        jb_append_json_string(jb, "thread");
         json_obj_field(jb, &first, "id");
         jb_append_json_string(jb, id);
         json_obj_field(jb, &first, "state");
-        if (value_thr_get_finished(thv)) {
+        if (value_thread_get_finished(thv)) {
             jb_append_json_string(jb, "finished");
-        } else if (value_thr_get_paused(thv)) {
+        } else if (value_thread_get_paused(thv)) {
             jb_append_json_string(jb, "paused");
         } else {
             jb_append_json_string(jb, "running");
         }
         json_obj_field(jb, &first, "paused");
-        jb_append_str(jb, value_thr_get_paused(thv) ? "true" : "false");
+        jb_append_str(jb, value_thread_get_paused(thv) ? "true" : "false");
         json_obj_field(jb, &first, "finished");
-        jb_append_str(jb, value_thr_get_finished(thv) ? "true" : "false");
+        jb_append_str(jb, value_thread_get_finished(thv) ? "true" : "false");
         json_obj_field(jb, &first, "stop");
-        jb_append_str(jb, value_thr_get_stop_requested(thv) ? "true" : "false");
+        jb_append_str(jb, value_thread_get_stop_requested(thv) ? "true" : "false");
         json_obj_field(jb, &first, "env");
         ser_env(jb, ctx, interp, th->env, th);
         json_obj_field(jb, &first, "block");
@@ -2965,15 +2965,15 @@ typedef struct {
 
 typedef struct {
     char **ids;
-    Thr **thrs;
+    Thread **threads;
     size_t count;
     size_t cap;
-} ThrRegistry;
+} ThreadRegistry;
 
 typedef struct {
     EnvRegistry envs;
     FuncRegistry funcs;
-    ThrRegistry thrs;
+    ThreadRegistry threads;
 } UnserCtx;
 
 static void unser_ctx_init(UnserCtx *ctx) { memset(ctx, 0, sizeof(*ctx)); }
@@ -2985,15 +2985,15 @@ static void unser_ctx_free(UnserCtx *ctx) {
     for (size_t i = 0; i < ctx->funcs.count; i++) {
         free(ctx->funcs.ids[i]);
     }
-    for (size_t i = 0; i < ctx->thrs.count; i++) {
-        free(ctx->thrs.ids[i]);
+    for (size_t i = 0; i < ctx->threads.count; i++) {
+        free(ctx->threads.ids[i]);
     }
     free(ctx->envs.ids);
     free(ctx->envs.envs);
     free(ctx->funcs.ids);
     free(ctx->funcs.funcs);
-    free(ctx->thrs.ids);
-    free(ctx->thrs.thrs);
+    free(ctx->threads.ids);
+    free(ctx->threads.threads);
 }
 
 static Env *unser_env_get(UnserCtx *ctx, const char *id) {
@@ -3046,29 +3046,29 @@ static void unser_func_set(UnserCtx *ctx, const char *id, Func *func) {
     ctx->funcs.count++;
 }
 
-static Thr *unser_thr_get(UnserCtx *ctx, const char *id) {
-    for (size_t i = 0; i < ctx->thrs.count; i++) {
-        if (strcmp(ctx->thrs.ids[i], id) == 0) {
-            return ctx->thrs.thrs[i];
+static Thread *unser_thread_get(UnserCtx *ctx, const char *id) {
+    for (size_t i = 0; i < ctx->threads.count; i++) {
+        if (strcmp(ctx->threads.ids[i], id) == 0) {
+            return ctx->threads.threads[i];
         }
     }
     return NULL;
 }
 
-static void unser_thr_set(UnserCtx *ctx, const char *id, Thr *thr) {
-    if (ctx->thrs.count + 1 > ctx->thrs.cap) {
-        size_t new_cap = ctx->thrs.cap == 0 ? 4 : ctx->thrs.cap * 2;
-        ctx->thrs.ids = realloc(ctx->thrs.ids, new_cap * sizeof(char *));
-        ctx->thrs.thrs = realloc(ctx->thrs.thrs, new_cap * sizeof(Thr *));
-        if (!ctx->thrs.ids || !ctx->thrs.thrs) {
+static void unser_thread_set(UnserCtx *ctx, const char *id, Thread *thr) {
+    if (ctx->threads.count + 1 > ctx->threads.cap) {
+        size_t new_cap = ctx->threads.cap == 0 ? 4 : ctx->threads.cap * 2;
+        ctx->threads.ids = realloc(ctx->threads.ids, new_cap * sizeof(char *));
+        ctx->threads.threads = realloc(ctx->threads.threads, new_cap * sizeof(Thread *));
+        if (!ctx->threads.ids || !ctx->threads.threads) {
             fprintf(stderr, "Out of memory\n");
             exit(1);
         }
-        ctx->thrs.cap = new_cap;
+        ctx->threads.cap = new_cap;
     }
-    ctx->thrs.ids[ctx->thrs.count] = strdup(id);
-    ctx->thrs.thrs[ctx->thrs.count] = thr;
-    ctx->thrs.count++;
+    ctx->threads.ids[ctx->threads.count] = strdup(id);
+    ctx->threads.threads[ctx->threads.count] = thr;
+    ctx->threads.count++;
 }
 
 static Expr *deser_expr(JsonValue *obj, UnserCtx *ctx, Interpreter *interp, const char **err);
@@ -3103,8 +3103,8 @@ static Expr *deser_default_expr(JsonValue *raw, UnserCtx *ctx, Interpreter *inte
     if (v.type == VAL_INT) {
         return expr_int(v.as.i, v.num_base, 1, 1);
     }
-    if (v.type == VAL_FLT) {
-        return expr_flt(v.as.f, v.num_base, v.num_base_nan, 1, 1);
+    if (v.type == VAL_FLOAT) {
+        return expr_float(v.as.f, v.num_base, v.num_base_nan, 1, 1);
     }
     if (v.type == VAL_STR) {
         return expr_str(strdup(v.as.s ? v.as.s : ""), 1, 1);
@@ -3127,10 +3127,10 @@ static Expr *deser_expr(JsonValue *obj, UnserCtx *ctx, Interpreter *interp, cons
     if (strcmp(name, "Literal") == 0) {
         JsonValue *lit_type = json_obj_get(obj, "literal_type");
         JsonValue *val = json_obj_get(obj, "value");
-        const char *lt = (lit_type && lit_type->type == JSON_STR) ? lit_type->as.str : "INT";
-        if (strcmp(lt, "BOOL") == 0) {
+        const char *lt = (lit_type && lit_type->type == JSON_STR) ? lit_type->as.str : "int";
+        if (strcmp(lt, "bool") == 0) {
             if (!val) {
-                *err = "UNSER: invalid BOOL value";
+                *err = "UNSER: invalid bool value";
                 return NULL;
             }
             if (val->type == JSON_BOOL) {
@@ -3144,10 +3144,10 @@ static Expr *deser_expr(JsonValue *obj, UnserCtx *ctx, Interpreter *interp, cons
                     return expr_bool(false, line, col);
                 }
             }
-            *err = "UNSER: invalid BOOL value";
+            *err = "UNSER: invalid bool value";
             return NULL;
         }
-        if (strcmp(lt, "INT") == 0) {
+        if (strcmp(lt, "int") == 0) {
             int64_t i = 0;
             if (val && val->type == JSON_NUM) {
                 i = (int64_t)val->as.num;
@@ -3156,7 +3156,7 @@ static Expr *deser_expr(JsonValue *obj, UnserCtx *ctx, Interpreter *interp, cons
             int base = (basev && basev->type == JSON_NUM) ? (int)basev->as.num : 2;
             return expr_int(i, base, line, col);
         }
-        if (strcmp(lt, "FLT") == 0) {
+        if (strcmp(lt, "float") == 0) {
             double f = 0.0;
             if (val && val->type == JSON_NUM) {
                 f = val->as.num;
@@ -3165,19 +3165,19 @@ static Expr *deser_expr(JsonValue *obj, UnserCtx *ctx, Interpreter *interp, cons
             }
             JsonValue *basev = json_obj_get(obj, "base");
             if (!basev || basev->type == JSON_NULL) {
-                return expr_flt(f, 0, 1, line, col);
+                return expr_float(f, 0, 1, line, col);
             }
             int base = (basev->type == JSON_NUM) ? (int)basev->as.num : 2;
-            return expr_flt(f, base, 0, line, col);
+            return expr_float(f, base, 0, line, col);
         }
-        if (strcmp(lt, "STR") == 0) {
+        if (strcmp(lt, "str") == 0) {
             const char *s = (val && val->type == JSON_STR) ? val->as.str : "";
             return expr_str(strdup(s), line, col);
         }
         return expr_int(0, 2, line, col);
     }
     if (strcmp(name, "TensorLiteral") == 0) {
-        Expr *t = expr_tns(line, col);
+        Expr *t = expr_tensor(line, col);
         JsonValue *items = json_obj_get(obj, "items");
         if (items && items->type == JSON_ARR) {
             for (size_t i = 0; i < items->as.arr.count; i++) {
@@ -3457,7 +3457,7 @@ static Stmt *deser_stmt(JsonValue *obj, UnserCtx *ctx, Interpreter *interp, cons
         JsonValue *sym = json_obj_get(obj, "symbol");
         const char *s = (sym && sym->type == JSON_STR) ? sym->as.str : "";
         Stmt *block = deser_stmt(json_obj_get(obj, "block"), ctx, interp, err);
-        return stmt_thr(strdup(s), block, line, col);
+        return stmt_thread(strdup(s), block, line, col);
     }
     if (strcmp(name, "TryStatement") == 0) {
         Stmt *try_block = deser_stmt(json_obj_get(obj, "try_block"), ctx, interp, err);
@@ -3560,7 +3560,7 @@ static Env *deser_env(JsonValue *obj, UnserCtx *ctx, Interpreter *interp, const 
             }
         }
 
-        /* Deserialize MAP schemas */
+        /* Deserialize map schemas */
         JsonValue *schemas = json_obj_get(def, "schemas");
         if (schemas && schemas->type == JSON_OBJ) {
             for (size_t i = 0; i < schemas->as.obj.count; i++) {
@@ -3626,21 +3626,21 @@ static Value deser_val(JsonValue *obj, UnserCtx *ctx, Interpreter *interp, const
     }
     const char *tp = t->as.str;
 
-    if (strcmp(tp, "INT") == 0) {
+    if (strcmp(tp, "int") == 0) {
         JsonValue *v = json_obj_get(obj, "v");
         const char *s = (v && v->type == JSON_STR) ? v->as.str : "0";
         int64_t val = 0;
         int base = 2;
         if (!parse_prefixed_int_string(s, &val, &base)) {
-            *err = "UNSER: invalid INT value";
+            *err = "UNSER: invalid int value";
             return value_null();
         }
         return value_int_base(val, base);
     }
-    if (strcmp(tp, "BOOL") == 0) {
+    if (strcmp(tp, "bool") == 0) {
         JsonValue *v = json_obj_get(obj, "v");
         if (!v) {
-            *err = "UNSER: invalid BOOL value";
+            *err = "UNSER: invalid bool value";
             return value_null();
         }
         if (v->type == JSON_BOOL) {
@@ -3654,39 +3654,39 @@ static Value deser_val(JsonValue *obj, UnserCtx *ctx, Interpreter *interp, const
                 return value_bool(false);
             }
         }
-        *err = "UNSER: invalid BOOL value";
+        *err = "UNSER: invalid bool value";
         return value_null();
     }
-    if (strcmp(tp, "FLT") == 0) {
+    if (strcmp(tp, "float") == 0) {
         JsonValue *v = json_obj_get(obj, "v");
         const char *s = (v && v->type == JSON_STR) ? v->as.str : "0.0";
         double f = 0.0;
         int base = 2;
         int base_is_nan = 0;
         if (!parse_prefixed_flt_string(s, &f, &base, &base_is_nan)) {
-            *err = "UNSER: invalid FLT value";
+            *err = "UNSER: invalid float value";
             return value_null();
         }
         if (base_is_nan) {
-            return value_flt_nan_base(f);
+            return value_float_nan_base(f);
         }
-        return value_flt_base(f, base);
+        return value_float_base(f, base);
     }
-    if (strcmp(tp, "STR") == 0) {
+    if (strcmp(tp, "str") == 0) {
         JsonValue *v = json_obj_get(obj, "v");
         const char *s = (v && v->type == JSON_STR) ? v->as.str : "";
         return value_str(s);
     }
-    if (strcmp(tp, "TNS") == 0) {
+    if (strcmp(tp, "tensor") == 0) {
         JsonValue *shape = json_obj_get(obj, "shape");
         JsonValue *flat = json_obj_get(obj, "v");
         if (!shape || shape->type != JSON_ARR || !flat || flat->type != JSON_ARR) {
-            *err = "UNSER: invalid TNS shape";
+            *err = "UNSER: invalid tensor shape";
             return value_null();
         }
         size_t ndim = shape->as.arr.count;
         if (ndim == 0) {
-            *err = "UNSER: invalid TNS shape";
+            *err = "UNSER: invalid tensor shape";
             return value_null();
         }
         // Compute expected element count and validate dims
@@ -3694,23 +3694,23 @@ static Value deser_val(JsonValue *obj, UnserCtx *ctx, Interpreter *interp, const
         for (size_t i = 0; i < ndim; i++) {
             JsonValue *it = shape->as.arr.items[i];
             if (!it || it->type != JSON_NUM) {
-                *err = "UNSER: invalid TNS shape";
+                *err = "UNSER: invalid tensor shape";
                 return value_null();
             }
             size_t sv = (size_t)it->as.num;
             if (sv == 0) {
-                *err = "UNSER: invalid TNS shape";
+                *err = "UNSER: invalid tensor shape";
                 return value_null();
             }
             if (expected_total > 0 && sv > 0 && expected_total > (SIZE_MAX / sv)) {
-                *err = "UNSER: TNS size overflow";
+                *err = "UNSER: tensor size overflow";
                 return value_null();
             }
             expected_total *= sv;
         }
         size_t total = flat->as.arr.count;
         if (expected_total != total) {
-            *err = "UNSER: invalid TNS element count";
+            *err = "UNSER: invalid tensor element count";
             return value_null();
         }
         size_t *shp = malloc(sizeof(size_t) * ndim);
@@ -3740,12 +3740,12 @@ static Value deser_val(JsonValue *obj, UnserCtx *ctx, Interpreter *interp, const
                 dt = TYPE_BOOL;
             } else if (items[i].type == VAL_INT) {
                 dt = TYPE_INT;
-            } else if (items[i].type == VAL_FLT) {
-                dt = TYPE_FLT;
+            } else if (items[i].type == VAL_FLOAT) {
+                dt = TYPE_FLOAT;
             } else if (items[i].type == VAL_STR) {
                 dt = TYPE_STR;
-            } else if (items[i].type == VAL_TNS) {
-                dt = TYPE_TNS;
+            } else if (items[i].type == VAL_TENSOR) {
+                dt = TYPE_TENSOR;
             } else if (items[i].type == VAL_FUNC) {
                 dt = TYPE_FUNC;
             }
@@ -3755,7 +3755,7 @@ static Value deser_val(JsonValue *obj, UnserCtx *ctx, Interpreter *interp, const
                 elem_type = TYPE_UNKNOWN;
             }
         }
-        Value out = value_tns_from_values(elem_type, ndim, shp, items, total);
+        Value out = value_tensor_from_values(elem_type, ndim, shp, items, total);
         for (size_t i = 0; i < total; i++) {
             value_free(items[i]);
         }
@@ -3763,10 +3763,10 @@ static Value deser_val(JsonValue *obj, UnserCtx *ctx, Interpreter *interp, const
         free(shp);
         return out;
     }
-    if (strcmp(tp, "MAP") == 0) {
+    if (strcmp(tp, "map") == 0) {
         JsonValue *items = json_obj_get(obj, "v");
         if (!items || items->type != JSON_ARR) {
-            *err = "UNSER: invalid MAP form";
+            *err = "UNSER: invalid map form";
             return value_null();
         }
         Value mv = value_map_new();
@@ -3780,10 +3780,10 @@ static Value deser_val(JsonValue *obj, UnserCtx *ctx, Interpreter *interp, const
                 value_free(mv);
                 return value_null();
             }
-            if (!(k.type == VAL_INT || k.type == VAL_FLT || k.type == VAL_STR)) {
+            if (!(k.type == VAL_INT || k.type == VAL_FLOAT || k.type == VAL_STR)) {
                 value_free(k);
                 value_free(mv);
-                *err = "UNSER: invalid MAP key type";
+                *err = "UNSER: invalid map key type";
                 return value_null();
             }
             Value v = deser_val(json_obj_get(pair, "v"), ctx, interp, err);
@@ -3798,7 +3798,7 @@ static Value deser_val(JsonValue *obj, UnserCtx *ctx, Interpreter *interp, const
         }
         return mv;
     }
-    if (strcmp(tp, "FUNC") == 0) {
+    if (strcmp(tp, "func") == 0) {
         JsonValue *idv = json_obj_get(obj, "id");
         const char *id = (idv && idv->type == JSON_STR) ? idv->as.str : NULL;
         if (id) {
@@ -3906,19 +3906,19 @@ static Value deser_val(JsonValue *obj, UnserCtx *ctx, Interpreter *interp, const
         }
         return value_func(fn);
     }
-    if (strcmp(tp, "THR") == 0) {
+    if (strcmp(tp, "thread") == 0) {
         JsonValue *idv = json_obj_get(obj, "id");
         const char *id = (idv && idv->type == JSON_STR) ? idv->as.str : NULL;
         if (id) {
-            Thr *existing = unser_thr_get(ctx, id);
+            Thread *existing = unser_thread_get(ctx, id);
             if (existing) {
                 Value ret;
-                ret.type = VAL_THR;
-                ret.as.thr = existing;
+                ret.type = VAL_THREAD;
+                ret.as.thread = existing;
                 return value_copy(ret);
             }
         }
-        Value thr = value_thr_new();
+        Value thr = value_thread_new();
         // Set lifecycle flags from serialized form. Default to not finished/not stopped/not started.
         JsonValue *finished_j = json_obj_get(obj, "finished");
         JsonValue *stop_j = json_obj_get(obj, "stop");
@@ -3926,22 +3926,22 @@ static Value deser_val(JsonValue *obj, UnserCtx *ctx, Interpreter *interp, const
         int finished_flag = (finished_j && finished_j->type == JSON_BOOL) ? finished_j->as.boolean : 0;
         int stop_flag = (stop_j && stop_j->type == JSON_BOOL) ? stop_j->as.boolean : 0;
         int paused_flag = (paused_j && paused_j->type == JSON_BOOL) ? paused_j->as.boolean : 0;
-        value_thr_set_finished(thr, finished_flag);
-        value_thr_set_stop_requested(thr, stop_flag);
-        value_thr_set_paused(thr, paused_flag);
-        value_thr_set_started(thr, 0);
-        thr.as.thr->body = NULL;
-        thr.as.thr->env = NULL;
+        value_thread_set_finished(thr, finished_flag);
+        value_thread_set_stop_requested(thr, stop_flag);
+        value_thread_set_paused(thr, paused_flag);
+        value_thread_set_started(thr, 0);
+        thr.as.thread->body = NULL;
+        thr.as.thread->env = NULL;
         if (id) {
-            unser_thr_set(ctx, id, thr.as.thr);
+            unser_thread_set(ctx, id, thr.as.thread);
         }
         JsonValue *blk = json_obj_get(obj, "block");
         JsonValue *envv = json_obj_get(obj, "env");
         if (blk && blk->type == JSON_OBJ) {
-            thr.as.thr->body = deser_stmt(blk, ctx, interp, err);
+            thr.as.thread->body = deser_stmt(blk, ctx, interp, err);
         }
         if (envv && envv->type == JSON_OBJ) {
-            thr.as.thr->env = deser_env(envv, ctx, interp, err);
+            thr.as.thread->env = deser_env(envv, ctx, interp, err);
         }
         return thr;
     }
@@ -4000,7 +4000,7 @@ static Value builtin_add(Interpreter *interp, Value *args, int argc, Expr **arg_
     EXPECT_NUM(args[1], "+", interp, line, col);
 
     if (args[0].type != args[1].type) {
-        RUNTIME_ERROR(interp, "+ cannot mix INT and FLT", line, col);
+        RUNTIME_ERROR(interp, "+ cannot mix int and float", line, col);
     }
 
     Value result = value_null();
@@ -4008,7 +4008,7 @@ static Value builtin_add(Interpreter *interp, Value *args, int argc, Expr **arg_
     if (args[0].type == VAL_INT) {
         result = value_int_base(args[0].as.i + args[1].as.i, out_base);
     } else {
-        result = value_flt_base(args[0].as.f + args[1].as.f, out_base);
+        result = value_float_base(args[0].as.f + args[1].as.f, out_base);
     }
     if (!writeback_ptr_range(interp, arg_nodes, env, 0, 2, result, "+", line, col)) {
         value_free(result);
@@ -4023,7 +4023,7 @@ static Value builtin_sub(Interpreter *interp, Value *args, int argc, Expr **arg_
     EXPECT_NUM(args[1], "-", interp, line, col);
 
     if (args[0].type != args[1].type) {
-        RUNTIME_ERROR(interp, "- cannot mix INT and FLT", line, col);
+        RUNTIME_ERROR(interp, "- cannot mix int and float", line, col);
     }
 
     Value result = value_null();
@@ -4031,7 +4031,7 @@ static Value builtin_sub(Interpreter *interp, Value *args, int argc, Expr **arg_
     if (args[0].type == VAL_INT) {
         result = value_int_base(args[0].as.i - args[1].as.i, out_base);
     } else {
-        result = value_flt_base(args[0].as.f - args[1].as.f, out_base);
+        result = value_float_base(args[0].as.f - args[1].as.f, out_base);
     }
     if (!writeback_ptr_range(interp, arg_nodes, env, 0, 2, result, "-", line, col)) {
         value_free(result);
@@ -4047,7 +4047,7 @@ static Value builtin_mul(Interpreter *interp, Value *args, int argc, Expr **arg_
     EXPECT_NUM(args[1], "*", interp, line, col);
 
     if (args[0].type != args[1].type) {
-        RUNTIME_ERROR(interp, "* cannot mix INT and FLT", line, col);
+        RUNTIME_ERROR(interp, "* cannot mix int and float", line, col);
     }
 
     int out_base = result_base_from_values(args[0], args[1]);
@@ -4059,7 +4059,7 @@ static Value builtin_mul(Interpreter *interp, Value *args, int argc, Expr **arg_
         }
         return result;
     }
-    Value result = value_flt_base(args[0].as.f * args[1].as.f, out_base);
+    Value result = value_float_base(args[0].as.f * args[1].as.f, out_base);
     if (!writeback_ptr_range(interp, arg_nodes, env, 0, 2, result, "*", line, col)) {
         value_free(result);
         return value_null();
@@ -4074,7 +4074,7 @@ static Value builtin_div(Interpreter *interp, Value *args, int argc, Expr **arg_
     EXPECT_NUM(args[1], "/", interp, line, col);
 
     if (args[0].type != args[1].type) {
-        RUNTIME_ERROR(interp, "/ cannot mix INT and FLT", line, col);
+        RUNTIME_ERROR(interp, "/ cannot mix int and float", line, col);
     }
 
     int out_base = result_base_from_values(args[0], args[1]);
@@ -4092,7 +4092,7 @@ static Value builtin_div(Interpreter *interp, Value *args, int argc, Expr **arg_
     if (args[1].as.f == 0.0) {
         RUNTIME_ERROR(interp, "Division by zero", line, col);
     }
-    Value result = value_flt_base(args[0].as.f / args[1].as.f, out_base);
+    Value result = value_float_base(args[0].as.f / args[1].as.f, out_base);
     if (!writeback_ptr_range(interp, arg_nodes, env, 0, 2, result, "/", line, col)) {
         value_free(result);
         return value_null();
@@ -4100,7 +4100,7 @@ static Value builtin_div(Interpreter *interp, Value *args, int argc, Expr **arg_
     return result;
 }
 
-// CDIV: ceiling division (supports INT and FLT; returns same numeric type)
+// CDIV: ceiling division (supports int and float; returns same numeric type)
 static Value builtin_cdiv(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
     (void)arg_nodes;
     (void)env;
@@ -4108,7 +4108,7 @@ static Value builtin_cdiv(Interpreter *interp, Value *args, int argc, Expr **arg
     EXPECT_NUM(args[1], "CDIV", interp, line, col);
 
     if (args[0].type != args[1].type) {
-        RUNTIME_ERROR(interp, "CDIV cannot mix INT and FLT", line, col);
+        RUNTIME_ERROR(interp, "CDIV cannot mix int and float", line, col);
     }
 
     int out_base = result_base_from_values(args[0], args[1]);
@@ -4135,7 +4135,7 @@ static Value builtin_cdiv(Interpreter *interp, Value *args, int argc, Expr **arg
         RUNTIME_ERROR(interp, "Division by zero", line, col);
     }
     double res = ceil(args[0].as.f / args[1].as.f);
-    Value result = value_flt_base(res, out_base);
+    Value result = value_float_base(res, out_base);
     if (!writeback_ptr_range(interp, arg_nodes, env, 0, 2, result, "CDIV", line, col)) {
         value_free(result);
         return value_null();
@@ -4149,7 +4149,7 @@ static Value builtin_mod(Interpreter *interp, Value *args, int argc, Expr **arg_
     EXPECT_NUM(args[1], "MOD", interp, line, col);
 
     if (args[0].type != args[1].type) {
-        RUNTIME_ERROR(interp, "MOD cannot mix INT and FLT", line, col);
+        RUNTIME_ERROR(interp, "MOD cannot mix int and float", line, col);
     }
 
     int out_base = result_base_from_values(args[0], args[1]);
@@ -4187,7 +4187,7 @@ static Value builtin_mod(Interpreter *interp, Value *args, int argc, Expr **arg_
         RUNTIME_ERROR(interp, "Division by zero", line, col);
     }
     double b = args[1].as.f < 0 ? -args[1].as.f : args[1].as.f;
-    Value result = value_flt_base(fmod(args[0].as.f, b), out_base);
+    Value result = value_float_base(fmod(args[0].as.f, b), out_base);
 
     bool ok = true;
     if (arg_nodes && arg_nodes[0] && arg_nodes[0]->type == EXPR_PTR) {
@@ -4216,7 +4216,7 @@ static Value builtin_pow(Interpreter *interp, Value *args, int argc, Expr **arg_
     EXPECT_NUM(args[1], "POW", interp, line, col);
 
     if (args[0].type != args[1].type) {
-        RUNTIME_ERROR(interp, "POW cannot mix INT and FLT", line, col);
+        RUNTIME_ERROR(interp, "POW cannot mix int and float", line, col);
     }
 
     int out_base = result_base_from_values(args[0], args[1]);
@@ -4241,7 +4241,7 @@ static Value builtin_pow(Interpreter *interp, Value *args, int argc, Expr **arg_
         }
         return out;
     }
-    Value out = value_flt_base(pow(args[0].as.f, args[1].as.f), out_base);
+    Value out = value_float_base(pow(args[0].as.f, args[1].as.f), out_base);
     if (!writeback_first_ptr(interp, arg_nodes, env, out, "POW", line, col)) {
         value_free(out);
         return value_null();
@@ -4262,7 +4262,7 @@ static Value builtin_neg(Interpreter *interp, Value *args, int argc, Expr **arg_
         }
         return result;
     }
-    Value result = value_flt_base(-args[0].as.f, numeric_base_of(args[0]));
+    Value result = value_float_base(-args[0].as.f, numeric_base_of(args[0]));
     if (!writeback_ptr_range(interp, arg_nodes, env, 0, 1, result, "NEG", line, col)) {
         value_free(result);
         return value_null();
@@ -4283,7 +4283,7 @@ static Value builtin_abs(Interpreter *interp, Value *args, int argc, Expr **arg_
         }
         return result;
     }
-    Value result = value_flt_base(args[0].as.f < 0 ? -args[0].as.f : args[0].as.f, numeric_base_of(args[0]));
+    Value result = value_float_base(args[0].as.f < 0 ? -args[0].as.f : args[0].as.f, numeric_base_of(args[0]));
     if (!writeback_ptr_range(interp, arg_nodes, env, 0, 1, result, "ABS", line, col)) {
         value_free(result);
         return value_null();
@@ -4420,9 +4420,9 @@ static Value builtin_fadd(Interpreter *interp, Value *args, int argc, Expr **arg
     EXPECT_NUM(args[0], "F+", interp, line, col);
     EXPECT_NUM(args[1], "F+", interp, line, col);
 
-    double a = args[0].type == VAL_FLT ? args[0].as.f : (double)args[0].as.i;
-    double b = args[1].type == VAL_FLT ? args[1].as.f : (double)args[1].as.i;
-    Value result = value_flt_base(a + b, result_base_from_values(args[0], args[1]));
+    double a = args[0].type == VAL_FLOAT ? args[0].as.f : (double)args[0].as.i;
+    double b = args[1].type == VAL_FLOAT ? args[1].as.f : (double)args[1].as.i;
+    Value result = value_float_base(a + b, result_base_from_values(args[0], args[1]));
     if (!writeback_ptr_range(interp, arg_nodes, env, 0, 2, result, "F+", line, col)) {
         value_free(result);
         return value_null();
@@ -4436,9 +4436,9 @@ static Value builtin_fsub(Interpreter *interp, Value *args, int argc, Expr **arg
     EXPECT_NUM(args[0], "F-", interp, line, col);
     EXPECT_NUM(args[1], "F-", interp, line, col);
 
-    double a = args[0].type == VAL_FLT ? args[0].as.f : (double)args[0].as.i;
-    double b = args[1].type == VAL_FLT ? args[1].as.f : (double)args[1].as.i;
-    Value result = value_flt_base(a - b, result_base_from_values(args[0], args[1]));
+    double a = args[0].type == VAL_FLOAT ? args[0].as.f : (double)args[0].as.i;
+    double b = args[1].type == VAL_FLOAT ? args[1].as.f : (double)args[1].as.i;
+    Value result = value_float_base(a - b, result_base_from_values(args[0], args[1]));
     if (!writeback_ptr_range(interp, arg_nodes, env, 0, 2, result, "F-", line, col)) {
         value_free(result);
         return value_null();
@@ -4452,9 +4452,9 @@ static Value builtin_fmul(Interpreter *interp, Value *args, int argc, Expr **arg
     EXPECT_NUM(args[0], "F*", interp, line, col);
     EXPECT_NUM(args[1], "F*", interp, line, col);
 
-    double a = args[0].type == VAL_FLT ? args[0].as.f : (double)args[0].as.i;
-    double b = args[1].type == VAL_FLT ? args[1].as.f : (double)args[1].as.i;
-    Value result = value_flt_base(a * b, result_base_from_values(args[0], args[1]));
+    double a = args[0].type == VAL_FLOAT ? args[0].as.f : (double)args[0].as.i;
+    double b = args[1].type == VAL_FLOAT ? args[1].as.f : (double)args[1].as.i;
+    Value result = value_float_base(a * b, result_base_from_values(args[0], args[1]));
     if (!writeback_ptr_range(interp, arg_nodes, env, 0, 2, result, "F*", line, col)) {
         value_free(result);
         return value_null();
@@ -4468,12 +4468,12 @@ static Value builtin_fdiv(Interpreter *interp, Value *args, int argc, Expr **arg
     EXPECT_NUM(args[0], "F/", interp, line, col);
     EXPECT_NUM(args[1], "F/", interp, line, col);
 
-    double a = args[0].type == VAL_FLT ? args[0].as.f : (double)args[0].as.i;
-    double b = args[1].type == VAL_FLT ? args[1].as.f : (double)args[1].as.i;
+    double a = args[0].type == VAL_FLOAT ? args[0].as.f : (double)args[0].as.i;
+    double b = args[1].type == VAL_FLOAT ? args[1].as.f : (double)args[1].as.i;
     if (b == 0.0) {
         RUNTIME_ERROR(interp, "Division by zero", line, col);
     }
-    Value result = value_flt_base(a / b, result_base_from_values(args[0], args[1]));
+    Value result = value_float_base(a / b, result_base_from_values(args[0], args[1]));
     if (!writeback_ptr_range(interp, arg_nodes, env, 0, 2, result, "F/", line, col)) {
         value_free(result);
         return value_null();
@@ -4528,9 +4528,9 @@ static Value builtin_fpow(Interpreter *interp, Value *args, int argc, Expr **arg
     EXPECT_NUM(args[0], "FPOW", interp, line, col);
     EXPECT_NUM(args[1], "FPOW", interp, line, col);
 
-    double a = args[0].type == VAL_FLT ? args[0].as.f : (double)args[0].as.i;
-    double b = args[1].type == VAL_FLT ? args[1].as.f : (double)args[1].as.i;
-    Value out = value_flt_base(pow(a, b), result_base_from_values(args[0], args[1]));
+    double a = args[0].type == VAL_FLOAT ? args[0].as.f : (double)args[0].as.i;
+    double b = args[1].type == VAL_FLOAT ? args[1].as.f : (double)args[1].as.i;
+    Value out = value_float_base(pow(a, b), result_base_from_values(args[0], args[1]));
     if (!writeback_first_ptr(interp, arg_nodes, env, out, "FPOW", line, col)) {
         value_free(out);
         return value_null();
@@ -4543,9 +4543,9 @@ static Value builtin_fpow(Interpreter *interp, Value *args, int argc, Expr **arg
 // op: 0=add,1=sub,2=mul,3=div,4=pow
 static Value tensor_elemwise_op(Interpreter *interp, Value a, Value b, int op, int line, int col) {
     // Both tensors
-    if (a.type == VAL_TNS && b.type == VAL_TNS) {
-        Tensor *ta = a.as.tns;
-        Tensor *tb = b.as.tns;
+    if (a.type == VAL_TENSOR && b.type == VAL_TENSOR) {
+        Tensor *ta = a.as.tensor;
+        Tensor *tb = b.as.tensor;
         if (ta->elem_type != tb->elem_type) {
             RUNTIME_ERROR(interp, "T* operators require same element types", line, col);
         }
@@ -4558,8 +4558,8 @@ static Value tensor_elemwise_op(Interpreter *interp, Value a, Value b, int op, i
             }
         }
 
-        Value out = value_tns_new(ta->elem_type, ta->ndim, ta->shape);
-        Tensor *ot = out.as.tns;
+        Value out = value_tensor_new(ta->elem_type, ta->ndim, ta->shape);
+        Tensor *ot = out.as.tensor;
         for (size_t i = 0; i < ta->length; i++) {
             Value va = ta->data[i];
             Value vb = tb->data[i];
@@ -4606,31 +4606,31 @@ static Value tensor_elemwise_op(Interpreter *interp, Value a, Value b, int op, i
                     }
                     ot->data[i] = value_int(result);
                 }
-            } else if (va.type == VAL_FLT) {
+            } else if (va.type == VAL_FLOAT) {
                 double ra = va.as.f;
                 double rb = vb.as.f;
                 if (op == 0) {
                     {
-                        ot->data[i] = value_flt(ra + rb);
+                        ot->data[i] = value_float(ra + rb);
                     }
                 } else if (op == 1) {
                     {
-                        ot->data[i] = value_flt(ra - rb);
+                        ot->data[i] = value_float(ra - rb);
                     }
                 } else if (op == 2) {
                     {
-                        ot->data[i] = value_flt(ra * rb);
+                        ot->data[i] = value_float(ra * rb);
                     }
                 } else if (op == 3) {
                     if (rb == 0.0) {
                         value_free(out);
                         RUNTIME_ERROR(interp, "Division by zero", line, col);
                     }
-                    ot->data[i] = value_flt(ra / rb);
+                    ot->data[i] = value_float(ra / rb);
                 } else if (op == 4) {
-                    ot->data[i] = value_flt(pow(ra, rb));
+                    ot->data[i] = value_float(pow(ra, rb));
                 }
-            } else if (va.type == VAL_TNS) {
+            } else if (va.type == VAL_TENSOR) {
                 // nested tensors: recurse
                 ot->data[i] = tensor_elemwise_op(interp, va, vb, op, line, col);
             } else {
@@ -4642,14 +4642,15 @@ static Value tensor_elemwise_op(Interpreter *interp, Value a, Value b, int op, i
     }
 
     // One tensor and one scalar: broadcast scalar
-    if (a.type == VAL_TNS && (b.type == VAL_INT || b.type == VAL_FLT)) {
-        Tensor *ta = a.as.tns;
+    if (a.type == VAL_TENSOR && (b.type == VAL_INT || b.type == VAL_FLOAT)) {
+        Tensor *ta = a.as.tensor;
         // element static type must match scalar
-        if (!((ta->elem_type == TYPE_INT && b.type == VAL_INT) || (ta->elem_type == TYPE_FLT && b.type == VAL_FLT))) {
+        if (!((ta->elem_type == TYPE_INT && b.type == VAL_INT) ||
+              (ta->elem_type == TYPE_FLOAT && b.type == VAL_FLOAT))) {
             RUNTIME_ERROR(interp, "Tensor element type and scalar type mismatch", line, col);
         }
-        Value out = value_tns_new(ta->elem_type, ta->ndim, ta->shape);
-        Tensor *ot = out.as.tns;
+        Value out = value_tensor_new(ta->elem_type, ta->ndim, ta->shape);
+        Tensor *ot = out.as.tensor;
         for (size_t i = 0; i < ta->length; i++) {
             Value va = ta->data[i];
             if (va.type == VAL_INT) {
@@ -4690,33 +4691,33 @@ static Value tensor_elemwise_op(Interpreter *interp, Value a, Value b, int op, i
                     }
                     ot->data[i] = value_int(result);
                 }
-            } else if (va.type == VAL_FLT) {
+            } else if (va.type == VAL_FLOAT) {
                 double ra = va.as.f;
                 double rb = b.as.f;
                 if (op == 0) {
                     {
-                        ot->data[i] = value_flt(ra + rb);
+                        ot->data[i] = value_float(ra + rb);
                     }
                 } else if (op == 1) {
                     {
-                        ot->data[i] = value_flt(ra - rb);
+                        ot->data[i] = value_float(ra - rb);
                     }
                 } else if (op == 2) {
                     {
-                        ot->data[i] = value_flt(ra * rb);
+                        ot->data[i] = value_float(ra * rb);
                     }
                 } else if (op == 3) {
                     if (rb == 0.0) {
                         value_free(out);
                         RUNTIME_ERROR(interp, "Division by zero", line, col);
                     }
-                    ot->data[i] = value_flt(ra / rb);
+                    ot->data[i] = value_float(ra / rb);
                 } else if (op == 4) {
                     {
-                        ot->data[i] = value_flt(pow(ra, rb));
+                        ot->data[i] = value_float(pow(ra, rb));
                     }
                 }
-            } else if (va.type == VAL_TNS) {
+            } else if (va.type == VAL_TENSOR) {
                 ot->data[i] = tensor_elemwise_op(interp, va, b, op, line, col);
             } else {
                 value_free(out);
@@ -4726,15 +4727,16 @@ static Value tensor_elemwise_op(Interpreter *interp, Value a, Value b, int op, i
         return out;
     }
 
-    if (b.type == VAL_TNS && (a.type == VAL_INT || a.type == VAL_FLT)) {
+    if (b.type == VAL_TENSOR && (a.type == VAL_INT || a.type == VAL_FLOAT)) {
         // scalar on left, tensor on right: compute scalar OP element
-        Tensor *tb = b.as.tns;
+        Tensor *tb = b.as.tensor;
         // element static type must match scalar
-        if (!((tb->elem_type == TYPE_INT && a.type == VAL_INT) || (tb->elem_type == TYPE_FLT && a.type == VAL_FLT))) {
+        if (!((tb->elem_type == TYPE_INT && a.type == VAL_INT) ||
+              (tb->elem_type == TYPE_FLOAT && a.type == VAL_FLOAT))) {
             RUNTIME_ERROR(interp, "Tensor element type and scalar type mismatch", line, col);
         }
-        Value out = value_tns_new(tb->elem_type, tb->ndim, tb->shape);
-        Tensor *ot = out.as.tns;
+        Value out = value_tensor_new(tb->elem_type, tb->ndim, tb->shape);
+        Tensor *ot = out.as.tensor;
         for (size_t i = 0; i < tb->length; i++) {
             Value vb = tb->data[i];
             if (vb.type == VAL_INT) {
@@ -4775,33 +4777,33 @@ static Value tensor_elemwise_op(Interpreter *interp, Value a, Value b, int op, i
                     }
                     ot->data[i] = value_int(result);
                 }
-            } else if (vb.type == VAL_FLT) {
+            } else if (vb.type == VAL_FLOAT) {
                 double ra = a.as.f;
                 double rb = vb.as.f;
                 if (op == 0) {
                     {
-                        ot->data[i] = value_flt(ra + rb);
+                        ot->data[i] = value_float(ra + rb);
                     }
                 } else if (op == 1) {
                     {
-                        ot->data[i] = value_flt(ra - rb);
+                        ot->data[i] = value_float(ra - rb);
                     }
                 } else if (op == 2) {
                     {
-                        ot->data[i] = value_flt(ra * rb);
+                        ot->data[i] = value_float(ra * rb);
                     }
                 } else if (op == 3) {
                     if (rb == 0.0) {
                         value_free(out);
                         RUNTIME_ERROR(interp, "Division by zero", line, col);
                     }
-                    ot->data[i] = value_flt(ra / rb);
+                    ot->data[i] = value_float(ra / rb);
                 } else if (op == 4) {
                     {
-                        ot->data[i] = value_flt(pow(ra, rb));
+                        ot->data[i] = value_float(pow(ra, rb));
                     }
                 }
-            } else if (vb.type == VAL_TNS) {
+            } else if (vb.type == VAL_TENSOR) {
                 ot->data[i] = tensor_elemwise_op(interp, a, vb, op, line, col);
             } else {
                 value_free(out);
@@ -4844,17 +4846,17 @@ static Value builtin_tpow(Interpreter *interp, Value *args, int argc, Expr **arg
     return tensor_elemwise_op(interp, args[0], args[1], 4, line, col);
 }
 
-// SHAPE: returns 1-D tensor of INT lengths (one per dimension)
+// SHAPE: returns 1-D tensor of int lengths (one per dimension)
 static Value builtin_shape(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
     (void)arg_nodes;
     (void)env;
     (void)argc;
-    if (args[0].type != VAL_TNS) {
-        RUNTIME_ERROR(interp, "SHAPE expects TNS argument", line, col);
+    if (args[0].type != VAL_TENSOR) {
+        RUNTIME_ERROR(interp, "SHAPE expects tensor argument", line, col);
     }
-    Tensor *t = args[0].as.tns;
+    Tensor *t = args[0].as.tensor;
     size_t ndim = t->ndim;
-    // prepare items: INT values of each dimension length
+    // prepare items: int values of each dimension length
     Value *items = malloc(sizeof(Value) * ndim);
     if (!items) {
         RUNTIME_ERROR(interp, "Out of memory", line, col);
@@ -4864,7 +4866,7 @@ static Value builtin_shape(Interpreter *interp, Value *args, int argc, Expr **ar
     }
     size_t out_shape[1];
     out_shape[0] = ndim;
-    Value out = value_tns_from_values(TYPE_INT, 1, out_shape, items, ndim);
+    Value out = value_tensor_from_values(TYPE_INT, 1, out_shape, items, ndim);
     for (size_t i = 0; i < ndim; i++) {
         value_free(items[i]);
     }
@@ -4873,15 +4875,15 @@ static Value builtin_shape(Interpreter *interp, Value *args, int argc, Expr **ar
 }
 
 // CONV: N-D discrete convolution (two-argument backward-compatible form)
-// Usage: CONV(TNS: x, TNS: kernel) -> TNS (same shape as x)
+// Usage: CONV(tensor: x, tensor: kernel) -> tensor (same shape as x)
 static Value builtin_conv(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
     (void)arg_nodes;
     (void)env;
-    if (args[0].type != VAL_TNS || args[1].type != VAL_TNS) {
-        RUNTIME_ERROR(interp, "CONV expects (TNS, TNS)", line, col);
+    if (args[0].type != VAL_TENSOR || args[1].type != VAL_TENSOR) {
+        RUNTIME_ERROR(interp, "CONV expects (tensor, tensor)", line, col);
     }
-    Tensor *x = args[0].as.tns;
-    Tensor *k = args[1].as.tns;
+    Tensor *x = args[0].as.tensor;
+    Tensor *k = args[1].as.tensor;
 
     // Extended 2-D multi-output form triggered when more than two arguments provided
     if (argc > 2) {
@@ -4905,9 +4907,9 @@ static Value builtin_conv(Interpreter *interp, Value *args, int argc, Expr **arg
         }
 
         // Element types must be numeric
-        if (!((x->elem_type == TYPE_INT || x->elem_type == TYPE_FLT) &&
-              (k->elem_type == TYPE_INT || k->elem_type == TYPE_FLT))) {
-            RUNTIME_ERROR(interp, "CONV only supports INT or FLT element types", line, col);
+        if (!((x->elem_type == TYPE_INT || x->elem_type == TYPE_FLOAT) &&
+              (k->elem_type == TYPE_INT || k->elem_type == TYPE_FLOAT))) {
+            RUNTIME_ERROR(interp, "CONV only supports int or float element types", line, col);
         }
 
         // Parse optional args: stride_w, stride_h, pad_w, pad_h, bias
@@ -4939,25 +4941,25 @@ static Value builtin_conv(Interpreter *interp, Value *args, int argc, Expr **arg
         bool bias_present = false;
         Tensor *bias_t = NULL;
         if (argc > 6 && args[6].type != VAL_NULL) {
-            if (args[6].type != VAL_TNS) {
-                RUNTIME_ERROR(interp, "CONV bias must be TNS", line, col);
+            if (args[6].type != VAL_TENSOR) {
+                RUNTIME_ERROR(interp, "CONV bias must be tensor", line, col);
             }
             bias_present = true;
-            bias_t = args[6].as.tns;
+            bias_t = args[6].as.tensor;
             if ((bias_t->ndim != 1 && bias_t->length != 0) || (bias_t->length != 0 && bias_t->shape[0] != out_c)) {
                 RUNTIME_ERROR(interp, "CONV bias size mismatch", line, col);
             }
         }
 
         // Output typing
-        DeclType out_decl = (x->elem_type == TYPE_INT && k->elem_type == TYPE_INT) ? TYPE_INT : TYPE_FLT;
+        DeclType out_decl = (x->elem_type == TYPE_INT && k->elem_type == TYPE_INT) ? TYPE_INT : TYPE_FLOAT;
 
         // Compute output shape
         int64_t out_w_i = (((int64_t)in_w + (2 * pad_w) - (int64_t)kw) / stride_w) + 1;
         int64_t out_h_i = (((int64_t)in_h + (2 * pad_h) - (int64_t)kh) / stride_h) + 1;
         if (out_w_i <= 0 || out_h_i <= 0) {
             size_t out_shape_zero[3] = {0, 0, out_c};
-            return value_tns_new(out_decl, 3, out_shape_zero);
+            return value_tensor_new(out_decl, 3, out_shape_zero);
         }
         size_t out_w = (size_t)out_w_i;
         size_t out_h = (size_t)out_h_i;
@@ -4966,8 +4968,8 @@ static Value builtin_conv(Interpreter *interp, Value *args, int argc, Expr **arg
         out_shape[0] = out_w;
         out_shape[1] = out_h;
         out_shape[2] = out_c;
-        Value out = value_tns_new(out_decl, 3, out_shape);
-        Tensor *ot = out.as.tns;
+        Value out = value_tensor_new(out_decl, 3, out_shape);
+        Tensor *ot = out.as.tensor;
 
         // Perform convolution: output indices order [w,h,oc]
         for (size_t ow = 0; ow < out_w; ow++) {
@@ -4991,7 +4993,7 @@ static Value builtin_conv(Interpreter *interp, Value *args, int argc, Expr **arg
                                     Value vk = k->data[k_off];
                                     if (vx.type != VAL_INT || vk.type != VAL_INT) {
                                         value_free(out);
-                                        RUNTIME_ERROR(interp, "CONV integer-mode requires INT elements", line, col);
+                                        RUNTIME_ERROR(interp, "CONV integer-mode requires int elements", line, col);
                                     }
                                     acc += vx.as.i * vk.as.i;
                                 }
@@ -5003,7 +5005,7 @@ static Value builtin_conv(Interpreter *interp, Value *args, int argc, Expr **arg
                                 {
                                     acc += bv.as.i;
                                 }
-                            } else if (bv.type == VAL_FLT) {
+                            } else if (bv.type == VAL_FLOAT) {
                                 int64_t tmp;
                                 if (!coerce_flt_to_int_checked(interp, bv.as.f, &tmp, "CONV", line, col)) {
                                     value_free(out);
@@ -5033,19 +5035,19 @@ static Value builtin_conv(Interpreter *interp, Value *args, int argc, Expr **arg
                                                    (oc * k->strides[3]);
                                     Value vx = x->data[in_off];
                                     Value vk = k->data[k_off];
-                                    double aval = (vx.type == VAL_FLT) ? vx.as.f : (double)vx.as.i;
-                                    double kval = (vk.type == VAL_FLT) ? vk.as.f : (double)vk.as.i;
+                                    double aval = (vx.type == VAL_FLOAT) ? vx.as.f : (double)vx.as.i;
+                                    double kval = (vk.type == VAL_FLOAT) ? vk.as.f : (double)vk.as.i;
                                     acc += aval * kval;
                                 }
                             }
                         }
                         if (bias_present && bias_t->length > 0) {
                             Value bv = bias_t->data[oc];
-                            double bval = (bv.type == VAL_FLT) ? bv.as.f : (double)bv.as.i;
+                            double bval = (bv.type == VAL_FLOAT) ? bv.as.f : (double)bv.as.i;
                             acc += bval;
                         }
                         ot->data[(ow * ot->strides[0]) + (oh * ot->strides[1]) + (oc * ot->strides[2])] =
-                            value_flt(acc);
+                            value_float(acc);
                     }
                 }
             }
@@ -5066,16 +5068,16 @@ static Value builtin_conv(Interpreter *interp, Value *args, int argc, Expr **arg
     }
 
     // Element types must be numeric
-    if (!((x->elem_type == TYPE_INT || x->elem_type == TYPE_FLT) &&
-          (k->elem_type == TYPE_INT || k->elem_type == TYPE_FLT))) {
-        RUNTIME_ERROR(interp, "CONV only supports INT or FLT element types", line, col);
+    if (!((x->elem_type == TYPE_INT || x->elem_type == TYPE_FLOAT) &&
+          (k->elem_type == TYPE_INT || k->elem_type == TYPE_FLOAT))) {
+        RUNTIME_ERROR(interp, "CONV only supports int or float element types", line, col);
     }
 
-    // Output typing: INT only if both are INT, otherwise FLT
-    DeclType out_decl = (x->elem_type == TYPE_INT && k->elem_type == TYPE_INT) ? TYPE_INT : TYPE_FLT;
+    // Output typing: int only if both are int, otherwise float
+    DeclType out_decl = (x->elem_type == TYPE_INT && k->elem_type == TYPE_INT) ? TYPE_INT : TYPE_FLOAT;
 
-    Value out = value_tns_new(out_decl, x->ndim, x->shape);
-    Tensor *ot = out.as.tns;
+    Value out = value_tensor_new(out_decl, x->ndim, x->shape);
+    Tensor *ot = out.as.tensor;
 
     // Precompute kernel centers
     size_t *centers = malloc(sizeof(size_t) * k->ndim);
@@ -5125,7 +5127,7 @@ static Value builtin_conv(Interpreter *interp, Value *args, int argc, Expr **arg
                 if (vx.type != VAL_INT || vk.type != VAL_INT) {
                     free(centers);
                     value_free(out);
-                    RUNTIME_ERROR(interp, "CONV integer-mode requires INT elements", line, col);
+                    RUNTIME_ERROR(interp, "CONV integer-mode requires int elements", line, col);
                 }
                 acc += vx.as.i * vk.as.i;
             }
@@ -5152,11 +5154,11 @@ static Value builtin_conv(Interpreter *interp, Value *args, int argc, Expr **arg
                 }
                 Value vx = x->data[in_offset];
                 Value vk = k->data[kpos];
-                double aval = (vx.type == VAL_FLT) ? vx.as.f : (double)vx.as.i;
-                double kval = (vk.type == VAL_FLT) ? vk.as.f : (double)vk.as.i;
+                double aval = (vx.type == VAL_FLOAT) ? vx.as.f : (double)vx.as.i;
+                double kval = (vk.type == VAL_FLOAT) ? vk.as.f : (double)vk.as.i;
                 acc += aval * kval;
             }
-            ot->data[pos] = value_flt(acc);
+            ot->data[pos] = value_float(acc);
         }
     }
 
@@ -5169,11 +5171,11 @@ static Value builtin_tlen(Interpreter *interp, Value *args, int argc, Expr **arg
     (void)arg_nodes;
     (void)env;
     (void)argc;
-    if (args[0].type != VAL_TNS) {
-        RUNTIME_ERROR(interp, "TLEN expects TNS as first argument", line, col);
+    if (args[0].type != VAL_TENSOR) {
+        RUNTIME_ERROR(interp, "TLEN expects tensor as first argument", line, col);
     }
     EXPECT_INT(args[1], "TLEN", interp, line, col);
-    Tensor *t = args[0].as.tns;
+    Tensor *t = args[0].as.tensor;
     int64_t dim = args[1].as.i; // 1-based
     if (dim < 1 || (size_t)dim > t->ndim) {
         RUNTIME_ERROR(interp, "TLEN dimension out of range", line, col);
@@ -5186,19 +5188,19 @@ static Value builtin_tflip(Interpreter *interp, Value *args, int argc, Expr **ar
     (void)arg_nodes;
     (void)env;
     (void)argc;
-    if (args[0].type != VAL_TNS) {
-        RUNTIME_ERROR(interp, "TFLIP expects TNS as first argument", line, col);
+    if (args[0].type != VAL_TENSOR) {
+        RUNTIME_ERROR(interp, "TFLIP expects tensor as first argument", line, col);
     }
     EXPECT_INT(args[1], "TFLIP", interp, line, col);
-    Tensor *t = args[0].as.tns;
+    Tensor *t = args[0].as.tensor;
     int64_t dim1 = args[1].as.i; // 1-based
     if (dim1 < 1 || (size_t)dim1 > t->ndim) {
         RUNTIME_ERROR(interp, "TFLIP dimension out of range", line, col);
     }
     size_t dim = (size_t)dim1 - 1;
     // create output tensor
-    Value out = value_tns_new(t->elem_type, t->ndim, t->shape);
-    Tensor *ot = out.as.tns;
+    Value out = value_tensor_new(t->elem_type, t->ndim, t->shape);
+    Tensor *ot = out.as.tensor;
 
     // iterate source positions
     for (size_t src = 0; src < t->length; src++) {
@@ -5223,10 +5225,10 @@ static Value builtin_fill(Interpreter *interp, Value *args, int argc, Expr **arg
     (void)arg_nodes;
     (void)env;
     (void)argc;
-    if (args[0].type != VAL_TNS) {
-        RUNTIME_ERROR(interp, "FILL expects TNS as first argument", line, col);
+    if (args[0].type != VAL_TENSOR) {
+        RUNTIME_ERROR(interp, "FILL expects tensor as first argument", line, col);
     }
-    Tensor *t = args[0].as.tns;
+    Tensor *t = args[0].as.tensor;
     Value fill = args[1];
     // Ensure element runtime types match the fill value's type
     for (size_t i = 0; i < t->length; i++) {
@@ -5235,8 +5237,8 @@ static Value builtin_fill(Interpreter *interp, Value *args, int argc, Expr **arg
         }
     }
 
-    Value out = value_tns_new(t->elem_type, t->ndim, t->shape);
-    Tensor *ot = out.as.tns;
+    Value out = value_tensor_new(t->elem_type, t->ndim, t->shape);
+    Tensor *ot = out.as.tensor;
     for (size_t i = 0; i < t->length; i++) {
         ot->data[i] = value_copy(fill);
     }
@@ -5248,15 +5250,15 @@ static Value builtin_append(Interpreter *interp, Value *args, int argc, Expr **a
     (void)arg_nodes;
     (void)env;
     (void)argc;
-    if (args[1].type != VAL_TNS) {
-        RUNTIME_ERROR(interp, "APPEND expects (ANY, TNS)", line, col);
+    if (args[1].type != VAL_TENSOR) {
+        RUNTIME_ERROR(interp, "APPEND expects (ANY, tensor)", line, col);
     }
-    Tensor *t = args[1].as.tns;
+    Tensor *t = args[1].as.tensor;
     if (!t) {
         RUNTIME_ERROR(interp, "Invalid target tensor", line, col);
     }
     if (t->ndim != 1) {
-        RUNTIME_ERROR(interp, "APPEND target must be 1-D TNS", line, col);
+        RUNTIME_ERROR(interp, "APPEND target must be 1-D tensor", line, col);
     }
 
     size_t old_len = t->shape[0];
@@ -5274,14 +5276,14 @@ static Value builtin_append(Interpreter *interp, Value *args, int argc, Expr **a
     case VAL_INT:
         appended_decl = TYPE_INT;
         break;
-    case VAL_FLT:
-        appended_decl = TYPE_FLT;
+    case VAL_FLOAT:
+        appended_decl = TYPE_FLOAT;
         break;
     case VAL_STR:
         appended_decl = TYPE_STR;
         break;
-    case VAL_TNS:
-        appended_decl = TYPE_TNS;
+    case VAL_TENSOR:
+        appended_decl = TYPE_TENSOR;
         break;
     case VAL_FUNC:
         appended_decl = TYPE_FUNC;
@@ -5302,8 +5304,8 @@ static Value builtin_append(Interpreter *interp, Value *args, int argc, Expr **a
         }
     }
 
-    Value out = value_tns_new(out_elem_type, 1, shape);
-    Tensor *ot = out.as.tns;
+    Value out = value_tensor_new(out_elem_type, 1, shape);
+    Tensor *ot = out.as.tensor;
 
     // copy existing elements
     for (size_t i = 0; i < old_len; i++) {
@@ -5311,7 +5313,7 @@ static Value builtin_append(Interpreter *interp, Value *args, int argc, Expr **a
     }
 
     // append the provided element (deep-copy containers to avoid shared mutation)
-    if (args[0].type == VAL_TNS || args[0].type == VAL_MAP) {
+    if (args[0].type == VAL_TENSOR || args[0].type == VAL_MAP) {
         ot->data[new_len - 1] = value_deep_copy(args[0]);
     } else {
         ot->data[new_len - 1] = value_copy(args[0]);
@@ -5326,17 +5328,17 @@ static Value builtin_append(Interpreter *interp, Value *args, int argc, Expr **a
 }
 
 // SCAT: return a copy of dst with a rectangular slice replaced by src.
-// Args: SCAT(TNS: src, TNS: dst, TNS: ind)
+// Args: SCAT(tensor: src, tensor: dst, tensor: ind)
 static Value builtin_scat(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
     (void)arg_nodes;
     (void)env;
     (void)argc;
-    if (args[0].type != VAL_TNS || args[1].type != VAL_TNS || args[2].type != VAL_TNS) {
-        RUNTIME_ERROR(interp, "SCAT expects (TNS, TNS, TNS)", line, col);
+    if (args[0].type != VAL_TENSOR || args[1].type != VAL_TENSOR || args[2].type != VAL_TENSOR) {
+        RUNTIME_ERROR(interp, "SCAT expects (tensor, tensor, tensor)", line, col);
     }
-    Tensor *src = args[0].as.tns;
-    Tensor *dst = args[1].as.tns;
-    Tensor *ind = args[2].as.tns;
+    Tensor *src = args[0].as.tensor;
+    Tensor *dst = args[1].as.tensor;
+    Tensor *ind = args[2].as.tensor;
 
     size_t rank = dst->ndim;
     // ind must be 2-D with shape [rank, 2]
@@ -5372,7 +5374,7 @@ static Value builtin_scat(Interpreter *interp, Value *args, int argc, Expr **arg
         if (vlo.type != VAL_INT || vhi.type != VAL_INT) {
             free(lo);
             free(hi);
-            RUNTIME_ERROR(interp, "SCAT indices must be INT", line, col);
+            RUNTIME_ERROR(interp, "SCAT indices must be int", line, col);
         }
         int64_t l = vlo.as.i;
         int64_t h = vhi.as.i;
@@ -5408,8 +5410,8 @@ static Value builtin_scat(Interpreter *interp, Value *args, int argc, Expr **arg
     }
 
     // Build output tensor as a copy of dst structure
-    Value out = value_tns_new(dst->elem_type, dst->ndim, dst->shape);
-    Tensor *ot = out.as.tns;
+    Value out = value_tensor_new(dst->elem_type, dst->ndim, dst->shape);
+    Tensor *ot = out.as.tensor;
 
     // Iterate over all positions in dst. For positions inside the slice, copy from src; otherwise copy dst
     for (size_t pos = 0; pos < dst->length; pos++) {
@@ -5447,11 +5449,11 @@ static Value builtin_mop(Interpreter *interp, Value *args, int argc, Expr **arg_
     (void)arg_nodes;
     (void)env;
     (void)argc;
-    if (args[0].type != VAL_TNS || args[1].type != VAL_TNS) {
-        RUNTIME_ERROR(interp, "M* operators expect TNS arguments", line, col);
+    if (args[0].type != VAL_TENSOR || args[1].type != VAL_TENSOR) {
+        RUNTIME_ERROR(interp, "M* operators expect tensor arguments", line, col);
     }
-    Tensor *ta = args[0].as.tns;
-    Tensor *tb = args[1].as.tns;
+    Tensor *ta = args[0].as.tensor;
+    Tensor *tb = args[1].as.tensor;
     if (ta->ndim != tb->ndim) {
         RUNTIME_ERROR(interp, "M* operators require same tensor dimensionality", line, col);
     }
@@ -5463,12 +5465,12 @@ static Value builtin_mop(Interpreter *interp, Value *args, int argc, Expr **arg_
     if (ta->elem_type != tb->elem_type) {
         RUNTIME_ERROR(interp, "M* operators require same element types", line, col);
     }
-    if (!(ta->elem_type == TYPE_INT || ta->elem_type == TYPE_FLT)) {
-        RUNTIME_ERROR(interp, "M* operators only support INT or FLT element types", line, col);
+    if (!(ta->elem_type == TYPE_INT || ta->elem_type == TYPE_FLOAT)) {
+        RUNTIME_ERROR(interp, "M* operators only support int or float element types", line, col);
     }
 
-    Value out = value_tns_new(ta->elem_type, ta->ndim, ta->shape);
-    Tensor *ot = out.as.tns;
+    Value out = value_tensor_new(ta->elem_type, ta->ndim, ta->shape);
+    Tensor *ot = out.as.tensor;
 
     for (size_t i = 0; i < ta->length; i++) {
         Value va = ta->data[i];
@@ -5500,27 +5502,27 @@ static Value builtin_mop(Interpreter *interp, Value *args, int argc, Expr **arg_
                 }
                 ot->data[i] = value_int(a / b);
             }
-        } else if (va.type == VAL_FLT) {
+        } else if (va.type == VAL_FLOAT) {
             double a = va.as.f;
             double b = vb.as.f;
             if (op == 0) {
                 {
-                    ot->data[i] = value_flt(a + b);
+                    ot->data[i] = value_float(a + b);
                 }
             } else if (op == 1) {
                 {
-                    ot->data[i] = value_flt(a - b);
+                    ot->data[i] = value_float(a - b);
                 }
             } else if (op == 2) {
                 {
-                    ot->data[i] = value_flt(a * b);
+                    ot->data[i] = value_float(a * b);
                 }
             } else if (op == 3) {
                 if (b == 0.0) {
                     value_free(out);
                     RUNTIME_ERROR(interp, "Division by zero", line, col);
                 }
-                ot->data[i] = value_flt(a / b);
+                ot->data[i] = value_float(a / b);
             }
         } else {
             value_free(out);
@@ -5552,13 +5554,13 @@ static Value builtin_msum(Interpreter *interp, Value *args, int argc, Expr **arg
     }
     // all args must be tensors with same shape and element type
     for (int j = 0; j < argc; j++) {
-        if (args[j].type != VAL_TNS) {
-            RUNTIME_ERROR(interp, "MSUM expects TNS arguments", line, col);
+        if (args[j].type != VAL_TENSOR) {
+            RUNTIME_ERROR(interp, "MSUM expects tensor arguments", line, col);
         }
     }
-    Tensor *t0 = args[0].as.tns;
+    Tensor *t0 = args[0].as.tensor;
     for (int j = 1; j < argc; j++) {
-        Tensor *tj = args[j].as.tns;
+        Tensor *tj = args[j].as.tensor;
         if (tj->ndim != t0->ndim) {
             RUNTIME_ERROR(interp, "MSUM requires same tensor dimensionality", line, col);
         }
@@ -5571,17 +5573,17 @@ static Value builtin_msum(Interpreter *interp, Value *args, int argc, Expr **arg
             RUNTIME_ERROR(interp, "MSUM requires same element types", line, col);
         }
     }
-    if (!(t0->elem_type == TYPE_INT || t0->elem_type == TYPE_FLT)) {
-        RUNTIME_ERROR(interp, "MSUM only supports INT or FLT element types", line, col);
+    if (!(t0->elem_type == TYPE_INT || t0->elem_type == TYPE_FLOAT)) {
+        RUNTIME_ERROR(interp, "MSUM only supports int or float element types", line, col);
     }
 
-    Value out = value_tns_new(t0->elem_type, t0->ndim, t0->shape);
-    Tensor *ot = out.as.tns;
+    Value out = value_tensor_new(t0->elem_type, t0->ndim, t0->shape);
+    Tensor *ot = out.as.tensor;
     for (size_t i = 0; i < t0->length; i++) {
         if (t0->elem_type == TYPE_INT) {
             int64_t acc = 0;
             for (int j = 0; j < argc; j++) {
-                Value v = args[j].as.tns->data[i];
+                Value v = args[j].as.tensor->data[i];
                 if (v.type != VAL_INT) {
                     value_free(out);
                     RUNTIME_ERROR(interp, "MSUM element type mismatch", line, col);
@@ -5592,14 +5594,14 @@ static Value builtin_msum(Interpreter *interp, Value *args, int argc, Expr **arg
         } else {
             double acc = 0.0;
             for (int j = 0; j < argc; j++) {
-                Value v = args[j].as.tns->data[i];
-                if (v.type != VAL_FLT) {
+                Value v = args[j].as.tensor->data[i];
+                if (v.type != VAL_FLOAT) {
                     value_free(out);
                     RUNTIME_ERROR(interp, "MSUM element type mismatch", line, col);
                 }
                 acc += v.as.f;
             }
-            ot->data[i] = value_flt(acc);
+            ot->data[i] = value_float(acc);
         }
     }
     return out;
@@ -5613,13 +5615,13 @@ static Value builtin_mprod(Interpreter *interp, Value *args, int argc, Expr **ar
         RUNTIME_ERROR(interp, "MPROD requires at least one tensor", line, col);
     }
     for (int j = 0; j < argc; j++) {
-        if (args[j].type != VAL_TNS) {
-            RUNTIME_ERROR(interp, "MPROD expects TNS arguments", line, col);
+        if (args[j].type != VAL_TENSOR) {
+            RUNTIME_ERROR(interp, "MPROD expects tensor arguments", line, col);
         }
     }
-    Tensor *t0 = args[0].as.tns;
+    Tensor *t0 = args[0].as.tensor;
     for (int j = 1; j < argc; j++) {
-        Tensor *tj = args[j].as.tns;
+        Tensor *tj = args[j].as.tensor;
         if (tj->ndim != t0->ndim) {
             RUNTIME_ERROR(interp, "MPROD requires same tensor dimensionality", line, col);
         }
@@ -5632,17 +5634,17 @@ static Value builtin_mprod(Interpreter *interp, Value *args, int argc, Expr **ar
             RUNTIME_ERROR(interp, "MPROD requires same element types", line, col);
         }
     }
-    if (!(t0->elem_type == TYPE_INT || t0->elem_type == TYPE_FLT)) {
-        RUNTIME_ERROR(interp, "MPROD only supports INT or FLT element types", line, col);
+    if (!(t0->elem_type == TYPE_INT || t0->elem_type == TYPE_FLOAT)) {
+        RUNTIME_ERROR(interp, "MPROD only supports int or float element types", line, col);
     }
 
-    Value out = value_tns_new(t0->elem_type, t0->ndim, t0->shape);
-    Tensor *ot = out.as.tns;
+    Value out = value_tensor_new(t0->elem_type, t0->ndim, t0->shape);
+    Tensor *ot = out.as.tensor;
     for (size_t i = 0; i < t0->length; i++) {
         if (t0->elem_type == TYPE_INT) {
             int64_t acc = 1;
             for (int j = 0; j < argc; j++) {
-                Value v = args[j].as.tns->data[i];
+                Value v = args[j].as.tensor->data[i];
                 if (v.type != VAL_INT) {
                     value_free(out);
                     RUNTIME_ERROR(interp, "MPROD element type mismatch", line, col);
@@ -5653,14 +5655,14 @@ static Value builtin_mprod(Interpreter *interp, Value *args, int argc, Expr **ar
         } else {
             double acc = 1.0;
             for (int j = 0; j < argc; j++) {
-                Value v = args[j].as.tns->data[i];
-                if (v.type != VAL_FLT) {
+                Value v = args[j].as.tensor->data[i];
+                if (v.type != VAL_FLOAT) {
                     value_free(out);
                     RUNTIME_ERROR(interp, "MPROD element type mismatch", line, col);
                 }
                 acc *= v.as.f;
             }
-            ot->data[i] = value_flt(acc);
+            ot->data[i] = value_float(acc);
         }
     }
     return out;
@@ -5674,7 +5676,7 @@ static Value builtin_root(Interpreter *interp, Value *args, int argc, Expr **arg
     EXPECT_NUM(args[1], "ROOT", interp, line, col);
 
     if (args[0].type != args[1].type) {
-        RUNTIME_ERROR(interp, "ROOT cannot mix INT and FLT", line, col);
+        RUNTIME_ERROR(interp, "ROOT cannot mix int and float", line, col);
     }
 
     int out_base = result_base_from_values(args[0], args[1]);
@@ -5775,7 +5777,7 @@ static Value builtin_root(Interpreter *interp, Value *args, int argc, Expr **arg
         if (fabs(res - rintv) <= tol) {
             res = rintv;
         }
-        return value_flt_base(res, out_base);
+        return value_float_base(res, out_base);
     }
 
     double res = pow(x, 1.0 / n);
@@ -5784,7 +5786,7 @@ static Value builtin_root(Interpreter *interp, Value *args, int argc, Expr **arg
     if (fabs(res - rintv) <= tol) {
         res = rintv;
     }
-    return value_flt_base(res, out_base);
+    return value_float_base(res, out_base);
 }
 
 // IROOT: integer-specific root (coerces/expects integers)
@@ -5802,10 +5804,10 @@ static Value builtin_froot(Interpreter *interp, Value *args, int argc, Expr **ar
     (void)env;
     // Create temporary float-valued args and call root
     Value tmp[2];
-    tmp[0].type = VAL_FLT;
-    tmp[0].as.f = args[0].type == VAL_FLT ? args[0].as.f : (double)args[0].as.i;
-    tmp[1].type = VAL_FLT;
-    tmp[1].as.f = args[1].type == VAL_FLT ? args[1].as.f : (double)args[1].as.i;
+    tmp[0].type = VAL_FLOAT;
+    tmp[0].as.f = args[0].type == VAL_FLOAT ? args[0].as.f : (double)args[0].as.i;
+    tmp[1].type = VAL_FLOAT;
+    tmp[1].as.f = args[1].type == VAL_FLOAT ? args[1].as.f : (double)args[1].as.i;
     return builtin_root(interp, tmp, 2, NULL, NULL, line, col);
 }
 
@@ -5832,7 +5834,7 @@ static Value builtin_log(Interpreter *interp, Value *args, int argc, Expr **arg_
     if (x <= 0.0) {
         RUNTIME_ERROR(interp, "LOG argument must be > 0", line, col);
     }
-    return value_flt(floor(log2(x)));
+    return value_float(floor(log2(x)));
 }
 
 // CLOG: integer-only variant of LOG with ceiling-like behavior for powers of two
@@ -5879,7 +5881,7 @@ static Value builtin_gcd(Interpreter *interp, Value *args, int argc, Expr **arg_
     EXPECT_NUM(args[1], "GCD", interp, line, col);
 
     if (args[0].type != args[1].type) {
-        RUNTIME_ERROR(interp, "GCD cannot mix INT and FLT", line, col);
+        RUNTIME_ERROR(interp, "GCD cannot mix int and float", line, col);
     }
 
     int out_base = result_base_from_values(args[0], args[1]);
@@ -5893,7 +5895,7 @@ static Value builtin_gcd(Interpreter *interp, Value *args, int argc, Expr **arg_
     if (floor(a) != a || floor(b) != b) {
         RUNTIME_ERROR(interp, "GCD expects integer-valued floats", line, col);
     }
-    return value_flt_base((double)gcd_int((int64_t)a, (int64_t)b), out_base);
+    return value_float_base((double)gcd_int((int64_t)a, (int64_t)b), out_base);
 }
 
 // LCM
@@ -5904,7 +5906,7 @@ static Value builtin_lcm(Interpreter *interp, Value *args, int argc, Expr **arg_
     EXPECT_NUM(args[1], "LCM", interp, line, col);
 
     if (args[0].type != args[1].type) {
-        RUNTIME_ERROR(interp, "LCM cannot mix INT and FLT", line, col);
+        RUNTIME_ERROR(interp, "LCM cannot mix int and float", line, col);
     }
     int out_base = result_base_from_values(args[0], args[1]);
 
@@ -5932,7 +5934,7 @@ static Value builtin_lcm(Interpreter *interp, Value *args, int argc, Expr **arg_
     int64_t ai = (int64_t)a;
     int64_t bi = (int64_t)b;
     if (ai == 0 || bi == 0) {
-        return value_flt_base(0.0, out_base);
+        return value_float_base(0.0, out_base);
     }
     int64_t g = gcd_int(ai, bi);
     if (ai < 0) {
@@ -5941,7 +5943,7 @@ static Value builtin_lcm(Interpreter *interp, Value *args, int argc, Expr **arg_
     if (bi < 0) {
         bi = -bi;
     }
-    return value_flt_base((double)((ai / g) * bi), out_base);
+    return value_float_base((double)((ai / g) * bi), out_base);
 }
 
 // ============ Comparison operators ============
@@ -6003,7 +6005,7 @@ static int value_deep_eq_impl(Value a, Value b, EqSeenSet *seen) {
         return a.as.boolean == b.as.boolean ? 1 : 0;
     case VAL_INT:
         return a.as.i == b.as.i ? 1 : 0;
-    case VAL_FLT:
+    case VAL_FLOAT:
         return a.as.f == b.as.f ? 1 : 0;
     case VAL_STR:
         if (a.as.s == NULL || b.as.s == NULL) {
@@ -6012,19 +6014,19 @@ static int value_deep_eq_impl(Value a, Value b, EqSeenSet *seen) {
         return strcmp(a.as.s, b.as.s) == 0 ? 1 : 0;
     case VAL_FUNC:
         return a.as.func == b.as.func ? 1 : 0;
-    case VAL_TNS: {
-        Tensor *ta = a.as.tns;
-        Tensor *tb = b.as.tns;
+    case VAL_TENSOR: {
+        Tensor *ta = a.as.tensor;
+        Tensor *tb = b.as.tensor;
         if (ta == NULL || tb == NULL) {
             return (ta == tb) ? 1 : 0;
         }
         if (ta == tb) {
             return 1;
         }
-        if (eq_seen_contains(seen, ta, tb, VAL_TNS)) {
+        if (eq_seen_contains(seen, ta, tb, VAL_TENSOR)) {
             return 1;
         }
-        eq_seen_add(seen, ta, tb, VAL_TNS);
+        eq_seen_add(seen, ta, tb, VAL_TENSOR);
         if (ta->elem_type != tb->elem_type) {
             return 0;
         }
@@ -6079,8 +6081,8 @@ static int value_deep_eq_impl(Value a, Value b, EqSeenSet *seen) {
         }
         return 1;
     }
-    case VAL_THR:
-        return a.as.thr == b.as.thr ? 1 : 0;
+    case VAL_THREAD:
+        return a.as.thread == b.as.thread ? 1 : 0;
     default:
         return 0;
     }
@@ -6127,7 +6129,7 @@ static Value builtin_gt(Interpreter *interp, Value *args, int argc, Expr **arg_n
     EXPECT_NUM(args[1], "GT", interp, line, col);
 
     if (args[0].type != args[1].type) {
-        RUNTIME_ERROR(interp, "GT cannot mix INT and FLT", line, col);
+        RUNTIME_ERROR(interp, "GT cannot mix int and float", line, col);
     }
 
     if (args[0].type == VAL_INT) {
@@ -6143,7 +6145,7 @@ static Value builtin_lt(Interpreter *interp, Value *args, int argc, Expr **arg_n
     EXPECT_NUM(args[1], "LT", interp, line, col);
 
     if (args[0].type != args[1].type) {
-        RUNTIME_ERROR(interp, "LT cannot mix INT and FLT", line, col);
+        RUNTIME_ERROR(interp, "LT cannot mix int and float", line, col);
     }
 
     if (args[0].type == VAL_INT) {
@@ -6159,7 +6161,7 @@ static Value builtin_gte(Interpreter *interp, Value *args, int argc, Expr **arg_
     EXPECT_NUM(args[1], "GTE", interp, line, col);
 
     if (args[0].type != args[1].type) {
-        RUNTIME_ERROR(interp, "GTE cannot mix INT and FLT", line, col);
+        RUNTIME_ERROR(interp, "GTE cannot mix int and float", line, col);
     }
 
     if (args[0].type == VAL_INT) {
@@ -6175,7 +6177,7 @@ static Value builtin_lte(Interpreter *interp, Value *args, int argc, Expr **arg_
     EXPECT_NUM(args[1], "LTE", interp, line, col);
 
     if (args[0].type != args[1].type) {
-        RUNTIME_ERROR(interp, "LTE cannot mix INT and FLT", line, col);
+        RUNTIME_ERROR(interp, "LTE cannot mix int and float", line, col);
     }
 
     if (args[0].type == VAL_INT) {
@@ -6241,7 +6243,7 @@ static Value builtin_band(Interpreter *interp, Value *args, int argc, Expr **arg
     EXPECT_INT(args[0], "BAND", interp, line, col);
     EXPECT_INT(args[1], "BAND", interp, line, col);
     if (numeric_base_of(args[0]) != 2 || numeric_base_of(args[1]) != 2) {
-        RUNTIME_ERROR(interp, "BAND requires binary INT operands", line, col);
+        RUNTIME_ERROR(interp, "BAND requires binary int operands", line, col);
     }
     return value_int_base(args[0].as.i & args[1].as.i, 2);
 }
@@ -6252,7 +6254,7 @@ static Value builtin_bor(Interpreter *interp, Value *args, int argc, Expr **arg_
     EXPECT_INT(args[0], "BOR", interp, line, col);
     EXPECT_INT(args[1], "BOR", interp, line, col);
     if (numeric_base_of(args[0]) != 2 || numeric_base_of(args[1]) != 2) {
-        RUNTIME_ERROR(interp, "BOR requires binary INT operands", line, col);
+        RUNTIME_ERROR(interp, "BOR requires binary int operands", line, col);
     }
     return value_int_base(args[0].as.i | args[1].as.i, 2);
 }
@@ -6263,7 +6265,7 @@ static Value builtin_bxor(Interpreter *interp, Value *args, int argc, Expr **arg
     EXPECT_INT(args[0], "BXOR", interp, line, col);
     EXPECT_INT(args[1], "BXOR", interp, line, col);
     if (numeric_base_of(args[0]) != 2 || numeric_base_of(args[1]) != 2) {
-        RUNTIME_ERROR(interp, "BXOR requires binary INT operands", line, col);
+        RUNTIME_ERROR(interp, "BXOR requires binary int operands", line, col);
     }
     return value_int_base(args[0].as.i ^ args[1].as.i, 2);
 }
@@ -6273,7 +6275,7 @@ static Value builtin_bnot(Interpreter *interp, Value *args, int argc, Expr **arg
     (void)env;
     EXPECT_INT(args[0], "BNOT", interp, line, col);
     if (numeric_base_of(args[0]) != 2) {
-        RUNTIME_ERROR(interp, "BNOT requires binary INT operands", line, col);
+        RUNTIME_ERROR(interp, "BNOT requires binary int operands", line, col);
     }
     return value_int_base(~args[0].as.i, 2);
 }
@@ -6284,7 +6286,7 @@ static Value builtin_shl(Interpreter *interp, Value *args, int argc, Expr **arg_
     EXPECT_INT(args[0], "SHL", interp, line, col);
     EXPECT_INT(args[1], "SHL", interp, line, col);
     if (numeric_base_of(args[0]) != 2 || numeric_base_of(args[1]) != 2) {
-        RUNTIME_ERROR(interp, "SHL requires binary INT operands", line, col);
+        RUNTIME_ERROR(interp, "SHL requires binary int operands", line, col);
     }
     if (args[1].as.i < 0) {
         RUNTIME_ERROR(interp, "SHL amount must be non-negative", line, col);
@@ -6298,7 +6300,7 @@ static Value builtin_shr(Interpreter *interp, Value *args, int argc, Expr **arg_
     EXPECT_INT(args[0], "SHR", interp, line, col);
     EXPECT_INT(args[1], "SHR", interp, line, col);
     if (numeric_base_of(args[0]) != 2 || numeric_base_of(args[1]) != 2) {
-        RUNTIME_ERROR(interp, "SHR requires binary INT operands", line, col);
+        RUNTIME_ERROR(interp, "SHR requires binary int operands", line, col);
     }
     if (args[1].as.i < 0) {
         RUNTIME_ERROR(interp, "SHR amount must be non-negative", line, col);
@@ -6318,13 +6320,13 @@ static Value builtin_int(Interpreter *interp, Value *args, int argc, Expr **arg_
     if (args[0].type == VAL_INT) {
         return value_int_base(args[0].as.i, numeric_base_of(args[0]));
     }
-    if (args[0].type == VAL_FLT) {
+    if (args[0].type == VAL_FLOAT) {
         int b = numeric_base_of(args[0]);
         if (b <= 0) {
             b = 2;
         }
         int64_t tmp;
-        if (!coerce_flt_to_int_checked(interp, args[0].as.f, &tmp, "INT", line, col)) {
+        if (!coerce_flt_to_int_checked(interp, args[0].as.f, &tmp, "int", line, col)) {
             return value_null();
         }
         return value_int_base(tmp, b);
@@ -6340,44 +6342,44 @@ static Value builtin_int(Interpreter *interp, Value *args, int argc, Expr **arg_
         }
         return value_int_base(val, base);
     }
-    RUNTIME_ERROR(interp, "INT expects BOOL, INT, FLT, or STR argument", line, col);
+    RUNTIME_ERROR(interp, "int expects bool, int, float, or str argument", line, col);
 }
 
-static Value builtin_flt(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
+static Value builtin_float(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
     (void)arg_nodes;
     (void)env;
 
     if (args[0].type == VAL_BOOL) {
-        return value_flt_base((int)args[0].as.boolean ? 1.0 : 0.0, 2);
+        return value_float_base((int)args[0].as.boolean ? 1.0 : 0.0, 2);
     }
-    if (args[0].type == VAL_FLT) {
+    if (args[0].type == VAL_FLOAT) {
         if (args[0].num_base_nan) {
-            return value_flt_nan_base(args[0].as.f);
+            return value_float_nan_base(args[0].as.f);
         }
-        return value_flt_base(args[0].as.f, numeric_base_of(args[0]));
+        return value_float_base(args[0].as.f, numeric_base_of(args[0]));
     }
     if (args[0].type == VAL_INT) {
-        return value_flt_base((double)args[0].as.i, numeric_base_of(args[0]));
+        return value_float_base((double)args[0].as.i, numeric_base_of(args[0]));
     }
     if (args[0].type == VAL_STR) {
         double fv = 0.0;
         int base = 2;
         int base_is_nan = 0;
         if (!args[0].as.s || !*args[0].as.s) {
-            return value_flt_base(0.0, 2);
+            return value_float_base(0.0, 2);
         }
         if (!parse_prefixed_flt_string(args[0].as.s, &fv, &base, &base_is_nan)) {
-            RUNTIME_ERROR(interp, "FLT string must be a base-prefixed number", line, col);
+            RUNTIME_ERROR(interp, "float string must be a base-prefixed number", line, col);
         }
         if (base_is_nan) {
-            return value_flt_nan_base(fv);
+            return value_float_nan_base(fv);
         }
-        return value_flt_base(fv, base);
+        return value_float_base(fv, base);
     }
-    RUNTIME_ERROR(interp, "FLT expects BOOL, INT, FLT, or STR argument", line, col);
+    RUNTIME_ERROR(interp, "float expects bool, int, float, or str argument", line, col);
 }
 
-// CONVERT(num, base): change numeric base of a value (INT or FLT)
+// CONVERT(num, base): change numeric base of a value (int or float)
 static Value builtin_convert(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line,
                              int col) {
     (void)argc;
@@ -6393,25 +6395,25 @@ static Value builtin_convert(Interpreter *interp, Value *args, int argc, Expr **
         return value_int_base(args[0].as.i, (int)base);
     }
     if (args[0].num_base_nan) {
-        return value_flt_nan_base(args[0].as.f);
+        return value_float_nan_base(args[0].as.f);
     }
-    return value_flt_base(args[0].as.f, (int)base);
+    return value_float_base(args[0].as.f, (int)base);
 }
 
-// BASE(num): return the numeric base of a value (INT or FLT). Error on NaN-base FLT.
+// BASE(num): return the numeric base of a value (int or float). Error on NaN-base float.
 static Value builtin_base(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
     (void)argc;
     (void)arg_nodes;
     (void)env;
     EXPECT_NUM(args[0], "BASE", interp, line, col);
-    if (args[0].type == VAL_FLT && args[0].num_base_nan) {
+    if (args[0].type == VAL_FLOAT && args[0].num_base_nan) {
         char *sval = NULL;
         if (isnan(args[0].as.f)) {
             sval = strdup("NaN");
         } else if (isinf(args[0].as.f)) {
             sval = strdup(signbit(args[0].as.f) ? "-INF" : "INF");
         } else {
-            sval = flt_to_base_prefixed_str(args[0].as.f, args[0].num_base, 0);
+            sval = float_to_base_prefixed_str(args[0].as.f, args[0].num_base, 0);
         }
         char buf[256];
         snprintf(buf, sizeof(buf), "BASE is undefined for %s", sval);
@@ -6437,15 +6439,15 @@ static Value builtin_str(Interpreter *interp, Value *args, int argc, Expr **arg_
         free(s);
         return v;
     }
-    if (args[0].type == VAL_FLT) {
-        char *s = flt_to_base_prefixed_str(args[0].as.f, numeric_base_of(args[0]), args[0].num_base_nan);
+    if (args[0].type == VAL_FLOAT) {
+        char *s = float_to_base_prefixed_str(args[0].as.f, numeric_base_of(args[0]), args[0].num_base_nan);
         Value v = value_str(s);
         free(s);
         return v;
     }
 
-    /* Per SPEC section 9.1.2, STR conversion only accepts BOOL, STR, INT, FLT. */
-    RUNTIME_ERROR(interp, "STR expects BOOL, STR, INT, or FLT", line, col);
+    /* Per SPEC section 9.1.2, str conversion only accepts bool, str, int, float. */
+    RUNTIME_ERROR(interp, "str expects bool, str, int, or float", line, col);
 }
 
 Value builtin_str_value(Interpreter *interp, Value v, int line, int col) {
@@ -6454,11 +6456,11 @@ Value builtin_str_value(Interpreter *interp, Value v, int line, int col) {
     return builtin_str(interp, args, 1, NULL, NULL, line, col);
 }
 
-// BYTES(INT: n, endian = "big"):TNS
+// BYTES(int: n, endian = "big"):tensor
 static Value builtin_bytes(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
     (void)arg_nodes;
     (void)env;
-    // Expect first arg INT
+    // Expect first arg int
     EXPECT_INT(args[0], "BYTES", interp, line, col);
     int64_t n = args[0].as.i;
     if (n < 0) {
@@ -6517,7 +6519,7 @@ static Value builtin_bytes(Interpreter *interp, Value *args, int argc, Expr **ar
     }
     size_t shape[1];
     shape[0] = (size_t)bytelength;
-    Value out = value_tns_from_values(TYPE_INT, 1, shape, items, (size_t)bytelength);
+    Value out = value_tensor_from_values(TYPE_INT, 1, shape, items, (size_t)bytelength);
     for (int i = 0; i < bytelength; i++) {
         value_free(items[i]);
     }
@@ -6563,7 +6565,7 @@ static Value builtin_lower(Interpreter *interp, Value *args, int argc, Expr **ar
 static Value builtin_flip(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
     (void)arg_nodes;
     (void)env;
-    // Accept INT or STR
+    // Accept int or str
     if (args[0].type == VAL_INT) {
         int64_t v = args[0].as.i;
         int is_negative = v < 0;
@@ -6630,21 +6632,21 @@ static Value builtin_flip(Interpreter *interp, Value *args, int argc, Expr **arg
         return v;
     }
 
-    RUNTIME_ERROR(interp, "FLIP expects INT or STR", line, col);
+    RUNTIME_ERROR(interp, "FLIP expects int or str", line, col);
 }
 
 static Value builtin_join(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
     (void)arg_nodes;
     (void)env;
-    // JOIN(a1, a2, ..., aN): if first arg is STR, treat it as separator
-    // and join subsequent STR args; otherwise join INTs by binary spellings
+    // JOIN(a1, a2, ..., aN): if first arg is str, treat it as separator
+    // and join subsequent str args; otherwise join INTs by binary spellings
     if (argc < 1) {
         RUNTIME_ERROR(interp, "JOIN requires at least 1 argument", line, col);
     }
 
     // Disallow tensors
     for (int i = 0; i < argc; ++i) {
-        if (args[i].type == VAL_TNS) {
+        if (args[i].type == VAL_TENSOR) {
             RUNTIME_ERROR(interp, "JOIN cannot operate on tensors", line, col);
         }
     }
@@ -6807,7 +6809,7 @@ static Value builtin_join(Interpreter *interp, Value *args, int argc, Expr **arg
 static Value builtin_split(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
     (void)arg_nodes;
     (void)env;
-    // SPLIT(str, sep?) -> 1-D TNS of STR
+    // SPLIT(str, sep?) -> 1-D tensor of str
     EXPECT_STR(args[0], "SPLIT", interp, line, col);
     const char *sep = NULL;
     if (argc >= 2) {
@@ -6870,7 +6872,7 @@ static Value builtin_split(Interpreter *interp, Value *args, int argc, Expr **ar
         free(piece);
         free(copy);
         size_t shape[1] = {count};
-        Value out = value_tns_from_values(TYPE_STR, 1, shape, items, count);
+        Value out = value_tensor_from_values(TYPE_STR, 1, shape, items, count);
         for (size_t i = 0; i < count; i++) {
             value_free(items[i]);
         }
@@ -6888,10 +6890,10 @@ static Value builtin_split(Interpreter *interp, Value *args, int argc, Expr **ar
     free(copy);
     if (count == 0) {
         free(items);
-        return value_tns_new(TYPE_STR, 1, (const size_t[]){0});
+        return value_tensor_new(TYPE_STR, 1, (const size_t[]){0});
     }
     size_t shape[1] = {count};
-    Value out = value_tns_from_values(TYPE_STR, 1, shape, items, count);
+    Value out = value_tensor_from_values(TYPE_STR, 1, shape, items, count);
     for (size_t i = 0; i < count; i++) {
         value_free(items[i]);
     }
@@ -6900,7 +6902,7 @@ static Value builtin_split(Interpreter *interp, Value *args, int argc, Expr **ar
 }
 
 // IN (membership): IN(value, container)
-// Only supports container of type TNS. Returns 1 if any element in the
+// Only supports container of type tensor. Returns 1 if any element in the
 // tensor is deeply equal to the provided value, otherwise 0. No special
 // handling for STRs (no substring semantics).
 static Value builtin_in(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
@@ -6911,11 +6913,11 @@ static Value builtin_in(Interpreter *interp, Value *args, int argc, Expr **arg_n
     }
 
     // Container must be a tensor; otherwise this is a runtime error per spec
-    if (args[1].type != VAL_TNS) {
-        RUNTIME_ERROR(interp, "IN expects TNS as second argument", line, col);
+    if (args[1].type != VAL_TENSOR) {
+        RUNTIME_ERROR(interp, "IN expects tensor as second argument", line, col);
     }
 
-    Tensor *t = args[1].as.tns;
+    Tensor *t = args[1].as.tensor;
     if (!t || t->length == 0) {
         return value_bool(false);
     }
@@ -6937,7 +6939,7 @@ static Value builtin_import_path(Interpreter *interp, Value *args, int argc, Exp
         RUNTIME_ERROR(interp, "IMPORT_PATH expects a path string", line, col);
     }
     if (args[0].type != VAL_STR) {
-        RUNTIME_ERROR(interp, "IMPORT_PATH first argument must be STR", line, col);
+        RUNTIME_ERROR(interp, "IMPORT_PATH first argument must be str", line, col);
     }
     const char *inpath = args[0].as.s ? args[0].as.s : "";
 
@@ -6945,7 +6947,7 @@ static Value builtin_import_path(Interpreter *interp, Value *args, int argc, Exp
     char *alias_dup = NULL;
     if (argc >= 2) {
         if (args[1].type != VAL_STR) {
-            RUNTIME_ERROR(interp, "IMPORT_PATH second argument must be STR (alias)", line, col);
+            RUNTIME_ERROR(interp, "IMPORT_PATH second argument must be str (alias)", line, col);
         }
         alias = args[1].as.s ? args[1].as.s : "";
     } else {
@@ -7150,9 +7152,9 @@ static Value builtin_import_path(Interpreter *interp, Value *args, int argc, Exp
 static Value builtin_slice(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
     (void)arg_nodes;
     (void)env;
-    // SLICE per spec: SLICE(INT|STR: a, INT: start, INT: end)
-    // INT -> bit-slice [start:end] (1-based, negatives from end)
-    // STR -> inclusive char-slice counting from the left (index 1 = first char)
+    // SLICE per spec: SLICE(int|str: a, int: start, int: end)
+    // int -> bit-slice [start:end] (1-based, negatives from end)
+    // str -> inclusive char-slice counting from the left (index 1 = first char)
     if (args[0].type == VAL_INT) {
         EXPECT_INT(args[1], "SLICE", interp, line, col);
         EXPECT_INT(args[2], "SLICE", interp, line, col);
@@ -7263,7 +7265,7 @@ static Value builtin_slice(Interpreter *interp, Value *args, int argc, Expr **ar
         return v;
     }
 
-    RUNTIME_ERROR(interp, "SLICE expects INT or STR", line, col);
+    RUNTIME_ERROR(interp, "SLICE expects int or str", line, col);
 }
 
 static Value builtin_replace(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line,
@@ -7397,8 +7399,8 @@ static Value builtin_print(Interpreter *interp, Value *args, int argc, Expr **ar
             free(s);
             break;
         }
-        case VAL_FLT: {
-            char *s = flt_to_base_prefixed_str(args[i].as.f, numeric_base_of(args[i]), args[i].num_base_nan);
+        case VAL_FLOAT: {
+            char *s = float_to_base_prefixed_str(args[i].as.f, numeric_base_of(args[i]), args[i].num_base_nan);
             if (forward) {
                 printf("%s", s);
             }
@@ -7411,7 +7413,7 @@ static Value builtin_print(Interpreter *interp, Value *args, int argc, Expr **ar
             }
             break;
         default:
-            RUNTIME_ERROR(interp, "PRINT expects BOOL, INT, FLT, or STR argument", line, col);
+            RUNTIME_ERROR(interp, "PRINT expects bool, int, float, or str argument", line, col);
             break;
         }
     }
@@ -7456,8 +7458,8 @@ static Value builtin_warn(Interpreter *interp, Value *args, int argc, Expr **arg
             tmp = int_to_base_prefixed_str(args[i].as.i, numeric_base_of(args[i]));
             piece = tmp;
             break;
-        case VAL_FLT:
-            tmp = flt_to_base_prefixed_str(args[i].as.f, numeric_base_of(args[i]), args[i].num_base_nan);
+        case VAL_FLOAT:
+            tmp = float_to_base_prefixed_str(args[i].as.f, numeric_base_of(args[i]), args[i].num_base_nan);
             piece = tmp;
             break;
         case VAL_STR:
@@ -7465,7 +7467,7 @@ static Value builtin_warn(Interpreter *interp, Value *args, int argc, Expr **arg
             break;
         default: {
             char buf[128];
-            snprintf(buf, sizeof(buf), "WARN expects BOOL, INT, FLT, or STR argument, got %s",
+            snprintf(buf, sizeof(buf), "WARN expects bool, int, float, or str argument, got %s",
                      value_type_name(args[i]));
             free(out);
             RUNTIME_ERROR(interp, buf, line, col);
@@ -7539,7 +7541,7 @@ static Value builtin_input(Interpreter *interp, Value *args, int argc, Expr **ar
     return value_str("");
 }
 
-// SHUSH():BOOL - suppress forwarding of console output
+// SHUSH():bool - suppress forwarding of console output
 static Value builtin_shush(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
     (void)args;
     (void)argc;
@@ -7554,7 +7556,7 @@ static Value builtin_shush(Interpreter *interp, Value *args, int argc, Expr **ar
     return value_bool(false);
 }
 
-// UNSHUSH():BOOL - re-enable forwarding of console output
+// UNSHUSH():bool - re-enable forwarding of console output
 static Value builtin_unshush(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line,
                              int col) {
     (void)args;
@@ -7610,7 +7612,7 @@ static Value builtin_cl(Interpreter *interp, Value *args, int argc, Expr **arg_n
     return value_int(rc);
 }
 
-// READFILE(STR: path, STR: coding = "UTF-8"):STR
+// READFILE(str: path, str: coding = "UTF-8"):str
 static Value builtin_readfile(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line,
                               int col) {
     (void)arg_nodes;
@@ -7776,7 +7778,7 @@ static Value builtin_readfile(Interpreter *interp, Value *args, int argc, Expr *
     RUNTIME_ERROR(interp, "READFILE: unsupported coding", line, col);
 }
 
-// WRITEFILE(STR: blob, STR: path, STR: coding = "UTF-8"):INT
+// WRITEFILE(str: blob, str: path, str: coding = "UTF-8"):int
 static Value builtin_writefile(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line,
                                int col) {
     (void)arg_nodes;
@@ -7975,7 +7977,7 @@ static Value builtin_writefile(Interpreter *interp, Value *args, int argc, Expr 
     RUNTIME_ERROR(interp, "WRITEFILE: unsupported coding", line, col);
 }
 
-// EXISTFILE(STR: path):INT
+// EXISTFILE(str: path):int
 static Value builtin_existfile(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line,
                                int col) {
     (void)arg_nodes;
@@ -7992,7 +7994,7 @@ static Value builtin_existfile(Interpreter *interp, Value *args, int argc, Expr 
     return value_bool(false);
 }
 
-// DELETEFILE(STR: path):INT
+// DELETEFILE(str: path):int
 static Value builtin_deletefile(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line,
                                 int col) {
     (void)arg_nodes;
@@ -8019,7 +8021,7 @@ static Value builtin_assert(Interpreter *interp, Value *args, int argc, Expr **a
     return value_bool(true);
 }
 
-// REFUTE(~BOOL: cond):BOOL
+// REFUTE(~bool: cond):bool
 static Value builtin_refute(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
     (void)arg_nodes;
     (void)env;
@@ -8056,8 +8058,8 @@ static Value builtin_throw(Interpreter *interp, Value *args, int argc, Expr **ar
             free(s);
             break;
         }
-        case VAL_FLT: {
-            char *s = flt_to_base_prefixed_str(args[i].as.f, numeric_base_of(args[i]), args[i].num_base_nan);
+        case VAL_FLOAT: {
+            char *s = float_to_base_prefixed_str(args[i].as.f, numeric_base_of(args[i]), args[i].num_base_nan);
             jb_append_str(&jb, s);
             free(s);
             break;
@@ -8108,13 +8110,14 @@ static Value builtin_isbool(Interpreter *interp, Value *args, int argc, Expr **a
     return value_bool(args[0].type == VAL_BOOL);
 }
 
-static Value builtin_isflt(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
+static Value builtin_isfloat(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line,
+                             int col) {
     (void)arg_nodes;
     (void)env;
     (void)interp;
     (void)line;
     (void)col;
-    return value_bool(args[0].type == VAL_FLT);
+    return value_bool(args[0].type == VAL_FLOAT);
 }
 
 static Value builtin_isstr(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
@@ -8126,13 +8129,14 @@ static Value builtin_isstr(Interpreter *interp, Value *args, int argc, Expr **ar
     return value_bool(args[0].type == VAL_STR);
 }
 
-static Value builtin_istns(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
+static Value builtin_istensor(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line,
+                              int col) {
     (void)arg_nodes;
     (void)env;
     (void)interp;
     (void)line;
     (void)col;
-    return value_bool(args[0].type == VAL_TNS);
+    return value_bool(args[0].type == VAL_TENSOR);
 }
 
 static Value builtin_ismap(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
@@ -8153,13 +8157,14 @@ static Value builtin_isfunc(Interpreter *interp, Value *args, int argc, Expr **a
     return value_bool(args[0].type == VAL_FUNC);
 }
 
-static Value builtin_isthr(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
+static Value builtin_isthread(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line,
+                              int col) {
     (void)arg_nodes;
     (void)env;
     (void)interp;
     (void)line;
     (void)col;
-    return value_bool(args[0].type == VAL_THR);
+    return value_bool(args[0].type == VAL_THREAD);
 }
 
 static Value builtin_type(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
@@ -8171,7 +8176,7 @@ static Value builtin_type(Interpreter *interp, Value *args, int argc, Expr **arg
     return value_str(value_type_name(args[0]));
 }
 
-// Format a MAP value as its canonical literal form "<key = val, ...>"
+// Format a map value as its canonical literal form "<key = val, ...>"
 // Returns a newly allocated string that the caller must free.
 static char *map_schema_to_str(Value v) {
     if (v.type != VAL_MAP || !v.as.map) {
@@ -8202,8 +8207,8 @@ static char *map_schema_to_str(Value v) {
             char *s = int_to_base_prefixed_str(key.as.i, numeric_base_of(key));
             jb_append_str(&jb, s);
             free(s);
-        } else if (key.type == VAL_FLT) {
-            char *s = flt_to_base_prefixed_str(key.as.f, numeric_base_of(key), key.num_base_nan);
+        } else if (key.type == VAL_FLOAT) {
+            char *s = float_to_base_prefixed_str(key.as.f, numeric_base_of(key), key.num_base_nan);
             jb_append_str(&jb, s);
             free(s);
         } else {
@@ -8225,8 +8230,8 @@ static char *map_schema_to_str(Value v) {
             char *s = int_to_base_prefixed_str(val.as.i, numeric_base_of(val));
             jb_append_str(&jb, s);
             free(s);
-        } else if (val.type == VAL_FLT) {
-            char *s = flt_to_base_prefixed_str(val.as.f, numeric_base_of(val), val.num_base_nan);
+        } else if (val.type == VAL_FLOAT) {
+            char *s = float_to_base_prefixed_str(val.as.f, numeric_base_of(val), val.num_base_nan);
             jb_append_str(&jb, s);
             free(s);
         } else if (val.type == VAL_BOOL) {
@@ -8243,7 +8248,7 @@ static char *map_schema_to_str(Value v) {
     return jb.data;
 }
 
-// SIGNATURE(SYMBOL: sym):STR
+// SIGNATURE(SYMBOL: sym):str
 static Value builtin_signature(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line,
                                int col) {
     (void)args;
@@ -8324,8 +8329,8 @@ static Value builtin_signature(Interpreter *interp, Value *args, int argc, Expr 
                         }
                         strcat(buf, s);
                         free(s);
-                    } else if (dv.type == VAL_FLT) {
-                        char *s = flt_to_base_prefixed_str(dv.as.f, numeric_base_of(dv), dv.num_base_nan);
+                    } else if (dv.type == VAL_FLOAT) {
+                        char *s = float_to_base_prefixed_str(dv.as.f, numeric_base_of(dv), dv.num_base_nan);
                         size_t need = strlen(buf) + strlen(s) + 2;
                         if (need > cap) {
                             cap = need * 2;
@@ -8361,7 +8366,7 @@ static Value builtin_signature(Interpreter *interp, Value *args, int argc, Expr 
     if (strcmp(tname, "UNKNOWN") == 0) {
         tname = "ANY";
     }
-    // Build schema string for MAP if schema is present
+    // Build schema string for map if schema is present
     char *schema_str = NULL;
     if (entry->decl_type == TYPE_MAP && entry->schema.type == VAL_MAP) {
         char *inner = map_schema_to_str(entry->schema);
@@ -8450,7 +8455,7 @@ static Value builtin_del(Interpreter *interp, Value *args, int argc, Expr **arg_
     (void)arg_nodes;
     Stmt *target_program = NULL;
     if (argc != 1) {
-        RUNTIME_ERROR(interp, "DEL expects STR argument", line, col);
+        RUNTIME_ERROR(interp, "DEL expects str argument", line, col);
     }
     EXPECT_STR(args[0], "DEL", interp, line, col);
 
@@ -8560,12 +8565,12 @@ static Value builtin_del(Interpreter *interp, Value *args, int argc, Expr **arg_
                     interp->error_col = ec;
                     return value_null();
                 }
-                if (!(key.type == VAL_INT || key.type == VAL_STR || key.type == VAL_FLT)) {
+                if (!(key.type == VAL_INT || key.type == VAL_STR || key.type == VAL_FLOAT)) {
                     value_free(key);
                     free(nodes);
                     free_stmt(target_program);
                     value_free(base_val);
-                    RUNTIME_ERROR(interp, "Map index must be INT, FLT or STR", it->line, it->column);
+                    RUNTIME_ERROR(interp, "Map index must be int, float or str", it->line, it->column);
                 }
 
                 bool last_key_in_node = (i + 1 == indices->count);
@@ -8677,10 +8682,10 @@ static Value builtin_permafreeze(Interpreter *interp, Value *args, int argc, Exp
 static Value builtin_export(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
     (void)arg_nodes;
     if (argc != 2) {
-        RUNTIME_ERROR(interp, "EXPORT expects two STR arguments (symbol, module)", line, col);
+        RUNTIME_ERROR(interp, "EXPORT expects two str arguments (symbol, module)", line, col);
     }
     if (args[0].type != VAL_STR || args[1].type != VAL_STR) {
-        RUNTIME_ERROR(interp, "EXPORT expects STR symbol and STR module", line, col);
+        RUNTIME_ERROR(interp, "EXPORT expects str symbol and str module", line, col);
     }
     const char *sym = args[0].as.s ? args[0].as.s : "";
     const char *module = args[1].as.s ? args[1].as.s : "";
@@ -8800,20 +8805,20 @@ static Value builtin_sum(Interpreter *interp, Value *args, int argc, Expr **arg_
         }
         return value_int_base(sum, out_base);
     }
-    if (args[0].type == VAL_FLT) {
+    if (args[0].type == VAL_FLOAT) {
         double sum = 0.0;
         int out_base = numeric_base_of(args[0]);
         for (int i = 0; i < argc; i++) {
-            EXPECT_FLT(args[i], "SUM", interp, line, col);
+            EXPECT_FLOAT(args[i], "SUM", interp, line, col);
             sum += args[i].as.f;
             int bi = numeric_base_of(args[i]);
             if (bi > out_base) {
                 out_base = bi;
             }
         }
-        return value_flt_base(sum, out_base);
+        return value_float_base(sum, out_base);
     }
-    RUNTIME_ERROR(interp, "SUM expects INT or FLT arguments", line, col);
+    RUNTIME_ERROR(interp, "SUM expects int or float arguments", line, col);
 }
 
 static Value builtin_prod(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
@@ -8837,20 +8842,20 @@ static Value builtin_prod(Interpreter *interp, Value *args, int argc, Expr **arg
         }
         return value_int_base(prod, out_base);
     }
-    if (args[0].type == VAL_FLT) {
+    if (args[0].type == VAL_FLOAT) {
         double prod = 1.0;
         int out_base = numeric_base_of(args[0]);
         for (int i = 0; i < argc; i++) {
-            EXPECT_FLT(args[i], "PROD", interp, line, col);
+            EXPECT_FLOAT(args[i], "PROD", interp, line, col);
             prod *= args[i].as.f;
             int bi = numeric_base_of(args[i]);
             if (bi > out_base) {
                 out_base = bi;
             }
         }
-        return value_flt_base(prod, out_base);
+        return value_float_base(prod, out_base);
     }
-    RUNTIME_ERROR(interp, "PROD expects INT or FLT arguments", line, col);
+    RUNTIME_ERROR(interp, "PROD expects int or float arguments", line, col);
 }
 
 static Value builtin_max(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
@@ -8876,11 +8881,11 @@ static Value builtin_max(Interpreter *interp, Value *args, int argc, Expr **arg_
         }
         return value_int_base(max, out_base);
     }
-    if (args[0].type == VAL_FLT) {
+    if (args[0].type == VAL_FLOAT) {
         double max = args[0].as.f;
         int out_base = numeric_base_of(args[0]);
         for (int i = 1; i < argc; i++) {
-            EXPECT_FLT(args[i], "MAX", interp, line, col);
+            EXPECT_FLOAT(args[i], "MAX", interp, line, col);
             if (args[i].as.f > max) {
                 max = args[i].as.f;
             }
@@ -8889,7 +8894,7 @@ static Value builtin_max(Interpreter *interp, Value *args, int argc, Expr **arg_
                 out_base = bi;
             }
         }
-        return value_flt_base(max, out_base);
+        return value_float_base(max, out_base);
     }
     if (args[0].type == VAL_STR) {
         const char *max = args[0].as.s;
@@ -8904,28 +8909,28 @@ static Value builtin_max(Interpreter *interp, Value *args, int argc, Expr **arg_
         }
         return value_str(max);
     }
-    if (args[0].type == VAL_TNS) {
-        // MAX(TNS: t1, ..., tN) -> flatten tensors and return largest scalar element
-        // All tensors must have same scalar element type (INT/FLT/STR)
-        Tensor *t0 = args[0].as.tns;
+    if (args[0].type == VAL_TENSOR) {
+        // MAX(tensor: t1, ..., tN) -> flatten tensors and return largest scalar element
+        // All tensors must have same scalar element type (int/float/str)
+        Tensor *t0 = args[0].as.tensor;
         DeclType etype = t0->elem_type;
-        if (!(etype == TYPE_INT || etype == TYPE_FLT || etype == TYPE_STR)) {
-            RUNTIME_ERROR(interp, "MAX TNS form requires scalar element types", line, col);
+        if (!(etype == TYPE_INT || etype == TYPE_FLOAT || etype == TYPE_STR)) {
+            RUNTIME_ERROR(interp, "MAX tensor form requires scalar element types", line, col);
         }
         // verify all args are tensors with same element type
         for (int j = 0; j < argc; j++) {
-            if (args[j].type != VAL_TNS) {
-                RUNTIME_ERROR(interp, "MAX expects TNS arguments in this form", line, col);
+            if (args[j].type != VAL_TENSOR) {
+                RUNTIME_ERROR(interp, "MAX expects tensor arguments in this form", line, col);
             }
-            if (args[j].as.tns->elem_type != etype) {
-                RUNTIME_ERROR(interp, "MAX TNS arguments must share the same element type", line, col);
+            if (args[j].as.tensor->elem_type != etype) {
+                RUNTIME_ERROR(interp, "MAX tensor arguments must share the same element type", line, col);
             }
         }
         // find first element to seed
         bool seeded = false;
         Value best = value_null();
         for (int j = 0; j < argc && !seeded; j++) {
-            Tensor *tj = args[j].as.tns;
+            Tensor *tj = args[j].as.tensor;
             for (size_t i = 0; i < tj->length; i++) {
                 Value v = tj->data[i];
                 if (etype == TYPE_INT && v.type == VAL_INT) {
@@ -8933,8 +8938,8 @@ static Value builtin_max(Interpreter *interp, Value *args, int argc, Expr **arg_
                     seeded = true;
                     break;
                 }
-                if (etype == TYPE_FLT && v.type == VAL_FLT) {
-                    best = value_flt_base(v.as.f, numeric_base_of(v));
+                if (etype == TYPE_FLOAT && v.type == VAL_FLOAT) {
+                    best = value_float_base(v.as.f, numeric_base_of(v));
                     seeded = true;
                     break;
                 }
@@ -8951,7 +8956,7 @@ static Value builtin_max(Interpreter *interp, Value *args, int argc, Expr **arg_
         }
         // compare remaining elements
         for (int j = 0; j < argc; j++) {
-            Tensor *tj = args[j].as.tns;
+            Tensor *tj = args[j].as.tensor;
             for (size_t i = 0; i < tj->length; i++) {
                 Value v = tj->data[i];
                 if (etype == TYPE_INT) {
@@ -8960,13 +8965,13 @@ static Value builtin_max(Interpreter *interp, Value *args, int argc, Expr **arg_
                         value_free(best);
                         best = value_int_base(v.as.i, numeric_base_of(v));
                     }
-                } else if (etype == TYPE_FLT) {
-                    EXPECT_FLT(v, "MAX", interp, line, col);
+                } else if (etype == TYPE_FLOAT) {
+                    EXPECT_FLOAT(v, "MAX", interp, line, col);
                     if (v.as.f > best.as.f) {
                         value_free(best);
-                        best = value_flt_base(v.as.f, numeric_base_of(v));
+                        best = value_float_base(v.as.f, numeric_base_of(v));
                     }
-                } else { // STR
+                } else { // str
                     EXPECT_STR(v, "MAX", interp, line, col);
                     if (strlen(v.as.s) > strlen(best.as.s)) {
                         value_free(best);
@@ -8977,7 +8982,7 @@ static Value builtin_max(Interpreter *interp, Value *args, int argc, Expr **arg_
         }
         return best;
     }
-    RUNTIME_ERROR(interp, "MAX expects INT, FLT, or STR arguments", line, col);
+    RUNTIME_ERROR(interp, "MAX expects int, float, or str arguments", line, col);
 }
 
 static Value builtin_min(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
@@ -9003,11 +9008,11 @@ static Value builtin_min(Interpreter *interp, Value *args, int argc, Expr **arg_
         }
         return value_int_base(min, out_base);
     }
-    if (args[0].type == VAL_FLT) {
+    if (args[0].type == VAL_FLOAT) {
         double min = args[0].as.f;
         int out_base = numeric_base_of(args[0]);
         for (int i = 1; i < argc; i++) {
-            EXPECT_FLT(args[i], "MIN", interp, line, col);
+            EXPECT_FLOAT(args[i], "MIN", interp, line, col);
             if (args[i].as.f < min) {
                 min = args[i].as.f;
             }
@@ -9016,7 +9021,7 @@ static Value builtin_min(Interpreter *interp, Value *args, int argc, Expr **arg_
                 out_base = bi;
             }
         }
-        return value_flt_base(min, out_base);
+        return value_float_base(min, out_base);
     }
     if (args[0].type == VAL_STR) {
         const char *min = args[0].as.s;
@@ -9031,25 +9036,25 @@ static Value builtin_min(Interpreter *interp, Value *args, int argc, Expr **arg_
         }
         return value_str(min);
     }
-    if (args[0].type == VAL_TNS) {
-        // MIN(TNS: t1, ..., tN) -> flatten tensors and return smallest scalar element
-        Tensor *t0 = args[0].as.tns;
+    if (args[0].type == VAL_TENSOR) {
+        // MIN(tensor: t1, ..., tN) -> flatten tensors and return smallest scalar element
+        Tensor *t0 = args[0].as.tensor;
         DeclType etype = t0->elem_type;
-        if (!(etype == TYPE_INT || etype == TYPE_FLT || etype == TYPE_STR)) {
-            RUNTIME_ERROR(interp, "MIN TNS form requires scalar element types", line, col);
+        if (!(etype == TYPE_INT || etype == TYPE_FLOAT || etype == TYPE_STR)) {
+            RUNTIME_ERROR(interp, "MIN tensor form requires scalar element types", line, col);
         }
         for (int j = 0; j < argc; j++) {
-            if (args[j].type != VAL_TNS) {
-                RUNTIME_ERROR(interp, "MIN expects TNS arguments in this form", line, col);
+            if (args[j].type != VAL_TENSOR) {
+                RUNTIME_ERROR(interp, "MIN expects tensor arguments in this form", line, col);
             }
-            if (args[j].as.tns->elem_type != etype) {
-                RUNTIME_ERROR(interp, "MIN TNS arguments must share the same element type", line, col);
+            if (args[j].as.tensor->elem_type != etype) {
+                RUNTIME_ERROR(interp, "MIN tensor arguments must share the same element type", line, col);
             }
         }
         bool seeded = false;
         Value best = value_null();
         for (int j = 0; j < argc && !seeded; j++) {
-            Tensor *tj = args[j].as.tns;
+            Tensor *tj = args[j].as.tensor;
             for (size_t i = 0; i < tj->length; i++) {
                 Value v = tj->data[i];
                 if (etype == TYPE_INT && v.type == VAL_INT) {
@@ -9057,8 +9062,8 @@ static Value builtin_min(Interpreter *interp, Value *args, int argc, Expr **arg_
                     seeded = true;
                     break;
                 }
-                if (etype == TYPE_FLT && v.type == VAL_FLT) {
-                    best = value_flt_base(v.as.f, numeric_base_of(v));
+                if (etype == TYPE_FLOAT && v.type == VAL_FLOAT) {
+                    best = value_float_base(v.as.f, numeric_base_of(v));
                     seeded = true;
                     break;
                 }
@@ -9074,7 +9079,7 @@ static Value builtin_min(Interpreter *interp, Value *args, int argc, Expr **arg_
             RUNTIME_ERROR(interp, "MIN requires non-empty tensors", line, col);
         }
         for (int j = 0; j < argc; j++) {
-            Tensor *tj = args[j].as.tns;
+            Tensor *tj = args[j].as.tensor;
             for (size_t i = 0; i < tj->length; i++) {
                 Value v = tj->data[i];
                 if (etype == TYPE_INT) {
@@ -9083,11 +9088,11 @@ static Value builtin_min(Interpreter *interp, Value *args, int argc, Expr **arg_
                         value_free(best);
                         best = value_int_base(v.as.i, numeric_base_of(v));
                     }
-                } else if (etype == TYPE_FLT) {
-                    EXPECT_FLT(v, "MIN", interp, line, col);
+                } else if (etype == TYPE_FLOAT) {
+                    EXPECT_FLOAT(v, "MIN", interp, line, col);
                     if (v.as.f < best.as.f) {
                         value_free(best);
-                        best = value_flt_base(v.as.f, numeric_base_of(v));
+                        best = value_float_base(v.as.f, numeric_base_of(v));
                     }
                 } else {
                     EXPECT_STR(v, "MIN", interp, line, col);
@@ -9100,7 +9105,7 @@ static Value builtin_min(Interpreter *interp, Value *args, int argc, Expr **arg_
         }
         return best;
     }
-    RUNTIME_ERROR(interp, "MIN expects INT, FLT, or STR arguments", line, col);
+    RUNTIME_ERROR(interp, "MIN expects int, float, or str arguments", line, col);
 }
 
 static Value builtin_any(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
@@ -9169,9 +9174,9 @@ static Value builtin_fsum(Interpreter *interp, Value *args, int argc, Expr **arg
     double sum = 0.0;
     for (int i = 0; i < argc; i++) {
         EXPECT_NUM(args[i], "FSUM", interp, line, col);
-        sum += args[i].type == VAL_FLT ? args[i].as.f : (double)args[i].as.i;
+        sum += args[i].type == VAL_FLOAT ? args[i].as.f : (double)args[i].as.i;
     }
-    return value_flt(sum);
+    return value_float(sum);
 }
 
 static Value builtin_iprod(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
@@ -9210,13 +9215,13 @@ static Value builtin_fprod(Interpreter *interp, Value *args, int argc, Expr **ar
     int out_base = numeric_base_of(args[0]);
     for (int i = 0; i < argc; i++) {
         EXPECT_NUM(args[i], "FPROD", interp, line, col);
-        prod *= args[i].type == VAL_FLT ? args[i].as.f : (double)args[i].as.i;
+        prod *= args[i].type == VAL_FLOAT ? args[i].as.f : (double)args[i].as.i;
         int bi = numeric_base_of(args[i]);
         if (bi > out_base) {
             out_base = bi;
         }
     }
-    return value_flt_base(prod, out_base);
+    return value_float_base(prod, out_base);
 }
 
 // ROUND
@@ -9235,7 +9240,7 @@ static Value builtin_round(Interpreter *interp, Value *args, int argc, Expr **ar
     }
     if (argc >= 3 && args[2].type != VAL_NULL) {
         if (args[2].type != VAL_STR) {
-            RUNTIME_ERROR(interp, "ROUND expects STR mode", line, col);
+            RUNTIME_ERROR(interp, "ROUND expects str mode", line, col);
         }
         mode = args[2].as.s;
         if (!mode) {
@@ -9243,7 +9248,7 @@ static Value builtin_round(Interpreter *interp, Value *args, int argc, Expr **ar
         }
     }
 
-    // INT behavior: keep prior semantics (ndigits >= 0 is a no-op; ndigits < 0 rounds toward zero to multiple of
+    // int behavior: keep prior semantics (ndigits >= 0 is a no-op; ndigits < 0 rounds toward zero to multiple of
     // 2^(-ndigits)).
     if (args[0].type == VAL_INT) {
         if (places >= 0) {
@@ -9275,7 +9280,7 @@ static Value builtin_round(Interpreter *interp, Value *args, int argc, Expr **ar
         RUNTIME_ERROR(interp, "Unknown ROUND mode", line, col);
     }
 
-    return value_flt(rs / factor);
+    return value_float(rs / factor);
 }
 
 // INV (map inversion)
@@ -9295,7 +9300,7 @@ static Value builtin_inv(Interpreter *interp, Value *args, int argc, Expr **arg_
             Value key = m->items[i].key;   // original key
             Value val = m->items[i].value; // original value
             // Only scalar values may be used as keys
-            if (val.type != VAL_INT && val.type != VAL_FLT && val.type != VAL_STR) {
+            if (val.type != VAL_INT && val.type != VAL_FLOAT && val.type != VAL_STR) {
                 value_free(out);
                 RUNTIME_ERROR(interp, "INV(map) requires scalar values", line, col);
             }
@@ -9320,22 +9325,22 @@ static Value builtin_inv(Interpreter *interp, Value *args, int argc, Expr **arg_
         return out;
     }
 
-    RUNTIME_ERROR(interp, "INV expects MAP argument", line, col);
+    RUNTIME_ERROR(interp, "INV expects map argument", line, col);
 }
 
-// KEYS(map):TNS - return 1-D tensor of keys in insertion order
+// KEYS(map):tensor - return 1-D tensor of keys in insertion order
 static Value builtin_keys(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
     (void)arg_nodes;
     (void)env;
     (void)argc;
     if (args[0].type != VAL_MAP) {
-        RUNTIME_ERROR(interp, "KEYS expects MAP argument", line, col);
+        RUNTIME_ERROR(interp, "KEYS expects map argument", line, col);
     }
     Map *m = args[0].as.map;
     size_t count = m ? m->count : 0;
     if (count == 0) {
         size_t shape[1] = {0};
-        return value_tns_new(TYPE_INT, 1, shape);
+        return value_tensor_new(TYPE_INT, 1, shape);
     }
     // determine element DeclType for keys; allow mixed types (use TYPE_UNKNOWN)
     Value *items = malloc(sizeof(Value) * count);
@@ -9351,9 +9356,9 @@ static Value builtin_keys(Interpreter *interp, Value *args, int argc, Expr **arg
             {
                 cur_dt = TYPE_INT;
             }
-        } else if (kt == VAL_FLT) {
+        } else if (kt == VAL_FLOAT) {
             {
-                cur_dt = TYPE_FLT;
+                cur_dt = TYPE_FLOAT;
             }
         } else if (kt == VAL_STR) {
             {
@@ -9375,7 +9380,7 @@ static Value builtin_keys(Interpreter *interp, Value *args, int argc, Expr **arg
     }
 
     size_t shape[1] = {count};
-    Value out = value_tns_from_values(elem_type, 1, shape, items, count);
+    Value out = value_tensor_from_values(elem_type, 1, shape, items, count);
     for (size_t i = 0; i < count; i++) {
         value_free(items[i]);
     }
@@ -9383,19 +9388,19 @@ static Value builtin_keys(Interpreter *interp, Value *args, int argc, Expr **arg
     return out;
 }
 
-// VALUES(map):TNS - return 1-D tensor of values in insertion order (requires uniform element type)
+// VALUES(map):tensor - return 1-D tensor of values in insertion order (requires uniform element type)
 static Value builtin_values(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
     (void)arg_nodes;
     (void)env;
     (void)argc;
     if (args[0].type != VAL_MAP) {
-        RUNTIME_ERROR(interp, "VALUES expects MAP argument", line, col);
+        RUNTIME_ERROR(interp, "VALUES expects map argument", line, col);
     }
     Map *m = args[0].as.map;
     size_t count = m ? m->count : 0;
     if (count == 0) {
         size_t shape[1] = {0};
-        return value_tns_new(TYPE_INT, 1, shape);
+        return value_tensor_new(TYPE_INT, 1, shape);
     }
     // determine element DeclType from first value
     ValueType vt = m->items[0].value.type;
@@ -9404,18 +9409,18 @@ static Value builtin_values(Interpreter *interp, Value *args, int argc, Expr **a
         dt = TYPE_BOOL;
     } else if (vt == VAL_INT) {
         dt = TYPE_INT;
-    } else if (vt == VAL_FLT) {
-        dt = TYPE_FLT;
+    } else if (vt == VAL_FLOAT) {
+        dt = TYPE_FLOAT;
     } else if (vt == VAL_STR) {
         dt = TYPE_STR;
-    } else if (vt == VAL_TNS) {
-        dt = TYPE_TNS;
+    } else if (vt == VAL_TENSOR) {
+        dt = TYPE_TENSOR;
     } else if (vt == VAL_FUNC) {
         dt = TYPE_FUNC;
-    } else if (vt == VAL_THR) {
-        dt = TYPE_THR;
+    } else if (vt == VAL_THREAD) {
+        dt = TYPE_THREAD;
     } else if (vt == VAL_MAP) {
-        dt = TYPE_TNS; // no TYPE_MAP, use TNS as container type
+        dt = TYPE_TENSOR; // no TYPE_MAP, use tensor as container type
     } else {
         RUNTIME_ERROR(interp, "VALUES: unsupported value type", line, col);
     }
@@ -9426,25 +9431,25 @@ static Value builtin_values(Interpreter *interp, Value *args, int argc, Expr **a
     }
     for (size_t i = 0; i < count; i++) {
         Value v = m->items[i].value;
-        // map all MAP values to TYPE_TNS element classification but keep actual Value
+        // map all map values to TYPE_TENSOR element classification but keep actual Value
         ValueType cur = v.type;
         DeclType cur_dt = TYPE_UNKNOWN;
         if (cur == VAL_BOOL) {
             cur_dt = TYPE_BOOL;
         } else if (cur == VAL_INT) {
             cur_dt = TYPE_INT;
-        } else if (cur == VAL_FLT) {
-            cur_dt = TYPE_FLT;
+        } else if (cur == VAL_FLOAT) {
+            cur_dt = TYPE_FLOAT;
         } else if (cur == VAL_STR) {
             cur_dt = TYPE_STR;
-        } else if (cur == VAL_TNS) {
-            cur_dt = TYPE_TNS;
+        } else if (cur == VAL_TENSOR) {
+            cur_dt = TYPE_TENSOR;
         } else if (cur == VAL_FUNC) {
             cur_dt = TYPE_FUNC;
-        } else if (cur == VAL_THR) {
-            cur_dt = TYPE_THR;
+        } else if (cur == VAL_THREAD) {
+            cur_dt = TYPE_THREAD;
         } else if (cur == VAL_MAP) {
-            cur_dt = TYPE_TNS;
+            cur_dt = TYPE_TENSOR;
         }
         if (cur_dt != dt) {
             for (size_t j = 0; j < i; j++) {
@@ -9456,7 +9461,7 @@ static Value builtin_values(Interpreter *interp, Value *args, int argc, Expr **a
         items[i] = value_copy(v);
     }
     size_t shape[1] = {count};
-    Value out = value_tns_from_values(dt, 1, shape, items, count);
+    Value out = value_tensor_from_values(dt, 1, shape, items, count);
     for (size_t i = 0; i < count; i++) {
         value_free(items[i]);
     }
@@ -9464,16 +9469,16 @@ static Value builtin_values(Interpreter *interp, Value *args, int argc, Expr **a
     return out;
 }
 
-// KEYIN(key, map):INT - returns 1 if map contains key (type+value)
+// KEYIN(key, map):int - returns 1 if map contains key (type+value)
 static Value builtin_keyin(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
     (void)arg_nodes;
     (void)env;
     (void)argc;
-    if (args[0].type != VAL_INT && args[0].type != VAL_FLT && args[0].type != VAL_STR) {
-        RUNTIME_ERROR(interp, "KEYIN expects INT, FLT or STR as first argument", line, col);
+    if (args[0].type != VAL_INT && args[0].type != VAL_FLOAT && args[0].type != VAL_STR) {
+        RUNTIME_ERROR(interp, "KEYIN expects int, float or str as first argument", line, col);
     }
     if (args[1].type != VAL_MAP) {
-        RUNTIME_ERROR(interp, "KEYIN expects MAP as second argument", line, col);
+        RUNTIME_ERROR(interp, "KEYIN expects map as second argument", line, col);
     }
     int found = 0;
     Value res = value_map_get(args[1], args[0], &found);
@@ -9483,14 +9488,14 @@ static Value builtin_keyin(Interpreter *interp, Value *args, int argc, Expr **ar
     return value_bool(found != 0);
 }
 
-// VALUEIN(value, map):INT - returns 1 if any stored value equals the provided value
+// VALUEIN(value, map):int - returns 1 if any stored value equals the provided value
 static Value builtin_valuein(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line,
                              int col) {
     (void)arg_nodes;
     (void)env;
     (void)argc;
     if (args[1].type != VAL_MAP) {
-        RUNTIME_ERROR(interp, "VALUEIN expects MAP as second argument", line, col);
+        RUNTIME_ERROR(interp, "VALUEIN expects map as second argument", line, col);
     }
     Map *m = args[1].as.map;
     if (!m) {
@@ -9539,15 +9544,15 @@ static int match_map_internal(Map *m, Map *tpl, int typing, int recurse, int sha
             value_free(mval);
             return 0;
         }
-        // shape: if either side is TNS, both must be TNS and shapes identical
+        // shape: if either side is tensor, both must be tensor and shapes identical
         if (shape) {
-            if (mval.type == VAL_TNS || tval.type == VAL_TNS) {
-                if (mval.type != VAL_TNS || tval.type != VAL_TNS) {
+            if (mval.type == VAL_TENSOR || tval.type == VAL_TENSOR) {
+                if (mval.type != VAL_TENSOR || tval.type != VAL_TENSOR) {
                     value_free(mval);
                     return 0;
                 }
-                Tensor *a = mval.as.tns;
-                Tensor *b = tval.as.tns;
+                Tensor *a = mval.as.tensor;
+                Tensor *b = tval.as.tensor;
                 if (a->ndim != b->ndim) {
                     value_free(mval);
                     return 0;
@@ -9627,13 +9632,13 @@ static int match_read_metadata(Map *tpl, int *typing, int *recurse, int *shape, 
     return 1;
 }
 
-// MATCH(map, schema, typing=0, recurse=0, shape=0):INT
+// MATCH(map, schema, typing=0, recurse=0, shape=0):int
 static Value builtin_match(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
     (void)arg_nodes;
     (void)env;
     (void)argc;
     if (args[0].type != VAL_MAP || args[1].type != VAL_MAP) {
-        RUNTIME_ERROR(interp, "MATCH expects two MAP arguments", line, col);
+        RUNTIME_ERROR(interp, "MATCH expects two map arguments", line, col);
     }
     int typing = 0;
     int recurse = 0;
@@ -9743,7 +9748,7 @@ static Value builtin_assign(Interpreter *interp, Value *args, int argc, Expr **a
                 }
                 if (tmpl.type != VAL_MAP) {
                     value_free(tmpl);
-                    RUNTIME_ERROR(interp, "MAP schema must evaluate to a MAP", line, col);
+                    RUNTIME_ERROR(interp, "map schema must evaluate to a map", line, col);
                 }
             }
             env_define(assign_env, name, expected, expected_base, tmpl);
@@ -9775,14 +9780,14 @@ static Value builtin_assign(Interpreter *interp, Value *args, int argc, Expr **a
             case VAL_INT:
                 actual = TYPE_INT;
                 break;
-            case VAL_FLT:
-                actual = TYPE_FLT;
+            case VAL_FLOAT:
+                actual = TYPE_FLOAT;
                 break;
             case VAL_STR:
                 actual = TYPE_STR;
                 break;
-            case VAL_TNS:
-                actual = TYPE_TNS;
+            case VAL_TENSOR:
+                actual = TYPE_TENSOR;
                 break;
             case VAL_MAP:
                 actual = TYPE_MAP;
@@ -9790,8 +9795,8 @@ static Value builtin_assign(Interpreter *interp, Value *args, int argc, Expr **a
             case VAL_FUNC:
                 actual = TYPE_FUNC;
                 break;
-            case VAL_THR:
-                actual = TYPE_THR;
+            case VAL_THREAD:
+                actual = TYPE_THREAD;
                 break;
             default:
                 actual = TYPE_UNKNOWN;
@@ -9874,13 +9879,13 @@ static Value builtin_ilen(Interpreter *interp, Value *args, int argc, Expr **arg
     return value_int_base(len, out_base);
 }
 
-// LEN: per specification, returns the number of supplied INT or STR arguments.
-// Passing TNS or any other unsupported type is a runtime error.
+// LEN: per specification, returns the number of supplied int or str arguments.
+// Passing tensor or any other unsupported type is a runtime error.
 static Value builtin_len(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
     (void)arg_nodes;
     (void)env;
 
-    int out_base = 10; // default to decimal when no INT args present
+    int out_base = 10; // default to decimal when no int args present
     for (int i = 0; i < argc; ++i) {
         if (args[i].type == VAL_INT) {
             int bi = numeric_base_of(args[i]);
@@ -9890,7 +9895,7 @@ static Value builtin_len(Interpreter *interp, Value *args, int argc, Expr **arg_
         } else if (args[i].type == VAL_STR) {
             /* allowed */
         } else {
-            RUNTIME_ERROR(interp, "LEN expects INT or STR arguments", line, col);
+            RUNTIME_ERROR(interp, "LEN expects int or str arguments", line, col);
         }
     }
 
@@ -9960,7 +9965,7 @@ static Value builtin_extend(Interpreter *interp, Value *args, int argc, Expr **a
     (void)arg_nodes;
 
     if (argc < 1 || !args) {
-        RUNTIME_ERROR(interp, "EXTEND expects STR argument", line, col);
+        RUNTIME_ERROR(interp, "EXTEND expects str argument", line, col);
     }
 
     EXPECT_STR(args[0], "EXTEND", interp, line, col);
@@ -10218,21 +10223,21 @@ static int module_export_bindings(Interpreter *interp, Env *caller_env, Env *mod
     return 0;
 }
 
-// Stubs for operations requiring TNS/MAP/THD
+// Stubs for operations requiring tensor/map/THD
 static Value builtin_import(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
     (void)arg_nodes;
     (void)env;
     if (argc < 1) {
-        RUNTIME_ERROR(interp, "IMPORT expects a module name STR", line, col);
+        RUNTIME_ERROR(interp, "IMPORT expects a module name str", line, col);
     }
     if (args[0].type != VAL_STR) {
-        RUNTIME_ERROR(interp, "IMPORT first argument must be STR", line, col);
+        RUNTIME_ERROR(interp, "IMPORT first argument must be str", line, col);
     }
     const char *modname = args[0].as.s ? args[0].as.s : "";
     const char *alias = NULL;
     if (argc >= 2) {
         if (args[1].type != VAL_STR) {
-            RUNTIME_ERROR(interp, "IMPORT second argument must be STR (alias)", line, col);
+            RUNTIME_ERROR(interp, "IMPORT second argument must be str (alias)", line, col);
         }
         alias = args[1].as.s ? args[1].as.s : "";
     } else {
@@ -10529,10 +10534,10 @@ static Value builtin_include(Interpreter *interp, Value *args, int argc, Expr **
     (void)arg_nodes;
     (void)env;
     if (argc < 1) {
-        RUNTIME_ERROR(interp, "INCLUDE expects a module name STR", line, col);
+        RUNTIME_ERROR(interp, "INCLUDE expects a module name str", line, col);
     }
     if (args[0].type != VAL_STR) {
-        RUNTIME_ERROR(interp, "INCLUDE first argument must be STR", line, col);
+        RUNTIME_ERROR(interp, "INCLUDE first argument must be str", line, col);
     }
     const char *modname = args[0].as.s ? args[0].as.s : "";
 
@@ -10801,21 +10806,21 @@ static Value builtin_include(Interpreter *interp, Value *args, int argc, Expr **
     return value_bool(false);
 }
 
-// TNS operator: two forms
-// 1) TNS(STR: string) -> 1-D TNS of STR single-character elements
-// 2) TNS(TNS: shape, ANY: value) -> creates tensor with given shape filled with value
-static Value builtin_tns(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
+// tensor operator: two forms
+// 1) tensor(str: string) -> 1-D tensor of str single-character elements
+// 2) tensor(tensor: shape, ANY: value) -> creates tensor with given shape filled with value
+static Value builtin_tensor(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
     (void)arg_nodes;
     (void)env;
     if (argc == 1) {
-        // TNS(STR: string)
+        // tensor(str: string)
         if (args[0].type != VAL_STR) {
-            RUNTIME_ERROR(interp, "TNS expects STR or (TNS, value)", line, col);
+            RUNTIME_ERROR(interp, "tensor expects str or (tensor, value)", line, col);
         }
         const char *s = args[0].as.s ? args[0].as.s : "";
         size_t n = strlen(s);
         if (n == 0) {
-            return value_tns_new(TYPE_STR, 1, (const size_t[]){0});
+            return value_tensor_new(TYPE_STR, 1, (const size_t[]){0});
         }
         Value *items = malloc(sizeof(Value) * n);
         if (!items) {
@@ -10826,7 +10831,7 @@ static Value builtin_tns(Interpreter *interp, Value *args, int argc, Expr **arg_
             items[i] = value_str(buf);
         }
         size_t shape[1] = {n};
-        Value out = value_tns_from_values(TYPE_STR, 1, shape, items, n);
+        Value out = value_tensor_from_values(TYPE_STR, 1, shape, items, n);
         for (size_t i = 0; i < n; i++) {
             value_free(items[i]);
         }
@@ -10835,11 +10840,11 @@ static Value builtin_tns(Interpreter *interp, Value *args, int argc, Expr **arg_
     }
 
     if (argc == 2) {
-        // TNS(TNS: shape, ANY: value)
-        if (args[0].type != VAL_TNS) {
-            RUNTIME_ERROR(interp, "TNS expects a 1-D TNS shape as first argument", line, col);
+        // tensor(tensor: shape, ANY: value)
+        if (args[0].type != VAL_TENSOR) {
+            RUNTIME_ERROR(interp, "tensor expects a 1-D tensor shape as first argument", line, col);
         }
-        Tensor *shape_t = args[0].as.tns;
+        Tensor *shape_t = args[0].as.tensor;
         if (!shape_t) {
             RUNTIME_ERROR(interp, "Invalid shape tensor", line, col);
         }
@@ -10847,7 +10852,7 @@ static Value builtin_tns(Interpreter *interp, Value *args, int argc, Expr **arg_
             RUNTIME_ERROR(interp, "Shape tensor must be 1-D", line, col);
         }
         if (shape_t->elem_type != TYPE_INT) {
-            RUNTIME_ERROR(interp, "Shape tensor must contain INT lengths", line, col);
+            RUNTIME_ERROR(interp, "Shape tensor must contain int lengths", line, col);
         }
         // compute total length and build shape array
         size_t ndim = shape_t->shape[0];
@@ -10863,7 +10868,7 @@ static Value builtin_tns(Interpreter *interp, Value *args, int argc, Expr **arg_
             Value v = shape_t->data[i];
             if (v.type != VAL_INT) {
                 free(shape);
-                RUNTIME_ERROR(interp, "Shape entries must be INT", line, col);
+                RUNTIME_ERROR(interp, "Shape entries must be int", line, col);
             }
             if (v.as.i <= 0) {
                 free(shape);
@@ -10885,7 +10890,7 @@ static Value builtin_tns(Interpreter *interp, Value *args, int argc, Expr **arg_
             RUNTIME_ERROR(interp, "Out of memory", line, col);
         }
         for (size_t i = 0; i < total; i++) {
-            if (args[1].type == VAL_MAP || args[1].type == VAL_TNS) {
+            if (args[1].type == VAL_MAP || args[1].type == VAL_TENSOR) {
                 items[i] = value_deep_copy(args[1]);
             } else {
                 items[i] = value_copy(args[1]);
@@ -10901,14 +10906,14 @@ static Value builtin_tns(Interpreter *interp, Value *args, int argc, Expr **arg_
         case VAL_INT:
             elem_decl = TYPE_INT;
             break;
-        case VAL_FLT:
-            elem_decl = TYPE_FLT;
+        case VAL_FLOAT:
+            elem_decl = TYPE_FLOAT;
             break;
         case VAL_STR:
             elem_decl = TYPE_STR;
             break;
-        case VAL_TNS:
-            elem_decl = TYPE_TNS;
+        case VAL_TENSOR:
+            elem_decl = TYPE_TENSOR;
             break;
         case VAL_MAP:
             elem_decl = TYPE_MAP;
@@ -10916,15 +10921,15 @@ static Value builtin_tns(Interpreter *interp, Value *args, int argc, Expr **arg_
         case VAL_FUNC:
             elem_decl = TYPE_FUNC;
             break;
-        case VAL_THR:
-            elem_decl = TYPE_THR;
+        case VAL_THREAD:
+            elem_decl = TYPE_THREAD;
             break;
         default:
             elem_decl = TYPE_UNKNOWN;
             break;
         }
 
-        Value out = value_tns_from_values(elem_decl, ndim, (const size_t *)shape, items, total);
+        Value out = value_tensor_from_values(elem_decl, ndim, (const size_t *)shape, items, total);
         for (size_t i = 0; i < total; i++) {
             value_free(items[i]);
         }
@@ -10933,18 +10938,18 @@ static Value builtin_tns(Interpreter *interp, Value *args, int argc, Expr **arg_
         return out;
     }
 
-    RUNTIME_ERROR(interp, "TNS expects STR or (TNS shape, value)", line, col);
+    RUNTIME_ERROR(interp, "tensor expects str or (tensor shape, value)", line, col);
 }
 
-// ====== Tensor elementwise conversions: TINT, TFLT, TSTR ======
+// ====== Tensor elementwise conversions: tint, tfloat, tstr ======
 static Value builtin_tint(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
     (void)arg_nodes;
     (void)env;
     (void)argc;
-    if (args[0].type != VAL_TNS) {
-        RUNTIME_ERROR(interp, "TINT expects TNS argument", line, col);
+    if (args[0].type != VAL_TENSOR) {
+        RUNTIME_ERROR(interp, "tint expects tensor argument", line, col);
     }
-    Tensor *t = args[0].as.tns;
+    Tensor *t = args[0].as.tensor;
     size_t n = t->length;
     Value *items = malloc(sizeof(Value) * n);
     if (!items) {
@@ -10953,12 +10958,12 @@ static Value builtin_tint(Interpreter *interp, Value *args, int argc, Expr **arg
     for (size_t i = 0; i < n; i++) {
         Value elem = t->data[i];
         // Disallow nested tensors or functions
-        if (elem.type == VAL_TNS || elem.type == VAL_FUNC) {
+        if (elem.type == VAL_TENSOR || elem.type == VAL_FUNC) {
             for (size_t j = 0; j < i; j++) {
                 value_free(items[j]);
             }
             free(items);
-            RUNTIME_ERROR(interp, "TINT requires scalar tensor elements", line, col);
+            RUNTIME_ERROR(interp, "tint requires scalar tensor elements", line, col);
         }
         Value arg0[1] = {elem};
         Value conv = builtin_int(interp, arg0, 1, NULL, NULL, line, col);
@@ -10971,7 +10976,7 @@ static Value builtin_tint(Interpreter *interp, Value *args, int argc, Expr **arg
         }
         items[i] = conv;
     }
-    Value out = value_tns_from_values(TYPE_INT, t->ndim, t->shape, items, n);
+    Value out = value_tensor_from_values(TYPE_INT, t->ndim, t->shape, items, n);
     for (size_t i = 0; i < n; i++) {
         value_free(items[i]);
     }
@@ -10979,14 +10984,14 @@ static Value builtin_tint(Interpreter *interp, Value *args, int argc, Expr **arg
     return out;
 }
 
-static Value builtin_tflt(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
+static Value builtin_tfloat(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
     (void)arg_nodes;
     (void)env;
     (void)argc;
-    if (args[0].type != VAL_TNS) {
-        RUNTIME_ERROR(interp, "TFLT expects TNS argument", line, col);
+    if (args[0].type != VAL_TENSOR) {
+        RUNTIME_ERROR(interp, "tfloat expects tensor argument", line, col);
     }
-    Tensor *t = args[0].as.tns;
+    Tensor *t = args[0].as.tensor;
     size_t n = t->length;
     Value *items = malloc(sizeof(Value) * n);
     if (!items) {
@@ -10994,15 +10999,15 @@ static Value builtin_tflt(Interpreter *interp, Value *args, int argc, Expr **arg
     }
     for (size_t i = 0; i < n; i++) {
         Value elem = t->data[i];
-        if (elem.type == VAL_TNS || elem.type == VAL_FUNC) {
+        if (elem.type == VAL_TENSOR || elem.type == VAL_FUNC) {
             for (size_t j = 0; j < i; j++) {
                 value_free(items[j]);
             }
             free(items);
-            RUNTIME_ERROR(interp, "TFLT requires scalar tensor elements", line, col);
+            RUNTIME_ERROR(interp, "tfloat requires scalar tensor elements", line, col);
         }
         Value arg0[1] = {elem};
-        Value conv = builtin_flt(interp, arg0, 1, NULL, NULL, line, col);
+        Value conv = builtin_float(interp, arg0, 1, NULL, NULL, line, col);
         if (interp->error) {
             for (size_t j = 0; j < i; j++) {
                 value_free(items[j]);
@@ -11012,7 +11017,7 @@ static Value builtin_tflt(Interpreter *interp, Value *args, int argc, Expr **arg
         }
         items[i] = conv;
     }
-    Value out = value_tns_from_values(TYPE_FLT, t->ndim, t->shape, items, n);
+    Value out = value_tensor_from_values(TYPE_FLOAT, t->ndim, t->shape, items, n);
     for (size_t i = 0; i < n; i++) {
         value_free(items[i]);
     }
@@ -11024,10 +11029,10 @@ static Value builtin_tstr(Interpreter *interp, Value *args, int argc, Expr **arg
     (void)arg_nodes;
     (void)env;
     (void)argc;
-    if (args[0].type != VAL_TNS) {
-        RUNTIME_ERROR(interp, "TSTR expects TNS argument", line, col);
+    if (args[0].type != VAL_TENSOR) {
+        RUNTIME_ERROR(interp, "tstr expects tensor argument", line, col);
     }
-    Tensor *t = args[0].as.tns;
+    Tensor *t = args[0].as.tensor;
     size_t n = t->length;
     Value *items = malloc(sizeof(Value) * n);
     if (!items) {
@@ -11035,12 +11040,12 @@ static Value builtin_tstr(Interpreter *interp, Value *args, int argc, Expr **arg
     }
     for (size_t i = 0; i < n; i++) {
         Value elem = t->data[i];
-        if (elem.type == VAL_TNS || elem.type == VAL_FUNC) {
+        if (elem.type == VAL_TENSOR || elem.type == VAL_FUNC) {
             for (size_t j = 0; j < i; j++) {
                 value_free(items[j]);
             }
             free(items);
-            RUNTIME_ERROR(interp, "TSTR requires scalar tensor elements", line, col);
+            RUNTIME_ERROR(interp, "tstr requires scalar tensor elements", line, col);
         }
         Value arg0[1] = {elem};
         Value conv = builtin_str(interp, arg0, 1, NULL, NULL, line, col);
@@ -11053,7 +11058,7 @@ static Value builtin_tstr(Interpreter *interp, Value *args, int argc, Expr **arg
         }
         items[i] = conv;
     }
-    Value out = value_tns_from_values(TYPE_STR, t->ndim, t->shape, items, n);
+    Value out = value_tensor_from_values(TYPE_STR, t->ndim, t->shape, items, n);
     for (size_t i = 0; i < n; i++) {
         value_free(items[i]);
     }
@@ -11063,7 +11068,7 @@ static Value builtin_tstr(Interpreter *interp, Value *args, int argc, Expr **arg
 
 // ============ Builtins table ============
 // Definitions for ARGV and RUN are placed here so the table can reference them.
-// ARGV builtin: returns a 1-D TNS of STR containing process argv in order
+// ARGV builtin: returns a 1-D tensor of str containing process argv in order
 static Value builtin_argv(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
     (void)args;
     (void)arg_nodes;
@@ -11074,7 +11079,7 @@ static Value builtin_argv(Interpreter *interp, Value *args, int argc, Expr **arg
     if (n == 0) {
         // Return empty 1-D tensor
         size_t shape[1] = {0};
-        return value_tns_new(TYPE_STR, 1, shape);
+        return value_tensor_new(TYPE_STR, 1, shape);
     }
     Value *items = malloc(sizeof(Value) * n);
     if (!items) {
@@ -11085,7 +11090,7 @@ static Value builtin_argv(Interpreter *interp, Value *args, int argc, Expr **arg
     }
     size_t shape[1];
     shape[0] = n;
-    Value out = value_tns_from_values(TYPE_STR, 1, shape, items, n);
+    Value out = value_tensor_from_values(TYPE_STR, 1, shape, items, n);
     for (size_t i = 0; i < n; i++) {
         value_free(items[i]);
     }
@@ -11093,7 +11098,7 @@ static Value builtin_argv(Interpreter *interp, Value *args, int argc, Expr **arg
     return out;
 }
 
-// RUN(STR: s) - parse and execute a Prefix program string within
+// RUN(str: s) - parse and execute a Prefix program string within
 // the current interpreter and environment.
 static Value builtin_run(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
     (void)arg_nodes;
@@ -11129,35 +11134,35 @@ static Value builtin_run(Interpreter *interp, Value *args, int argc, Expr **arg_
     return value_null();
 }
 
-// AWAIT(THR: thread):THR — block until thread is finished and return handle
+// AWAIT(thread: thread):thread — block until thread is finished and return handle
 static Value builtin_await(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
     (void)arg_nodes;
     (void)env;
     if (argc != 1) {
         RUNTIME_ERROR(interp, "AWAIT expects 1 argument", line, col);
     }
-    if (args[0].type != VAL_THR || !args[0].as.thr) {
-        RUNTIME_ERROR(interp, "AWAIT expects THR argument", line, col);
+    if (args[0].type != VAL_THREAD || !args[0].as.thread) {
+        RUNTIME_ERROR(interp, "AWAIT expects thread argument", line, col);
     }
-    // Make a local copy of the thread handle to ensure the Thr
+    // Make a local copy of the thread handle to ensure the Thread
     // struct remains alive while we wait/join (prevents a race
-    // where the worker could free the Thr between the check and
+    // where the worker could free the Thread between the check and
     // the join).
     Value ret = value_copy(args[0]);
-    if (!value_thr_get_started(ret)) {
+    if (!value_thread_get_started(ret)) {
         return ret;
     }
     // Wait for worker to mark finished; yield while spinning to be cooperative
-    while (!value_thr_get_finished(ret)) {
+    while (!value_thread_get_finished(ret)) {
         thrd_yield();
     }
     // Join to reclaim thread resources; ignore join errors
-    thrd_join(ret.as.thr->thread, NULL);
+    thrd_join(ret.as.thread->thread, NULL);
     return ret;
 }
 
 typedef struct {
-    Value thr_val;
+    Value thread_val;
     double seconds;
 } PauseTimer;
 
@@ -11174,54 +11179,54 @@ static int pause_timer_worker(void *arg) {
         ts.tv_nsec = (long)(frac * 1000000000.0);
         thrd_sleep(&ts, NULL);
     }
-    if (pt->thr_val.type == VAL_THR && pt->thr_val.as.thr) {
-        value_thr_set_paused(pt->thr_val, 0);
+    if (pt->thread_val.type == VAL_THREAD && pt->thread_val.as.thread) {
+        value_thread_set_paused(pt->thread_val, 0);
     }
-    value_free(pt->thr_val);
+    value_free(pt->thread_val);
     free(pt);
     return 0;
 }
 
-// PAUSE(THR: thread, FLT: seconds=-1):THR
+// PAUSE(thread: thread, float: seconds=-1):thread
 static Value builtin_pause(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
     (void)arg_nodes;
     (void)env;
     if (argc < 1 || argc > 2) {
         RUNTIME_ERROR(interp, "PAUSE expects 1 or 2 arguments", line, col);
     }
-    if (args[0].type != VAL_THR || !args[0].as.thr) {
-        RUNTIME_ERROR(interp, "PAUSE expects THR argument", line, col);
+    if (args[0].type != VAL_THREAD || !args[0].as.thread) {
+        RUNTIME_ERROR(interp, "PAUSE expects thread argument", line, col);
     }
-    if (value_thr_get_finished(args[0])) {
+    if (value_thread_get_finished(args[0])) {
         RUNTIME_ERROR(interp, "Cannot pause finished thread", line, col);
     }
-    if (value_thr_get_paused(args[0])) {
+    if (value_thread_get_paused(args[0])) {
         RUNTIME_ERROR(interp, "Thread already paused", line, col);
     }
 
     double seconds = -1.0;
     if (argc == 2) {
-        if (args[1].type == VAL_FLT) {
+        if (args[1].type == VAL_FLOAT) {
             seconds = args[1].as.f;
         } else {
-            RUNTIME_ERROR(interp, "PAUSE expects FLT seconds", line, col);
+            RUNTIME_ERROR(interp, "PAUSE expects float seconds", line, col);
         }
     }
 
-    value_thr_set_paused(args[0], 1);
+    value_thread_set_paused(args[0], 1);
 
     if (seconds >= 0) {
         PauseTimer *pt = malloc(sizeof(PauseTimer));
         if (!pt) {
             RUNTIME_ERROR(interp, "Out of memory", line, col);
         }
-        pt->thr_val = value_copy(args[0]);
+        pt->thread_val = value_copy(args[0]);
         pt->seconds = seconds;
         thrd_t t;
         if (thrd_create(&t, pause_timer_worker, pt) != thrd_success) {
-            value_free(pt->thr_val);
+            value_free(pt->thread_val);
             free(pt);
-            value_thr_set_paused(args[0], 0);
+            value_thread_set_paused(args[0], 0);
             RUNTIME_ERROR(interp, "Failed to schedule resume", line, col);
         }
         thrd_detach(t);
@@ -11230,59 +11235,59 @@ static Value builtin_pause(Interpreter *interp, Value *args, int argc, Expr **ar
     return value_copy(args[0]);
 }
 
-// RESUME(THR: thread):THR
+// RESUME(thread: thread):thread
 static Value builtin_resume(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
     (void)arg_nodes;
     (void)env;
     if (argc != 1) {
         RUNTIME_ERROR(interp, "RESUME expects 1 argument", line, col);
     }
-    if (args[0].type != VAL_THR || !args[0].as.thr) {
-        RUNTIME_ERROR(interp, "RESUME expects THR argument", line, col);
+    if (args[0].type != VAL_THREAD || !args[0].as.thread) {
+        RUNTIME_ERROR(interp, "RESUME expects thread argument", line, col);
     }
-    if (!value_thr_get_paused(args[0])) {
+    if (!value_thread_get_paused(args[0])) {
         RUNTIME_ERROR(interp, "Thread is not paused", line, col);
     }
-    value_thr_set_paused(args[0], 0);
+    value_thread_set_paused(args[0], 0);
     return value_copy(args[0]);
 }
 
-// PAUSED(THR: thread):INT
+// PAUSED(thread: thread):int
 static Value builtin_paused(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
     (void)arg_nodes;
     (void)env;
     if (argc != 1) {
         RUNTIME_ERROR(interp, "PAUSED expects 1 argument", line, col);
     }
-    if (args[0].type != VAL_THR || !args[0].as.thr) {
-        RUNTIME_ERROR(interp, "PAUSED expects THR argument", line, col);
+    if (args[0].type != VAL_THREAD || !args[0].as.thread) {
+        RUNTIME_ERROR(interp, "PAUSED expects thread argument", line, col);
     }
-    return value_bool(value_thr_get_paused(args[0]) != 0);
+    return value_bool(value_thread_get_paused(args[0]) != 0);
 }
 
-// STOP(THR: thread):THR — cooperatively stop a running thread and mark finished
+// STOP(thread: thread):thread — cooperatively stop a running thread and mark finished
 static Value builtin_stop(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
     (void)arg_nodes;
     (void)env;
     if (argc != 1) {
         RUNTIME_ERROR(interp, "STOP expects 1 argument", line, col);
     }
-    if (args[0].type != VAL_THR || !args[0].as.thr) {
-        RUNTIME_ERROR(interp, "STOP expects THR argument", line, col);
+    if (args[0].type != VAL_THREAD || !args[0].as.thread) {
+        RUNTIME_ERROR(interp, "STOP expects thread argument", line, col);
     }
-    if (value_thr_get_finished(args[0])) {
+    if (value_thread_get_finished(args[0])) {
         return value_copy(args[0]);
     }
-    Thr *th = args[0].as.thr;
-    value_thr_set_paused(args[0], 0);
-    value_thr_set_finished(args[0], 1);
-    if (value_thr_get_started(args[0])) {
+    Thread *th = args[0].as.thread;
+    value_thread_set_paused(args[0], 0);
+    value_thread_set_finished(args[0], 1);
+    if (value_thread_get_started(args[0])) {
         thrd_join(th->thread, NULL);
     }
     return value_copy(args[0]);
 }
 
-// RESTART(THR: thread):THR — reinitialize and start executing the thread again
+// RESTART(thread: thread):thread — reinitialize and start executing the thread again
 static Value builtin_restart(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line,
                              int col) {
     (void)arg_nodes;
@@ -11290,17 +11295,17 @@ static Value builtin_restart(Interpreter *interp, Value *args, int argc, Expr **
     if (argc != 1) {
         RUNTIME_ERROR(interp, "RESTART expects 1 argument", line, col);
     }
-    if (args[0].type != VAL_THR || !args[0].as.thr) {
-        RUNTIME_ERROR(interp, "RESTART expects THR argument", line, col);
+    if (args[0].type != VAL_THREAD || !args[0].as.thread) {
+        RUNTIME_ERROR(interp, "RESTART expects thread argument", line, col);
     }
-    Thr *th = args[0].as.thr;
+    Thread *th = args[0].as.thread;
     if (!th->body || !th->env) {
         RUNTIME_ERROR(interp, "Cannot restart: no stored thread body/env", line, col);
     }
-    if (!value_thr_get_finished(args[0])) {
+    if (!value_thread_get_finished(args[0])) {
         RUNTIME_ERROR(interp, "Cannot restart running thread", line, col);
     }
-    // Delegate to interpreter helper that knows how to launch thr_worker
+    // Delegate to interpreter helper that knows how to launch thread_worker
     if (interpreter_restart_thread(interp, args[0], line, col) != 0) {
         // interpreter_restart_thread sets interp->error on failure
         RUNTIME_ERROR(interp, interp->error ? interp->error : "Failed to restart thread", line, col);
@@ -11308,7 +11313,7 @@ static Value builtin_restart(Interpreter *interp, Value *args, int argc, Expr **
     return value_copy(args[0]);
 }
 
-// PARALLEL(TNS: functions) or PARALLEL(FUNC, FUNC, ...):INT
+// PARALLEL(tensor: functions) or PARALLEL(func, func, ...):int
 typedef struct {
     Interpreter *interp;
     struct Func *func;
@@ -11325,18 +11330,18 @@ static DeclType value_type_to_decl(ValueType vt) {
         return TYPE_BOOL;
     case VAL_INT:
         return TYPE_INT;
-    case VAL_FLT:
-        return TYPE_FLT;
+    case VAL_FLOAT:
+        return TYPE_FLOAT;
     case VAL_STR:
         return TYPE_STR;
-    case VAL_TNS:
-        return TYPE_TNS;
+    case VAL_TENSOR:
+        return TYPE_TENSOR;
     case VAL_MAP:
         return TYPE_MAP;
     case VAL_FUNC:
         return TYPE_FUNC;
-    case VAL_THR:
-        return TYPE_THR;
+    case VAL_THREAD:
+        return TYPE_THREAD;
     default:
         return TYPE_UNKNOWN;
     }
@@ -11359,19 +11364,19 @@ static bool coerce_value_to_decl_type(Interpreter *interp, Value input, DeclType
     const char *builtin_name = NULL;
     switch (target) {
     case TYPE_BOOL:
-        builtin_name = "BOOL";
+        builtin_name = "bool";
         break;
     case TYPE_INT:
-        builtin_name = "INT";
+        builtin_name = "int";
         break;
-    case TYPE_FLT:
-        builtin_name = "FLT";
+    case TYPE_FLOAT:
+        builtin_name = "float";
         break;
     case TYPE_STR:
-        builtin_name = "STR";
+        builtin_name = "str";
         break;
-    case TYPE_TNS:
-        builtin_name = "TNS";
+    case TYPE_TENSOR:
+        builtin_name = "tensor";
         break;
     default:
         return false;
@@ -11537,12 +11542,12 @@ static Value builtin_parallel(Interpreter *interp, Value *args, int argc, Expr *
                               int col) {
     (void)arg_nodes;
     (void)env;
-    // Gather elements: either a single tensor argument or variadic FUNC args
+    // Gather elements: either a single tensor argument or variadic func args
     Value *elems = NULL;
     size_t n = 0;
 
-    if (argc == 1 && args[0].type == VAL_TNS) {
-        Tensor *t = args[0].as.tns;
+    if (argc == 1 && args[0].type == VAL_TENSOR) {
+        Tensor *t = args[0].as.tensor;
         n = t->length;
         elems = malloc(sizeof(Value) * n);
         if (!elems) {
@@ -11572,7 +11577,7 @@ static Value builtin_parallel(Interpreter *interp, Value *args, int argc, Expr *
                 value_free(elems[j]);
             }
             free(elems);
-            RUNTIME_ERROR(interp, "PARALLEL expects functions (either a tensor of FUNC or FUNC arguments)", line, col);
+            RUNTIME_ERROR(interp, "PARALLEL expects functions (either a tensor of func or func arguments)", line, col);
         }
     }
 
@@ -11727,10 +11732,10 @@ static BuiltinFunction builtins_table[] = {
     {"F/", 2, 2, builtin_fdiv},
     {"FPOW", 2, 2, builtin_fpow},
     // Tensor elementwise operators
-    {"TNS", 1, 2, builtin_tns},
-    {"TINT", 1, 1, builtin_tint},
-    {"TFLT", 1, 1, builtin_tflt},
-    {"TSTR", 1, 1, builtin_tstr},
+    {"tensor", 1, 2, builtin_tensor},
+    {"tint", 1, 1, builtin_tint},
+    {"tfloat", 1, 1, builtin_tfloat},
+    {"tstr", 1, 1, builtin_tstr},
     {"CONV", 2, 7, builtin_conv, builtin_params_conv, 7},
     {"FILL", 2, 2, builtin_fill},
     {"T+", 2, 2, builtin_tadd},
@@ -11763,7 +11768,7 @@ static BuiltinFunction builtins_table[] = {
     {"OR", 2, 2, builtin_or},
     {"XOR", 2, 2, builtin_xor},
     {"NOT", 1, 1, builtin_not},
-    {"BOOL", 1, 1, builtin_bool},
+    {"bool", 1, 1, builtin_bool},
 
     // Bitwise
     {"BAND", 2, 2, builtin_band},
@@ -11774,9 +11779,9 @@ static BuiltinFunction builtins_table[] = {
     {"SHR", 2, 2, builtin_shr},
 
     // Type conversion
-    {"INT", 1, 1, builtin_int},
-    {"FLT", 1, 1, builtin_flt},
-    {"STR", 1, 1, builtin_str},
+    {"int", 1, 1, builtin_int},
+    {"float", 1, 1, builtin_float},
+    {"str", 1, 1, builtin_str},
     {"CONVERT", 2, 2, builtin_convert},
     {"BASE", 1, 1, builtin_base},
     {"BYTES", 1, 2, builtin_bytes, builtin_params_bytes, 2},
@@ -11784,14 +11789,14 @@ static BuiltinFunction builtins_table[] = {
     {"UNSER", 1, 1, builtin_unser},
 
     // Type checking
-    {"ISBOOL", 1, 1, builtin_isbool},
-    {"ISINT", 1, 1, builtin_isint},
-    {"ISFLT", 1, 1, builtin_isflt},
-    {"ISSTR", 1, 1, builtin_isstr},
-    {"ISTNS", 1, 1, builtin_istns},
-    {"ISMAP", 1, 1, builtin_ismap},
-    {"ISFUNC", 1, 1, builtin_isfunc},
-    {"ISTHR", 1, 1, builtin_isthr},
+    {"isbool", 1, 1, builtin_isbool},
+    {"isint", 1, 1, builtin_isint},
+    {"isfloat", 1, 1, builtin_isfloat},
+    {"isstr", 1, 1, builtin_isstr},
+    {"istensor", 1, 1, builtin_istensor},
+    {"ismap", 1, 1, builtin_ismap},
+    {"isfunc", 1, 1, builtin_isfunc},
+    {"isthread", 1, 1, builtin_isthread},
     {"TYPE", 1, 1, builtin_type},
     {"SIGNATURE", 1, 1, builtin_signature},
 

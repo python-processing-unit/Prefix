@@ -2,7 +2,7 @@ passing:
   - name: eq-scalars
     language: Prefix
     source: |
-        ASSERT(ISBOOL(EQ(TRUE, TRUE)))
+        ASSERT(isbool(EQ(TRUE, TRUE)))
         ASSERT(EQ(TRUE, TRUE))
         REFUTE(EQ(TRUE, FALSE))
         
@@ -17,20 +17,20 @@ passing:
   - name: eq-structured
     language: Prefix
     source: |
-        TNS tensor = [[0d1, 0d2], [0d3, 0d4]]
-        TNS tensor_copy = tensor
+        tensor tensor = [[0d1, 0d2], [0d3, 0d4]]
+        tensor tensor_copy = tensor
         
-        MAP map_value = <"alpha" = 0d1, "beta" = [0d2, 0d3]>
-        MAP map_copy = map_value
+        map map_value = <"alpha" = 0d1, "beta" = [0d2, 0d3]>
+        map map_copy = map_value
         
-        FUNC INT identity(INT value){
+        func int identity(int value){
             RETURN(value)
         }
-        FUNC identity_alias = identity
+        func identity_alias = identity
         
-        THR(worker){}
+        thread(worker){}
         
-        ASSERT(ISBOOL(EQ(tensor_copy, tensor)))
+        ASSERT(isbool(EQ(tensor_copy, tensor)))
         ASSERT(EQ(tensor_copy, tensor))
         REFUTE(EQ(tensor, [[0d1, 0d2], [0d3, 0d5]]))
         
@@ -42,7 +42,7 @@ passing:
   - name: neq-scalars
     language: Prefix
     source: |
-        ASSERT(ISBOOL(NEQ(TRUE, FALSE)))
+        ASSERT(isbool(NEQ(TRUE, FALSE)))
         ASSERT(NEQ(TRUE, FALSE))
         REFUTE(NEQ(TRUE, TRUE))
         
@@ -57,21 +57,21 @@ passing:
   - name: neq-structured
     language: Prefix
     source: |
-        TNS tensor = [[0d1, 0d2], [0d3, 0d4]]
-        TNS different_tensor = [[0d1, 0d2], [0d3, 0d5]]
+        tensor tensor = [[0d1, 0d2], [0d3, 0d4]]
+        tensor different_tensor = [[0d1, 0d2], [0d3, 0d5]]
         
-        MAP map_value = <"alpha" = 0d1, "beta" = [0d2, 0d3]>
-        MAP different_map = <"alpha" = 0d1, "beta" = [0d2, 0d4]>
+        map map_value = <"alpha" = 0d1, "beta" = [0d2, 0d3]>
+        map different_map = <"alpha" = 0d1, "beta" = [0d2, 0d4]>
         
-        FUNC INT identity(INT value){
+        func int identity(int value){
             RETURN(value)
         }
-        FUNC identity_alias = identity
+        func identity_alias = identity
         
-        THR(worker){}
-        THR(other){}
+        thread(worker){}
+        thread(other){}
         
-        ASSERT(ISBOOL(NEQ(tensor, different_tensor)))
+        ASSERT(isbool(NEQ(tensor, different_tensor)))
         ASSERT(NEQ(tensor, different_tensor))
         REFUTE(NEQ(tensor, tensor))
         

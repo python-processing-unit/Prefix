@@ -2,33 +2,33 @@ passing:
   - name: parallel-tensor-func-values
     language: Prefix
     source: |
-        TNS seen = [FALSE, FALSE]
+        tensor seen = [FALSE, FALSE]
         
-        FUNC first = LAMBDA BOOL (){
+        func first = LAMBDA bool (){
             FOR(i, 0d500){}
             seen[0d1] = TRUE
         }
         
-        FUNC second = LAMBDA BOOL (){
+        func second = LAMBDA bool (){
             FOR(i, 0d500){}
             seen[0d2] = TRUE
         }
         
-        TNS workers = [first, second]
+        tensor workers = [first, second]
         
         ASSERT(EQ(PARALLEL(workers), FALSE))
         ASSERT(EQ(seen, [TRUE, TRUE]))
   - name: parallel-tensor-literal
     language: Prefix
     source: |
-        TNS seen = [FALSE, FALSE]
+        tensor seen = [FALSE, FALSE]
         
-        FUNC BOOL first(){
+        func bool first(){
             FOR(i, 0d500){}
             seen[0d1] = TRUE
         }
         
-        FUNC BOOL second(){
+        func bool second(){
             FOR(i, 0d500){}
             seen[0d2] = TRUE
         }
@@ -38,21 +38,21 @@ passing:
   - name: parallel-variadic
     language: Prefix
     source: |
-        TNS seen = [FALSE, FALSE, FALSE]
+        tensor seen = [FALSE, FALSE, FALSE]
         
-        FUNC BOOL first(){
+        func bool first(){
             FOR(i, 0d500){
             }
             seen[0d1] = TRUE
         }
         
-        FUNC BOOL second(){
+        func bool second(){
             FOR(i, 0d500){
             }
             seen[0d2] = TRUE
         }
         
-        FUNC BOOL third(){
+        func bool third(){
             FOR(i, 0d500){
             }
             seen[0d3] = TRUE
@@ -70,13 +70,13 @@ failing:
   - name: parallel-tensor-non-func
     language: Prefix
     source: |
-        FUNC BOOL worker(){}
+        func bool worker(){}
         
         PARALLEL([worker, 0d1])
   - name: parallel-worker-failure
     language: Prefix
     source: |
-        FUNC BOOL explode(){
+        func bool explode(){
             THROW("boom")
         }
         
@@ -84,7 +84,7 @@ failing:
   - name: parallel-worker-no-args
     language: Prefix
     source: |
-        FUNC BOOL requires_arg(INT value){
+        func bool requires_arg(int value){
             RETURN(TRUE)
         }
         

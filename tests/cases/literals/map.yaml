@@ -2,13 +2,13 @@ passing:
   - name: map-literals-empty-ordered
     language: Prefix
     source: |
-        FUNC INT GET_FIVE(){
+        func int GET_FIVE(){
             RETURN(0d5)
         }
         
-        MAP empty = <>
-        MAP ordered = <"alpha" = 0d1, "beta" = 0d2, "gamma" = 0d3>
-        MAP duplicate = <"x" = 0d1, "y" = 0d2, "x" = 0d3>
+        map empty = <>
+        map ordered = <"alpha" = 0d1, "beta" = 0d2, "gamma" = 0d3>
+        map duplicate = <"x" = 0d1, "y" = 0d2, "x" = 0d3>
         
         ASSERT(EQ(empty, <>))
         
@@ -36,8 +36,8 @@ passing:
   - name: map-literals-mixed-keys-nested
     language: Prefix
     source: |
-        MAP mixed_keys = <0d1 = "int", 0d2.5 = "flt", "three" = "str", +(0d2, 0d2) = "expr">
-        MAP nested = <"outer" = <"inner" = 0d9>, "empty_inner" = <>>
+        map mixed_keys = <0d1 = "int", 0d2.5 = "flt", "three" = "str", +(0d2, 0d2) = "expr">
+        map nested = <"outer" = <"inner" = 0d9>, "empty_inner" = <>>
         
         ASSERT(EQ(mixed_keys<0d1>, "int"))
         ASSERT(EQ(mixed_keys<0d2.5>, "flt"))
@@ -55,12 +55,12 @@ passing:
   - name: map-literals-mixed-values
     language: Prefix
     source: |
-        FUNC INT GET_FIVE(){
+        func int GET_FIVE(){
             RETURN(0d5)
         }
         
-        THR(worker){}
-        MAP mixed_values = <"bool" = TRUE, "int" = 0d2, "flt" = 0d3.5, "str" = "four", "tns" = [0d1, 0d2], "map" = <"n" = 0d5>, "func" = GET_FIVE, "thr" = worker>
+        thread(worker){}
+        map mixed_values = <"bool" = TRUE, "int" = 0d2, "flt" = 0d3.5, "str" = "four", "tns" = [0d1, 0d2], "map" = <"n" = 0d5>, "func" = GET_FIVE, "thr" = worker>
         
         ASSERT(EQ(mixed_values<"bool">, TRUE))
         ASSERT(EQ(mixed_values<"int">, 0d2))
@@ -74,9 +74,9 @@ passing:
   - name: map-literals-self
     language: Prefix
     source: |
-        MAP self_alias = <"value" = 0d1, "self" = SELF>
-        MAP self_lookup = <"value" = 0d7, "copy" = SELF<"value">, "nested" = <"n" = 0d9>, "copy_nested" = SELF<"nested", "n">>
-        MAP inner_self = <"inner" = <"value" = 0d4, "self" = SELF, "copy" = SELF<"value">>>
+        map self_alias = <"value" = 0d1, "self" = SELF>
+        map self_lookup = <"value" = 0d7, "copy" = SELF<"value">, "nested" = <"n" = 0d9>, "copy_nested" = SELF<"nested", "n">>
+        map inner_self = <"inner" = <"value" = 0d4, "self" = SELF, "copy" = SELF<"value">>>
         
         ASSERT(EQ(self_alias<"self", "value">, 0d1))
         self_alias<"value"> = 0d2
@@ -92,30 +92,30 @@ failing:
   - name: map-literal-bad-key-bool
     language: Prefix
     source: |
-        MAP bad = <TRUE = 0d1>
+        map bad = <TRUE = 0d1>
         
   - name: map-literal-bad-key-tns
     language: Prefix
     source: |
-        MAP bad = <[0d1] = 0d1>
+        map bad = <[0d1] = 0d1>
         
   - name: map-literal-missing-equals
     language: Prefix
     source: |
-        MAP bad = <"a" 0d1>
+        map bad = <"a" 0d1>
         
   - name: map-literal-self-bad-key
     language: Prefix
     source: |
-        MAP bad = <"value" = 0d1, "copy" = SELF<TRUE>>
+        map bad = <"value" = 0d1, "copy" = SELF<TRUE>>
         
   - name: map-literal-self-forward
     language: Prefix
     source: |
-        MAP bad = <"copy" = SELF<"value">, "value" = 0d1>
+        map bad = <"copy" = SELF<"value">, "value" = 0d1>
         
   - name: map-literal-trailing-comma
     language: Prefix
     source: |
-        MAP bad = <"a" = 0d1,>
+        map bad = <"a" = 0d1,>
         

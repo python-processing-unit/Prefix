@@ -4,7 +4,7 @@ passing:
     source: |
         IMPORT("path", "helper")
         
-        ASSERT(EQ(TYPE(helper.TEMPFILE("import-alias-qualified-namespace.txt")), "STR"))
+        ASSERT(EQ(TYPE(helper.TEMPFILE("import-alias-qualified-namespace.txt")), "str"))
   - name: import-alias-type-str
     language: Prefix
     source: |
@@ -26,7 +26,7 @@ passing:
           $modulePath = Join-Path $tempDir "$moduleName.pre"
         
           Set-Content -Path $modulePath -Encoding Ascii -Value @"
-        STR marker = "$markerLiteral"
+        str marker = "$markerLiteral"
         
         IF(EXISTFILE(marker)){
             WRITEFILE("reloaded", marker)
@@ -34,7 +34,7 @@ passing:
             WRITEFILE("loaded", marker)
         }
         
-        FUNC STR marker_text(){
+        func str marker_text(){
             RETURN(READFILE(marker))
         }
         "@
@@ -70,15 +70,15 @@ passing:
           $modulePath = Join-Path $tempDir "$moduleName.pre"
         
           Set-Content -Path $modulePath -Encoding Ascii -Value @'
-        INT shared = 0d7
+        int shared = 0d7
         
-        FUNC INT read_shared(){
+        func int read_shared(){
             RETURN(shared)
         }
         '@
         
           Set-Content -Path $programPath -Encoding Ascii -Value @"
-        INT shared = 0d11
+        int shared = 0d11
         
         IMPORT("$moduleName", "helper")
         
@@ -111,13 +111,13 @@ passing:
           $localModulePath = Join-Path $tempDir "$moduleName.pre"
         
           Set-Content -Path $localModulePath -Encoding Ascii -Value @'
-        FUNC STR identify(){
+        func str identify(){
             RETURN("local")
         }
         '@
         
           Set-Content -Path $stdlibPath -Encoding Ascii -Value @'
-        FUNC STR identify(){
+        func str identify(){
             RETURN("stdlib")
         }
         '@
@@ -153,7 +153,7 @@ passing:
           $pointerPath = Join-Path $tempDir "$moduleName.prex"
         
           Set-Content -Path $modulePath -Encoding Ascii -Value @'
-        FUNC STR identify(){
+        func str identify(){
             RETURN("source")
         }
         '@
@@ -192,7 +192,7 @@ passing:
           New-Item -ItemType Directory -Path $packageDir | Out-Null
         
           Set-Content -Path $initPath -Encoding Ascii -Value @'
-        FUNC STR identify(){
+        func str identify(){
             RETURN("package")
         }
         '@
@@ -229,7 +229,7 @@ passing:
           New-Item -ItemType Directory -Path $packageDir | Out-Null
         
           Set-Content -Path $modulePath -Encoding Ascii -Value @'
-        FUNC STR identify(){
+        func str identify(){
             RETURN("module")
         }
         '@
@@ -265,13 +265,13 @@ passing:
           New-Item -ItemType Directory -Path $packageDir | Out-Null
         
           Set-Content -Path $modulePath -Encoding Ascii -Value @'
-        FUNC STR identify(){
+        func str identify(){
             RETURN("module")
         }
         '@
         
           Set-Content -Path $initPath -Encoding Ascii -Value @'
-        FUNC STR identify(){
+        func str identify(){
             RETURN("package")
         }
         '@
@@ -296,7 +296,7 @@ passing:
     source: |
         IMPORT("path")
         
-        ASSERT(EQ(TYPE(path.TEMPFILE("import-qualified-namespace.txt")), "STR"))
+        ASSERT(EQ(TYPE(path.TEMPFILE("import-qualified-namespace.txt")), "str"))
   - name: import-qualified-only
     language: PowerShell
     source: |
@@ -311,7 +311,7 @@ passing:
           $modulePath = Join-Path $tempDir "$moduleName.pre"
         
           Set-Content -Path $modulePath -Encoding Ascii -Value @'
-        INT hidden = 0d7
+        int hidden = 0d7
         '@
         
           Set-Content -Path $programPath -Encoding Ascii -Value @"
@@ -332,7 +332,7 @@ passing:
   - name: import-return-false
     language: Prefix
     source: |
-        ASSERT(EQ(TYPE(IMPORT("path")), "BOOL"))
+        ASSERT(EQ(TYPE(IMPORT("path")), "bool"))
         REFUTE(IMPORT("path"))
   - name: import-stdlib-before-userlib
     language: PowerShell
@@ -350,13 +350,13 @@ passing:
           $programPath = Join-Path $tempDir 'program.pre'
         
           Set-Content -Path $stdlibPath -Encoding Ascii -Value @'
-        FUNC STR identify(){
+        func str identify(){
             RETURN("stdlib")
         }
         '@
         
           Set-Content -Path $userlibPath -Encoding Ascii -Value @'
-        FUNC STR identify(){
+        func str identify(){
             RETURN("userlib")
         }
         '@
@@ -392,7 +392,7 @@ failing:
     source: 'IMPORT("path", 0d1.0)'
   - name: import-alias-type-func
     language: Prefix
-    source: 'IMPORT("path", LAMBDA BOOL: (){})'
+    source: 'IMPORT("path", LAMBDA bool: (){})'
   - name: import-alias-type-int
     language: Prefix
     source: 'IMPORT("path", 0d1)'
@@ -422,7 +422,7 @@ failing:
     source: IMPORT(0d1.0)
   - name: import-type-func
     language: Prefix
-    source: 'IMPORT(LAMBDA BOOL: (){})'
+    source: 'IMPORT(LAMBDA bool: (){})'
   - name: import-type-int
     language: Prefix
     source: IMPORT(0d1)

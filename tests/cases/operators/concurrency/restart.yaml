@@ -2,9 +2,9 @@ passing:
   - name: restart-basic
     language: Prefix
     source: |
-        BOOL finished = FALSE
+        bool finished = FALSE
         
-        THR worker = ASYNC{
+        thread worker = ASYNC{
             FOR(i, 0d1000){}
             finished = TRUE
         }
@@ -14,10 +14,10 @@ passing:
         ASSERT(EQ(finished, TRUE))
         
         ! Restart the finished thread
-        THR r = RESTART(worker)
-        ASSERT(EQ(TYPE(r), "THR"))
+        thread r = RESTART(worker)
+        ASSERT(EQ(TYPE(r), "thread"))
         ASSERT(EQ(r, worker))
-        ASSERT(BOOL(r))
+        ASSERT(bool(r))
         
         ! After restart, the thread should run again and set finished
         AWAIT(r)
@@ -38,7 +38,7 @@ failing:
     source: RESTART(0d1.0)
   - name: restart-func
     language: Prefix
-    source: 'RESTART(LAMBDA BOOL: (){})'
+    source: 'RESTART(LAMBDA bool: (){})'
   - name: restart-int
     language: Prefix
     source: RESTART(0d1)
@@ -48,7 +48,7 @@ failing:
   - name: restart-running
     language: Prefix
     source: |
-        THR worker = ASYNC{
+        thread worker = ASYNC{
             FOR(i, 0d100000){}
         }
         

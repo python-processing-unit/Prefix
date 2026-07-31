@@ -2,26 +2,26 @@ passing:
   - name: argv-elements-str
     language: Prefix
     source: |
-        TNS args = ARGV()
+        tensor args = ARGV()
         
         FOR(i, TLEN(args, 0d1)){
-            ASSERT(ISSTR(args[i]))
+            ASSERT(isstr(args[i]))
         }
   - name: argv-order-program-arg-last
     language: Prefix
     source: |
         ! ARGV_LAST_ARG_SELF_FILE_MARKER
-        STR source = REPLACE(READFILE(ARGV()[-0d1]), "\r", "")
+        str source = REPLACE(READFILE(ARGV()[-0d1]), "\r", "")
         
         ASSERT(IN("! ARGV_LAST_ARG_SELF_FILE_MARKER", SPLIT(source, "\n")))
   - name: argv-rank-1
     language: Prefix
     source: |
-        ASSERT(EQ(TYPE(SHAPE(ARGV())), "TNS"))
+        ASSERT(EQ(TYPE(SHAPE(ARGV())), "tensor"))
         ASSERT(EQ(TLEN(SHAPE(ARGV()), 0d1), 0d1))
   - name: argv-return-type
     language: Prefix
-    source: 'ASSERT(EQ(TYPE(ARGV()), "TNS"))'
+    source: 'ASSERT(EQ(TYPE(ARGV()), "tensor"))'
 failing:
   - name: argv-arity-one
     language: Prefix

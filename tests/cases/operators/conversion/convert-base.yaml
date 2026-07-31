@@ -2,8 +2,8 @@ passing:
   - name: base-flt
     language: Prefix
     source: |
-        FLT flt_decimal = 0d1.5
-        FLT flt_binary = 0b1.1
+        float flt_decimal = 0d1.5
+        float flt_binary = 0b1.1
         
         ASSERT(EQ(BASE(flt_decimal), 0d10))
         ASSERT(EQ(BASE(flt_binary), 0d2))
@@ -13,8 +13,8 @@ passing:
   - name: base-int
     language: Prefix
     source: |
-        INT int_binary = 0b101010
-        INT int_hex = 0x2A
+        int int_binary = 0b101010
+        int int_hex = 0x2A
         
         ASSERT(EQ(BASE(int_binary), 0d2))
         ASSERT(EQ(BASE(int_hex), 0d16))
@@ -24,7 +24,7 @@ passing:
   - name: convert-flt
     language: Prefix
     source: |
-        FLT flt_value = 0d1.5
+        float flt_value = 0d1.5
         
         ASSERT(EQ(CONVERT(flt_value, 0b10), 0b1.1))
         ASSERT(EQ(BASE(CONVERT(flt_value, 0b10)), 0d2))
@@ -35,7 +35,7 @@ passing:
   - name: convert-int
     language: Prefix
     source: |
-        INT int_value = 0d42
+        int int_value = 0d42
         
         ASSERT(EQ(CONVERT(int_value, 0x10), 0x2A))
         ASSERT(EQ(BASE(CONVERT(int_value, 0x10)), 0d16))
@@ -47,7 +47,7 @@ failing:
   - name: base-func
     language: Prefix
     source: |
-        BASE(LAMBDA BOOL: sample_func(){})
+        BASE(LAMBDA bool: sample_func(){})
         
   - name: base-map
     language: Prefix

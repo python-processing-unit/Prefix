@@ -2,25 +2,25 @@ passing:
   - name: type
     language: Prefix
     source: |
-        BOOL sample_bool = TRUE
-        INT sample_int = 0d1
-        FLT sample_flt = 0d1.5
-        STR sample_str = "prefix"
-        TNS sample_tns = [0d1, 0d2]
-        MAP sample_map = <"n" = 0d1>
+        bool sample_bool = TRUE
+        int sample_int = 0d1
+        float sample_flt = 0d1.5
+        str sample_str = "prefix"
+        tensor sample_tns = [0d1, 0d2]
+        map sample_map = <"n" = 0d1>
         
-        FUNC INT sample_func(){
+        func int sample_func(){
             RETURN(0d1)
         }
         
-        THR(sample_thr){}
+        thread(sample_thr){}
         
-        ASSERT(EQ(TYPE(sample_bool), "BOOL"))
-        ASSERT(EQ(TYPE(sample_int), "INT"))
-        ASSERT(EQ(TYPE(sample_flt), "FLT"))
-        ASSERT(EQ(TYPE(sample_str), "STR"))
-        ASSERT(EQ(TYPE(sample_tns), "TNS"))
-        ASSERT(EQ(TYPE(sample_map), "MAP"))
-        ASSERT(EQ(TYPE(sample_func), "FUNC"))
-        ASSERT(EQ(TYPE(sample_thr), "THR"))
+        ASSERT(EQ(TYPE(sample_bool), "bool"))
+        ASSERT(EQ(TYPE(sample_int), "int"))
+        ASSERT(EQ(TYPE(sample_flt), "float"))
+        ASSERT(EQ(TYPE(sample_str), "str"))
+        ASSERT(EQ(TYPE(sample_tns), "tensor"))
+        ASSERT(EQ(TYPE(sample_map), "map"))
+        ASSERT(EQ(TYPE(sample_func), "func"))
+        ASSERT(EQ(TYPE(sample_thr), "thread"))
         

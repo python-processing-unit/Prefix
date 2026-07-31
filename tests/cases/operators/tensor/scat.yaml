@@ -2,20 +2,20 @@ passing:
   - name: scat-1d-basic
     language: Prefix
     source: |
-        TNS src = [0d9, 0d8]
-        TNS dst = [0d1, 0d2, 0d3, 0d4]
-        TNS out = SCAT(src, dst, [[0d2, 0d3]])
+        tensor src = [0d9, 0d8]
+        tensor dst = [0d1, 0d2, 0d3, 0d4]
+        tensor out = SCAT(src, dst, [[0d2, 0d3]])
         
-        ASSERT(EQ(TYPE(out), "TNS"))
+        ASSERT(EQ(TYPE(out), "tensor"))
         ASSERT(EQ(out, [0d1, 0d9, 0d8, 0d4]))
         ASSERT(EQ(dst, [0d1, 0d2, 0d3, 0d4]))
         
   - name: scat-2d-rect
     language: Prefix
     source: |
-        TNS src = [[0d7, 0d8], [0d9, 0d10]]
-        TNS dst = [[0d1, 0d2, 0d3], [0d4, 0d5, 0d6], [0d11, 0d12, 0d13]]
-        TNS out = SCAT(src, dst, [[0d2, 0d3], [0d1, 0d2]])
+        tensor src = [[0d7, 0d8], [0d9, 0d10]]
+        tensor dst = [[0d1, 0d2, 0d3], [0d4, 0d5, 0d6], [0d11, 0d12, 0d13]]
+        tensor out = SCAT(src, dst, [[0d2, 0d3], [0d1, 0d2]])
         
         ASSERT(EQ(out, [[0d1, 0d2, 0d3], [0d7, 0d8, 0d6], [0d9, 0d10, 0d13]]))
         ASSERT(EQ(SHAPE(out), [0d3, 0d3]))
@@ -23,16 +23,16 @@ passing:
   - name: scat-3d-rect
     language: Prefix
     source: |
-        TNS src = [[[0d99, 0d98]], [[0d97, 0d96]]]
-        TNS dst = [[[0d1, 0d2], [0d3, 0d4]], [[0d5, 0d6], [0d7, 0d8]]]
-        TNS out = SCAT(src, dst, [[0d1, 0d2], [0d2, 0d2], [0d1, 0d2]])
+        tensor src = [[[0d99, 0d98]], [[0d97, 0d96]]]
+        tensor dst = [[[0d1, 0d2], [0d3, 0d4]], [[0d5, 0d6], [0d7, 0d8]]]
+        tensor out = SCAT(src, dst, [[0d1, 0d2], [0d2, 0d2], [0d1, 0d2]])
         
         ASSERT(EQ(out, [[[0d1, 0d2], [0d99, 0d98]], [[0d5, 0d6], [0d97, 0d96]]]))
         
   - name: scat-inclusive-singleton
     language: Prefix
     source: |
-        TNS out = SCAT([0d55], [0d10, 0d20, 0d30], [[0d3, 0d3]])
+        tensor out = SCAT([0d55], [0d10, 0d20, 0d30], [[0d3, 0d3]])
         
         ASSERT(EQ(out, [0d10, 0d20, 0d55]))
         
@@ -81,9 +81,9 @@ failing:
     language: Prefix
     source: |
         // SCAT should write back to destination pointer operands.
-        TNS dst1 = [0d1, 0d2, 0d3]
-        TNS src1 = [0d9]
-        TNS ind1 = [[0d2, 0d2]]
+        tensor dst1 = [0d1, 0d2, 0d3]
+        tensor src1 = [0d9]
+        tensor ind1 = [[0d2, 0d2]]
         SCAT(@dst1, src1, ind1)
         ASSERT(EQ(dst1, [0d1, 0d9, 0d3]))
         

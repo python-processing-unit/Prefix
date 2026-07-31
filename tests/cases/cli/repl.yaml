@@ -39,7 +39,7 @@ passing:
         . $helperPath
         
         $input = @'
-        FUNC STR hello(){
+        func str hello(){
         RETURN("hi")
         }
         PRINT(hello())
@@ -63,7 +63,7 @@ passing:
         . $helperPath
         
         $input = @'
-        BOOL persisted = TRUE
+        bool persisted = TRUE
         
         PRINT(persisted)
         .exit

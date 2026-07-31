@@ -2,14 +2,14 @@ passing:
   - name: run-empty-source
     language: Prefix
     source: |
-        INT marker = 0d1
+        int marker = 0d1
         RUN("")
         ASSERT(EQ(marker, 0d1))
   - name: run-parse-error
     language: Prefix
     source: |
-        INT step = 0d0
-        BOOL caught = FALSE
+        int step = 0d0
+        bool caught = FALSE
         
         TRY{
             RUN("step = 0d1; IF(TRUE){")
@@ -23,8 +23,8 @@ passing:
   - name: run-runtime-error
     language: Prefix
     source: |
-        INT step = 0d0
-        BOOL caught = FALSE
+        int step = 0d0
+        bool caught = FALSE
         
         TRY{
             RUN("step = 0d1; ASSERT(FALSE); step = 0d2")
@@ -38,12 +38,12 @@ passing:
   - name: run-top-level-env
     language: Prefix
     source: |
-        INT counter = 0d2
+        int counter = 0d2
         
         RUN("ASSERT(EQ(counter, 0d2)); counter = +(counter, 0d3)")
         ASSERT(EQ(counter, 0d5))
         
-        RUN("INT created = -(counter, 0d1)")
+        RUN("int created = -(counter, 0d1)")
         ASSERT(EQ(created, 0d4))
 failing:
   - name: run-arity-two

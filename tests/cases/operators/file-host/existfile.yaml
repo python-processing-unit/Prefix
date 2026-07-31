@@ -24,7 +24,7 @@ failing:
     source: EXISTFILE(0d1.0)
   - name: existfile-func
     language: Prefix
-    source: 'EXISTFILE(LAMBDA BOOL: (){})'
+    source: 'EXISTFILE(LAMBDA bool: (){})'
   - name: existfile-int
     language: Prefix
     source: EXISTFILE(0d1)

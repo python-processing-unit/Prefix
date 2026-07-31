@@ -3,49 +3,49 @@ passing:
     language: Prefix
     source: |
         ! ASSIGN with typed ident + schema
-        ASSIGN(MAP{<"count" = 0d0>} cnt, <"count" = 0d99>)
-        ASSERT(ISMAP(cnt))
+        ASSIGN(map{<"count" = 0d0>} cnt, <"count" = 0d99>)
+        ASSERT(ismap(cnt))
         ASSERT(EQ(cnt<"count">, 0d99))
   - name: map-schema-basic
     language: Prefix
     source: |
-        ! MAP{<"x" = 0d1>} with matching value
-        MAP{<"x" = 0d1>} schema_var
+        ! map{<"x" = 0d1>} with matching value
+        map{<"x" = 0d1>} schema_var
         schema_var = <"x" = 0d42>
         ASSERT(MATCH(schema_var, <"x" = 0d1>))
   - name: map-schema-empty-key
     language: Prefix
     source: |
-        ! MAP with a schema having no keys
-        MAP{<>} schema_var
+        ! map with a schema having no keys
+        map{<>} schema_var
         schema_var = <"anything" = 0d1>
-        ASSERT(ISMAP(schema_var))
+        ASSERT(ismap(schema_var))
   - name: map-schema-func-param
     language: Prefix
     source: |
-        ! MAP schema in function parameter
-        FUNC MAP test(MAP{<"x" = 0d1>} m) {
+        ! map schema in function parameter
+        func map test(map{<"x" = 0d1>} m) {
             RETURN(m)
         }
-        MAP candidate = <"x" = 0d5>
-        MAP result = test(candidate)
+        map candidate = <"x" = 0d5>
+        map result = test(candidate)
         ASSERT(EQ(result<"x">, 0d5))
   - name: map-schema-func-return
     language: Prefix
     source: |
-        ! MAP schema return type
-        FUNC MAP{<"ok" = TRUE>} make_ok() {
+        ! map schema return type
+        func map{<"ok" = TRUE>} make_ok() {
             RETURN(<"ok" = TRUE>)
         }
-        MAP result = make_ok()
+        map result = make_ok()
         ASSERT(result<"ok">)
   - name: map-schema-match-builtin
     language: Prefix
     source: |
-        ! MATCH() builtin with named MAP using "match" metadata subkey
-        ! The named MAP schema's "match" subkey is ignored by env validation
+        ! MATCH() builtin with named map using "match" metadata subkey
+        ! The named map schema's "match" subkey is ignored by env validation
         ! But MATCH() recognizes it for typing/shape/recurse control
-        MAP{<"val" = 0d1, "y" = 0d2, "match" = <"typing" = 0d1>>} var
+        map{<"val" = 0d1, "y" = 0d2, "match" = <"typing" = 0d1>>} var
         var = <"val" = 0d42, "y" = 0d99>
         
         ! MATCH with typing=1 should succeed (all value types match)
@@ -54,26 +54,26 @@ passing:
         ! MATCH with typing=1 should fail (value types mismatch)
         REFUTE(MATCH(var, <"match" = <"typing" = 0d1>, "val" = "str", "y" = 0d88>))
         
-        ! Named MAP variable without "match" subkey, MATCH with typing=1
-        MAP{<"a" = 0d1, "b" = "hi">} var2
+        ! Named map variable without "match" subkey, MATCH with typing=1
+        map{<"a" = 0d1, "b" = "hi">} var2
         var2 = <"a" = 0d7, "b" = "world">
         ASSERT(MATCH(var2, <"match" = <"typing" = 0d1>, "a" = 0d9, "b" = "x">))
         REFUTE(MATCH(var2, <"match" = <"typing" = 0d1>, "a" = "wrong", "b" = "x">))
         
-        ! Named MAP with explicit MATCH recurse
-        MAP{<"outer" = <"inner" = 0d1>>} var3
+        ! Named map with explicit MATCH recurse
+        map{<"outer" = <"inner" = 0d1>>} var3
         var3 = <"outer" = <"inner" = 0d42>>
         ASSERT(MATCH(var3, <"match" = <"recurse" = 0d1, "typing" = 0d1>, "outer" = <"inner" = 0d1>>))
         REFUTE(MATCH(var3, <"match" = <"recurse" = 0d1, "typing" = 0d1>, "outer" = <"inner" = "str">>))
         
-        ! Named MAP with MATCH shape check
-        MAP{<"t" = [0d1, 0d2]>} var4
+        ! Named map with MATCH shape check
+        map{<"t" = [0d1, 0d2]>} var4
         var4 = <"t" = [0d5, 0d6]>
         ASSERT(MATCH(var4, <"match" = <"shape" = 0d1>, "t" = [0d0, 0d0]>))
         REFUTE(MATCH(var4, <"match" = <"shape" = 0d1>, "t" = [0d0]>))
         
-        ! Named MAP variable that has "match" as a regular key (not metadata)
-        MAP{<"match" = "regular", "x" = 0d1>} var5
+        ! Named map variable that has "match" as a regular key (not metadata)
+        map{<"match" = "regular", "x" = 0d1>} var5
         var5 = <"match" = "regular", "x" = 0d99>
         ASSERT(MATCH(var5, <"match" = "regular", "x" = 0d1>))
         
@@ -87,141 +87,141 @@ passing:
   - name: map-schema-match-key-allowed
     language: Prefix
     source: |
-        ! Named MAP schema with "match" subkey is allowed (value_map_matches ignores it)
-        MAP{<"x" = 0d1, "match" = <"typing" = 0d1>>} has_match
+        ! Named map schema with "match" subkey is allowed (value_map_matches ignores it)
+        map{<"x" = 0d1, "match" = <"typing" = 0d1>>} has_match
         has_match = <"x" = 0d99>
-        ASSERT(ISMAP(has_match))
+        ASSERT(ismap(has_match))
         ASSERT(EQ(has_match<"x">, 0d99))
         
         ! Also verify with "shape" metadata subkey
-        MAP{<"a" = "hello", "match" = <"shape" = 0d1, "typing" = 0d1>>} has_shape
+        map{<"a" = "hello", "match" = <"shape" = 0d1, "typing" = 0d1>>} has_shape
         has_shape = <"a" = "world">
         ASSERT(EQ(has_shape<"a">, "world"))
         
         ! Verify with "recurse" metadata subkey  
-        MAP{<"b" = 0d1, "match" = <"recurse" = 0d1, "typing" = 0d0>>} has_recurse
+        map{<"b" = 0d1, "match" = <"recurse" = 0d1, "typing" = 0d0>>} has_recurse
         has_recurse = <"b" = 0d42>
         ASSERT(EQ(has_recurse<"b">, 0d42))
         
         ! Verify empty "match" metadata
-        MAP{<"c" = 0d1, "match" = <>>} has_empty_match
+        map{<"c" = 0d1, "match" = <>>} has_empty_match
         has_empty_match = <"c" = 0d7>
         ASSERT(EQ(has_empty_match<"c">, 0d7))
         
         ! Verify "match" key in nested schema
-        MAP{<"nested" = <"match" = <"typing" = 0d1>, "val" = 0d1>>} has_nested_match
+        map{<"nested" = <"match" = <"typing" = 0d1>, "val" = 0d1>>} has_nested_match
         has_nested_match = <"nested" = <"val" = 0d5>>
         ASSERT(EQ(has_nested_match<"nested", "val">, 0d5))
         
   - name: map-schema-runtime-expr
     language: Prefix
     source: |
-        ! Schema expression that evaluates to a MAP at declaration time
-        MAP proto = <"a" = 0d1, "b" = 0d2>
-        MAP{proto} shaped
+        ! Schema expression that evaluates to a map at declaration time
+        map proto = <"a" = 0d1, "b" = 0d2>
+        map{proto} shaped
         shaped = <"a" = 0d10, "b" = 0d20>
         ASSERT(MATCH(shaped, proto))
   - name: map-schema-signature
     language: Prefix
     source: |
-        ! SIGNATURE of named MAP variable
-        MAP{<"x" = 0d1>} var = <"x" = 0d42>
-        ASSERT(EQ(SIGNATURE(var), "MAP{<\"x\" = 0d1>} var"))
+        ! SIGNATURE of named map variable
+        map{<"x" = 0d1>} var = <"x" = 0d42>
+        ASSERT(EQ(SIGNATURE(var), "map{<\"x\" = 0d1>} var"))
         
-        ! SIGNATURE of plain MAP variable (no schema)
-        MAP plain = <"y" = 0d1>
-        ASSERT(EQ(SIGNATURE(plain), "MAP plain"))
+        ! SIGNATURE of plain map variable (no schema)
+        map plain = <"y" = 0d1>
+        ASSERT(EQ(SIGNATURE(plain), "map plain"))
         
-        ! SIGNATURE of empty-schema MAP variable
-        MAP{<>} empty_s = <"anything" = 0d1>
-        ASSERT(EQ(SIGNATURE(empty_s), "MAP{<>} empty_s"))
+        ! SIGNATURE of empty-schema map variable
+        map{<>} empty_s = <"anything" = 0d1>
+        ASSERT(EQ(SIGNATURE(empty_s), "map{<>} empty_s"))
         
-        ! SIGNATURE of function with MAP return schema
-        FUNC MAP{<"ok" = TRUE>} fn_ret_s() {
+        ! SIGNATURE of function with map return schema
+        func map{<"ok" = TRUE>} fn_ret_s() {
             RETURN(<"ok" = TRUE>)
         }
-        ASSERT(EQ(SIGNATURE(fn_ret_s), "MAP{<\"ok\" = TRUE>} fn_ret_s()"))
+        ASSERT(EQ(SIGNATURE(fn_ret_s), "map{<\"ok\" = TRUE>} fn_ret_s()"))
         
-        ! SIGNATURE of function with MAP param schema
-        FUNC MAP process(MAP{<"a" = 0d1>} input) {
+        ! SIGNATURE of function with map param schema
+        func map process(map{<"a" = 0d1>} input) {
             RETURN(input)
         }
-        ASSERT(EQ(SIGNATURE(process), "MAP process(MAP{<\"a\" = 0d1>} input)"))
+        ASSERT(EQ(SIGNATURE(process), "map process(map{<\"a\" = 0d1>} input)"))
         
         ! SIGNATURE of function with both return and param schemas
-        FUNC MAP{<"result" = 0d1>} full_s(MAP{<"key" = "val">} m) {
+        func map{<"result" = 0d1>} full_s(map{<"key" = "val">} m) {
             RETURN(<"result" = 0d1>)
         }
-        ASSERT(EQ(SIGNATURE(full_s), "MAP{<\"result\" = 0d1>} full_s(MAP{<\"key\" = \"val\">} m)"))
+        ASSERT(EQ(SIGNATURE(full_s), "map{<\"result\" = 0d1>} full_s(map{<\"key\" = \"val\">} m)"))
         
         ! SIGNATURE of function with coerced param and schema
-        FUNC MAP full_coerce(~MAP{<"in" = 0d1>} m) {
+        func map full_coerce(~map{<"in" = 0d1>} m) {
             RETURN(m)
         }
-        ASSERT(EQ(SIGNATURE(full_coerce), "MAP full_coerce(~MAP{<\"in\" = 0d1>} m)"))
+        ASSERT(EQ(SIGNATURE(full_coerce), "map full_coerce(~map{<\"in\" = 0d1>} m)"))
         
 failing:
   - name: map-schema-arg-mismatch
     language: Prefix
     source: |
-        FUNC MAP test(MAP{<"req" = 0d1>} m) {
+        func map test(map{<"req" = 0d1>} m) {
             RETURN(m)
         }
         test(<"nope" = 0d1>)
   - name: map-schema-empty-braces
     language: Prefix
-    source: 'MAP{} empty'
+    source: 'map{} empty'
   - name: map-schema-match-key-required
     language: Prefix
     source: |
-        ! Named MAP schema with "match" key as a regular literal (not metadata MAP)
-        ! When "match"'s value is a STR (not a MAP), it's treated as a required key
-        MAP{<"x" = 0d1, "match" = "literal">} has_literal_match
+        ! Named map schema with "match" key as a regular literal (not metadata map)
+        ! When "match"'s value is a str (not a map), it's treated as a required key
+        map{<"x" = 0d1, "match" = "literal">} has_literal_match
         ! This should pass: "match" = "literal" is a regular required key
         has_literal_match = <"x" = 0d42, "match" = "literal">
         ASSERT(EQ(has_literal_match<"x">, 0d42))
         ASSERT(EQ(has_literal_match<"match">, "literal"))
         
         ! Assignment missing the "match" literal key should fail
-        MAP{<"y" = 0d1, "match" = "needed">} needs_match
+        map{<"y" = 0d1, "match" = "needed">} needs_match
         ! This should fail because "match" key is missing
         needs_match = <"y" = 0d99>
         
   - name: map-schema-mismatch
     language: Prefix
     source: |
-        MAP{<"x" = 0d1>} var
+        map{<"x" = 0d1>} var
         var = <"y" = 0d2>
   - name: map-schema-not-map-func-param
     language: Prefix
     source: |
-        FUNC MAP func_with_bad_param(MAP{0d1} p) { RETURN(p); }
+        func map func_with_bad_param(map{0d1} p) { RETURN(p); }
         func_with_bad_param(<>)
         
   - name: map-schema-not-map-func-return
     language: Prefix
     source: |
-        FUNC MAP{0d1} bad_func() { RETURN(<>); }
+        func map{0d1} bad_func() { RETURN(<>); }
         bad_func()
         
   - name: map-schema-not-map-lambda-param
     language: Prefix
     source: |
-        MAP g = FUNC MAP (MAP{0d1} p) { RETURN(p); }
+        map g = func map (map{0d1} p) { RETURN(p); }
         g(<>)
         
   - name: map-schema-not-map-lambda-return
     language: Prefix
     source: |
-        MAP f = FUNC MAP{0d1} () { RETURN(<>); }
+        map f = func map{0d1} () { RETURN(<>); }
         f()
         
   - name: map-schema-not-map
     language: Prefix
-    source: 'MAP{0d1} bad'
+    source: 'map{0d1} bad'
   - name: map-schema-return-mismatch
     language: Prefix
     source: |
-        FUNC MAP{<"x" = 0d1>} bad_return() { RETURN(<"y" = 0d2>); }
+        func map{<"x" = 0d1>} bad_return() { RETURN(<"y" = 0d2>); }
         bad_return()
         

@@ -2,14 +2,14 @@ passing:
   - name: assign-map-index
     language: Prefix
     source: |
-        MAP m = <"a" = 0d1>
+        map m = <"a" = 0d1>
         ASSERT(EQ(ASSIGN(m<"b">, 0d2), 0d2))
         ASSERT(EQ(m<"b">, 0d2))
         
   - name: assign-nested-map-auto-create
     language: Prefix
     source: |
-        MAP m
+        map m
         
         ASSERT(EQ(ASSIGN(m<"a", "b">, 0d5), 0d5))
         ASSERT(EQ(m<"a", "b">, 0d5))
@@ -18,44 +18,44 @@ passing:
   - name: assign-tns-index
     language: Prefix
     source: |
-        TNS vec = [0d1, 0d2, 0d3]
+        tensor vec = [0d1, 0d2, 0d3]
         ASSERT(EQ(ASSIGN(vec[0d2], 0d9), 0d9))
         ASSERT(EQ(vec[0d2], 0d9))
         
   - name: assign
     language: Prefix
     source: |
-        ASSIGN(BOOL x, TRUE)
+        ASSIGN(bool x, TRUE)
         ASSERT(EXIST("x"))
         
   - name: later-assign-no-type
     language: Prefix
     source: |
-        ASSIGN(BOOL x, TRUE)
+        ASSIGN(bool x, TRUE)
         ASSIGN(x, FALSE)
         
   - name: later-decl-no-type
     language: Prefix
     source: |
-        BOOL x = TRUE
+        bool x = TRUE
         x = FALSE
         
   - name: multi-assign-type
     language: Prefix
     source: |
-        ASSIGN(BOOL x, TRUE)
-        ASSIGN(BOOL x, FALSE)
+        ASSIGN(bool x, TRUE)
+        ASSIGN(bool x, FALSE)
         
   - name: multi-decl-type
     language: Prefix
     source: |
-        BOOL x = TRUE
-        BOOL x = FALSE
+        bool x = TRUE
+        bool x = FALSE
         
   - name: tns-slice-assign-1d
     language: Prefix
     source: |
-        TNS vec = [0d1, 0d2, 0d3]
+        tensor vec = [0d1, 0d2, 0d3]
         
         ASSERT(EQ(ASSIGN(vec[0d1:0d2], [0d9, 0d10]), [0d9, 0d10]))
         ASSERT(EQ(vec, [0d9, 0d10, 0d3]))
@@ -63,7 +63,7 @@ passing:
   - name: tns-slice-assign-2d
     language: Prefix
     source: |
-        TNS matrix = [[0d1, 0d2], [0d3, 0d4]]
+        tensor matrix = [[0d1, 0d2], [0d3, 0d4]]
         
         ASSERT(EQ(ASSIGN(matrix[# , 0d2], [0d9, 0d10]), [0d9, 0d10]))
         ASSERT(EQ(matrix, [[0d1, 0d9], [0d3, 0d10]]))
@@ -71,105 +71,105 @@ passing:
   - name: type-then-decl-type
     language: Prefix
     source: |
-        BOOL x
-        BOOL x = TRUE
+        bool x
+        bool x = TRUE
         
   - name: type-then-decl
     language: Prefix
     source: |
-        BOOL x
+        bool x
         x = TRUE
         
 failing:
   - name: assign-map-index-on-bool
     language: Prefix
     source: |
-        BOOL b = TRUE
+        bool b = TRUE
         ASSIGN(b<"k">, 0d1)
         
   - name: assign-map-index-on-flt
     language: Prefix
     source: |
-        FLT f = 0d1.5
+        float f = 0d1.5
         ASSIGN(f<0d1>, 0d1)
         
   - name: assign-map-index-on-func
     language: Prefix
     source: |
-        FUNC fn = GET_FIVE
+        func fn = GET_FIVE
         ASSIGN(fn<"k">, 0d1)
         
   - name: assign-map-index-on-int
     language: Prefix
     source: |
-        INT i = 0d1
+        int i = 0d1
         ASSIGN(i<0d1>, 0d1)
         
   - name: assign-map-index-on-str
     language: Prefix
     source: |
-        STR s = "x"
+        str s = "x"
         ASSIGN(s<"k">, 0d1)
         
   - name: assign-map-index-on-thr
     language: Prefix
     source: |
-        THR t = ASYNC{}
+        thread t = ASYNC{}
         ASSIGN(t<"k">, 0d1)
         
   - name: assign-map-index-on-tns
     language: Prefix
     source: |
-        TNS vec = [0d1, 0d2]
+        tensor vec = [0d1, 0d2]
         ASSIGN(vec<"a">, 0d1)
         
   - name: assign-tns-index-on-bool
     language: Prefix
     source: |
-        BOOL b = TRUE
+        bool b = TRUE
         ASSIGN(b[0d1], 0d1)
         
   - name: assign-tns-index-on-flt
     language: Prefix
     source: |
-        FLT f = 0d1.5
+        float f = 0d1.5
         ASSIGN(f[0d1], 0d1)
         
   - name: assign-tns-index-on-func
     language: Prefix
     source: |
-        FUNC fn = GET_FIVE
+        func fn = GET_FIVE
         ASSIGN(fn[0d1], 0d1)
         
   - name: assign-tns-index-on-int
     language: Prefix
     source: |
-        INT i = 0d1
+        int i = 0d1
         ASSIGN(i[0d1], 0d2)
         
   - name: assign-tns-index-on-map
     language: Prefix
     source: |
-        MAP m = <"a" = 0d1>
+        map m = <"a" = 0d1>
         ASSIGN(m[0d1], 0d2)
         
   - name: assign-tns-index-on-str
     language: Prefix
     source: |
-        STR s = "x"
+        str s = "x"
         ASSIGN(s[0d1], 0d1)
         
   - name: assign-tns-index-on-thr
     language: Prefix
     source: |
-        THR t = ASYNC{}
+        thread t = ASYNC{}
         ASSIGN(t[0d1], 0d1)
         
   - name: decl-conflicting-type
     language: Prefix
     source: |
-        INT n = 0d0
-        BOOL n
+        int n = 0d0
+        bool n
         
   - name: first-assign-no-type
     language: Prefix
@@ -184,24 +184,64 @@ failing:
   - name: tns-slice-dim-mismatch
     language: Prefix
     source: |
-        TNS matrix = [[0d1, 0d2], [0d3, 0d4]]
+        tensor matrix = [[0d1, 0d2], [0d3, 0d4]]
         ASSIGN(matrix[# , 0d2], [[0d9], [0d10]])
         
   - name: tns-slice-element-type-mismatch
     language: Prefix
     source: |
-        TNS vec = [0d1, 0d2]
+        tensor vec = [0d1, 0d2]
         ASSIGN(vec[0d1-0d2], [0d1.5, 0d2.5])
         
   - name: tns-slice-rhs-not-tns
     language: Prefix
     source: |
-        TNS vec = [0d1, 0d2]
+        tensor vec = [0d1, 0d2]
         ASSIGN(vec[0d1-0d2], 0d9)
         
   - name: tns-slice-shape-mismatch
     language: Prefix
     source: |
-        TNS matrix = [[0d1, 0d2], [0d3, 0d4]]
+        tensor matrix = [[0d1, 0d2], [0d3, 0d4]]
         ASSIGN(matrix[# , #], [[0d9, 0d10, 0d11], [0d12, 0d13, 0d14]])
+        
+  - name: uppercase-bool-rejected
+    language: Prefix
+    source: |
+        BOOL x = TRUE
+        
+  - name: uppercase-int-rejected
+    language: Prefix
+    source: |
+        INT x = 0d1
+        
+  - name: uppercase-float-rejected
+    language: Prefix
+    source: |
+        FLT x = 0d1.5
+        
+  - name: uppercase-str-rejected
+    language: Prefix
+    source: |
+        STR x = "hello"
+        
+  - name: uppercase-tensor-rejected
+    language: Prefix
+    source: |
+        TNS x = [0d1]
+        
+  - name: uppercase-map-rejected
+    language: Prefix
+    source: |
+        MAP x = <"a" = 0d1>
+        
+  - name: uppercase-func-rejected
+    language: Prefix
+    source: |
+        FUNC int f(int x){RETURN(x)}
+        
+  - name: uppercase-thread-rejected
+    language: Prefix
+    source: |
+        THR t = ASYNC{}
         

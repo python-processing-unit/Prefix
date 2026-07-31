@@ -2,11 +2,11 @@ passing:
   - name: abs-flt
     language: Prefix
     source: |
-        FLT pos_oct = 0o1.4
-        FLT neg_oct = -0o1.4
-        FLT hex_val = 0x1.8
-        FLT zero = 0o0.0
-        FLT neg_zero = -0o0.0
+        float pos_oct = 0o1.4
+        float neg_oct = -0o1.4
+        float hex_val = 0x1.8
+        float zero = 0o0.0
+        float neg_zero = -0o0.0
         
         ASSERT(EQ(ABS(pos_oct), pos_oct))
         ASSERT(EQ(ABS(neg_oct), 0o1.4))
@@ -16,12 +16,12 @@ passing:
   - name: abs-int
     language: Prefix
     source: |
-        INT pos_dec = 0d5
-        INT neg_dec = -0d5
-        INT neg_hex = -0xA
-        INT hex_val = 0xA
-        INT bin_neg = -0b1010
-        INT zero = 0d0
+        int pos_dec = 0d5
+        int neg_dec = -0d5
+        int neg_hex = -0xA
+        int hex_val = 0xA
+        int bin_neg = -0b1010
+        int zero = 0d0
         
         ASSERT(EQ(ABS(pos_dec), pos_dec))
         ASSERT(EQ(ABS(neg_dec), 0d5))
@@ -33,21 +33,21 @@ passing:
   - name: abs-pointer-writeback
     language: Prefix
     source: |
-        INT in1 = -0d5
+        int in1 = -0d5
         ABS(@in1)
         ASSERT(EQ(in1, 0d5))
         
-        FLT fin1 = -0d5.5
+        float fin1 = -0d5.5
         ABS(@fin1)
         ASSERT(EQ(fin1, 0d5.5))
         
   - name: neg-flt
     language: Prefix
     source: |
-        FLT pos_oct = 0o1.4
-        FLT neg_literal = -0o1.4
-        FLT hex_val = 0x1.8
-        FLT zero = 0o0.0
+        float pos_oct = 0o1.4
+        float neg_literal = -0o1.4
+        float hex_val = 0x1.8
+        float zero = 0o0.0
         
         ASSERT(EQ(NEG(pos_oct), -0o1.4))
         ASSERT(EQ(NEG(neg_literal), 0o1.4))
@@ -58,11 +58,11 @@ passing:
   - name: neg-int
     language: Prefix
     source: |
-        INT pos_dec = 0d3
-        INT neg_literal = -0d3
-        INT hex_val = 0xA
-        INT bin_val = 0b1010
-        INT zero = 0d0
+        int pos_dec = 0d3
+        int neg_literal = -0d3
+        int hex_val = 0xA
+        int bin_val = 0b1010
+        int zero = 0d0
         
         ASSERT(EQ(NEG(pos_dec), -0d3))
         ASSERT(EQ(NEG(neg_literal), 0d3))
@@ -74,11 +74,11 @@ passing:
   - name: neg-pointer-writeback
     language: Prefix
     source: |
-        INT in1 = 0d5
+        int in1 = 0d5
         NEG(@in1)
         ASSERT(EQ(in1, -0d5))
         
-        FLT fin1 = 0d5.5
+        float fin1 = 0d5.5
         NEG(@fin1)
         ASSERT(EQ(fin1, -0d5.5))
         
@@ -86,24 +86,24 @@ failing:
   - name: abs-type-bool
     language: Prefix
     source: |
-        BOOL b = TRUE
+        bool b = TRUE
         ABS(b)
         
   - name: abs-type-str
     language: Prefix
     source: |
-        STR s = 'not-a-number'
+        str s = 'not-a-number'
         ABS(s)
         
   - name: neg-type-bool
     language: Prefix
     source: |
-        BOOL b = TRUE
+        bool b = TRUE
         NEG(b)
         
   - name: neg-type-str
     language: Prefix
     source: |
-        STR s = 'not-a-number'
+        str s = 'not-a-number'
         NEG(s)
         

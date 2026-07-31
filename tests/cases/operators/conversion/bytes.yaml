@@ -2,7 +2,7 @@ passing:
   - name: bytes
     language: Prefix
     source: |
-        ASSERT(EQ(TYPE(BYTES(0d0)), "TNS"))
+        ASSERT(EQ(TYPE(BYTES(0d0)), "tensor"))
         ASSERT(EQ(BYTES(0d0), [0d0]))
         
         ! Default endian is "big"
@@ -18,8 +18,8 @@ passing:
         ASSERT(GTE(MIN(BYTES(0x123456, endian = "little")), 0d0))
         ASSERT(LTE(MAX(BYTES(0x123456, endian = "little")), 0d255))
         
-        ! Elements must be INT
-        ASSERT(EQ(TYPE(BYTES(0x1234)[0d1]), "INT"))
+        ! Elements must be int
+        ASSERT(EQ(TYPE(BYTES(0x1234)[0d1]), "int"))
         
 failing:
   - name: bytes-endian-case
@@ -40,7 +40,7 @@ failing:
   - name: bytes-first-func
     language: Prefix
     source: |
-        FUNC INT ff(INT x){ RETURN x }
+        func int ff(int x){ RETURN x }
         BYTES(ff)
         
   - name: bytes-first-map
@@ -81,7 +81,7 @@ failing:
   - name: bytes-second-func
     language: Prefix
     source: |
-        FUNC INT ff(INT x){ RETURN x }
+        func int ff(int x){ RETURN x }
         BYTES(0d1, endian = ff)
         
   - name: bytes-second-int

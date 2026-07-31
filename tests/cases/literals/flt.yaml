@@ -2,14 +2,14 @@ passing:
   - name: flt
     language: Prefix
     source: |
-        FLT a = 0d1.5
-        FLT b = -0d0.25
-        FLT c = 0b1.1
-        FLT d = 0xA.F
-        FLT e = 0r16F.8
-        FLT f = INF
-        FLT g = -INF
-        FLT h = NaN
+        float a = 0d1.5
+        float b = -0d0.25
+        float c = 0b1.1
+        float d = 0xA.F
+        float e = 0r16F.8
+        float f = INF
+        float g = -INF
+        float h = NaN
         
         ASSERT(EQ(a, 0d1.5))
         ASSERT(EQ(b, -0d0.25))
@@ -21,25 +21,25 @@ failing:
   - name: flt-invalid-digit
     language: Prefix
     source: |
-        FLT a = 0b2.0
+        float a = 0b2.0
         
   - name: flt-negative-nan
     language: Prefix
     source: |
-        FLT bad = -NaN
+        float bad = -NaN
         
   - name: flt-no-fraction
     language: Prefix
     source: |
-        FLT a = 0d1.
+        float a = 0d1.
         
   - name: flt-no-integer
     language: Prefix
     source: |
-        FLT a = 0d.5
+        float a = 0d.5
         
   - name: flt-plus-sign
     language: Prefix
     source: |
-        FLT a = +0d1.0
+        float a = +0d1.0
         

@@ -66,8 +66,8 @@ static PTokenType check_keyword(const char *text, size_t length) {
     KEYWORD("WHILE", TOKEN_WHILE);
     KEYWORD("FOR", TOKEN_FOR);
     KEYWORD("PARFOR", TOKEN_PARFOR);
-    KEYWORD("THR", TOKEN_THR);
-    KEYWORD("FUNC", TOKEN_FUNC);
+    KEYWORD("thread", TOKEN_THREAD);
+    KEYWORD("func", TOKEN_FUNC);
     KEYWORD("LAMBDA", TOKEN_LAMBDA);
     KEYWORD("ASYNC", TOKEN_ASYNC);
     KEYWORD("RETURN", TOKEN_RETURN);

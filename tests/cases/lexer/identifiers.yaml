@@ -2,84 +2,84 @@ passing:
   - name: ident-includes-chars
     language: Prefix
     source: |
-        BOOL A = TRUE
-        BOOL B = TRUE
-        BOOL C = TRUE
-        BOOL D = TRUE
-        BOOL E = TRUE
-        BOOL F = TRUE
-        BOOL G = TRUE
-        BOOL H = TRUE
-        BOOL I = TRUE
-        BOOL J = TRUE
-        BOOL K = TRUE
-        BOOL L = TRUE
-        BOOL M = TRUE
-        BOOL N = TRUE
-        BOOL O = TRUE
-        BOOL P = TRUE
-        BOOL Q = TRUE
-        BOOL R = TRUE
-        BOOL S = TRUE
-        BOOL T = TRUE
-        BOOL U = TRUE
-        BOOL V = TRUE
-        BOOL W = TRUE
-        BOOL X = TRUE
-        BOOL Y = TRUE
-        BOOL Z = TRUE
-        BOOL a = TRUE
-        BOOL b = TRUE
-        BOOL c = TRUE
-        BOOL d = TRUE
-        BOOL e = TRUE
-        BOOL f = TRUE
-        BOOL g = TRUE
-        BOOL h = TRUE
-        BOOL i = TRUE
-        BOOL j = TRUE
-        BOOL k = TRUE
-        BOOL l = TRUE
-        BOOL m = TRUE
-        BOOL n = TRUE
-        BOOL o = TRUE
-        BOOL p = TRUE
-        BOOL q = TRUE
-        BOOL r = TRUE
-        BOOL s = TRUE
-        BOOL t = TRUE
-        BOOL u = TRUE
-        BOOL v = TRUE
-        BOOL w = TRUE
-        BOOL x = TRUE
-        BOOL y = TRUE
-        BOOL z = TRUE
-        BOOL 2 = TRUE
-        BOOL 3 = TRUE
-        BOOL 4 = TRUE
-        BOOL 5 = TRUE
-        BOOL 6 = TRUE
-        BOOL 7 = TRUE
-        BOOL 8 = TRUE
-        BOOL 9 = TRUE
-        BOOL 1 = TRUE
-        BOOL / = TRUE
-        BOOL $ = TRUE
-        BOOL % = TRUE
-        BOOL & = TRUE
-        BOOL _ = TRUE
-        BOOL + = TRUE
-        BOOL | = TRUE
-        BOOL ? = TRUE
-        BOOL * = TRUE
+        bool A = TRUE
+        bool B = TRUE
+        bool C = TRUE
+        bool D = TRUE
+        bool E = TRUE
+        bool F = TRUE
+        bool G = TRUE
+        bool H = TRUE
+        bool I = TRUE
+        bool J = TRUE
+        bool K = TRUE
+        bool L = TRUE
+        bool M = TRUE
+        bool N = TRUE
+        bool O = TRUE
+        bool P = TRUE
+        bool Q = TRUE
+        bool R = TRUE
+        bool S = TRUE
+        bool T = TRUE
+        bool U = TRUE
+        bool V = TRUE
+        bool W = TRUE
+        bool X = TRUE
+        bool Y = TRUE
+        bool Z = TRUE
+        bool a = TRUE
+        bool b = TRUE
+        bool c = TRUE
+        bool d = TRUE
+        bool e = TRUE
+        bool f = TRUE
+        bool g = TRUE
+        bool h = TRUE
+        bool i = TRUE
+        bool j = TRUE
+        bool k = TRUE
+        bool l = TRUE
+        bool m = TRUE
+        bool n = TRUE
+        bool o = TRUE
+        bool p = TRUE
+        bool q = TRUE
+        bool r = TRUE
+        bool s = TRUE
+        bool t = TRUE
+        bool u = TRUE
+        bool v = TRUE
+        bool w = TRUE
+        bool x = TRUE
+        bool y = TRUE
+        bool z = TRUE
+        bool 2 = TRUE
+        bool 3 = TRUE
+        bool 4 = TRUE
+        bool 5 = TRUE
+        bool 6 = TRUE
+        bool 7 = TRUE
+        bool 8 = TRUE
+        bool 9 = TRUE
+        bool 1 = TRUE
+        bool / = TRUE
+        bool $ = TRUE
+        bool % = TRUE
+        bool & = TRUE
+        bool _ = TRUE
+        bool + = TRUE
+        bool | = TRUE
+        bool ? = TRUE
+        bool * = TRUE
         
   - name: ident-includes-dash
     language: Prefix
     source: |
-        BOOL - = TRUE
-        BOOL -lead = TRUE
-        BOOL mid-dash = TRUE
-        BOOL a-0tail = TRUE
+        bool - = TRUE
+        bool -lead = TRUE
+        bool mid-dash = TRUE
+        bool a-0tail = TRUE
         
         ASSERT(-)
         ASSERT(-lead)
@@ -89,20 +89,20 @@ failing:
   - name: open-parentheses-in-ident
     language: Prefix
     source: |
-        BOOL x( = TRUE
+        bool x( = TRUE
         
   - name: open-square-bracket-in-ident
     language: Prefix
     source: |
-        BOOL x[ = TRUE
+        bool x[ = TRUE
         
   - name: tilde-in-ident
     language: Prefix
     source: |
-        BOOL x~ = TRUE
+        bool x~ = TRUE
         
   - name: zero-starts-ident
     language: Prefix
     source: |
-        BOOL 0x = TRUE
+        bool 0x = TRUE
         

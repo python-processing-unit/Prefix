@@ -2,15 +2,15 @@ passing:
   - name: gcd-flt
     language: Prefix
     source: |
-        FLT left_dec = 0d54.0
-        FLT right_hex = 0x18.0
-        FLT zero_oct = 0o0.0
-        FLT co_prime_left_oct = 0o17.0
-        FLT co_prime_right_dec = 0d13.0
+        float left_dec = 0d54.0
+        float right_hex = 0x18.0
+        float zero_oct = 0o0.0
+        float co_prime_left_oct = 0o17.0
+        float co_prime_right_dec = 0d13.0
         
         ASSERT(EQ(GCD(left_dec, right_hex), 0x6.0))
         ASSERT(EQ(GCD(right_hex, left_dec), 0x6.0))
-        ASSERT(ISFLT(GCD(left_dec, right_hex)))
+        ASSERT(isfloat(GCD(left_dec, right_hex)))
         ASSERT(EQ(BASE(GCD(left_dec, right_hex)), 0d16))
         
         ASSERT(EQ(GCD(zero_oct, right_hex), 0x18.0))
@@ -22,15 +22,15 @@ passing:
   - name: gcd-int
     language: Prefix
     source: |
-        INT left_dec = 0d54
-        INT right_hex = 0x18
-        INT zero_bin = 0b0
-        INT co_prime_left_oct = 0o17
-        INT co_prime_right_dec = 0d13
+        int left_dec = 0d54
+        int right_hex = 0x18
+        int zero_bin = 0b0
+        int co_prime_left_oct = 0o17
+        int co_prime_right_dec = 0d13
         
         ASSERT(EQ(GCD(left_dec, right_hex), 0x6))
         ASSERT(EQ(GCD(right_hex, left_dec), 0x6))
-        ASSERT(ISINT(GCD(left_dec, right_hex)))
+        ASSERT(isint(GCD(left_dec, right_hex)))
         ASSERT(EQ(BASE(GCD(left_dec, right_hex)), 0d16))
         
         ASSERT(EQ(GCD(zero_bin, right_hex), 0x18))
@@ -42,15 +42,15 @@ passing:
   - name: lcm-flt
     language: Prefix
     source: |
-        FLT left_oct = 0o25.0
-        FLT right_hex = 0x6.0
-        FLT zero_bin = 0b0.0
-        FLT co_prime_left_oct = 0o10.0
-        FLT co_prime_right_dec = 0d9.0
+        float left_oct = 0o25.0
+        float right_hex = 0x6.0
+        float zero_bin = 0b0.0
+        float co_prime_left_oct = 0o10.0
+        float co_prime_right_dec = 0d9.0
         
         ASSERT(EQ(LCM(left_oct, right_hex), 0x2A.0))
         ASSERT(EQ(LCM(right_hex, left_oct), 0x2A.0))
-        ASSERT(ISFLT(LCM(left_oct, right_hex)))
+        ASSERT(isfloat(LCM(left_oct, right_hex)))
         ASSERT(EQ(BASE(LCM(left_oct, right_hex)), 0d16))
         
         ASSERT(EQ(LCM(zero_bin, right_hex), 0x0.0))
@@ -62,15 +62,15 @@ passing:
   - name: lcm-int
     language: Prefix
     source: |
-        INT left_oct = 0o25
-        INT right_hex = 0x6
-        INT zero_bin = 0b0
-        INT co_prime_left_oct = 0o10
-        INT co_prime_right_dec = 0d9
+        int left_oct = 0o25
+        int right_hex = 0x6
+        int zero_bin = 0b0
+        int co_prime_left_oct = 0o10
+        int co_prime_right_dec = 0d9
         
         ASSERT(EQ(LCM(left_oct, right_hex), 0x2A))
         ASSERT(EQ(LCM(right_hex, left_oct), 0x2A))
-        ASSERT(ISINT(LCM(left_oct, right_hex)))
+        ASSERT(isint(LCM(left_oct, right_hex)))
         ASSERT(EQ(BASE(LCM(left_oct, right_hex)), 0d16))
         
         ASSERT(EQ(LCM(zero_bin, right_hex), 0x0))

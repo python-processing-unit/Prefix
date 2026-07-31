@@ -11,8 +11,8 @@ passing:
           $programPath = Join-Path $tempDir 'program.pre'
         
           Set-Content -Path $programPath -Encoding Ascii -Value @'
-        STR line = INPUT()
-        ASSERT(ISSTR(line))
+        str line = INPUT()
+        ASSERT(isstr(line))
         ASSERT(EQ(line, ""))
         '@
         
@@ -42,7 +42,7 @@ passing:
           $programPath = Join-Path $tempDir 'program.pre'
         
           Set-Content -Path $programPath -Encoding Ascii -Value @'
-        STR line = INPUT("PROMPT>")
+        str line = INPUT("PROMPT>")
         ASSERT(EQ(line, "alpha"))
         PRINT("DONE=", line)
         '@
@@ -73,8 +73,8 @@ passing:
           $programPath = Join-Path $tempDir 'program.pre'
         
           Set-Content -Path $programPath -Encoding Ascii -Value @'
-        STR line = INPUT()
-        ASSERT(ISSTR(line))
+        str line = INPUT()
+        ASSERT(isstr(line))
         ASSERT(EQ(line, "Alpha beta 42"))
         '@
         
@@ -141,7 +141,7 @@ failing:
   - name: input-type-func
     language: Prefix
     source: |
-        INPUT(LAMBDA BOOL: (){})
+        INPUT(LAMBDA bool: (){})
         
   - name: input-type-int
     language: Prefix

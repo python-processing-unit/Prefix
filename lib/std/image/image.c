@@ -54,7 +54,7 @@ static int expect_argc_range(Interpreter *interp, int argc, int minc, int maxc, 
 static int64_t expect_int(Interpreter *interp, Value v, const char *opname, int line, int col) {
     if (v.type != VAL_INT) {
         char buf[160];
-        snprintf(buf, sizeof(buf), "%s expects INT argument", opname);
+        snprintf(buf, sizeof(buf), "%s expects int argument", opname);
         set_runtime_error(interp, buf, line, col);
         return 0;
     }
@@ -62,7 +62,7 @@ static int64_t expect_int(Interpreter *interp, Value v, const char *opname, int 
 }
 
 static double expect_num(Interpreter *interp, Value v, const char *opname, int line, int col) {
-    if (v.type == VAL_FLT) {
+    if (v.type == VAL_FLOAT) {
         return v.as.f;
     }
     if (v.type == VAL_INT) {
@@ -70,7 +70,7 @@ static double expect_num(Interpreter *interp, Value v, const char *opname, int l
     }
     {
         char buf[160];
-        snprintf(buf, sizeof(buf), "%s expects FLT/INT numeric argument", opname);
+        snprintf(buf, sizeof(buf), "%s expects float/int numeric argument", opname);
         set_runtime_error(interp, buf, line, col);
     }
     return 0.0;
@@ -79,7 +79,7 @@ static double expect_num(Interpreter *interp, Value v, const char *opname, int l
 static const char *expect_str(Interpreter *interp, Value v, const char *opname, int line, int col) {
     if (v.type != VAL_STR) {
         char buf[160];
-        snprintf(buf, sizeof(buf), "%s expects STR argument", opname);
+        snprintf(buf, sizeof(buf), "%s expects str argument", opname);
         set_runtime_error(interp, buf, line, col);
         return NULL;
     }
@@ -90,13 +90,13 @@ static int image_from_value(Interpreter *interp, Value v, const char *opname, in
     if (!out) {
         return 0;
     }
-    if (v.type != VAL_TNS || !v.as.tns) {
+    if (v.type != VAL_TENSOR || !v.as.tensor) {
         char buf[160];
-        snprintf(buf, sizeof(buf), "%s expects TNS image", opname);
+        snprintf(buf, sizeof(buf), "%s expects tensor image", opname);
         set_runtime_error(interp, buf, line, col);
         return 0;
     }
-    Tensor *t = v.as.tns;
+    Tensor *t = v.as.tensor;
     if (t->ndim != 3 || t->shape[2] != 4) {
         char buf[192];
         snprintf(buf, sizeof(buf), "%s expects image shape [width,height,4]", opname);
@@ -140,7 +140,7 @@ static Value make_image(size_t w, size_t h) {
     shape[0] = w;
     shape[1] = h;
     shape[2] = 4;
-    return value_tns_new(TYPE_INT, 3, shape);
+    return value_tensor_new(TYPE_INT, 3, shape);
 }
 
 static Value copy_image_checked(Interpreter *interp, Value src, const char *opname, int line, int col) {
@@ -150,7 +150,7 @@ static Value copy_image_checked(Interpreter *interp, Value src, const char *opna
     }
     Value out = make_image(iv.w, iv.h);
     Tensor *st = iv.t;
-    Tensor *dt = out.as.tns;
+    Tensor *dt = out.as.tensor;
     for (size_t x = 0; x < iv.w; x++) {
         for (size_t y = 0; y < iv.h; y++) {
             size_t so = pixel_offset(st, x, y);
@@ -159,7 +159,7 @@ static Value copy_image_checked(Interpreter *interp, Value src, const char *opna
                 Value sv = st->data[so + c];
                 if (sv.type != VAL_INT) {
                     value_free(out);
-                    set_runtime_error(interp, "image tensor channels must be INT", line, col);
+                    set_runtime_error(interp, "image tensor channels must be int", line, col);
                     return value_null();
                 }
                 dt->data[doff + c] = value_int((int64_t)clamp_u8_i64(sv.as.i));
@@ -171,11 +171,11 @@ static Value copy_image_checked(Interpreter *interp, Value src, const char *opna
 
 static int parse_color_rgba(Interpreter *interp, Value v, int out_rgba[4], const char *opname, int line, int col) {
     (void)opname;
-    if (v.type != VAL_TNS || !v.as.tns) {
-        set_runtime_error(interp, "color must be TNS[4]", line, col);
+    if (v.type != VAL_TENSOR || !v.as.tensor) {
+        set_runtime_error(interp, "color must be tensor[4]", line, col);
         return 0;
     }
-    Tensor *t = v.as.tns;
+    Tensor *t = v.as.tensor;
     if (!(t->ndim == 1 && t->shape[0] == 4)) {
         set_runtime_error(interp, "color must be shape [4]", line, col);
         return 0;
@@ -183,7 +183,7 @@ static int parse_color_rgba(Interpreter *interp, Value v, int out_rgba[4], const
     for (size_t i = 0; i < 4; i++) {
         Value e = t->data[i];
         if (e.type != VAL_INT) {
-            set_runtime_error(interp, "color channels must be INT", line, col);
+            set_runtime_error(interp, "color channels must be int", line, col);
             return 0;
         }
         out_rgba[i] = clamp_u8_i64(e.as.i);
@@ -197,11 +197,11 @@ static int parse_points_xy(Interpreter *interp, Value v, int **out_pts, size_t *
     }
     *out_pts = NULL;
     *out_count = 0;
-    if (v.type != VAL_TNS || !v.as.tns) {
-        set_runtime_error(interp, "points must be TNS", line, col);
+    if (v.type != VAL_TENSOR || !v.as.tensor) {
+        set_runtime_error(interp, "points must be tensor", line, col);
         return 0;
     }
-    Tensor *t = v.as.tns;
+    Tensor *t = v.as.tensor;
     if (t->ndim != 2 || t->shape[1] != 2 || t->shape[0] < 2) {
         set_runtime_error(interp, "points must be shape [N,2], N>=2", line, col);
         return 0;
@@ -218,7 +218,7 @@ static int parse_points_xy(Interpreter *interp, Value v, int **out_pts, size_t *
         Value vy = t->data[off + 1];
         if (vx.type != VAL_INT || vy.type != VAL_INT) {
             free(pts);
-            set_runtime_error(interp, "point coordinates must be INT", line, col);
+            set_runtime_error(interp, "point coordinates must be int", line, col);
             return 0;
         }
         /* Convert from user (1-based) coordinates to internal (0-based) */
@@ -423,24 +423,24 @@ static void draw_ellipse(Tensor *t, int cx, int cy, int rx, int ry, const int rg
 typedef struct {
     UINT32 GdiplusVersion;
     void *DebugEventCallback;
-    BOOL SuppressBackgroundThread;
-    BOOL SuppressExternalCodecs;
+    bool SuppressBackgroundThread;
+    bool SuppressExternalCodecs;
 } GdiplusStartupInput_C;
 
 typedef struct {
     UINT Width;
     UINT Height;
-    INT Stride;
-    INT PixelFormat;
+    int Stride;
+    int PixelFormat;
     void *Scan0;
     UINT_PTR Reserved;
 } BitmapData_C;
 
 typedef struct {
-    INT X;
-    INT Y;
-    INT Width;
-    INT Height;
+    int X;
+    int Y;
+    int Width;
+    int Height;
 } GpRect_C;
 
 typedef struct EncoderParameter {
@@ -480,10 +480,10 @@ typedef void(WINAPI *fnGdiplusShutdown)(ULONG_PTR);
 typedef GpStatus(WINAPI *fnGdipLoadImageFromFile)(const WCHAR *, GpImage_C **);
 typedef GpStatus(WINAPI *fnGdipGetImageWidth)(GpImage_C *, UINT *);
 typedef GpStatus(WINAPI *fnGdipGetImageHeight)(GpImage_C *, UINT *);
-typedef GpStatus(WINAPI *fnGdipBitmapLockBits)(GpBitmap_C *, const GpRect_C *, UINT, INT, BitmapData_C *);
+typedef GpStatus(WINAPI *fnGdipBitmapLockBits)(GpBitmap_C *, const GpRect_C *, UINT, int, BitmapData_C *);
 typedef GpStatus(WINAPI *fnGdipBitmapUnlockBits)(GpBitmap_C *, BitmapData_C *);
 typedef GpStatus(WINAPI *fnGdipDisposeImage)(GpImage_C *);
-typedef GpStatus(WINAPI *fnGdipCreateBitmapFromScan0)(INT, INT, INT, INT, BYTE *, GpBitmap_C **);
+typedef GpStatus(WINAPI *fnGdipCreateBitmapFromScan0)(int, int, int, int, BYTE *, GpBitmap_C **);
 typedef GpStatus(WINAPI *fnGdipSaveImageToFile)(GpImage_C *, const WCHAR *, const CLSID *, const EncoderParameters_C *);
 typedef GpStatus(WINAPI *fnGdipGetImageEncodersSize)(UINT *, UINT *);
 typedef GpStatus(WINAPI *fnGdipGetImageEncoders)(UINT, UINT, ImageCodecInfo_C *);
@@ -646,8 +646,8 @@ static Value load_with_gdiplus(Interpreter *interp, const char *path, int line, 
     GpRect_C rect;
     rect.X = 0;
     rect.Y = 0;
-    rect.Width = (INT)w;
-    rect.Height = (INT)h;
+    rect.Width = (int)w;
+    rect.Height = (int)h;
     BitmapData_C bd;
     memset(&bd, 0, sizeof(bd));
     if (pGdipBitmapLockBits((GpBitmap_C *)img, &rect, ImageLockModeRead_C, PixelFormat32bppARGB_C, &bd) != 0) {
@@ -656,7 +656,7 @@ static Value load_with_gdiplus(Interpreter *interp, const char *path, int line, 
     }
 
     Value out = make_image((size_t)w, (size_t)h);
-    Tensor *t = out.as.tns;
+    Tensor *t = out.as.tensor;
     int stride = bd.Stride;
     int abs_stride = (stride >= 0) ? stride : -stride;
     const uint8_t *base = (const uint8_t *)bd.Scan0;
@@ -932,7 +932,7 @@ static Value op_polygon(Interpreter *interp, Value *args, int argc, Expr **arg_n
     if (thickness < 1) {
         thickness = 1;
     }
-    draw_polygon(out.as.tns, pts, npts, color, fill != 0, thickness);
+    draw_polygon(out.as.tensor, pts, npts, color, fill != 0, thickness);
     free(pts);
     return out;
 }
@@ -948,15 +948,16 @@ static Value op_ellipse(Interpreter *interp, Value *args, int argc, Expr **arg_n
         return value_null();
     }
 
-    if (args[1].type != VAL_TNS || !args[1].as.tns || args[1].as.tns->ndim != 1 || args[1].as.tns->shape[0] != 2) {
+    if (args[1].type != VAL_TENSOR || !args[1].as.tensor || args[1].as.tensor->ndim != 1 ||
+        args[1].as.tensor->shape[0] != 2) {
         value_free(out);
-        return fail(interp, "ELLIPSE center must be TNS[2]", line, col);
+        return fail(interp, "ELLIPSE center must be tensor[2]", line, col);
     }
-    Value cxv = args[1].as.tns->data[0];
-    Value cyv = args[1].as.tns->data[1];
+    Value cxv = args[1].as.tensor->data[0];
+    Value cyv = args[1].as.tensor->data[1];
     if (cxv.type != VAL_INT || cyv.type != VAL_INT) {
         value_free(out);
-        return fail(interp, "ELLIPSE center coordinates must be INT", line, col);
+        return fail(interp, "ELLIPSE center coordinates must be int", line, col);
     }
     /* Convert center from user (1-based) to internal (0-based) */
     int cx = (int)cxv.as.i - 1;
@@ -987,7 +988,7 @@ static Value op_ellipse(Interpreter *interp, Value *args, int argc, Expr **arg_n
     if (thickness < 1) {
         thickness = 1;
     }
-    draw_ellipse(out.as.tns, cx, cy, rx, ry, color, fill != 0, thickness);
+    draw_ellipse(out.as.tensor, cx, cy, rx, ry, color, fill != 0, thickness);
     return out;
 }
 
@@ -1009,7 +1010,7 @@ static Value threshold_channel(Interpreter *interp, Value imgv, Value thv, Value
             return value_null();
         }
     }
-    Tensor *t = out.as.tns;
+    Tensor *t = out.as.tensor;
     for (size_t x = 0; x < t->shape[0]; x++) {
         for (size_t y = 0; y < t->shape[1]; y++) {
             size_t off = pixel_offset(t, x, y);
@@ -1080,7 +1081,7 @@ static Value resize_impl(Interpreter *interp, Value imgv, int new_w, int new_h, 
 
     Value out = make_image((size_t)new_w, (size_t)new_h);
     Tensor *st = iv.t;
-    Tensor *dt = out.as.tns;
+    Tensor *dt = out.as.tensor;
 
     double sx = (double)iv.w / (double)new_w;
     double sy = (double)iv.h / (double)new_h;
@@ -1219,7 +1220,7 @@ static Value op_rotate(Interpreter *interp, Value *args, int argc, Expr **arg_no
 
     Value out = make_image(iv.w, iv.h);
     Tensor *st = iv.t;
-    Tensor *dt = out.as.tns;
+    Tensor *dt = out.as.tensor;
     double rad = -deg * (3.14159265358979323846 / 180.0);
     double cs = cos(rad);
     double sn = sin(rad);
@@ -1285,7 +1286,7 @@ static Value op_blit(Interpreter *interp, Value *args, int argc, Expr **arg_node
     if (interp->error) {
         return value_null();
     }
-    Tensor *dt = out.as.tns;
+    Tensor *dt = out.as.tensor;
 
     for (size_t sx = 0; sx < src.w; sx++) {
         for (size_t sy = 0; sy < src.h; sy++) {
@@ -1313,7 +1314,7 @@ static Value op_grayscale(Interpreter *interp, Value *args, int argc, Expr **arg
     if (interp->error) {
         return value_null();
     }
-    Tensor *t = out.as.tns;
+    Tensor *t = out.as.tensor;
     for (size_t x = 0; x < t->shape[0]; x++) {
         for (size_t y = 0; y < t->shape[1]; y++) {
             size_t off = pixel_offset(t, x, y);
@@ -1348,7 +1349,7 @@ static Value op_replace_color(Interpreter *interp, Value *args, int argc, Expr *
     if (interp->error) {
         return value_null();
     }
-    Tensor *t = out.as.tns;
+    Tensor *t = out.as.tensor;
     for (size_t x = 0; x < t->shape[0]; x++) {
         for (size_t y = 0; y < t->shape[1]; y++) {
             size_t off = pixel_offset(t, x, y);
@@ -1393,8 +1394,8 @@ static Value op_blur(Interpreter *interp, Value *args, int argc, Expr **arg_node
     Value temp = make_image(iv.w, iv.h);
     Value out = make_image(iv.w, iv.h);
     Tensor *st = iv.t;
-    Tensor *tt = temp.as.tns;
-    Tensor *dt = out.as.tns;
+    Tensor *tt = temp.as.tensor;
+    Tensor *dt = out.as.tensor;
 
     for (size_t x = 0; x < iv.w; x++) {
         for (size_t y = 0; y < iv.h; y++) {
@@ -1465,7 +1466,7 @@ static Value op_edge(Interpreter *interp, Value *args, int argc, Expr **arg_node
         return value_null();
     }
     Value out = make_image(i1.w, i1.h);
-    Tensor *dt = out.as.tns;
+    Tensor *dt = out.as.tensor;
 
     for (size_t x = 0; x < i1.w; x++) {
         for (size_t y = 0; y < i1.h; y++) {
@@ -1496,11 +1497,11 @@ static int parse_palette(Interpreter *interp, Value v, int **out_colors, size_t 
     }
     *out_colors = NULL;
     *out_n = 0;
-    if (v.type != VAL_TNS || !v.as.tns) {
-        set_runtime_error(interp, "CELLSHADE palette must be TNS", line, col);
+    if (v.type != VAL_TENSOR || !v.as.tensor) {
+        set_runtime_error(interp, "CELLSHADE palette must be tensor", line, col);
         return 0;
     }
-    Tensor *t = v.as.tns;
+    Tensor *t = v.as.tensor;
     if (t->ndim == 1 && (t->shape[0] == 3 || t->shape[0] == 4)) {
         int *cols = (int *)malloc(sizeof(int) * 4);
         if (!cols) {
@@ -1530,7 +1531,7 @@ static int parse_palette(Interpreter *interp, Value v, int **out_colors, size_t 
                 Value e = t->data[off + c];
                 if (e.type != VAL_INT) {
                     free(cols);
-                    set_runtime_error(interp, "palette channels must be INT", line, col);
+                    set_runtime_error(interp, "palette channels must be int", line, col);
                     return 0;
                 }
                 cols[(i * 4) + c] = clamp_u8_i64(e.as.i);
@@ -1564,7 +1565,7 @@ static Value op_cellshade(Interpreter *interp, Value *args, int argc, Expr **arg
         free(palette);
         return value_null();
     }
-    Tensor *t = out.as.tns;
+    Tensor *t = out.as.tensor;
     for (size_t x = 0; x < t->shape[0]; x++) {
         for (size_t y = 0; y < t->shape[1]; y++) {
             size_t off = pixel_offset(t, x, y);

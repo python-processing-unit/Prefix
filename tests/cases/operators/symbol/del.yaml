@@ -2,10 +2,10 @@ passing:
   - name: del-frozen
     language: Prefix
     source: |
-        BOOL frozen_symbol = TRUE
+        bool frozen_symbol = TRUE
         REFUTE(FREEZE("frozen_symbol"))
         
-        BOOL frozen_delete_failed = FALSE
+        bool frozen_delete_failed = FALSE
         TRY{
             DEL("frozen_symbol")
         } CATCH {
@@ -18,10 +18,10 @@ passing:
         REFUTE(DEL("frozen_symbol"))
         REFUTE(EXIST("frozen_symbol"))
         
-        BOOL permafrozen_symbol = TRUE
+        bool permafrozen_symbol = TRUE
         REFUTE(PERMAFREEZE("permafrozen_symbol"))
         
-        BOOL permafrozen_delete_failed = FALSE
+        bool permafrozen_delete_failed = FALSE
         TRY{
             DEL("permafrozen_symbol")
         } CATCH {
@@ -33,11 +33,11 @@ passing:
   - name: del-map
     language: Prefix
     source: |
-        MAP top = <"keep" = 0d1, "drop" = 0d2>
+        map top = <"keep" = 0d1, "drop" = 0d2>
         REFUTE(DEL('top<"drop">'))
         ASSERT(EQ(top, <"keep" = 0d1>))
         
-        BOOL top_missing = FALSE
+        bool top_missing = FALSE
         TRY{
             top<"drop">
         } CATCH {
@@ -45,27 +45,27 @@ passing:
         }
         ASSERT(top_missing)
         
-        MAP nested = <"outer" = <"keep" = 0d1, "drop" = 0d2>>
+        map nested = <"outer" = <"keep" = 0d1, "drop" = 0d2>>
         REFUTE(DEL('nested<"outer", "drop">'))
         ASSERT(EQ(nested, <"outer" = <"keep" = 0d1>>))
         
-        MAP missing_intermediate = <"outer" = <"keep" = 0d1>>
+        map missing_intermediate = <"outer" = <"keep" = 0d1>>
         REFUTE(DEL('missing_intermediate<"absent", "drop">'))
         ASSERT(EQ(missing_intermediate, <"outer" = <"keep" = 0d1>>))
         
-        MAP missing_final = <"outer" = <"keep" = 0d1>>
+        map missing_final = <"outer" = <"keep" = 0d1>>
         REFUTE(DEL('missing_final<"outer", "drop">'))
         ASSERT(EQ(missing_final, <"outer" = <"keep" = 0d1>>))
         
   - name: del-symbol
     language: Prefix
     source: |
-        BOOL symbol = TRUE
+        bool symbol = TRUE
         ASSERT(EXIST("symbol"))
         REFUTE(DEL("symbol"))
         REFUTE(EXIST("symbol"))
         
-        BOOL deleted_read_failed = FALSE
+        bool deleted_read_failed = FALSE
         TRY{
         	symbol
         } CATCH {
@@ -73,7 +73,7 @@ passing:
         }
         ASSERT(deleted_read_failed)
         
-        INT count = 0d1
+        int count = 0d1
         REFUTE(DEL("count"))
         count = 0d2
         ASSERT(EQ(count, 0d2))
@@ -83,26 +83,26 @@ failing:
   - name: del-already-deleted-symbol
     language: Prefix
     source: |
-        BOOL x = TRUE
+        bool x = TRUE
         DEL("x")
         DEL("x")
         
   - name: del-map-intermediate-not-map
     language: Prefix
     source: |
-        MAP value = <"branch" = 0d1>
+        map value = <"branch" = 0d1>
         DEL('value<"branch", "leaf">')
         
   - name: del-map-target-not-map
     language: Prefix
     source: |
-        INT value = 0d1
+        int value = 0d1
         DEL('value<"key">')
         
   - name: del-never-assigned-symbol
     language: Prefix
     source: |
-        BOOL x
+        bool x
         DEL("x")
         
   - name: del-nonexistent-symbol
@@ -113,17 +113,17 @@ failing:
   - name: del-raw-indexed-target
     language: Prefix
     source: |
-        MAP value = <"key" = 0d1>
+        map value = <"key" = 0d1>
         DEL(value<"key">)
   - name: del-raw-symbol-argument
     language: Prefix
     source: |
-        BOOL x = TRUE
+        bool x = TRUE
         DEL(x)
   - name: del-type-mismatch-after-delete
     language: Prefix
     source: |
-        INT x = 0d1
+        int x = 0d1
         DEL("x")
-        BOOL x = TRUE
+        bool x = TRUE
         

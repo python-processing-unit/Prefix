@@ -11,17 +11,17 @@ static ExecResult exec_stmt(Interpreter *interp, Stmt *stmt, Env *env, LabelMap 
 static ExecResult exec_stmt_list(Interpreter *interp, StmtList *list, Env *env, LabelMap *labels);
 
 static void wait_if_paused(Interpreter *interp) {
-    if (!interp || !interp->current_thr) {
+    if (!interp || !interp->current_thread) {
         return;
     }
-    Thr *th = interp->current_thr;
+    Thread *th = interp->current_thread;
     if (!th) {
         return;
     }
     Value thv;
-    thv.type = VAL_THR;
-    thv.as.thr = th;
-    while (value_thr_get_paused(thv) && !value_thr_get_finished(thv)) {
+    thv.type = VAL_THREAD;
+    thv.as.thread = th;
+    while (value_thread_get_paused(thv) && !value_thread_get_finished(thv)) {
         thrd_yield();
     }
 }
@@ -51,15 +51,15 @@ static const char *stmt_type_name(StmtType type) {
     case STMT_PARFOR:
         return "PARFOR";
     case STMT_FUNC:
-        return "FUNC";
+        return "func";
     case STMT_RETURN:
         return "RETURN";
     case STMT_BREAK:
         return "BREAK";
     case STMT_CONTINUE:
         return "CONTINUE";
-    case STMT_THR:
-        return "THR";
+    case STMT_THREAD:
+        return "thread";
     case STMT_POP:
         return "POP";
     case STMT_TRY:
@@ -428,18 +428,18 @@ void interpreter_reset_traceback(Interpreter *interp, Env *top_env) {
         (void)trace_push_frame(interp, "<top-level>", top_env, 0, 0, 0);
     }
 }
-// Thread worker for THR blocks
+// Thread worker for thread blocks
 typedef struct {
     Interpreter *interp;
     Env *env;
     Stmt *body;
-    Value thr_val;
+    Value thread_val;
 } ThrStart;
 
-static int thr_worker(void *arg) {
+static int thread_worker(void *arg) {
     ThrStart *start = (ThrStart *)arg;
     LabelMap labels = {0};
-    start->interp->current_thr = start->thr_val.as.thr;
+    start->interp->current_thread = start->thread_val.as.thread;
     ExecResult res = exec_stmt(start->interp, start->body, start->env, &labels);
 
     // Clean up labels
@@ -455,8 +455,8 @@ static int thr_worker(void *arg) {
         free(res.error);
     }
 
-    value_thr_set_finished(start->thr_val, 1);
-    value_free(start->thr_val);
+    value_thread_set_finished(start->thread_val, 1);
+    value_free(start->thread_val);
     /* `start->env` points at the caller's environment (shared); the
      * worker must not free it. Ownership remains with the parent
      * interpreter which will free the env when appropriate.
@@ -472,7 +472,7 @@ typedef struct {
     Stmt *body;
     char **errors; // shared array, one slot per iteration
     int index;     // iteration index
-    Value thr_val;
+    Value thread_val;
     int *err_lines;
     int *err_cols;
     const char *counter_name;
@@ -560,7 +560,7 @@ static int parfor_worker(void *arg) {
 
     ExecResult res;
     if (!skip_iteration) {
-        start->interp->current_thr = start->thr_val.as.thr;
+        start->interp->current_thread = start->thread_val.as.thread;
         res = exec_stmt(start->interp, start->body, start->env, &labels);
     } else {
         res.status = EXEC_OK;
@@ -628,14 +628,14 @@ static int parfor_worker(void *arg) {
         }
     }
 
-    value_thr_set_finished(start->thr_val, 1);
-    /* Null out env on the Thr handle before freeing so the handle
+    value_thread_set_finished(start->thread_val, 1);
+    /* Null out env on the Thread handle before freeing so the handle
        (which may still be referenced until the join completes) does
        not carry a dangling pointer. */
-    if (start->thr_val.as.thr) {
-        start->thr_val.as.thr->env = NULL;
+    if (start->thread_val.as.thread) {
+        start->thread_val.as.thread->env = NULL;
     }
-    value_free(start->thr_val);
+    value_free(start->thread_val);
     env_free(start->env);
     free(start->interp);
     free(start);
@@ -646,13 +646,13 @@ static int parfor_worker(void *arg) {
 
 // Return non-zero if the current executing thread has been requested to stop.
 static inline int interpreter_thr_should_stop(Interpreter *interp) {
-    if (!interp || !interp->current_thr) {
+    if (!interp || !interp->current_thread) {
         return 0;
     }
     int finished = 0;
-    mtx_lock(&interp->current_thr->state_lock);
-    finished = interp->current_thr->finished;
-    mtx_unlock(&interp->current_thr->state_lock);
+    mtx_lock(&interp->current_thread->state_lock);
+    finished = interp->current_thread->finished;
+    mtx_unlock(&interp->current_thread->state_lock);
     return finished;
 }
 
@@ -752,23 +752,23 @@ static int should_defer_async_argument_for_call(const char *func_name, int arg_i
 }
 
 static Value make_deferred_async_handle(Expr *async_expr, Env *env) {
-    Value thr_val = value_thr_new();
-    if (thr_val.type == VAL_THR && thr_val.as.thr) {
-        thr_val.as.thr->body = async_expr->as.async.block;
-        thr_val.as.thr->env = env;
+    Value thread_val = value_thread_new();
+    if (thread_val.type == VAL_THREAD && thread_val.as.thread) {
+        thread_val.as.thread->body = async_expr->as.async.block;
+        thread_val.as.thread->env = env;
     }
-    return thr_val;
+    return thread_val;
 }
 
-static int start_deferred_async_handle(Interpreter *interp, Value thr_val, int line, int col) {
-    if (thr_val.type != VAL_THR || !thr_val.as.thr) {
+static int start_deferred_async_handle(Interpreter *interp, Value thread_val, int line, int col) {
+    if (thread_val.type != VAL_THREAD || !thread_val.as.thread) {
         return 0;
     }
-    if (value_thr_get_finished(thr_val) || value_thr_get_started(thr_val)) {
+    if (value_thread_get_finished(thread_val) || value_thread_get_started(thread_val)) {
         return 0;
     }
 
-    if (!thr_val.as.thr->body || !thr_val.as.thr->env) {
+    if (!thread_val.as.thread->body || !thread_val.as.thread->env) {
         if (interp && !interp->error) {
             interp->error = strdup("Cannot start deferred ASYNC: missing body or environment");
             interp->error_line = line;
@@ -790,13 +790,13 @@ static int start_deferred_async_handle(Interpreter *interp, Value thr_val, int l
     thr_interp->shushed = interp->shushed;
 
     start->interp = thr_interp;
-    start->env = thr_val.as.thr->env;
-    start->body = thr_val.as.thr->body;
-    start->thr_val = value_copy(thr_val);
+    start->env = thread_val.as.thread->env;
+    start->body = thread_val.as.thread->body;
+    start->thread_val = value_copy(thread_val);
 
-    if (thrd_create(&thr_val.as.thr->thread, thr_worker, start) != thrd_success) {
-        value_thr_set_finished(thr_val, 1);
-        value_free(start->thr_val);
+    if (thrd_create(&thread_val.as.thread->thread, thread_worker, start) != thrd_success) {
+        value_thread_set_finished(thread_val, 1);
+        value_free(start->thread_val);
         free(thr_interp);
         free(start);
         if (interp && !interp->error) {
@@ -807,7 +807,7 @@ static int start_deferred_async_handle(Interpreter *interp, Value thr_val, int l
         return -1;
     }
 
-    value_thr_set_started(thr_val, 1);
+    value_thread_set_started(thread_val, 1);
     return 0;
 }
 
@@ -835,7 +835,7 @@ static int label_map_find(LabelMap *map, Value key) {
             if (key.type == VAL_STR && strcmp(map->items[i].key.as.s, key.as.s) == 0) {
                 return map->items[i].index;
             }
-            if (key.type == VAL_FLT && map->items[i].key.as.f == key.as.f) {
+            if (key.type == VAL_FLOAT && map->items[i].key.as.f == key.as.f) {
                 return map->items[i].index;
             }
         }
@@ -963,16 +963,16 @@ int value_truthiness(Value v) {
         return (int)v.as.boolean ? 1 : 0;
     case VAL_INT:
         return v.as.i != 0;
-    case VAL_FLT:
+    case VAL_FLOAT:
         return v.as.f != 0.0;
     case VAL_STR:
         return v.as.s != NULL && v.as.s[0] != '\0';
     case VAL_FUNC:
         return 1; // Functions are always truthy
-    case VAL_THR:
-        return value_thr_is_running(v);
-    case VAL_TNS: {
-        Tensor *t = v.as.tns;
+    case VAL_THREAD:
+        return value_thread_is_running(v);
+    case VAL_TENSOR: {
+        Tensor *t = v.as.tensor;
         if (!t || t->length == 0) {
             return 0;
         }
@@ -989,7 +989,7 @@ int value_truthiness(Value v) {
                     return 1;
                 }
                 break;
-            case VAL_FLT:
+            case VAL_FLOAT:
                 if (e.as.f != 0.0) {
                     return 1;
                 }
@@ -1001,12 +1001,12 @@ int value_truthiness(Value v) {
                 break;
             case VAL_FUNC:
                 return 1;
-            case VAL_THR:
-                if (value_thr_is_running(e)) {
+            case VAL_THREAD:
+                if (value_thread_is_running(e)) {
                     return 1;
                 }
                 break;
-            case VAL_TNS:
+            case VAL_TENSOR:
                 if (value_truthiness(e)) {
                     return 1;
                 }
@@ -1046,11 +1046,11 @@ static Value value_with_base(Value v, int base) {
     if (v.type == VAL_INT) {
         return value_int_base(v.as.i, base);
     }
-    if (v.type == VAL_FLT) {
+    if (v.type == VAL_FLOAT) {
         if (v.num_base_nan) {
-            return value_flt_nan_base(v.as.f);
+            return value_float_nan_base(v.as.f);
         }
-        return value_flt_base(v.as.f, base);
+        return value_float_base(v.as.f, base);
     }
     return value_copy(v);
 }
@@ -1063,7 +1063,7 @@ static bool coerce_value_to_decl_type(Interpreter *interp, Value input, DeclType
     *out_value = value_null();
 
     if (value_to_decl_type(input) == target) {
-        if ((target == TYPE_INT || target == TYPE_FLT) && target_base != 0 && value_num_base(input) != target_base) {
+        if ((target == TYPE_INT || target == TYPE_FLOAT) && target_base != 0 && value_num_base(input) != target_base) {
             *out_value = value_with_base(input, target_base);
             return true;
         }
@@ -1074,19 +1074,19 @@ static bool coerce_value_to_decl_type(Interpreter *interp, Value input, DeclType
     const char *builtin_name = NULL;
     switch (target) {
     case TYPE_BOOL:
-        builtin_name = "BOOL";
+        builtin_name = "bool";
         break;
     case TYPE_INT:
-        builtin_name = "INT";
+        builtin_name = "int";
         break;
-    case TYPE_FLT:
-        builtin_name = "FLT";
+    case TYPE_FLOAT:
+        builtin_name = "float";
         break;
     case TYPE_STR:
-        builtin_name = "STR";
+        builtin_name = "str";
         break;
-    case TYPE_TNS:
-        builtin_name = "TNS";
+    case TYPE_TENSOR:
+        builtin_name = "tensor";
         break;
     default:
         return false;
@@ -1108,7 +1108,7 @@ static bool coerce_value_to_decl_type(Interpreter *interp, Value input, DeclType
         return false;
     }
 
-    if ((target == TYPE_INT || target == TYPE_FLT) && target_base != 0) {
+    if ((target == TYPE_INT || target == TYPE_FLOAT) && target_base != 0) {
         Value rebased = value_with_base(converted, target_base);
         value_free(converted);
         converted = rebased;
@@ -1121,7 +1121,7 @@ static bool coerce_value_to_decl_type(Interpreter *interp, Value input, DeclType
 // Compute tensor shape from AST tensor literal. Returns true on success
 // and allocates *out_shape (caller must free). On failure sets *err.
 static bool ast_tns_compute_shape(Expr *expr, size_t **out_shape, size_t *out_ndim, char **err) {
-    if (!expr || expr->type != EXPR_TNS) {
+    if (!expr || expr->type != EXPR_TENSOR) {
         *err = strdup("Internal: expected tensor AST node");
         return false;
     }
@@ -1132,13 +1132,13 @@ static bool ast_tns_compute_shape(Expr *expr, size_t **out_shape, size_t *out_nd
     }
 
     Expr *first = expr->as.tns_items.items[0];
-    if (first->type == EXPR_TNS) {
-        // All items must be EXPR_TNS and have identical shape
+    if (first->type == EXPR_TENSOR) {
+        // All items must be EXPR_TENSOR and have identical shape
         size_t *child_shape = NULL;
         size_t child_ndim = 0;
         for (size_t i = 0; i < count; i++) {
             Expr *it = expr->as.tns_items.items[i];
-            if (it->type != EXPR_TNS) {
+            if (it->type != EXPR_TENSOR) {
                 *err = strdup("Mixed nested and non-nested tensor elements");
                 return false;
             }
@@ -1236,11 +1236,11 @@ Value eval_expr(Interpreter *interp, Expr *expr, Env *env) {
     case EXPR_INT:
         return value_int_base(expr->as.int_value.value, expr->as.int_value.base);
 
-    case EXPR_FLT:
+    case EXPR_FLOAT:
         if (expr->as.flt_value.base_is_nan) {
-            return value_flt_nan_base(expr->as.flt_value.value);
+            return value_float_nan_base(expr->as.flt_value.value);
         }
-        return value_flt_base(expr->as.flt_value.value, expr->as.flt_value.base);
+        return value_float_base(expr->as.flt_value.value, expr->as.flt_value.base);
 
     case EXPR_STR:
         return value_str(expr->as.str_value);
@@ -1380,7 +1380,7 @@ Value eval_expr(Interpreter *interp, Expr *expr, Env *env) {
                 return value_null();
             }
             if (ret_schema.type != VAL_MAP) {
-                interp->error = strdup("MAP schema must evaluate to a MAP");
+                interp->error = strdup("map schema must evaluate to a map");
                 interp->error_line = expr->line;
                 interp->error_col = expr->column;
                 value_free(ret_schema);
@@ -1405,7 +1405,7 @@ Value eval_expr(Interpreter *interp, Expr *expr, Env *env) {
                         return value_null();
                     }
                     if (param_schemas[pi].type != VAL_MAP) {
-                        interp->error = strdup("MAP schema must evaluate to a MAP");
+                        interp->error = strdup("map schema must evaluate to a map");
                         interp->error_line = p->schema_expr->line;
                         interp->error_col = p->schema_expr->column;
                         value_free(ret_schema);
@@ -2021,7 +2021,7 @@ Value eval_expr(Interpreter *interp, Expr *expr, Env *env) {
                 return value_null();
             }
 
-            // Schema check for MAP-typed params
+            // Schema check for map-typed params
             if (param->type == TYPE_MAP && user_func->param_schema_values &&
                 user_func->param_schema_values[i].type == VAL_MAP && bind_val.type == VAL_MAP) {
                 if (!value_map_matches(bind_val, user_func->param_schema_values[i])) {
@@ -2210,29 +2210,29 @@ Value eval_expr(Interpreter *interp, Expr *expr, Env *env) {
         case TYPE_INT:
             trace_pop_frame(interp);
             return value_int_base(0, user_func->return_base != 0 ? user_func->return_base : 2);
-        case TYPE_FLT:
+        case TYPE_FLOAT:
             trace_pop_frame(interp);
-            return value_flt_base(0.0, user_func->return_base != 0 ? user_func->return_base : 2);
+            return value_float_base(0.0, user_func->return_base != 0 ? user_func->return_base : 2);
         case TYPE_STR:
             trace_pop_frame(interp);
             return value_str("");
         case TYPE_MAP:
-            interp->error = strdup("MAP-returning function must return a value");
+            interp->error = strdup("map-returning function must return a value");
             interp->error_line = expr->line;
             interp->error_col = expr->column;
             return value_null();
-        case TYPE_TNS:
-            interp->error = strdup("TNS-returning function must return a value");
+        case TYPE_TENSOR:
+            interp->error = strdup("tensor-returning function must return a value");
             interp->error_line = expr->line;
             interp->error_col = expr->column;
             return value_null();
         case TYPE_FUNC:
-            interp->error = strdup("FUNC-returning function must return a value");
+            interp->error = strdup("func-returning function must return a value");
             interp->error_line = expr->line;
             interp->error_col = expr->column;
             return value_null();
-        case TYPE_THR:
-            interp->error = strdup("THR-returning function must return a value");
+        case TYPE_THREAD:
+            interp->error = strdup("thread-returning function must return a value");
             interp->error_line = expr->line;
             interp->error_col = expr->column;
             return value_null();
@@ -2240,7 +2240,7 @@ Value eval_expr(Interpreter *interp, Expr *expr, Env *env) {
             return value_null();
         }
     }
-    case EXPR_TNS: {
+    case EXPR_TENSOR: {
         // Compute shape
         size_t *shape = NULL;
         size_t ndim = 0;
@@ -2262,19 +2262,19 @@ Value eval_expr(Interpreter *interp, Expr *expr, Env *env) {
 
         for (size_t i = 0; i < expr->as.tns_items.count; i++) {
             Expr *it = expr->as.tns_items.items[i];
-            if (it->type == EXPR_TNS) {
+            if (it->type == EXPR_TENSOR) {
                 Value cv = eval_expr(interp, it, env);
                 if (interp->error) {
                     goto tns_eval_fail;
                 }
-                if (cv.type != VAL_TNS) {
+                if (cv.type != VAL_TENSOR) {
                     interp->error = strdup("Nested tensor literal did not evaluate to tensor");
                     interp->error_line = it->line;
                     interp->error_col = it->column;
                     value_free(cv);
                     goto tns_eval_fail;
                 }
-                Tensor *ct = cv.as.tns;
+                Tensor *ct = cv.as.tensor;
                 if (ct->ndim != (ndim ? ndim - 1 : 0)) {
                     interp->error = strdup("Nested tensor shape mismatch");
                     interp->error_line = it->line;
@@ -2327,7 +2327,7 @@ Value eval_expr(Interpreter *interp, Expr *expr, Env *env) {
             }
         }
 
-        Value out = value_tns_from_values(elem_decl, ndim, shape, items, total);
+        Value out = value_tensor_from_values(elem_decl, ndim, shape, items, total);
         for (size_t j = 0; j < total; j++) {
             value_free(items[j]);
         }
@@ -2344,9 +2344,9 @@ Value eval_expr(Interpreter *interp, Expr *expr, Env *env) {
         return value_null();
     }
     case EXPR_ASYNC: {
-        // Expression form: start executing block asynchronously and return THR handle
-        Value thr_val = value_thr_new();
-        Value thr_for_worker = value_copy(thr_val);
+        // Expression form: start executing block asynchronously and return thread handle
+        Value thread_val = value_thread_new();
+        Value thread_for_worker = value_copy(thread_val);
 
         ThrStart *start = safe_malloc(sizeof(ThrStart));
         Interpreter *thr_interp = safe_malloc(sizeof(Interpreter));
@@ -2363,25 +2363,25 @@ Value eval_expr(Interpreter *interp, Expr *expr, Env *env) {
         start->interp = thr_interp;
         start->env = env;
         start->body = expr->as.async.block;
-        start->thr_val = thr_for_worker;
+        start->thread_val = thread_for_worker;
 
-        /* record body/env on the Thr so restart is possible */
-        thr_for_worker.as.thr->body = start->body;
-        thr_for_worker.as.thr->env = start->env;
-        value_thr_set_started(thr_for_worker, 1);
+        /* record body/env on the Thread so restart is possible */
+        thread_for_worker.as.thread->body = start->body;
+        thread_for_worker.as.thread->env = start->env;
+        value_thread_set_started(thread_for_worker, 1);
 
-        if (thrd_create(&thr_for_worker.as.thr->thread, thr_worker, start) != thrd_success) {
-            value_thr_set_finished(thr_for_worker, 1);
-            value_free(thr_for_worker);
+        if (thrd_create(&thread_for_worker.as.thread->thread, thread_worker, start) != thrd_success) {
+            value_thread_set_finished(thread_for_worker, 1);
+            value_free(thread_for_worker);
             free(thr_interp);
             free(start);
             interp->error = strdup("Failed to start ASYNC");
             interp->error_line = expr->line;
             interp->error_col = expr->column;
-            value_free(thr_val);
+            value_free(thread_val);
             return value_null();
         }
-        return thr_val;
+        return thread_val;
     }
     case EXPR_MAP: {
         // Evaluate map literal: keys and values
@@ -2397,10 +2397,10 @@ Value eval_expr(Interpreter *interp, Expr *expr, Env *env) {
                 value_free(mv);
                 return value_null();
             }
-            if (!(k.type == VAL_INT || k.type == VAL_STR || k.type == VAL_FLT)) {
+            if (!(k.type == VAL_INT || k.type == VAL_STR || k.type == VAL_FLOAT)) {
                 value_free(k);
                 value_free(mv);
-                interp->error = strdup("Map keys must be INT, FLT or STR");
+                interp->error = strdup("Map keys must be int, float or str");
                 interp->error_line = expr->line;
                 interp->error_col = expr->column;
                 return value_null();
@@ -2430,10 +2430,10 @@ Value eval_expr(Interpreter *interp, Expr *expr, Env *env) {
                         err = true;
                         break;
                     }
-                    if (!(ikv.type == VAL_INT || ikv.type == VAL_STR || ikv.type == VAL_FLT)) {
+                    if (!(ikv.type == VAL_INT || ikv.type == VAL_STR || ikv.type == VAL_FLOAT)) {
                         value_free(ikv);
                         value_free(cur);
-                        interp->error = strdup("Map index must be INT, FLT or STR");
+                        interp->error = strdup("Map index must be int, float or str");
                         interp->error_line = ik->line;
                         interp->error_col = ik->column;
                         err = true;
@@ -2500,15 +2500,15 @@ Value eval_expr(Interpreter *interp, Expr *expr, Env *env) {
         if (is_map_index) {
             if (tval.type != VAL_MAP) {
                 value_free(tval);
-                interp->error = strdup("Angle-bracket indexing '<...>' is only allowed on MAP values");
+                interp->error = strdup("Angle-bracket indexing '<...>' is only allowed on map values");
                 interp->error_line = expr->line;
                 interp->error_col = expr->column;
                 return value_null();
             }
         } else {
-            if (tval.type != VAL_TNS) {
+            if (tval.type != VAL_TENSOR) {
                 value_free(tval);
-                interp->error = strdup("Square-bracket indexing '[...]' is only allowed on TNS values");
+                interp->error = strdup("Square-bracket indexing '[...]' is only allowed on tensor values");
                 interp->error_line = expr->line;
                 interp->error_col = expr->column;
                 return value_null();
@@ -2525,10 +2525,10 @@ Value eval_expr(Interpreter *interp, Expr *expr, Env *env) {
                     value_free(cur);
                     return value_null();
                 }
-                if (!(key.type == VAL_INT || key.type == VAL_STR || key.type == VAL_FLT)) {
+                if (!(key.type == VAL_INT || key.type == VAL_STR || key.type == VAL_FLOAT)) {
                     value_free(key);
                     value_free(cur);
-                    interp->error = strdup("Map index must be INT, FLT or STR");
+                    interp->error = strdup("Map index must be int, float or str");
                     interp->error_line = it->line;
                     interp->error_col = it->column;
                     return value_null();
@@ -2571,14 +2571,14 @@ Value eval_expr(Interpreter *interp, Expr *expr, Env *env) {
             return value_null();
         }
 
-        if (tval.type != VAL_TNS) {
+        if (tval.type != VAL_TENSOR) {
             interp->error = strdup("Indexing is supported only on tensors and maps");
             interp->error_line = expr->line;
             interp->error_col = expr->column;
             value_free(tval);
             return value_null();
         }
-        Tensor *t = tval.as.tns;
+        Tensor *t = tval.as.tensor;
 
         // Check whether all indices are simple integer indexes
         bool all_int = true;
@@ -2603,7 +2603,7 @@ Value eval_expr(Interpreter *interp, Expr *expr, Env *env) {
                     return value_null();
                 }
                 if (vi.type != VAL_INT) {
-                    interp->error = strdup("Index expression must evaluate to INT");
+                    interp->error = strdup("Index expression must evaluate to int");
                     interp->error_line = it->line;
                     interp->error_col = it->column;
                     value_free(vi);
@@ -2629,13 +2629,13 @@ Value eval_expr(Interpreter *interp, Expr *expr, Env *env) {
                 idxs[i] = (size_t)(v - 1);
                 value_free(vi);
             }
-            Value out = value_tns_get(tval, idxs, nidx);
+            Value out = value_tensor_get(tval, idxs, nidx);
             free(idxs);
             value_free(tval);
             return out;
         }
 
-        // Mixed case: build starts/ends arrays (1-based inclusive per value_tns_slice)
+        // Mixed case: build starts/ends arrays (1-based inclusive per value_tensor_slice)
         int64_t *starts = malloc(sizeof(int64_t) * nidx);
         int64_t *ends = malloc(sizeof(int64_t) * nidx);
         for (size_t i = 0; i < nidx; i++) {
@@ -2661,7 +2661,7 @@ Value eval_expr(Interpreter *interp, Expr *expr, Env *env) {
                     return value_null();
                 }
                 if (vs.type != VAL_INT || ve.type != VAL_INT) {
-                    interp->error = strdup("Range bounds must be INT");
+                    interp->error = strdup("Range bounds must be int");
                     interp->error_line = it->line;
                     interp->error_col = it->column;
                     value_free(vs);
@@ -2676,7 +2676,7 @@ Value eval_expr(Interpreter *interp, Expr *expr, Env *env) {
                 value_free(vs);
                 value_free(ve);
             } else {
-                // general expression: expect INT
+                // general expression: expect int
                 Value vi = eval_expr(interp, it, env);
                 if (interp->error) {
                     free(starts);
@@ -2685,7 +2685,7 @@ Value eval_expr(Interpreter *interp, Expr *expr, Env *env) {
                     return value_null();
                 }
                 if (vi.type != VAL_INT) {
-                    interp->error = strdup("Index expression must evaluate to INT");
+                    interp->error = strdup("Index expression must evaluate to int");
                     interp->error_line = it->line;
                     interp->error_col = it->column;
                     value_free(vi);
@@ -2700,7 +2700,7 @@ Value eval_expr(Interpreter *interp, Expr *expr, Env *env) {
             }
         }
 
-        Value out = value_tns_slice(tval, starts, ends, nidx);
+        Value out = value_tensor_slice(tval, starts, ends, nidx);
         free(starts);
         free(ends);
         value_free(tval);
@@ -2746,7 +2746,7 @@ ExecResult assign_index_chain(Interpreter *interp, Env *env, Expr *idx_expr, Val
         return make_error(buf, stmt_line, stmt_col);
     }
 
-    // If uninitialized (or NULL), default to MAP (matches previous behaviour),
+    // If uninitialized (or NULL), default to map (matches previous behaviour),
     // and persist that into the environment via env_assign.
     if (!base_initialized || base_val.type == VAL_NULL) {
         Value nm = value_map_new();
@@ -2786,7 +2786,7 @@ ExecResult assign_index_chain(Interpreter *interp, Env *env, Expr *idx_expr, Val
             goto cleanup;
         }
 
-        // Auto-promote NULL to MAP only when angle-bracket (map) indexing is used.
+        // Auto-promote NULL to map only when angle-bracket (map) indexing is used.
         if (cur->type == VAL_NULL) {
             if (node->as.index.is_map) {
                 *cur = value_map_new();
@@ -2796,21 +2796,21 @@ ExecResult assign_index_chain(Interpreter *interp, Env *env, Expr *idx_expr, Val
             }
         }
 
-        /* Enforce bracket kind matches the container type: angle-brackets -> MAP, square-brackets -> TNS */
+        /* Enforce bracket kind matches the container type: angle-brackets -> map, square-brackets -> tensor */
         if (node->as.index.is_map) {
             if (cur->type != VAL_MAP) {
                 out = make_error("Angle-bracket indexing '<...>' used on non-map value", node->line, node->column);
                 goto cleanup;
             }
         } else {
-            if (cur->type != VAL_TNS) {
+            if (cur->type != VAL_TENSOR) {
                 out = make_error("Square-bracket indexing '[...]' used on non-tensor value", node->line, node->column);
                 goto cleanup;
             }
         }
 
-        if (cur->type == VAL_TNS) {
-            Tensor *t = cur->as.tns;
+        if (cur->type == VAL_TENSOR) {
+            Tensor *t = cur->as.tensor;
 
             // Allow indexing with ranges/wildcards or integers. Indices may be fewer than ndim.
             // Build per-dimension start/end (1-based inclusive) arrays for the full tensor dims.
@@ -2865,7 +2865,7 @@ ExecResult assign_index_chain(Interpreter *interp, Env *env, Expr *idx_expr, Val
                         value_free(ve);
                         free(starts);
                         free(ends);
-                        out = make_error("Range endpoints must evaluate to INT", it->line, it->column);
+                        out = make_error("Range endpoints must evaluate to int", it->line, it->column);
                         goto cleanup;
                     }
                     starts[i] = vs.as.i;
@@ -2889,7 +2889,7 @@ ExecResult assign_index_chain(Interpreter *interp, Env *env, Expr *idx_expr, Val
                     value_free(vi);
                     free(starts);
                     free(ends);
-                    out = make_error("Index expression must evaluate to INT", it->line, it->column);
+                    out = make_error("Index expression must evaluate to int", it->line, it->column);
                     goto cleanup;
                 }
                 starts[i] = vi.as.i;
@@ -2947,7 +2947,7 @@ ExecResult assign_index_chain(Interpreter *interp, Env *env, Expr *idx_expr, Val
                 }
 
                 // type compatibility
-                if (rhs.type != VAL_TNS && value_to_decl_type(rhs) != t->elem_type) {
+                if (rhs.type != VAL_TENSOR && value_to_decl_type(rhs) != t->elem_type) {
                     free(starts);
                     free(ends);
                     free(orig_to_out);
@@ -2957,7 +2957,7 @@ ExecResult assign_index_chain(Interpreter *interp, Env *env, Expr *idx_expr, Val
 
                 mtx_lock(&t->lock);
                 value_free(t->data[src_offset]);
-                if (rhs.type == VAL_TNS) {
+                if (rhs.type == VAL_TENSOR) {
                     // RHS is a tensor but single-element selection: copy whole RHS value
                     t->data[src_offset] = value_copy(rhs);
                 } else {
@@ -2987,16 +2987,16 @@ ExecResult assign_index_chain(Interpreter *interp, Env *env, Expr *idx_expr, Val
                 }
             }
 
-            if (rhs.type != VAL_TNS) {
+            if (rhs.type != VAL_TENSOR) {
                 free(starts);
                 free(ends);
                 free(orig_to_out);
                 free(out_shape);
-                out = make_error("Right-hand side must be a TNS matching slice shape", node->line, node->column);
+                out = make_error("Right-hand side must be a tensor matching slice shape", node->line, node->column);
                 goto cleanup;
             }
 
-            Tensor *rt = rhs.as.tns;
+            Tensor *rt = rhs.as.tensor;
             if (rt->ndim != new_ndim) {
                 free(starts);
                 free(ends);
@@ -3080,9 +3080,9 @@ ExecResult assign_index_chain(Interpreter *interp, Env *env, Expr *idx_expr, Val
                     out = err;
                     goto cleanup;
                 }
-                if (!(key.type == VAL_INT || key.type == VAL_STR || key.type == VAL_FLT)) {
+                if (!(key.type == VAL_INT || key.type == VAL_STR || key.type == VAL_FLOAT)) {
                     value_free(key);
-                    out = make_error("Map index must be INT, FLT or STR", it->line, it->column);
+                    out = make_error("Map index must be int, float or str", it->line, it->column);
                     goto cleanup;
                 }
 
@@ -3207,7 +3207,7 @@ static ExecResult exec_stmt(Interpreter *interp, Stmt *stmt, Env *env, LabelMap 
                 }
                 if (tmpl.type != VAL_MAP) {
                     value_free(tmpl);
-                    return make_error("MAP schema must evaluate to a MAP", stmt->line, stmt->column);
+                    return make_error("map schema must evaluate to a map", stmt->line, stmt->column);
                 }
             }
             env_define(decl_env, stmt->as.decl.name, stmt->as.decl.decl_type, stmt->as.decl.decl_base, tmpl);
@@ -3339,7 +3339,7 @@ static ExecResult exec_stmt(Interpreter *interp, Stmt *stmt, Env *env, LabelMap 
                     if (tmpl.type != VAL_MAP) {
                         value_free(v);
                         value_free(tmpl);
-                        return make_error("MAP schema must evaluate to a MAP", stmt->line, stmt->column);
+                        return make_error("map schema must evaluate to a map", stmt->line, stmt->column);
                     }
                 }
                 env_define(assign_env, stmt->as.assign.name, expected, expected_base, tmpl);
@@ -3441,7 +3441,7 @@ static ExecResult exec_stmt(Interpreter *interp, Stmt *stmt, Env *env, LabelMap 
             }
             if (ret_schema.type != VAL_MAP) {
                 value_free(ret_schema);
-                return make_error("MAP schema must evaluate to a MAP", stmt->line, stmt->column);
+                return make_error("map schema must evaluate to a map", stmt->line, stmt->column);
             }
         }
         size_t nparams = stmt->as.func_stmt.params.count;
@@ -3469,7 +3469,7 @@ static ExecResult exec_stmt(Interpreter *interp, Stmt *stmt, Env *env, LabelMap 
                             value_free(param_schemas[j]);
                         }
                         free(param_schemas);
-                        return make_error("MAP schema must evaluate to a MAP", p->schema_expr->line,
+                        return make_error("map schema must evaluate to a map", p->schema_expr->line,
                                           p->schema_expr->column);
                     }
                 }
@@ -3542,7 +3542,7 @@ static ExecResult exec_stmt(Interpreter *interp, Stmt *stmt, Env *env, LabelMap 
     }
 
     case STMT_POP: {
-        // POP: evaluate expression that yields the symbol name (STR),
+        // POP: evaluate expression that yields the symbol name (str),
         // delete the binding with that name, and return the retrieved value.
         // POP is only valid inside a function (env != global_env)
         if (env == interp->global_env) {
@@ -3558,7 +3558,7 @@ static ExecResult exec_stmt(Interpreter *interp, Stmt *stmt, Env *env, LabelMap 
 
         if (name_val.type != VAL_STR) {
             value_free(name_val);
-            return make_error("POP requires a STR argument", stmt->line, stmt->column);
+            return make_error("POP requires a str argument", stmt->line, stmt->column);
         }
 
         const char *name_c = name_val.as.s ? name_val.as.s : "";
@@ -3663,7 +3663,7 @@ static ExecResult exec_stmt(Interpreter *interp, Stmt *stmt, Env *env, LabelMap 
         }
         if (v.type != VAL_INT) {
             value_free(v);
-            return make_error("BREAK requires INT argument", stmt->line, stmt->column);
+            return make_error("BREAK requires int argument", stmt->line, stmt->column);
         }
         int64_t bc = v.as.i;
         if (bc <= 0) {
@@ -3722,7 +3722,7 @@ static ExecResult exec_stmt(Interpreter *interp, Stmt *stmt, Env *env, LabelMap 
 
         if (!(target.type == VAL_INT || target.type == VAL_STR)) {
             value_free(target);
-            return make_error("GOTO requires INT or STR argument", stmt->line, stmt->column);
+            return make_error("GOTO requires int or str argument", stmt->line, stmt->column);
         }
 
         if (target.type == VAL_INT && target.as.i < 0) {
@@ -3748,15 +3748,15 @@ static ExecResult exec_stmt(Interpreter *interp, Stmt *stmt, Env *env, LabelMap 
         return res;
     }
 
-    case STMT_THR: {
-        Value thr_val = value_thr_new();
-        Value thr_for_worker = value_copy(thr_val);
-        if (!env_assign(env, stmt->as.thr_stmt.name, thr_val, TYPE_THR, 0, true)) {
-            value_free(thr_for_worker);
-            value_free(thr_val);
-            return make_error("Cannot assign to THR identifier", stmt->line, stmt->column);
+    case STMT_THREAD: {
+        Value thread_val = value_thread_new();
+        Value thread_for_worker = value_copy(thread_val);
+        if (!env_assign(env, stmt->as.thread_stmt.name, thread_val, TYPE_THREAD, 0, true)) {
+            value_free(thread_for_worker);
+            value_free(thread_val);
+            return make_error("Cannot assign to thread identifier", stmt->line, stmt->column);
         }
-        value_free(thr_val);
+        value_free(thread_val);
 
         ThrStart *start = safe_malloc(sizeof(ThrStart));
         Interpreter *thr_interp = safe_malloc(sizeof(Interpreter));
@@ -3772,27 +3772,27 @@ static ExecResult exec_stmt(Interpreter *interp, Stmt *stmt, Env *env, LabelMap 
 
         start->interp = thr_interp;
         start->env = env;
-        start->body = stmt->as.thr_stmt.body;
-        start->thr_val = thr_for_worker;
+        start->body = stmt->as.thread_stmt.body;
+        start->thread_val = thread_for_worker;
 
-        /* record body/env on the Thr so restart is possible */
-        thr_for_worker.as.thr->body = start->body;
-        thr_for_worker.as.thr->env = start->env;
-        value_thr_set_started(thr_for_worker, 1);
+        /* record body/env on the Thread so restart is possible */
+        thread_for_worker.as.thread->body = start->body;
+        thread_for_worker.as.thread->env = start->env;
+        value_thread_set_started(thread_for_worker, 1);
 
-        if (thrd_create(&thr_for_worker.as.thr->thread, thr_worker, start) != thrd_success) {
-            value_thr_set_finished(thr_for_worker, 1);
-            value_free(thr_for_worker);
+        if (thrd_create(&thread_for_worker.as.thread->thread, thread_worker, start) != thrd_success) {
+            value_thread_set_finished(thread_for_worker, 1);
+            value_free(thread_for_worker);
             free(thr_interp);
             free(start);
-            return make_error("Failed to start THR", stmt->line, stmt->column);
+            return make_error("Failed to start thread", stmt->line, stmt->column);
         }
         return make_ok(value_null());
     }
 
     case STMT_ASYNC: {
-        Value thr_val = value_thr_new();
-        Value thr_for_worker = value_copy(thr_val);
+        Value thread_val = value_thread_new();
+        Value thread_for_worker = value_copy(thread_val);
 
         ThrStart *start = safe_malloc(sizeof(ThrStart));
         Interpreter *thr_interp = safe_malloc(sizeof(Interpreter));
@@ -3809,16 +3809,16 @@ static ExecResult exec_stmt(Interpreter *interp, Stmt *stmt, Env *env, LabelMap 
         start->interp = thr_interp;
         start->env = env;
         start->body = stmt->as.async_stmt.body;
-        start->thr_val = thr_for_worker;
+        start->thread_val = thread_for_worker;
 
-        /* record body/env on the Thr so restart is possible */
-        thr_for_worker.as.thr->body = start->body;
-        thr_for_worker.as.thr->env = start->env;
-        value_thr_set_started(thr_for_worker, 1);
+        /* record body/env on the Thread so restart is possible */
+        thread_for_worker.as.thread->body = start->body;
+        thread_for_worker.as.thread->env = start->env;
+        value_thread_set_started(thread_for_worker, 1);
 
-        if (thrd_create(&thr_for_worker.as.thr->thread, thr_worker, start) != thrd_success) {
-            value_thr_set_finished(thr_for_worker, 1);
-            value_free(thr_for_worker);
+        if (thrd_create(&thread_for_worker.as.thread->thread, thread_worker, start) != thrd_success) {
+            value_thread_set_finished(thread_for_worker, 1);
+            value_free(thread_for_worker);
             free(thr_interp);
             free(start);
             return make_error("Failed to start ASYNC", stmt->line, stmt->column);
@@ -3927,7 +3927,7 @@ static ExecResult exec_stmt(Interpreter *interp, Stmt *stmt, Env *env, LabelMap 
         if (target.type != VAL_INT) {
             value_free(target);
             interp->loop_depth--;
-            return make_error("FOR target must be INT", stmt->line, stmt->column);
+            return make_error("FOR target must be int", stmt->line, stmt->column);
         }
 
         int64_t limit = target.as.i;
@@ -4081,7 +4081,7 @@ static ExecResult exec_stmt(Interpreter *interp, Stmt *stmt, Env *env, LabelMap 
         }
 
         /* Restore global binding if the aliasing process shadowed a
-           non-local (global/parent) symbol with a non-INT type. */
+           non-local (global/parent) symbol with a non-int type. */
         if (had_global) {
             env_assign(env, stmt->as.for_stmt.counter, global_prev_val, global_prev_type, 0, false);
             value_free(global_prev_val);
@@ -4108,7 +4108,7 @@ static ExecResult exec_stmt(Interpreter *interp, Stmt *stmt, Env *env, LabelMap 
         if (target.type != VAL_INT) {
             value_free(target);
             interp->loop_depth--;
-            return make_error("PARFOR target must be INT", stmt->line, stmt->column);
+            return make_error("PARFOR target must be int", stmt->line, stmt->column);
         }
 
         int64_t limit = target.as.i;
@@ -4130,7 +4130,7 @@ static ExecResult exec_stmt(Interpreter *interp, Stmt *stmt, Env *env, LabelMap 
         int *err_cols = calloc(n, sizeof(int));
         ExecStatus *statuses = calloc(n, sizeof(ExecStatus));
         int *break_counts = calloc(n, sizeof(int));
-        Value *thr_vals = calloc(n, sizeof(Value));
+        Value *thread_vals = calloc(n, sizeof(Value));
         int stop_launch = 0;
         mtx_t parfor_control_lock;
         int control_lock_inited = 0;
@@ -4139,14 +4139,14 @@ static ExecResult exec_stmt(Interpreter *interp, Stmt *stmt, Env *env, LabelMap 
             control_lock_inited = 1;
         }
 
-        if (!errors || !err_lines || !err_cols || !statuses || !break_counts || !thr_vals || !control_lock_inited) {
+        if (!errors || !err_lines || !err_cols || !statuses || !break_counts || !thread_vals || !control_lock_inited) {
             interp->loop_depth--;
             free(errors);
             free(err_lines);
             free(err_cols);
             free(statuses);
             free(break_counts);
-            free(thr_vals);
+            free(thread_vals);
             if (control_lock_inited) {
                 mtx_destroy(&parfor_control_lock);
             }
@@ -4166,9 +4166,9 @@ static ExecResult exec_stmt(Interpreter *interp, Stmt *stmt, Env *env, LabelMap 
                 interp->loop_depth--;
                 // cleanup
                 for (size_t j = 0; j < i; j++) {
-                    value_free(thr_vals[j]);
+                    value_free(thread_vals[j]);
                 }
-                free(thr_vals);
+                free(thread_vals);
                 for (size_t j = 0; j < n; j++) {
                     free(errors[j]);
                 }
@@ -4181,7 +4181,7 @@ static ExecResult exec_stmt(Interpreter *interp, Stmt *stmt, Env *env, LabelMap 
                 return make_error("Infinite loop detected", stmt->line, stmt->column);
             }
 
-            thr_vals[i] = value_thr_new();
+            thread_vals[i] = value_thread_new();
 
             ParforStart *start = safe_malloc(sizeof(ParforStart));
             Interpreter *thr_interp = safe_malloc(sizeof(Interpreter));
@@ -4212,7 +4212,7 @@ static ExecResult exec_stmt(Interpreter *interp, Stmt *stmt, Env *env, LabelMap 
                 free(thr_interp);
                 free(start);
                 /* Mark this iteration as finished and continue launching others */
-                value_thr_set_finished(thr_vals[i], 1);
+                value_thread_set_finished(thread_vals[i], 1);
                 continue;
             }
             start->env = thread_env;
@@ -4226,29 +4226,30 @@ static ExecResult exec_stmt(Interpreter *interp, Stmt *stmt, Env *env, LabelMap 
             start->break_counts = break_counts;
             start->stop_launch = &stop_launch;
             start->control_lock = &parfor_control_lock;
-            start->thr_val = value_copy(thr_vals[i]);
+            start->thread_val = value_copy(thread_vals[i]);
 
-            /* record body/env on Thr so restart is possible */
-            thr_vals[i].as.thr->body = start->body;
-            thr_vals[i].as.thr->env = start->env; /* points to per-iteration env */
+            /* record body/env on Thread so restart is possible */
+            thread_vals[i].as.thread->body = start->body;
+            thread_vals[i].as.thread->env = start->env; /* points to per-iteration env */
 
-            if (thrd_create(&thr_vals[i].as.thr->thread, parfor_worker, start) != thrd_success) {
-                /* mark finished and leave thr_vals[i] intact so later cleanup is safe */
-                value_thr_set_finished(thr_vals[i], 1);
+            if (thrd_create(&thread_vals[i].as.thread->thread, parfor_worker, start) != thrd_success) {
+                /* mark finished and leave thread_vals[i] intact so later cleanup is safe */
+                value_thread_set_finished(thread_vals[i], 1);
                 free(thr_interp);
                 free(start);
                 errors[i] = strdup("Failed to start PARFOR iteration");
                 /* continue launching others */
             } else {
                 /* only mark started after successful thread creation */
-                value_thr_set_started(thr_vals[i], 1);
+                value_thread_set_started(thread_vals[i], 1);
             }
         }
 
         // Join only threads that were actually started
         for (size_t i = 0; i < n; i++) {
-            if (thr_vals[i].type == VAL_THR && thr_vals[i].as.thr && value_thr_get_started(thr_vals[i])) {
-                if (thrd_join(thr_vals[i].as.thr->thread, NULL) != thrd_success) {
+            if (thread_vals[i].type == VAL_THREAD && thread_vals[i].as.thread &&
+                value_thread_get_started(thread_vals[i])) {
+                if (thrd_join(thread_vals[i].as.thread->thread, NULL) != thrd_success) {
                     // ignore join failures but mark finished
                 }
             }
@@ -4277,9 +4278,9 @@ static ExecResult exec_stmt(Interpreter *interp, Stmt *stmt, Env *env, LabelMap 
 
         // Cleanup thr values
         for (size_t i = 0; i < n; i++) {
-            value_free(thr_vals[i]);
+            value_free(thread_vals[i]);
         }
-        free(thr_vals);
+        free(thread_vals);
         for (size_t i = 0; i < n; i++) {
             if (errors[i] && errors[i] != first_err) {
                 free(errors[i]);
@@ -4343,7 +4344,7 @@ static ExecResult exec_stmt_list(Interpreter *interp, StmtList *list, Env *env, 
             }
             if (!(target.type == VAL_INT || target.type == VAL_STR)) {
                 value_free(target);
-                return make_error("GOTOPOINT requires INT or STR argument", stmt->line, stmt->column);
+                return make_error("GOTOPOINT requires int or str argument", stmt->line, stmt->column);
             }
             if (target.type == VAL_INT && target.as.i < 0) {
                 value_free(target);
@@ -4393,7 +4394,7 @@ void interpreter_init(Interpreter *interp, const char *source_path, bool verbose
     interp->error = NULL;
     interp->in_try_block = false;
     interp->modules = NULL;
-    interp->current_thr = NULL;
+    interp->current_thread = NULL;
     interp->verbose = (int)verbose ? 1 : 0;
     interp->private_mode = (int)private_mode ? 1 : 0;
     interp->source_path = source_path ? strdup(source_path) : NULL;
@@ -4471,23 +4472,23 @@ void interpreter_destroy(Interpreter *interp) {
 }
 
 // helper used by builtins to restart threads
-int interpreter_restart_thread(Interpreter *interp, Value thr_val, int line, int col) {
+int interpreter_restart_thread(Interpreter *interp, Value thread_val, int line, int col) {
     (void)line;
     (void)col;
-    if (thr_val.type != VAL_THR || !thr_val.as.thr) {
+    if (thread_val.type != VAL_THREAD || !thread_val.as.thread) {
         if (interp) {
-            interp->error = strdup("RESTART expects THR argument");
+            interp->error = strdup("RESTART expects thread argument");
         }
         return -1;
     }
-    Thr *th = thr_val.as.thr;
+    Thread *th = thread_val.as.thread;
     if (!th->body || !th->env) {
         if (interp) {
             interp->error = strdup("Cannot restart: no stored thread body/env");
         }
         return -1;
     }
-    if (!value_thr_get_finished(thr_val)) {
+    if (!value_thread_get_finished(thread_val)) {
         if (interp) {
             interp->error = strdup("Cannot restart running thread");
         }
@@ -4508,14 +4509,14 @@ int interpreter_restart_thread(Interpreter *interp, Value thr_val, int line, int
     start->interp = thr_interp;
     start->env = th->env;
     start->body = th->body;
-    start->thr_val = value_copy(thr_val);
+    start->thread_val = value_copy(thread_val);
 
-    value_thr_set_finished(thr_val, 0);
-    value_thr_set_paused(thr_val, 0);
-    value_thr_set_started(thr_val, 1);
-    if (thrd_create(&th->thread, thr_worker, start) != thrd_success) {
-        value_thr_set_finished(thr_val, 1);
-        value_free(start->thr_val);
+    value_thread_set_finished(thread_val, 0);
+    value_thread_set_paused(thread_val, 0);
+    value_thread_set_started(thread_val, 1);
+    if (thrd_create(&th->thread, thread_worker, start) != thrd_success) {
+        value_thread_set_finished(thread_val, 1);
+        value_free(start->thread_val);
         free(thr_interp);
         free(start);
         if (interp) {

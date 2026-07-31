@@ -2,8 +2,8 @@ passing:
   - name: break-nested
     language: Prefix
     source: |
-        INT outer = 0d0
-        INT inner = 0d0
+        int outer = 0d0
+        int inner = 0d0
         FOR(i, 0d3){
             +(@outer, 0d1)
             FOR(j, 0d3){
@@ -21,7 +21,7 @@ passing:
   - name: break
     language: Prefix
     source: |
-        INT c = 0d0
+        int c = 0d0
         WHILE(TRUE){
             +(@c, 0d1)
             BREAK(0d1)
@@ -32,7 +32,7 @@ passing:
   - name: continue-for
     language: Prefix
     source: |
-        INT total = 0d0
+        int total = 0d0
         FOR(i, 0d4){
             IF(EQ(i, 0d2)){
                 CONTINUE()
@@ -44,8 +44,8 @@ passing:
   - name: continue-while
     language: Prefix
     source: |
-        INT c = 0d0
-        INT seen = 0d0
+        int c = 0d0
+        int seen = 0d0
         WHILE(LT(c, 0d5)){
             +(@c, 0d1)
             IF(LT(c, 0d5)){
