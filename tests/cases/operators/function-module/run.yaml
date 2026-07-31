@@ -11,10 +11,10 @@ passing:
         int step = 0d0
         bool caught = FALSE
         
-        TRY{
-            RUN("step = 0d1; IF(TRUE){")
+        try{
+            RUN("step = 0d1; if(TRUE){")
             ASSERT(FALSE)
-        } CATCH {
+        } catch {
             caught = TRUE
         }
         
@@ -26,10 +26,10 @@ passing:
         int step = 0d0
         bool caught = FALSE
         
-        TRY{
+        try{
             RUN("step = 0d1; ASSERT(FALSE); step = 0d2")
             ASSERT(FALSE)
-        } CATCH {
+        } catch {
             caught = TRUE
         }
         

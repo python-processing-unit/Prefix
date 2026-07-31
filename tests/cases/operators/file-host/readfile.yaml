@@ -45,7 +45,7 @@ failing:
         IMPORT("path")
         
         str missing = path.TEMPFILE("prefix-readfile-missing.txt")
-        TRY{ DELETEFILE(missing) } CATCH { }
+        try{ DELETEFILE(missing) } catch { }
         READFILE(missing)
         
   - name: readfile-unsupported-coding

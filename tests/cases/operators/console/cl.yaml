@@ -79,7 +79,7 @@ failing:
     source: CL(<>)
   - name: cl-type-thr
     language: Prefix
-    source: CL(ASYNC{})
+    source: CL(async{})
   - name: cl-type-tns
     language: Prefix
     source: CL([0d1])

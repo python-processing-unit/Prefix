@@ -4,8 +4,8 @@ passing:
     source: |
         bool released = FALSE
         
-        thread paused = PAUSE(ASYNC{
-            WHILE(NOT(released)){}
+        thread paused = PAUSE(async{
+            while(NOT(released)){}
         }, seconds = 0d0.05)
         
         ASSERT(EQ(TYPE(paused), "thread"))
@@ -24,8 +24,8 @@ passing:
     source: |
         bool released = FALSE
         
-        thread worker = ASYNC{
-            WHILE(NOT(released)){}
+        thread worker = async{
+            while(NOT(released)){}
         }
         
         thread paused = PAUSE(worker, seconds = 0d0.05)
@@ -47,7 +47,7 @@ passing:
         bool released = FALSE
         
         thread(worker){
-            WHILE(NOT(released)){}
+            while(NOT(released)){}
         }
         
         thread paused = PAUSE(worker, seconds = -0d1.0)
@@ -75,7 +75,7 @@ passing:
         bool released = FALSE
         
         thread(worker){
-            WHILE(NOT(released)){}
+            while(NOT(released)){}
         }
         
         ASSERT(bool(worker))
@@ -100,7 +100,7 @@ failing:
     language: Prefix
     source: |
         thread(worker){
-            WHILE(TRUE){}
+            while(TRUE){}
         }
         
         PAUSE(worker)
@@ -174,8 +174,8 @@ failing:
   - name: resume-not-paused
     language: Prefix
     source: |
-        thread worker = ASYNC{
-            FOR(i, 0d100000){}
+        thread worker = async{
+            for(i, 0d100000){}
         }
         
         RESUME(worker)

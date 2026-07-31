@@ -33,30 +33,30 @@ passing:
         
         int errors_caught = 0d0
         
-        TRY {
+        try {
             vec[0d4]
-        } CATCH(err) {
+        } catch(err) {
             ASSERT(EQ(err, 'Index out of range'))
              +(@errors_caught, 0d1)
         }
         
-        TRY {
+        try {
             vec[TRUE]
-        } CATCH(err) {
+        } catch(err) {
             ASSERT(EQ(err, 'Index expression must evaluate to int'))
              +(@errors_caught, 0d1)
         }
         
-        TRY {
+        try {
             vec[TRUE:0d1]
-        } CATCH(err) {
+        } catch(err) {
             ASSERT(EQ(err, 'Range bounds must be int'))
              +(@errors_caught, 0d1)
         }
         
-        TRY {
+        try {
             0d1[0d1]
-        } CATCH(err) {
+        } catch(err) {
             ASSERT(EQ(err, "Square-bracket indexing '[...]' is only allowed on tensor values"))
              +(@errors_caught, 0d1)
         }
@@ -69,15 +69,15 @@ passing:
         tensor zero_row = [0d0, 0d0]
         tensor row = [0d1, 0d2]
         
-        IF([FALSE, 0d0, 0d0.0, "", zero_row]){
+        if([FALSE, 0d0, 0d0.0, "", zero_row]){
             ASSERT(FALSE)
-        } ELSE {
+        } else {
             ASSERT(TRUE)
         }
         
-        IF([FALSE, 0d0, row]){
+        if([FALSE, 0d0, row]){
             ASSERT(TRUE)
-        } ELSE {
+        } else {
             ASSERT(FALSE)
         }
         
@@ -96,7 +96,7 @@ passing:
     language: Prefix
     source: |
         func int ID(int x){
-            RETURN(x)
+            return(x)
         }
         
         map sample_map = <"n" = 0d5>

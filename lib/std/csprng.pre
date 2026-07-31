@@ -20,7 +20,7 @@ func int ROTL32(int x, int n){
     int x32 = BAND(x, MASK32)
     int left = BAND(SHL(x32, n), MASK32)
     int right = SHR(x32, -(0b100000, n))  ! 32 - n
-    RETURN( BAND(BOR(left, right), MASK32) )
+    return( BAND(BOR(left, right), MASK32) )
 }
 
 func int QR(tensor s, int ia, int ib, int ic, int id){
@@ -42,7 +42,7 @@ func int QR(tensor s, int ia, int ib, int ic, int id){
     s[ib] = b
     s[ic] = c
     s[id] = d
-    RETURN(0)
+    return(0)
 }
 
 func int CHACHA_BLOCK(){
@@ -66,7 +66,7 @@ func int CHACHA_BLOCK(){
         n[0b10], ^
         n[0b11] ^
     ]
-    FOR(i, 0b1010){  ! 10 double-rounds
+    for(i, 0b1010){  ! 10 double-rounds
         QR(state, 0b1, 0b101, 0b1001, 0b1101)
         QR(state, 0b10, 0b110, 0b1010, 0b1110)
         QR(state, 0b11, 0b111, 0b1011, 0b1111)
@@ -95,19 +95,19 @@ func int CHACHA_BLOCK(){
     ch_buf[0b1111] = BAND( +(state[0b1111], n[0b10]), MASK32 )
     ch_buf[0b10000] = BAND( +(state[0b10000], n[0b11]), MASK32 )
 
-    RETURN(0b0)
+    return(0b0)
 }
 
 func int REFILL_BUF(){
     CHACHA_BLOCK()
     ch_buf_pos = 0b0
     ch_counter = BAND( +(ch_counter, 0b1), MASK32 )
-    RETURN(0b0)
+    return(0b0)
 }
 
 func int DERIVE_KEY_AND_NONCE(int seed){
     int s = BAND(seed, MASK32)
-    FOR(i, 0b1000){  ! 8 key words (1000 == 8)
+    for(i, 0b1000){  ! 8 key words (1000 == 8)
         s = BAND( +( *(s, ^
             0b01000001110001100100111001101101), ^
             0b00000000000000000011000000111001 ), ^
@@ -115,7 +115,7 @@ func int DERIVE_KEY_AND_NONCE(int seed){
         )
         ch_key[i] = s
     }
-    FOR(j, 0b11){  ! 3 nonce words (11 == 3)
+    for(j, 0b11){  ! 3 nonce words (11 == 3)
         s = BAND( +( *(s, ^
             0b01000001110001100100111001101101), ^
             0b00000000000000000011000000111001 ), ^
@@ -123,7 +123,7 @@ func int DERIVE_KEY_AND_NONCE(int seed){
         )
         ch_nonce[j] = s
     }
-    RETURN(0b0)
+    return(0b0)
 }
 
 func int SEED(int seed){
@@ -131,28 +131,28 @@ func int SEED(int seed){
     ch_counter = 0b0
     ch_buf = tensor([0b10000], 0b0)
     ch_buf_pos = TLEN(ch_buf, 0b1)  ! set to buffer length to force refill
-    RETURN(ch_counter)
+    return(ch_counter)
 }
 
 func int NEXT(){
-    IF( GTE(ch_buf_pos, TLEN(ch_buf, 0b1)) ){  ! buffer length
+    if( GTE(ch_buf_pos, TLEN(ch_buf, 0b1)) ){  ! buffer length
         REFILL_BUF()
     }
     int v = ch_buf[ +(ch_buf_pos, 0b1) ]
     ch_buf_pos = +(ch_buf_pos, 0b1)
-    RETURN(v)
+    return(v)
 }
 
 func int RANGE(int max){
     ASSERT( GT(max, 0b0) )
-    RETURN( MOD(NEXT(), max) )
+    return( MOD(NEXT(), max) )
 }
 
 func int RANGE_MIN_MAX(int min, int max){
     ASSERT( LTE(min, max) )
     int range = -(max, min)
-    IF( EQ(range, 0b0) ){ RETURN(min) }
+    if( EQ(range, 0b0) ){ return(min) }
     ASSERT( GT(range, 0b0) )
     int offset = RANGE(range)
-    RETURN( +(offset, min) )
+    return( +(offset, min) )
 }

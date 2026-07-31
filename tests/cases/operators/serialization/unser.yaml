@@ -4,27 +4,27 @@ passing:
     source: |
         int errors = 0d0
         
-        TRY{
+        try{
             UNSER("{")
-        } CATCH(err){
+        } catch(err){
             +(@errors, 0d1)
         }
         
-        TRY{
+        try{
             UNSER('\R{"v":true}')
-        } CATCH(err){
+        } catch(err){
             +(@errors, 0d1)
         }
         
-        TRY{
+        try{
             UNSER('\R{"t":"bool"}')
-        } CATCH(err){
+        } catch(err){
             +(@errors, 0d1)
         }
         
-        TRY{
+        try{
             UNSER('\R{"t":"NOPE","v":0}')
-        } CATCH(err){
+        } catch(err){
             +(@errors, 0d1)
         }
         
@@ -34,21 +34,21 @@ passing:
     source: |
         int errors = 0d0
         
-        TRY{
+        try{
             UNSER('\R{"t":"int","v":"12"}')
-        } CATCH(err){
+        } catch(err){
             +(@errors, 0d1)
         }
         
-        TRY{
+        try{
             UNSER('\R{"t":"float","v":"0d1"}')
-        } CATCH(err){
+        } catch(err){
             +(@errors, 0d1)
         }
         
-        TRY{
+        try{
             UNSER('\R{"t":"float","v":"-NaN"}')
-        } CATCH(err){
+        } catch(err){
             +(@errors, 0d1)
         }
         
@@ -58,27 +58,27 @@ passing:
     source: |
         int errors = 0d0
         
-        TRY{
+        try{
             UNSER('\R{"t":"tensor","shape":[0],"v":[]}')
-        } CATCH(err){
+        } catch(err){
             +(@errors, 0d1)
         }
         
-        TRY{
+        try{
             UNSER('\R{"t":"tensor","shape":[2,2],"v":[{"t":"int","v":"0d1"},{"t":"int","v":"0d2"},{"t":"int","v":"0d3"}]}')
-        } CATCH(err){
+        } catch(err){
             +(@errors, 0d1)
         }
         
-        TRY{
+        try{
             UNSER('\R{"t":"map","v":[{"k":{"t":"tensor","shape":[1],"v":[{"t":"int","v":"0d1"}]},"v":{"t":"int","v":"0d2"}}]}')
-        } CATCH(err){
+        } catch(err){
             +(@errors, 0d1)
         }
         
-        TRY{
+        try{
             UNSER('\R{"t":"map","v":[{"k":{"t":"str","v":"x"}}]}')
-        } CATCH(err){
+        } catch(err){
             +(@errors, 0d1)
         }
         
@@ -267,7 +267,7 @@ failing:
     language: Prefix
     source: |
         func int identity(int value){
-            RETURN(value)
+            return(value)
         }
         
         UNSER(identity)

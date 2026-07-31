@@ -62,7 +62,7 @@ failing:
   - name: base-thr
     language: Prefix
     source: |
-        BASE(ASYNC{})
+        BASE(async{})
         
   - name: convert-base-too-large
     language: Prefix

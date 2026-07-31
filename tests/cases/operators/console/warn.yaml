@@ -118,7 +118,7 @@ failing:
     source: 'WARN(<"key" = 0d1>)'
   - name: warn-first-thr
     language: Prefix
-    source: WARN(ASYNC{})
+    source: WARN(async{})
   - name: warn-first-tns
     language: Prefix
     source: WARN([0d1])

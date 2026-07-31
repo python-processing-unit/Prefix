@@ -3,7 +3,7 @@ passing:
     language: Prefix
     source: |
         int c = 0d0
-        WHILE(LT(c, 0d10)){
+        while(LT(c, 0d10)){
             +(@c, 0d1)
         }
         ASSERT(EQ(c, 0d10))
@@ -12,10 +12,10 @@ failing:
   - name: while-no-block
     language: Prefix
     source: |
-        WHILE(TRUE)
+        while(TRUE)
         
   - name: while-no-condition
     language: Prefix
     source: |
-        WHILE(){}
+        while(){}
         

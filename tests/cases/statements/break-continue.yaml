@@ -4,11 +4,11 @@ passing:
     source: |
         int outer = 0d0
         int inner = 0d0
-        FOR(i, 0d3){
+        for(i, 0d3){
             +(@outer, 0d1)
-            FOR(j, 0d3){
+            for(j, 0d3){
                 +(@inner, 0d1)
-                BREAK(0d2)
+                break(0d2)
                 ASSERT(FALSE)
             }
             ASSERT(FALSE)
@@ -22,9 +22,9 @@ passing:
     language: Prefix
     source: |
         int c = 0d0
-        WHILE(TRUE){
+        while(TRUE){
             +(@c, 0d1)
-            BREAK(0d1)
+            break(0d1)
             ASSERT(FALSE)
         }
         ASSERT(EQ(c, 0d1))
@@ -33,9 +33,9 @@ passing:
     language: Prefix
     source: |
         int total = 0d0
-        FOR(i, 0d4){
-            IF(EQ(i, 0d2)){
-                CONTINUE()
+        for(i, 0d4){
+            if(EQ(i, 0d2)){
+                continue()
             }
                 +(@total, i)
         }
@@ -46,10 +46,10 @@ passing:
     source: |
         int c = 0d0
         int seen = 0d0
-        WHILE(LT(c, 0d5)){
+        while(LT(c, 0d5)){
             +(@c, 0d1)
-            IF(LT(c, 0d5)){
-                CONTINUE()
+            if(LT(c, 0d5)){
+                continue()
             }
             +(@seen, 0d1)
         }
@@ -60,52 +60,52 @@ failing:
   - name: break-no-argument
     language: Prefix
     source: |
-        WHILE(TRUE){
-            BREAK()
+        while(TRUE){
+            break()
         }
         
   - name: break-outside-loop
     language: Prefix
     source: |
-        BREAK(0d1)
+        break(0d1)
         
   - name: break-target-not-int
     language: Prefix
     source: |
-        WHILE(TRUE){
-            BREAK(TRUE)
+        while(TRUE){
+            break(TRUE)
         }
         
   - name: break-too-deep
     language: Prefix
     source: |
-        WHILE(TRUE){
-            BREAK(0d2)
+        while(TRUE){
+            break(0d2)
         }
         
   - name: break-zero
     language: Prefix
     source: |
-        WHILE(TRUE){
-            BREAK(0d0)
+        while(TRUE){
+            break(0d0)
         }
         
   - name: continue-no-parens
     language: Prefix
     source: |
-        WHILE(TRUE){
-            CONTINUE
+        while(TRUE){
+            continue
         }
         
   - name: continue-outside-loop
     language: Prefix
     source: |
-        CONTINUE()
+        continue()
         
   - name: continue-with-argument
     language: Prefix
     source: |
-        WHILE(TRUE){
-            CONTINUE(0d1)
+        while(TRUE){
+            continue(0d1)
         }
         

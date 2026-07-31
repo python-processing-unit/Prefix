@@ -33,7 +33,7 @@ failing:
     source: EXISTFILE(<>)
   - name: existfile-thr
     language: Prefix
-    source: EXISTFILE(ASYNC{})
+    source: EXISTFILE(async{})
   - name: existfile-tns
     language: Prefix
     source: EXISTFILE([0d1])

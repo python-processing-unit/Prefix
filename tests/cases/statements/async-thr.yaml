@@ -4,11 +4,11 @@ passing:
     source: |
         bool caught = FALSE
         
-        TRY{
-            thread worker = ASYNC{
+        try{
+            thread worker = async{
                 FREEZE("not_declared")
             }
-        } CATCH {
+        } catch {
             caught = TRUE
         }
         
@@ -18,13 +18,13 @@ passing:
         ! Also ensure awaiting the failed thread does not synchronously raise
         bool caught_await = FALSE
         
-        thread worker2 = ASYNC{
+        thread worker2 = async{
             FREEZE("not_declared")
         }
         
-        TRY{
+        try{
             AWAIT(worker2)
-        } CATCH {
+        } catch {
             caught_await = TRUE
         }
         

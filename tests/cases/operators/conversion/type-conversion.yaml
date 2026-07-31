@@ -19,7 +19,7 @@ passing:
     language: Prefix
     source: |
         func bool sample_func(){
-            RETURN(TRUE)
+            return(TRUE)
         }
         
         ASSERT(bool(sample_func))
@@ -47,13 +47,13 @@ passing:
     source: |
         bool thr_release = FALSE
         thread(worker){
-            WHILE(NOT(thr_release)){
+            while(NOT(thr_release)){
             }
         }
         
         ASSERT(bool(worker))
         thr_release = TRUE
-        WHILE(worker){
+        while(worker){
         }
         REFUTE(bool(worker))
         
@@ -152,7 +152,7 @@ failing:
     language: Prefix
     source: |
         func int sample_func(){
-            RETURN(0d1)
+            return(0d1)
         }
         
         float(sample_func)
@@ -168,7 +168,7 @@ failing:
     language: Prefix
     source: |
         func int sample_func(){
-            RETURN(0d1)
+            return(0d1)
         }
         
         int(sample_func)
@@ -184,13 +184,13 @@ failing:
     language: Prefix
     source: |
         func bool str_func(){
-            RETURN(TRUE)
+            return(TRUE)
         }
         
         str(str_func)
   - name: op-str-lambda
     language: Prefix
-    source: 'str(LAMBDA bool: (){ RETURN(TRUE) })'
+    source: 'str(LAMBDA bool: (){ return(TRUE) })'
   - name: op-str-map
     language: Prefix
     source: str(<>)

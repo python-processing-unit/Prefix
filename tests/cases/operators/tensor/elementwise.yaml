@@ -223,7 +223,7 @@ failing:
     source: 'M-("a", [0d1])'
   - name: msub-first-thr
     language: Prefix
-    source: 'M-(ASYNC{}, [0d1])'
+    source: 'M-(async{}, [0d1])'
   - name: msub-mixed-numeric-types
     language: Prefix
     source: 'M-([0d1, 0d2], [0d1.0, 0d2.0])'
@@ -241,7 +241,7 @@ failing:
     source: 'M-(["a"], ["b"])'
   - name: msub-non-numeric-thr
     language: Prefix
-    source: 'M-([ASYNC{}], [ASYNC{}])'
+    source: 'M-([async{}], [async{}])'
   - name: msub-non-numeric-tns
     language: Prefix
     source: |
@@ -267,7 +267,7 @@ failing:
     source: 'M-([0d1], "a")'
   - name: msub-second-thr
     language: Prefix
-    source: 'M-([0d1], ASYNC{})'
+    source: 'M-([0d1], async{})'
   - name: msub-shape-mismatch
     language: Prefix
     source: 'M-([0d1, 0d2], [0d3])'

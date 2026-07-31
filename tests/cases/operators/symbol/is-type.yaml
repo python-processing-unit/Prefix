@@ -11,7 +11,7 @@ passing:
         map sample_map = <"n" = 0d1>
         
         func int sample_func(int value){
-            RETURN(value)
+            return(value)
         }
         
         thread(sample_thr){}
@@ -37,7 +37,7 @@ passing:
         map sample_map = <"n" = 0d1>
         
         func int sample_func(int value){
-            RETURN(value)
+            return(value)
         }
         
         thread(sample_thr){}
@@ -63,7 +63,7 @@ passing:
         map sample_map = <"n" = 0d1>
         
         func int sample_func(int value){
-            RETURN(value)
+            return(value)
         }
         
         thread(sample_thr){}
@@ -89,7 +89,7 @@ passing:
         map sample_map = <"n" = 0d1>
         
         func int sample_func(int value){
-            RETURN(value)
+            return(value)
         }
         
         thread(sample_thr){}
@@ -115,7 +115,7 @@ passing:
         map sample_map = <"n" = 0d1>
         
         func int sample_func(int value){
-            RETURN(value)
+            return(value)
         }
         
         thread(sample_thr){}
@@ -141,7 +141,7 @@ passing:
         map sample_map = <"n" = 0d1>
         
         func int sample_func(int value){
-            RETURN(value)
+            return(value)
         }
         
         thread(sample_thr){}
@@ -166,7 +166,7 @@ passing:
         map sample_map = <"n" = 0d1>
         
         func int sample_func(int value){
-            RETURN(value)
+            return(value)
         }
         
         thread(sample_thr){}
@@ -191,7 +191,7 @@ passing:
         map sample_map = <"n" = 0d1>
         
         func int sample_func(int value){
-            RETURN(value)
+            return(value)
         }
         
         thread(sample_thr){}

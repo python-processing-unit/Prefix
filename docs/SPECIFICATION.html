@@ -114,9 +114,9 @@ If a tensor target uses slice indices such as `lo:hi` or `#`, the right-hand sid
 
 ### 3.3 Conditionals and conditions
 
-Conditional execution MUST use `IF(condition){ ... }`, optionally followed by one or more `ELSEIF(condition){ ... }` clauses and at most one trailing `ELSE{ ... }` clause. An `ELSEIF` or `ELSE` MUST immediately follow a preceding `IF` or `ELSEIF`; otherwise it is a syntax error.
+Conditional execution MUST use `if(condition){ ... }`, optionally followed by one or more `elseif(condition){ ... }` clauses and at most one trailing `else{ ... }` clause. An `elseif` or `else` MUST immediately follow a preceding `if` or `elseif`; otherwise it is a syntax error.
 
-The interpreter MUST evaluate the initial `IF` condition first, then each `ELSEIF` condition in order until one is truthy. If no earlier branch is taken and an `ELSE` clause is present, its block MUST execute.
+The interpreter MUST evaluate the initial `if` condition first, then each `elseif` condition in order until one is truthy. If no earlier branch is taken and an `else` clause is present, its block MUST execute.
 
 Conditions MUST accept values of any type. When evaluating a condition, the runtime MUST coerce the value to its boolean representation according to that type's conversion rules (see [4](#4-types) for type-specific boolean semantics).
 
@@ -124,33 +124,33 @@ Conditions MUST accept values of any type. When evaluating a condition, the runt
 
 ### 3.4 Exception handling
 
-Structured exception handling MUST use either `TRY{ ... }CATCH{ ... }` or `TRY{ ... }CATCH(SYMBOL name){ ... }`. A `TRY` block MUST be followed immediately by exactly one `CATCH` block, and a standalone `CATCH` is a syntax error.
+Structured exception handling MUST use either `try{ ... }catch{ ... }` or `try{ ... }catch(SYMBOL name){ ... }`. A `try` block MUST be followed immediately by exactly one `catch` block, and a standalone `catch` is a syntax error.
 
-If the `TRY` block completes without a runtime error, the `CATCH` block MUST be skipped. If a runtime error occurs while executing the `TRY` block, execution of that block MUST stop and the matching `CATCH` block MUST execute.
+If the `try` block completes without a runtime error, the `catch` block MUST be skipped. If a runtime error occurs while executing the `try` block, execution of that block MUST stop and the matching `catch` block MUST execute.
 
-In the parameterized form, `CATCH(SYMBOL name)` MUST create a temporary `str` binding named `name` in the handler's lexical environment containing the triggering error message. That temporary binding MUST shadow any existing binding of the same name only for the duration of the `CATCH` block.
+In the parameterized form, `catch(SYMBOL name)` MUST create a temporary `str` binding named `name` in the handler's lexical environment containing the triggering error message. That temporary binding MUST shadow any existing binding of the same name only for the duration of the `catch` block.
 
-`TRY` and `CATCH` MUST intercept interpreter-level errors. Errors raised inside `ASYNC` or other background execution contexts MUST be reported through the runtime's error-reporting mechanisms and MUST NOT synchronously transfer control to a surrounding `CATCH` block in another thread.
+`try` and `catch` MUST intercept interpreter-level errors. Errors raised inside `async` or other background execution contexts MUST be reported through the runtime's error-reporting mechanisms and MUST NOT synchronously transfer control to a surrounding `catch` block in another thread.
 
 ---
 
 ### 3.5 Loops
 
-`WHILE(condition){ ... }` MUST repeatedly evaluate its condition before each iteration and MUST terminate when the condition becomes false.
+`while(condition){ ... }` MUST repeatedly evaluate its condition before each iteration and MUST terminate when the condition becomes false.
 
-`FOR(counter, target){ ... }` MUST evaluate `target` exactly once at loop entry, require that value to be an `int`, initialize `counter` to `1`, and execute the body once for each value through `target`, inclusive. The loop counter MUST be loop-local and MUST NOT persist after the loop finishes, though other symbols declared in the body remain bound in the enclosing environment.
+`for(counter, target){ ... }` MUST evaluate `target` exactly once at loop entry, require that value to be an `int`, initialize `counter` to `1`, and execute the body once for each value through `target`, inclusive. The loop counter MUST be loop-local and MUST NOT persist after the loop finishes, though other symbols declared in the body remain bound in the enclosing environment.
 
-`PARFOR(counter, target){ ... }` MUST evaluate `target` once, require an `int`, then execute the iterations `1..target` concurrently. The interpreter MUST wait for all iterations to finish before continuing. The loop counter is iteration-local and does not persist afterward, while other symbols declared in iteration bodies are merged back into the enclosing environment. Concurrent writes to shared identifiers are therefore race-prone, and the resulting value is implementation-defined.
+`parfor(counter, target){ ... }` MUST evaluate `target` once, require an `int`, then execute the iterations `1..target` concurrently. The interpreter MUST wait for all iterations to finish before continuing. The loop counter is iteration-local and does not persist afterward, while other symbols declared in iteration bodies are merged back into the enclosing environment. Concurrent writes to shared identifiers are therefore race-prone, and the resulting value is implementation-defined.
 
-Runtime errors raised inside a `PARFOR` iteration MUST be collected and re-raised after all iterations have joined. `CONTINUE()` inside `PARFOR` MUST end only the current iteration. `BREAK(n)` inside any `PARFOR` iteration MUST terminate the `PARFOR` as a whole by preventing new iterations from starting, waiting for in-flight iterations to finish, and then propagating the break to surrounding loop handlers.
+Runtime errors raised inside a `parfor` iteration MUST be collected and re-raised after all iterations have joined. `continue()` inside `parfor` MUST end only the current iteration. `break(n)` inside any `parfor` iteration MUST terminate the `parfor` as a whole by preventing new iterations from starting, waiting for in-flight iterations to finish, and then propagating the break to surrounding loop handlers.
 
 ---
 
 ### 3.6 Asynchronous execution and threads
 
-The statement form `ASYNC{ ... }` MUST start a background task that executes the enclosed block asynchronously relative to the main flow of execution while sharing the same lexical environment. Mutations performed inside the block are therefore visible to the rest of the program as they occur.
+The statement form `async{ ... }` MUST start a background task that executes the enclosed block asynchronously relative to the main flow of execution while sharing the same lexical environment. Mutations performed inside the block are therefore visible to the rest of the program as they occur.
 
-When `ASYNC{ ... }` appears in statement position, its resulting `thread` handle is ignored. When it appears in expression position, it MUST evaluate to a `thread` handle. If that expression is supplied as an argument to an enclosing call expression, the runtime MUST defer starting the worker until the enclosing call expression has completed.
+When `async{ ... }` appears in statement position, its resulting `thread` handle is ignored. When it appears in expression position, it MUST evaluate to a `thread` handle. If that expression is supplied as an argument to an enclosing call expression, the runtime MUST defer starting the worker until the enclosing call expression has completed.
 
 The statement form `thread(symbol){ ... }` MUST create a background task and bind its handle to `symbol` with static type `thread` in the current environment.
 
@@ -160,15 +160,15 @@ Runtime errors raised inside asynchronous execution MUST be recorded by the inte
 
 ### 3.7 Loop control and jumps
 
-`BREAK(n)` MUST terminate the innermost `n` enclosing loops. The argument `n` MUST evaluate to a strictly positive integer. Using `BREAK` outside a loop, passing `n <= 0`, or requesting more loop exits than are currently available MUST raise a runtime error.
+`break(n)` MUST terminate the innermost `n` enclosing loops. The argument `n` MUST evaluate to a strictly positive integer. Using `break` outside a loop, passing `n <= 0`, or requesting more loop exits than are currently available MUST raise a runtime error.
 
-`CONTINUE()` MUST skip the remainder of the current iteration of the innermost enclosing loop and proceed to the next iteration. If no further iteration would occur, `CONTINUE()` MUST have the same effect as `BREAK(1)`. Using `CONTINUE()` outside a loop MUST raise a runtime error.
+`continue()` MUST skip the remainder of the current iteration of the innermost enclosing loop and proceed to the next iteration. If no further iteration would occur, `continue()` MUST have the same effect as `break(1)`. Using `continue()` outside a loop MUST raise a runtime error.
 
-`GOTOPOINT(n)` MUST register a jump target identified by the runtime value `n`, where `n` MAY be either `int` or `str`. Negative integer gotopoint identifiers are invalid.
+`gotopoint(n)` MUST register a jump target identified by the runtime value `n`, where `n` MAY be either `int` or `str`. Negative integer gotopoint identifiers are invalid.
 
-`GOTO(n)` MUST jump to a previously registered gotopoint with matching type and value. The jump target MUST be visible within the same containing function or top-level scope unless an implementation explicitly widens that scope. `GOTO` MAY jump either forward or backward. Jumping to an unregistered target MUST raise a runtime error.
+`goto(n)` MUST jump to a previously registered gotopoint with matching type and value. The jump target MUST be visible within the same containing function or top-level scope unless an implementation explicitly widens that scope. `goto` MAY jump either forward or backward. Jumping to an unregistered target MUST raise a runtime error.
 
-Implementations MUST record `BREAK`, `CONTINUE`, `GOTOPOINT`, and `GOTO` in the state log so deterministic replay and traceback generation remain possible.
+Implementations MUST record `break`, `continue`, `gotopoint`, and `goto` in the state log so deterministic replay and traceback generation remain possible.
 
 ---
 
@@ -390,7 +390,7 @@ When a `map` is used in a boolean context, a `map` MUST be treated as `TRUE` if 
 
 `func` statements MUST define explicit parameter and return types. The definition MUST use the `func` keyword followed by the return type, the function name, a comma-separated list of typed parameters in parentheses, and the body in curly braces. Type annotations in function definitions MUST use the `TYPE name` form, with one or more space characters between the type and the name.
 
-Parameters MAY declare a call-time default value. Positional parameters MUST appear before any parameters with defaults. A `RETURN(value)` statement terminates the function; the returned value MUST match the declared return type. Functions with a `map`, `tensor`, `func`, or `thread` return type MUST execute an explicit `RETURN` or raise a runtime error.
+Parameters MAY declare a call-time default value. Positional parameters MUST appear before any parameters with defaults. A `return(value)` statement terminates the function; the returned value MUST match the declared return type. Functions with a `map`, `tensor`, `func`, or `thread` return type MUST execute an explicit `return` or raise a runtime error.
 
 ---
 
@@ -422,7 +422,7 @@ When a `func` is used in a boolean context, a `func` MUST be treated as `TRUE`.
 
 #### 4.7.1 Thread literals
 
-`thread` handles MUST be created using the `ASYNC{ ... }` expression or the `thread(symbol){ ... }` statement. The block inside them MUST run synchronously within itself but asynchronously with the caller thread. The spun task MUST share the main program namespace (executing with the same lexical environment).
+`thread` handles MUST be created using the `async{ ... }` expression or the `thread(symbol){ ... }` statement. The block inside them MUST run synchronously within itself but asynchronously with the caller thread. The spun task MUST share the main program namespace (executing with the same lexical environment).
 
 ---
 
@@ -470,7 +470,7 @@ Calls MAY target any expression that evaluates to a callable value. Arguments MU
 
 Default parameter expressions MUST be evaluated at call time in the function's lexical environment after earlier parameters have been bound. For an ordinary parameter, the supplied or defaulted value MUST already have the declared type. For a coerced parameter, the runtime MUST attempt conversion to the declared type and MUST raise a runtime error if that conversion fails.
 
-Any explicit return value MUST match the declared return type. If execution reaches the end of a function body without an explicit return, the runtime MUST apply the following default-return rules: `bool` functions MUST return `FALSE`, `int` functions MUST return `0`, `float` functions MUST return `0.0`, and `str` functions MUST return the empty string. Functions declared with return type `tensor`, `map`, `func`, or `thread` MUST raise a runtime error if control reaches the end of the body without an explicit `RETURN`.
+Any explicit return value MUST match the declared return type. If execution reaches the end of a function body without an explicit return, the runtime MUST apply the following default-return rules: `bool` functions MUST return `FALSE`, `int` functions MUST return `0`, `float` functions MUST return `0.0`, and `str` functions MUST return the empty string. Functions declared with return type `tensor`, `map`, `func`, or `thread` MUST raise a runtime error if control reaches the end of the body without an explicit `return`.
 
 ---
 
@@ -536,7 +536,7 @@ Logging configuration MAY change how much diagnostic data is retained, but it MU
 
 ### 6.4 Concurrency, scheduling, and interleaving
 
-`ASYNC`, `thread`, and `PARFOR` introduce multiple runnable execution contexts that share the language's lexical environment according to the rules defined elsewhere in this specification. Unless a construct states otherwise, the implementation MAY choose any scheduling order for runnable contexts.
+`async`, `thread`, and `parfor` introduce multiple runnable execution contexts that share the language's lexical environment according to the rules defined elsewhere in this specification. Unless a construct states otherwise, the implementation MAY choose any scheduling order for runnable contexts.
 
 Scheduling decisions that can affect observable behavior MUST be treated as explicit nondeterministic choices. When replay logging is enabled, those choices MUST be recorded in sufficient detail for the implementation to reproduce the same interleaving on replay.
 
@@ -883,7 +883,7 @@ Built-in operator names MUST be matched case-sensitively and MUST be written in 
 
 #### 9.1.9 Concurrency operators
 
-The expression form `ASYNC{ ... }` and the statement form `thread(symbol){ ... }` are defined in [3.6](#36-asynchronous-execution-and-threads). The operators in this subsection act on `thread` handles.
+The expression form `async{ ... }` and the statement form `thread(symbol){ ... }` are defined in [3.6](#36-asynchronous-execution-and-threads). The operators in this subsection act on `thread` handles.
 
 - `bool PARALLEL(tensor functions)` or `bool PARALLEL(func f1, func f2, ..., func fN)` = MUST invoke each supplied function concurrently with no arguments, wait for all invocations to complete, and return `FALSE` on success. Any non-`func` argument or any worker failure MUST raise a runtime error.
 
@@ -1042,7 +1042,7 @@ The operator semantics that use this format are defined next.
 
 #### 9.2.1 Block and expression statements
 
-The block form `{ statement1 ... statementN }` MUST execute its enclosed statements in source order within the current control context. If execution of any enclosed statement transfers control by `RETURN`, `BREAK`, `CONTINUE`, `GOTO`, runtime failure, or process termination, the remaining statements in that block MUST NOT execute.
+The block form `{ statement1 ... statementN }` MUST execute its enclosed statements in source order within the current control context. If execution of any enclosed statement transfers control by `return`, `break`, `continue`, `goto`, runtime failure, or process termination, the remaining statements in that block MUST NOT execute.
 
 An expression written in statement position MUST be evaluated for its side effects and its resulting value MUST be discarded. Expression statements MUST otherwise obey the same evaluation-order and runtime-error rules as the corresponding expression in expression position.
 
@@ -1060,27 +1060,27 @@ Indexed assignment statements `tensor[i1, ..., iN] = expression` and `map<k1, ..
 
 #### 9.2.3 Conditional statements
 
-The conditional statement form `IF(condition){ ... }` MAY be followed immediately by zero or more `ELSEIF(condition){ ... }` clauses and at most one trailing `ELSE{ ... }` clause. Any `ELSEIF` or `ELSE` not directly attached to a preceding `IF` or `ELSEIF` MUST be rejected as a syntax error.
+The conditional statement form `if(condition){ ... }` MAY be followed immediately by zero or more `elseif(condition){ ... }` clauses and at most one trailing `else{ ... }` clause. Any `elseif` or `else` not directly attached to a preceding `if` or `elseif` MUST be rejected as a syntax error.
 
-Conditions in statement position MUST accept values of any type, coercing them to `bool` according to the language's truthiness rules. The interpreter MUST evaluate the `IF` branch first, then each `ELSEIF` in source order until one branch is taken, and finally the `ELSE` block when present and no earlier branch matched.
+Conditions in statement position MUST accept values of any type, coercing them to `bool` according to the language's truthiness rules. The interpreter MUST evaluate the `if` branch first, then each `elseif` in source order until one branch is taken, and finally the `else` block when present and no earlier branch matched.
 
 ---
 
 #### 9.2.4 Exception-handling statements
 
-Structured exception handling MUST use either `TRY{ ... }CATCH{ ... }` or `TRY{ ... }CATCH(SYMBOL name){ ... }`. The `CATCH` block MUST immediately follow its `TRY` block, and exactly one `CATCH` block MUST be provided for each `TRY` statement.
+Structured exception handling MUST use either `try{ ... }catch{ ... }` or `try{ ... }catch(SYMBOL name){ ... }`. The `catch` block MUST immediately follow its `try` block, and exactly one `catch` block MUST be provided for each `try` statement.
 
-If execution of the `TRY` block completes normally, the corresponding `CATCH` block MUST be skipped. If execution raises an interpreter-level runtime error, execution of the `TRY` block MUST stop and the `CATCH` block MUST run; in the parameterized form, the temporary binding named by `name` MUST be a `str` containing the error message for the duration of that handler block only.
+If execution of the `try` block completes normally, the corresponding `catch` block MUST be skipped. If execution raises an interpreter-level runtime error, execution of the `try` block MUST stop and the `catch` block MUST run; in the parameterized form, the temporary binding named by `name` MUST be a `str` containing the error message for the duration of that handler block only.
 
 ---
 
 #### 9.2.5 Loop statements
 
-The statement `WHILE(condition){ ... }` MUST evaluate `condition` before each iteration and execute its body only while that condition remains truthy. When the condition becomes false, control MUST continue with the statement following the loop.
+The statement `while(condition){ ... }` MUST evaluate `condition` before each iteration and execute its body only while that condition remains truthy. When the condition becomes false, control MUST continue with the statement following the loop.
 
-The counted-loop form `FOR(counter, target){ ... }` MUST evaluate `target` exactly once at loop entry, require it to be an `int`, initialize `counter` to `1`, and execute the body once for each value through `target`, inclusive. The parallel counted-loop form `PARFOR(counter, target){ ... }` MUST evaluate `target` once, require an `int`, execute iterations `1..target` concurrently, wait for all iterations to finish, and then either continue normally or re-raise any collected iteration failures as described in [3.5](#35-loops).
+The counted-loop form `for(counter, target){ ... }` MUST evaluate `target` exactly once at loop entry, require it to be an `int`, initialize `counter` to `1`, and execute the body once for each value through `target`, inclusive. The parallel counted-loop form `parfor(counter, target){ ... }` MUST evaluate `target` once, require an `int`, execute iterations `1..target` concurrently, wait for all iterations to finish, and then either continue normally or re-raise any collected iteration failures as described in [3.5](#35-loops).
 
-Loop counters introduced by `FOR` and `PARFOR` MUST be loop-local. Other declarations created in loop bodies MUST remain bound in the enclosing environment, subject to the merge and race semantics defined for `PARFOR`.
+Loop counters introduced by `for` and `parfor` MUST be loop-local. Other declarations created in loop bodies MUST remain bound in the enclosing environment, subject to the merge and race semantics defined for `parfor`.
 
 ---
 
@@ -1088,15 +1088,15 @@ Loop counters introduced by `FOR` and `PARFOR` MUST be loop-local. Other declara
 
 Named function definitions MUST use the `func` statement form with an explicit return type, function name, typed parameter list, and block body. Parameters MAY declare default expressions, coerced parameters MUST be marked with `~`, and all parameter-binding and default-evaluation behavior MUST follow the rules defined in [4.6](#46-functions) and [5.3](#53-function-symbols-and-call-binding). Typed parameters and return annotations in the function syntax MUST use the `TYPE name` form, with one or more space characters between the type and the name.
 
-The statement `RETURN(expression)` MUST terminate the innermost enclosing function immediately and produce the supplied value as that function's result. The returned value MUST satisfy the function's declared return type, and using `RETURN` outside a function MUST raise a runtime error.
+The statement `return(expression)` MUST terminate the innermost enclosing function immediately and produce the supplied value as that function's result. The returned value MUST satisfy the function's declared return type, and using `return` outside a function MUST raise a runtime error.
 
-The statement `POP(str name)` MUST be valid only inside a function body. The `name` expression MUST evaluate to a `str` whose contents are the identifier name to operate on. `POP` MUST retrieve the current value bound to the named identifier, delete that binding from the environment, and then return the retrieved value as though `RETURN(<that identifier>)` had executed immediately before the deletion. Using `POP` outside a function, or applying it when the `name` expression does not evaluate to a `str`, or when the named binding is unreadable, MUST raise a runtime error.
+The statement `pop(str name)` MUST be valid only inside a function body. The `name` expression MUST evaluate to a `str` whose contents are the identifier name to operate on. `pop` MUST retrieve the current value bound to the named identifier, delete that binding from the environment, and then return the retrieved value as though `return(<that identifier>)` had executed immediately before the deletion. Using `pop` outside a function, or applying it when the `name` expression does not evaluate to a `str`, or when the named binding is unreadable, MUST raise a runtime error.
 
 ---
 
 #### 9.2.7 Asynchronous and thread statements
 
-The statement form `ASYNC{ ... }` MUST start execution of its block in a background task that runs asynchronously with respect to the caller while sharing the same lexical environment. When used as a statement, any resulting `thread` handle MUST be ignored.
+The statement form `async{ ... }` MUST start execution of its block in a background task that runs asynchronously with respect to the caller while sharing the same lexical environment. When used as a statement, any resulting `thread` handle MUST be ignored.
 
 The statement form `thread(symbol){ ... }` MUST create a background task and bind its handle to `symbol` with static type `thread` in the current lexical environment. Runtime failures originating in either asynchronous statement form MUST be reported through the runtime's asynchronous error-reporting mechanisms and MUST NOT synchronously abort another execution context.
 
@@ -1104,9 +1104,9 @@ The statement form `thread(symbol){ ... }` MUST create a background task and bin
 
 #### 9.2.8 Loop-control and jump statements
 
-The statement `BREAK(n)` MUST exit the innermost `n` enclosing loops, where `n` evaluates to a strictly positive `int`. The statement `CONTINUE()` MUST skip the remainder of the current iteration of the innermost enclosing loop and proceed according to the next-iteration rules of that loop. Using either statement outside an applicable loop context MUST raise a runtime error.
+The statement `break(n)` MUST exit the innermost `n` enclosing loops, where `n` evaluates to a strictly positive `int`. The statement `continue()` MUST skip the remainder of the current iteration of the innermost enclosing loop and proceed according to the next-iteration rules of that loop. Using either statement outside an applicable loop context MUST raise a runtime error.
 
-The statement `GOTOPOINT(n)` MUST register a jump target identified by runtime value `n`, and `GOTO(n)` MUST transfer control to a previously registered matching target within the permitted visibility scope. Invalid target values, unregistered targets, or jumps that otherwise violate the control-flow rules defined in [3.7](#37-loop-control-and-jumps) MUST raise runtime errors.
+The statement `gotopoint(n)` MUST register a jump target identified by runtime value `n`, and `goto(n)` MUST transfer control to a previously registered matching target within the permitted visibility scope. Invalid target values, unregistered targets, or jumps that otherwise violate the control-flow rules defined in [3.7](#37-loop-control-and-jumps) MUST raise runtime errors.
 
 ---
 

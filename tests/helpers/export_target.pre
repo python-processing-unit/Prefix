@@ -1,5 +1,5 @@
 func int read_box_value(){
-    RETURN(box<"value">)
+    return(box<"value">)
 }
 
 func bool set_box_value(int value){
@@ -7,7 +7,7 @@ func bool set_box_value(int value){
 }
 
 func int read_tensor_first(){
-    RETURN(tensor[0d1])
+    return(tensor[0d1])
 }
 
 func bool set_tensor_first(int value){

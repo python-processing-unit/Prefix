@@ -12,7 +12,7 @@ static void report_error(Parser *parser, const char *message) {
     parser->panic_mode = true;
     parser->had_error = true;
     /* Record last error for possible conversion into a runtime THROW
-       so TRY/CATCH can handle parse-time errors that occur inside
+       so try/catch can handle parse-time errors that occur inside
        parsed blocks. Also emit the usual diagnostic to stderr. */
     if (parser->error_msg) {
         free(parser->error_msg);
@@ -1060,8 +1060,8 @@ static Stmt *parse_block(Parser *parser) {
 
 static Stmt *parse_if(Parser *parser) {
     Token if_tok = parser->current_token;
-    consume(parser, TOKEN_IF, "Expected 'IF'");
-    consume(parser, TOKEN_LPAREN, "Expected '(' after IF");
+    consume(parser, TOKEN_IF, "Expected 'if'");
+    consume(parser, TOKEN_LPAREN, "Expected '(' after if");
     Expr *cond = parse_expression(parser);
     if (!cond) {
         return NULL;
@@ -1072,7 +1072,7 @@ static Stmt *parse_if(Parser *parser) {
 
     while (parser->current_token.type == TOKEN_ELSEIF) {
         advance(parser);
-        consume(parser, TOKEN_LPAREN, "Expected '(' after ELSEIF");
+        consume(parser, TOKEN_LPAREN, "Expected '(' after elseif");
         Expr *elif_cond = parse_expression(parser);
         if (!elif_cond) {
             return NULL;
@@ -1093,8 +1093,8 @@ static Stmt *parse_if(Parser *parser) {
 
 static Stmt *parse_while(Parser *parser) {
     Token tok = parser->current_token;
-    consume(parser, TOKEN_WHILE, "Expected 'WHILE'");
-    consume(parser, TOKEN_LPAREN, "Expected '(' after WHILE");
+    consume(parser, TOKEN_WHILE, "Expected 'while'");
+    consume(parser, TOKEN_LPAREN, "Expected '(' after while");
     Expr *cond = parse_expression(parser);
     if (!cond) {
         return NULL;
@@ -1106,8 +1106,8 @@ static Stmt *parse_while(Parser *parser) {
 
 static Stmt *parse_for(Parser *parser) {
     Token tok = parser->current_token;
-    consume(parser, TOKEN_FOR, "Expected 'FOR'");
-    consume(parser, TOKEN_LPAREN, "Expected '(' after FOR");
+    consume(parser, TOKEN_FOR, "Expected 'for'");
+    consume(parser, TOKEN_LPAREN, "Expected '(' after for");
     if (parser->current_token.type != TOKEN_IDENT) {
         report_error(parser, "Expected counter identifier");
         return NULL;
@@ -1119,15 +1119,15 @@ static Stmt *parse_for(Parser *parser) {
     if (!target) {
         return NULL;
     }
-    consume(parser, TOKEN_RPAREN, "Expected ')' after FOR");
+    consume(parser, TOKEN_RPAREN, "Expected ')' after for");
     Stmt *body = parse_block(parser);
     return stmt_for(counter, target, body, tok.line, tok.column);
 }
 
 static Stmt *parse_parfor(Parser *parser) {
     Token tok = parser->current_token;
-    consume(parser, TOKEN_PARFOR, "Expected 'PARFOR'");
-    consume(parser, TOKEN_LPAREN, "Expected '(' after PARFOR");
+    consume(parser, TOKEN_PARFOR, "Expected 'parfor'");
+    consume(parser, TOKEN_LPAREN, "Expected '(' after parfor");
     if (parser->current_token.type != TOKEN_IDENT) {
         report_error(parser, "Expected counter identifier");
         return NULL;
@@ -1139,17 +1139,17 @@ static Stmt *parse_parfor(Parser *parser) {
     if (!target) {
         return NULL;
     }
-    consume(parser, TOKEN_RPAREN, "Expected ')' after PARFOR");
+    consume(parser, TOKEN_RPAREN, "Expected ')' after parfor");
     Stmt *body = parse_block(parser);
     return stmt_parfor(counter, target, body, tok.line, tok.column);
 }
 
 static Stmt *parse_try(Parser *parser) {
     Token tok = parser->current_token;
-    consume(parser, TOKEN_TRY, "Expected 'TRY'");
+    consume(parser, TOKEN_TRY, "Expected 'try'");
     Stmt *try_block = parse_block(parser);
     if (parser->current_token.type != TOKEN_CATCH) {
-        report_error(parser, "Expected 'CATCH' after TRY");
+        report_error(parser, "Expected 'catch' after try");
         while (parser->current_token.type != TOKEN_EOF && parser->current_token.type != TOKEN_RBRACE) {
             advance(parser);
         }
@@ -1162,9 +1162,9 @@ static Stmt *parse_try(Parser *parser) {
             catch_name = parser->current_token.literal;
             advance(parser);
         } else {
-            report_error(parser, "Expected identifier in CATCH");
+            report_error(parser, "Expected identifier in catch");
         }
-        consume(parser, TOKEN_RPAREN, "Expected ')' after CATCH");
+        consume(parser, TOKEN_RPAREN, "Expected ')' after catch");
     }
     Stmt *catch_block = parse_block(parser);
     return stmt_try(try_block, catch_name, catch_block, tok.line, tok.column);
@@ -1331,34 +1331,34 @@ static Stmt *parse_statement(Parser *parser) {
     case TOKEN_RETURN: {
         Token tok = parser->current_token;
         advance(parser);
-        consume(parser, TOKEN_LPAREN, "Expected '(' after RETURN");
+        consume(parser, TOKEN_LPAREN, "Expected '(' after return");
         Expr *expr = parse_expression(parser);
         if (!expr) {
             return NULL;
         }
-        consume(parser, TOKEN_RPAREN, "Expected ')' after RETURN value");
+        consume(parser, TOKEN_RPAREN, "Expected ')' after return value");
         return stmt_return(expr, tok.line, tok.column);
     }
     case TOKEN_POP: {
         Token tok = parser->current_token;
         advance(parser);
-        consume(parser, TOKEN_LPAREN, "Expected '(' after POP");
+        consume(parser, TOKEN_LPAREN, "Expected '(' after pop");
         Expr *expr = parse_expression(parser);
         if (!expr) {
             return NULL;
         }
-        consume(parser, TOKEN_RPAREN, "Expected ')' after POP expression");
+        consume(parser, TOKEN_RPAREN, "Expected ')' after pop expression");
         return stmt_pop(expr, tok.line, tok.column);
     }
     case TOKEN_BREAK: {
         Token tok = parser->current_token;
         advance(parser);
-        consume(parser, TOKEN_LPAREN, "Expected '(' after BREAK");
+        consume(parser, TOKEN_LPAREN, "Expected '(' after break");
         Expr *expr = parse_expression(parser);
         if (!expr) {
             return NULL;
         }
-        consume(parser, TOKEN_RPAREN, "Expected ')' after BREAK value");
+        consume(parser, TOKEN_RPAREN, "Expected ')' after break value");
         return stmt_break(expr, tok.line, tok.column);
     }
     case TOKEN_THREAD: {
@@ -1384,12 +1384,12 @@ static Stmt *parse_statement(Parser *parser) {
     case TOKEN_CONTINUE: {
         Token tok = parser->current_token;
         advance(parser);
-        if (!consume(parser, TOKEN_LPAREN, "Expected '(' after CONTINUE")) {
+        if (!consume(parser, TOKEN_LPAREN, "Expected '(' after continue")) {
             return stmt_continue(tok.line, tok.column);
         }
 
         /* If the next token is a real expression-start token, report
-         * that CONTINUE does not accept arguments and skip until the
+         * that continue does not accept arguments and skip until the
          * closing ')'. If the token is something like '}' or EOF,
          * prefer the missing-')' message so the user sees the
          * syntactically relevant error.
@@ -1400,38 +1400,38 @@ static Stmt *parse_statement(Parser *parser) {
                                 t == TOKEN_ASYNC || t == TOKEN_LAMBDA || t == TOKEN_DASH) != 0;
 
         if (looks_like_expr) {
-            report_error(parser, "CONTINUE does not accept arguments");
+            report_error(parser, "continue does not accept arguments");
             while (parser->current_token.type != TOKEN_RPAREN && parser->current_token.type != TOKEN_EOF) {
                 advance(parser);
             }
         }
 
         /* Require the closing paren; this will produce the standard
-         * "Expected ')' after CONTINUE" message when appropriate.
+         * "Expected ')' after continue" message when appropriate.
          */
-        consume(parser, TOKEN_RPAREN, "Expected ')' after CONTINUE");
+        consume(parser, TOKEN_RPAREN, "Expected ')' after continue");
         return stmt_continue(tok.line, tok.column);
     }
     case TOKEN_GOTO: {
         Token tok = parser->current_token;
         advance(parser);
-        consume(parser, TOKEN_LPAREN, "Expected '(' after GOTO");
+        consume(parser, TOKEN_LPAREN, "Expected '(' after goto");
         Expr *expr = parse_expression(parser);
         if (!expr) {
             return NULL;
         }
-        consume(parser, TOKEN_RPAREN, "Expected ')' after GOTO");
+        consume(parser, TOKEN_RPAREN, "Expected ')' after goto");
         return stmt_goto(expr, tok.line, tok.column);
     }
     case TOKEN_GOTOPOINT: {
         Token tok = parser->current_token;
         advance(parser);
-        consume(parser, TOKEN_LPAREN, "Expected '(' after GOTOPOINT");
+        consume(parser, TOKEN_LPAREN, "Expected '(' after gotopoint");
         Expr *expr = parse_expression(parser);
         if (!expr) {
             return NULL;
         }
-        consume(parser, TOKEN_RPAREN, "Expected ')' after GOTOPOINT target");
+        consume(parser, TOKEN_RPAREN, "Expected ')' after gotopoint target");
         return stmt_gotopoint(expr, tok.line, tok.column);
     }
     default:
@@ -1501,7 +1501,7 @@ Stmt *parser_parse(Parser *parser) {
              * assignments must occupy their own logical line. If we parsed
              * such a statement but the next token is not a logical newline
              * (TOKEN_NEWLINE) or EOF, report a parse error and synthesize
-             * a THROW so runtime TRY/CATCH can observe it. Then
+             * a THROW so runtime try/catch can observe it. Then
              * synchronize to the next logical newline. */
             if ((stmt->type == STMT_EXPR || stmt->type == STMT_ASSIGN) && parser->current_token.type != TOKEN_NEWLINE &&
                 parser->current_token.type != TOKEN_EOF) {
@@ -1523,7 +1523,7 @@ Stmt *parser_parse(Parser *parser) {
         }
 
         /* If a parse error was recorded, synthesize a runtime THROW call
-           statement so that runtime TRY/CATCH can observe the parse error
+           statement so that runtime try/catch can observe the parse error
            as a catchable runtime exception. Then clear the parser error
            state so callers (e.g. RUN/IMPORT) don't treat it as a fatal
            top-level parse failure. */

@@ -6,11 +6,11 @@ passing:
         
         func int mark(int step){
             order_trace = +(*(order_trace, 0d10), step)
-            RETURN(step)
+            return(step)
         }
         
         func int place(int first, int second = 0d0){
-            RETURN(+(*(first, 0d10), second))
+            return(+(*(first, 0d10), second))
         }
         
         order_trace = 0d0
@@ -19,7 +19,7 @@ passing:
         
         int outer_bonus = 0d1
         func int add_bonus(int value, int bonus = outer_bonus){
-            RETURN(+(value, bonus))
+            return(+(value, bonus))
         }
         
         ASSERT(EQ(add_bonus(0d2), 0d3))
@@ -27,18 +27,18 @@ passing:
         ASSERT(EQ(add_bonus(0d2), 0d6))
         
         func int double_self(int value, int second = value){
-            RETURN(+(value, second))
+            return(+(value, second))
         }
         
         ASSERT(EQ(double_self(0d3), 0d6))
         ASSERT(EQ(double_self(0d3, second = 0d1), 0d4))
         
         func int accept_int(int value){
-            RETURN(value)
+            return(value)
         }
         
         func int coerce_int(~int value){
-            RETURN(value)
+            return(value)
         }
         
         ASSERT(EQ(coerce_int("0d11"), 0d11))
@@ -47,7 +47,7 @@ passing:
     language: Prefix
     source: |
         func int add(int left, int right){
-            RETURN(+(left, right))
+            return(+(left, right))
         }
         
         ASSERT(EQ(add(0d2, 0d3), 0d5))
@@ -66,14 +66,14 @@ passing:
         ASSERT(EQ(str_default(), ""))
         
         bool func_truthy = FALSE
-        IF(add_alias){
+        if(add_alias){
             func_truthy = TRUE
         }
         ASSERT(func_truthy)
         
         int stop_flag = 0d0
         func int early_return(){
-            RETURN(0d7)
+            return(0d7)
             stop_flag = 0d1
         }
         
@@ -86,38 +86,38 @@ passing:
         int runtime_errors = 0d0
         
         func int accept_int(int value){
-            RETURN(value)
+            return(value)
         }
         
         func int coerce_int(~int value){
-            RETURN(value)
+            return(value)
         }
         
         func int keyword_only(int left, int right = 0d0){
-            RETURN(+(left, right))
+            return(+(left, right))
         }
         
-        TRY{
+        try{
             accept_int("0d1")
-        } CATCH(err){
+        } catch(err){
             runtime_errors = +(runtime_errors, 0d1)
         }
         
-        TRY{
+        try{
             keyword_only("0d1", "0d2", "0d3")
-        } CATCH(err){
+        } catch(err){
             runtime_errors = +(runtime_errors, 0d1)
         }
         
-        TRY{
+        try{
             keyword_only("0d1", suffix = "!")
-        } CATCH(err){
+        } catch(err){
             runtime_errors = +(runtime_errors, 0d1)
         }
         
-        TRY{
+        try{
             keyword_only("0d1", right = "0d2", right = "0d3")
-        } CATCH(err){
+        } catch(err){
             runtime_errors = +(runtime_errors, 0d1)
         }
         
@@ -129,11 +129,11 @@ passing:
         int captured = 0d2
         
         func int read_captured(){
-            RETURN(captured)
+            return(captured)
         }
         
         func add_captured = LAMBDA int (int delta){
-            RETURN(+(captured, delta))
+            return(+(captured, delta))
         }
         
         ASSERT(EQ(read_captured(), 0d2))
@@ -143,23 +143,23 @@ passing:
         ASSERT(EQ(add_captured(0d1), 0d6))
         
         func greeter = LAMBDA str (str name, str prefix = "Hi"){
-            RETURN(JOIN(" ", prefix, name))
+            return(JOIN(" ", prefix, name))
         }
         
         ASSERT(EQ(greeter("Prefix"), "Hi Prefix"))
         ASSERT(EQ(greeter("Prefix", prefix = "Hello"), "Hello Prefix"))
         
-        ASSERT(EQ((LAMBDA int (int x){ RETURN(+(x, 0d1)) })(0d2), 0d3))
+        ASSERT(EQ((LAMBDA int (int x){ return(+(x, 0d1)) })(0d2), 0d3))
         
         func int invoke(func callable, int arg){
-            RETURN(callable(arg))
+            return(callable(arg))
         }
         
         ASSERT(EQ(invoke(add_captured, 0d2), 0d7))
         
         func func make_reader(int seed){
-            RETURN(LAMBDA int (){
-                RETURN(seed)
+            return(LAMBDA int (){
+                return(seed)
             })
         }
         
@@ -169,7 +169,7 @@ passing:
   - name: func-containers
     language: Prefix
     source: |
-        tensor func_slots = [LAMBDA int (int left, int right){ RETURN(+(left, right)) }]
+        tensor func_slots = [LAMBDA int (int left, int right){ return(+(left, right)) }]
         ASSERT(EQ(func_slots[0d1](0d2, 0d3), 0d5))
         
         map func_map = <"sum" = func_slots[0d1]>
@@ -177,19 +177,19 @@ passing:
         
         map method_map = < ^
             "install" = LAMBDA func (){ ^
-                SELF<"tag"> = LAMBDA int (){ RETURN(0d7) } ^
-                RETURN(SELF<"tag">) ^
+                SELF<"tag"> = LAMBDA int (){ return(0d7) } ^
+                return(SELF<"tag">) ^
             }, ^
-            "seed" = LAMBDA int (){ RETURN(0d1) } ^
+            "seed" = LAMBDA int (){ return(0d1) } ^
         >
         map method_copy = method_map
         map method_alias = @method_map
         
         ASSERT(EQ(method_copy<"install">()(), 0d7))
         bool copy_did_not_mutate_source = FALSE
-        TRY{
+        try{
             method_map<"tag">()
-        } CATCH(err){
+        } catch(err){
             copy_did_not_mutate_source = TRUE
         }
         ASSERT(copy_did_not_mutate_source)
@@ -203,14 +203,14 @@ passing:
         int pop_target = 0d8
         
         func int take_and_delete(){
-            POP("pop_target")
+            pop("pop_target")
         }
         
         ASSERT(EQ(take_and_delete(), 0d8))
         bool pop_deleted = FALSE
-        TRY{
+        try{
             pop_target
-        } CATCH(err){
+        } catch(err){
             pop_deleted = TRUE
         }
         ASSERT(pop_deleted)
@@ -221,47 +221,47 @@ passing:
         int runtime_errors = 0d0
         
         func int wrong_return(){
-            RETURN("bad")
+            return("bad")
         }
         
-        TRY{
+        try{
             wrong_return()
-        } CATCH(err){
+        } catch(err){
             runtime_errors = +(runtime_errors, 0d1)
         }
         
         func tensor missing_tns_return(){}
-        TRY{
+        try{
             missing_tns_return()
-        } CATCH(err){
+        } catch(err){
             runtime_errors = +(runtime_errors, 0d1)
         }
         
         func map missing_map_return(){}
-        TRY{
+        try{
             missing_map_return()
-        } CATCH(err){
+        } catch(err){
             runtime_errors = +(runtime_errors, 0d1)
         }
         
         func func missing_func_return(){}
-        TRY{
+        try{
             missing_func_return()
-        } CATCH(err){
+        } catch(err){
             runtime_errors = +(runtime_errors, 0d1)
         }
         
         func thread missing_thr_return(){}
-        TRY{
+        try{
             missing_thr_return()
-        } CATCH(err){
+        } catch(err){
             runtime_errors = +(runtime_errors, 0d1)
         }
         
         func missing_lambda_return = LAMBDA func (){}
-        TRY{
+        try{
             missing_lambda_return()
-        } CATCH(err){
+        } catch(err){
             runtime_errors = +(runtime_errors, 0d1)
         }
         
@@ -270,7 +270,7 @@ passing:
   - name: lambda-space-signature
     language: Prefix
     source: |
-        ASSIGN(func f, LAMBDA int (int x) { RETURN(x) })
+        ASSIGN(func f, LAMBDA int (int x) { return(x) })
         ASSERT(EQ(f(0d2), 0d2))
         
 failing:
@@ -278,65 +278,65 @@ failing:
     language: Prefix
     source: |
         func int sample(int first = 0d1, int second){
-            RETURN(+(first, second))
+            return(+(first, second))
         }
         
   - name: func-missing-param-type
     language: Prefix
     source: |
         func int sample(value){
-            RETURN(value)
+            return(value)
         }
   - name: func-missing-return-type
     language: Prefix
     source: |
         func sample(int value){
-            RETURN(value)
+            return(value)
         }
   - name: func-name-conflicts-builtin
     language: Prefix
     source: |
         func int ASSERT(){
-            RETURN(0d0)
+            return(0d0)
         }
   - name: func-name-conflicts-symbol
     language: Prefix
     source: |
         int sample = 0d1
         func int sample(){
-            RETURN(0d0)
+            return(0d0)
         }
   - name: func-positional-after-keyword
     language: Prefix
     source: |
         func int sample(int left, int right = 0d0){
-            RETURN(+(left, right))
+            return(+(left, right))
         }
         
         sample(left = 0d1, 0d2)
   - name: lambda-colon-form
     language: Prefix
     source: |
-        ASSIGN(f, LAMBDA int: (int x) { RETURN(x) })
+        ASSIGN(f, LAMBDA int: (int x) { return(x) })
         
   - name: lambda-default-before-positional
     language: Prefix
     source: |
         func sample = LAMBDA int: (int first = 0d1, int second){
-            RETURN(+(first, second))
+            return(+(first, second))
         }
   - name: lambda-missing-param-type
     language: Prefix
     source: |
         func sample = LAMBDA int: (value){
-            RETURN(value)
+            return(value)
         }
   - name: lambda-missing-return-type
     language: Prefix
     source: |
         func sample = LAMBDA (int value){
-            RETURN(value)
+            return(value)
         }
   - name: return-outside-function
     language: Prefix
-    source: RETURN(0d1)
+    source: return(0d1)

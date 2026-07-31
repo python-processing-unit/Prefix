@@ -86,7 +86,7 @@ typedef struct Interpreter {
     // Current thread handle when executing in a background thread (NULL in main thread)
     struct Thread *current_thread;
     // When true, first-declarations/typed first-assignment stay in the current
-    // env instead of being redirected to parent env (used by PARFOR workers).
+    // env instead of being redirected to parent env (used by parfor workers).
     bool isolate_env_writes;
     // Traceback/logging state
     int verbose;
@@ -111,7 +111,7 @@ ExecResult exec_program_in_env(Interpreter *interp, Stmt *program, Env *env);
 
 // Execute a parsed function body (`program`) within an interpreter and
 // environment while treating the execution as a function call. This pushes
-// a call-frame so `RETURN` is valid inside `program`.
+// a call-frame so `return` is valid inside `program`.
 ExecResult exec_program_in_env_as_function(Interpreter *interp, Stmt *program, Env *env, const char *func_name);
 
 // Build and return a traceback string for the current interpreter call stack.

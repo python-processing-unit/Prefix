@@ -1,5 +1,5 @@
 int shared = 0d7
 
 func int read_shared(){
-    RETURN(shared)
+    return(shared)
 }

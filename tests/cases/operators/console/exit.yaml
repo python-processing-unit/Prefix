@@ -150,7 +150,7 @@ failing:
   - name: exit-type-thr
     language: Prefix
     source: |
-        EXIT(ASYNC{})
+        EXIT(async{})
         
   - name: exit-type-tns
     language: Prefix

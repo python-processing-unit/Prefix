@@ -11404,7 +11404,7 @@ static bool coerce_value_to_decl_type(Interpreter *interp, Value input, DeclType
 
 static int parallel_worker(void *arg) {
     ParallelStart *ps = (ParallelStart *)arg;
-    // Create a per-worker interpreter state similar to PARFOR
+    // Create a per-worker interpreter state similar to parfor
     Interpreter *thr_interp = ps->interp;
 
     // Create a call environment from the function's closure and
@@ -11512,7 +11512,7 @@ static int parallel_worker(void *arg) {
         }
     }
 
-    // Execute the function body as a proper call frame so RETURN is allowed
+    // Execute the function body as a proper call frame so return is allowed
     ExecResult res = exec_program_in_env_as_function(thr_interp, ps->func->body, call_env, ps->func->name);
 
     if (res.status == EXEC_ERROR && res.error) {

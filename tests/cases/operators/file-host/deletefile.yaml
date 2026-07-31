@@ -45,7 +45,7 @@ failing:
         DELETEFILE(JOIN(path.script_dir, "/nonexistent.txt"))
   - name: deletefile-thr
     language: Prefix
-    source: DELETEFILE(ASYNC{})
+    source: DELETEFILE(async{})
   - name: deletefile-tns
     language: Prefix
     source: DELETEFILE([0d1])

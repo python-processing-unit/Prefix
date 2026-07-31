@@ -11,12 +11,12 @@ Prefix is a programming language focused on explicit, readable code.
 ! ---------- modular inverse via the extended Euclidean algorithm ----------
 func int modinv(int a, int m){
     a = MOD(a, m)
-    IF(LT(a, 0d0)){ a = +(a, m) }
+    if(LT(a, 0d0)){ a = +(a, m) }
     int r0 = m
     int r1 = a
     int t0 = 0d0
     int t1 = 0d1
-    WHILE(NEQ(r1, 0d0)){
+    while(NEQ(r1, 0d0)){
         int q = /(r0, r1)
         int nr = -(r0, *(q, r1))
         int nt = -(t0, *(q, t1))
@@ -25,12 +25,12 @@ func int modinv(int a, int m){
         t0 = t1
         t1 = nt
     }
-    IF(NEQ(r0, 0d1)){
+    if(NEQ(r0, 0d1)){
         THROW("modinv: arguments not coprime")
     }
     int inv = MOD(t0, m)
-    IF(LT(inv, 0d0)){ inv = +(inv, m) }
-    RETURN(inv)
+    if(LT(inv, 0d0)){ inv = +(inv, m) }
+    return(inv)
 }
 
 ! ---------- the hidden LCG (the secret being cracked) ----------
@@ -43,13 +43,13 @@ int c = 0d12345
 int seed = 0d48271
 
 func int step(int s){
-    RETURN(MOD(+( *(a, s), c), m))
+    return(MOD(+( *(a, s), c), m))
 }
 
 ! ---------- collect observed outputs (all the attacker sees) ----------
 map obs
 int s = seed
-FOR(i, 0d8){
+for(i, 0d8){
     obs<i> = s
     s = step(s)
 }
@@ -61,13 +61,13 @@ DEL("s")
 ! u_k = t_{k+1} * t_{k-1} - t_k^2 is a multiple of m.  GCD of several
 ! |u_k| yields m.
 map d
-FOR(i, 0d7){
+for(i, 0d7){
     d<i> = -(obs<+(i, 0d1)>, obs<i>)
 }
 
 int mrec = 0d0
 int k = 0d2
-WHILE(LTE(k, 0d6)){
+while(LTE(k, 0d6)){
     int lo = -(k, 0d1)
     int hi = +(k, 0d1)
     int tk = d<k>
@@ -85,8 +85,8 @@ int x1 = obs<0d2>
 int x2 = obs<0d3>
 int arec = MOD(*( -(x2, x1), modinv(-(x1, x0), mrec) ), mrec)
 int crec = MOD(-(x1, *(arec, x0)), mrec)
-IF(LT(arec, 0d0)){ arec = +(arec, mrec) }
-IF(LT(crec, 0d0)){ crec = +(crec, mrec) }
+if(LT(arec, 0d0)){ arec = +(arec, mrec) }
+if(LT(crec, 0d0)){ crec = +(crec, mrec) }
 DEL("r0")
 DEL("r1")
 DEL("t0")
@@ -102,8 +102,8 @@ DEL("modinv")
 ! ---------- verify by regenerating the whole sequence ----------
 int ok = 0d1
 int v = x0
-FOR(i, 0d8){
-    IF(NEQ(v, obs<i>)){
+for(i, 0d8){
+    if(NEQ(v, obs<i>)){
         ok = 0d0
     }
     v = MOD(+( *(arec, v), crec), mrec)

@@ -4,11 +4,11 @@ passing:
     source: |
         int i = 0d0
         int hits = 0d0
-        GOTOPOINT('loop')
+        gotopoint('loop')
         +(@hits, 0d1)
-        IF(LT(i, 0d2)){
+        if(LT(i, 0d2)){
             +(@i, 0d1)
-            GOTO('loop')
+            goto('loop')
         }
         ASSERT(EQ(i, 0d2))
         ASSERT(EQ(hits, 0d3))
@@ -17,12 +17,12 @@ passing:
     language: Prefix
     source: |
         int test = 0d0
-        IF(TRUE){
-            GOTO('target')
+        if(TRUE){
+            goto('target')
             ASSERT(FALSE)
         }
         ASSERT(FALSE)
-        GOTOPOINT('target')
+        gotopoint('target')
         ASSERT(EQ(test, 0d0))
         
   - name: goto-errors
@@ -30,38 +30,38 @@ passing:
     source: |
         int errors_caught = 0d0
         
-        TRY {
-            GOTOPOINT(TRUE)
-        } CATCH(err) {
-            ASSERT(EQ(err, 'GOTOPOINT requires int or str argument'))
+        try {
+            gotopoint(TRUE)
+        } catch(err) {
+            ASSERT(EQ(err, 'gotopoint requires int or str argument'))
              +(@errors_caught, 0d1)
         }
         
-        TRY {
-            GOTO(TRUE)
-        } CATCH(err) {
-            ASSERT(EQ(err, 'GOTO requires int or str argument'))
+        try {
+            goto(TRUE)
+        } catch(err) {
+            ASSERT(EQ(err, 'goto requires int or str argument'))
              +(@errors_caught, 0d1)
         }
         
-        TRY {
-            GOTOPOINT(-0d1)
-        } CATCH(err) {
-            ASSERT(EQ(err, 'Negative GOTOPOINT identifier is not allowed'))
+        try {
+            gotopoint(-0d1)
+        } catch(err) {
+            ASSERT(EQ(err, 'Negative gotopoint identifier is not allowed'))
              +(@errors_caught, 0d1)
         }
         
-        TRY {
-            GOTO(-0d1)
-        } CATCH(err) {
-            ASSERT(EQ(err, 'Negative GOTO target is not allowed'))
+        try {
+            goto(-0d1)
+        } catch(err) {
+            ASSERT(EQ(err, 'Negative goto target is not allowed'))
              +(@errors_caught, 0d1)
         }
         
-        TRY {
-            GOTO('unregistered')
-        } CATCH(err) {
-            ASSERT(EQ(err, 'Unregistered GOTO target'))
+        try {
+            goto('unregistered')
+        } catch(err) {
+            ASSERT(EQ(err, 'Unregistered goto target'))
              +(@errors_caught, 0d1)
         }
         
@@ -71,9 +71,9 @@ passing:
     language: Prefix
     source: |
         int value = 0d0
-        GOTO(0d1)
+        goto(0d1)
         ASSERT(FALSE)
-        GOTOPOINT(0d1)
+        gotopoint(0d1)
         +(@value, 0d1)
         ASSERT(EQ(value, 0d1))
         
@@ -81,11 +81,11 @@ failing:
   - name: goto-no-parens
     language: Prefix
     source: |
-        GOTOPOINT(0d1)
-        GOTO 0d1
+        gotopoint(0d1)
+        goto 0d1
         
   - name: gotopoint-no-parens
     language: Prefix
     source: |
-        GOTOPOINT 0d1
+        gotopoint 0d1
         

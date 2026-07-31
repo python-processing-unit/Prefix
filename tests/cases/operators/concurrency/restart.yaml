@@ -4,8 +4,8 @@ passing:
     source: |
         bool finished = FALSE
         
-        thread worker = ASYNC{
-            FOR(i, 0d1000){}
+        thread worker = async{
+            for(i, 0d1000){}
             finished = TRUE
         }
         
@@ -26,7 +26,7 @@ passing:
 failing:
   - name: restart-arity-two
     language: Prefix
-    source: 'RESTART(ASYNC{}, ASYNC{})'
+    source: 'RESTART(async{}, async{})'
   - name: restart-arity-zero
     language: Prefix
     source: RESTART()
@@ -48,8 +48,8 @@ failing:
   - name: restart-running
     language: Prefix
     source: |
-        thread worker = ASYNC{
-            FOR(i, 0d100000){}
+        thread worker = async{
+            for(i, 0d100000){}
         }
         
         RESTART(worker)

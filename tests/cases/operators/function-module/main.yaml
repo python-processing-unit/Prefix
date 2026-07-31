@@ -19,7 +19,7 @@ passing:
         
           Set-Content -Path $modulePath -Encoding Ascii -Value @'
         func bool imported_main(){
-            RETURN(MAIN())
+            return(MAIN())
         }
         '@
         
@@ -62,7 +62,7 @@ passing:
         bool top_result = MAIN()
         
         func bool read_top_result(){
-            RETURN(top_result)
+            return(top_result)
         }
         '@
         
@@ -89,9 +89,9 @@ passing:
     source: |
         bool branch_taken = FALSE
         
-        IF(MAIN()){
+        if(MAIN()){
             branch_taken = TRUE
-        } ELSE {
+        } else {
             ASSERT(FALSE)
         }
         
@@ -100,7 +100,7 @@ passing:
     language: Prefix
     source: |
         func bool from_primary_function(){
-            RETURN(MAIN())
+            return(MAIN())
         }
         
         ASSERT(from_primary_function())
@@ -127,15 +127,15 @@ passing:
         
           Set-Content -Path $modulePath -Encoding Ascii -Value @'
         func bool imported_main(){
-            RETURN(MAIN())
+            return(MAIN())
         }
         
         func bool call_callback(func callback){
-            RETURN(callback())
+            return(callback())
         }
         
         func bool call_imported_main(){
-            RETURN(imported_main())
+            return(imported_main())
         }
         '@
         
@@ -145,7 +145,7 @@ passing:
         IMPORT_PATH("$moduleLiteral", "helper")
         
         func bool local_main(){
-            RETURN(MAIN())
+            return(MAIN())
         }
         
         ASSERT(helper.call_callback(local_main))

@@ -5,12 +5,12 @@ passing:
         tensor seen = [FALSE, FALSE]
         
         func first = LAMBDA bool (){
-            FOR(i, 0d500){}
+            for(i, 0d500){}
             seen[0d1] = TRUE
         }
         
         func second = LAMBDA bool (){
-            FOR(i, 0d500){}
+            for(i, 0d500){}
             seen[0d2] = TRUE
         }
         
@@ -24,12 +24,12 @@ passing:
         tensor seen = [FALSE, FALSE]
         
         func bool first(){
-            FOR(i, 0d500){}
+            for(i, 0d500){}
             seen[0d1] = TRUE
         }
         
         func bool second(){
-            FOR(i, 0d500){}
+            for(i, 0d500){}
             seen[0d2] = TRUE
         }
         
@@ -41,19 +41,19 @@ passing:
         tensor seen = [FALSE, FALSE, FALSE]
         
         func bool first(){
-            FOR(i, 0d500){
+            for(i, 0d500){
             }
             seen[0d1] = TRUE
         }
         
         func bool second(){
-            FOR(i, 0d500){
+            for(i, 0d500){
             }
             seen[0d2] = TRUE
         }
         
         func bool third(){
-            FOR(i, 0d500){
+            for(i, 0d500){
             }
             seen[0d3] = TRUE
         }
@@ -85,7 +85,7 @@ failing:
     language: Prefix
     source: |
         func bool requires_arg(int value){
-            RETURN(TRUE)
+            return(TRUE)
         }
         
         PARALLEL(requires_arg)

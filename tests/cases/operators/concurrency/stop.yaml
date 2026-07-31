@@ -4,8 +4,8 @@ passing:
     source: |
         bool reached_end = FALSE
         
-        thread stopped = STOP(ASYNC{
-            FOR(i, 0d100000){}
+        thread stopped = STOP(async{
+            for(i, 0d100000){}
             reached_end = TRUE
         })
         
@@ -18,8 +18,8 @@ passing:
     source: |
         bool reached_end = FALSE
         
-        thread worker = ASYNC{
-            FOR(i, 0d100000){}
+        thread worker = async{
+            for(i, 0d100000){}
             reached_end = TRUE
         }
         
@@ -38,7 +38,7 @@ passing:
         bool reached_end = FALSE
         
         thread(worker){
-            FOR(i, 0d1000000){
+            for(i, 0d1000000){
             }
             reached_end = TRUE
         }

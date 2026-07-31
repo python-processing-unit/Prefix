@@ -1,7 +1,7 @@
 ! diff utilities for Prefix
 
 func str _append_line(str acc, str line){
-    IF( EQ(acc, "") ){ RETURN(line) } ELSE { RETURN( JOIN(acc, "\n", line) ) }
+    if( EQ(acc, "") ){ return(line) } else { return( JOIN(acc, "\n", line) ) }
 }
 
 func str UNIFIED(str mod, str src){
@@ -12,36 +12,36 @@ func str UNIFIED(str mod, str src){
     int n = MAX(la, lb)
     str out = ""
     int i = 0d1
-    WHILE( LTE(i, n) ){
+    while( LTE(i, n) ){
         str left = ""
-        IF( LTE(i, la) ){ left = a[i] }
+        if( LTE(i, la) ){ left = a[i] }
         str right = ""
-        IF( LTE(i, lb) ){ right = b[i] }
+        if( LTE(i, lb) ){ right = b[i] }
 
-        IF( EQ(left, right) ){
-            IF( NEQ(left, "")){
+        if( EQ(left, right) ){
+            if( NEQ(left, "")){
                 str line = JOIN(" ", left)
                 out = _append_line(out, line)
             }
-        } ELSE {
-            IF( NEQ(left, "")) {
+        } else {
+            if( NEQ(left, "")) {
                 out = _append_line(out, JOIN("-", left))
             }
-            IF( NEQ(right, "")) {
+            if( NEQ(right, "")) {
                 out = _append_line(out, JOIN("+", right))
             }
         }
         i = +(i, 0d1)
     }
-    RETURN(out)
+    return(out)
 }
 
 func str CONTEXT(str mod, str src){
     ! For simplicity, use the same output as UNIFIED but with a ' ' prefix
     str u = UNIFIED(mod, src)
-    IF( EQ(u, "") ){ RETURN("") }
+    if( EQ(u, "") ){ return("") }
     ! Prepend a simple header to resemble context diff
-    RETURN( JOIN("*** a", "\n", u) )
+    return( JOIN("*** a", "\n", u) )
 }
 
 func str SIDE_BY_SIDE(str mod, str src){
@@ -52,16 +52,16 @@ func str SIDE_BY_SIDE(str mod, str src){
     int n = MAX(la, lb)
     str out = ""
     int i = 0d1
-    WHILE( LTE(i, n) ){
+    while( LTE(i, n) ){
         str left = ""
-        IF( LTE(i, la) ){ left = a[i] }
+        if( LTE(i, la) ){ left = a[i] }
         str right = ""
-        IF( LTE(i, lb) ){ right = b[i] }
+        if( LTE(i, lb) ){ right = b[i] }
         str marker = " "
-        IF( NEQ(left, right)){ marker = "|" }
+        if( NEQ(left, right)){ marker = "|" }
         str line = JOIN(left, " ", marker, " ", right)
         out = _append_line(out, line)
         i = +(i, 0d1)
     }
-    RETURN(out)
+    return(out)
 }

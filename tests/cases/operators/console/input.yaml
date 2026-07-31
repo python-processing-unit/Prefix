@@ -156,7 +156,7 @@ failing:
   - name: input-type-thr
     language: Prefix
     source: |
-        INPUT(ASYNC{})
+        INPUT(async{})
         
   - name: input-type-tns
     language: Prefix

@@ -12,77 +12,77 @@ IMPORT("path")
 
 func tensor LOAD(str img_path){
     str ext = path.EXTNAME(img_path)
-    IF(EQ(ext, "png")){
-        RETURN(LOAD_PNG(img_path))
-    } ELSEIF (OR(EQ(ext, "jpg"),EQ(ext, "jpeg"))){
-        RETURN(LOAD_JPEG(img_path))
-    } ELSEIF (EQ(ext, "bmp")){
-        RETURN(LOAD_BMP(img_path))
-    } ELSE {
+    if(EQ(ext, "png")){
+        return(LOAD_PNG(img_path))
+    } elseif (OR(EQ(ext, "jpg"),EQ(ext, "jpeg"))){
+        return(LOAD_JPEG(img_path))
+    } elseif (EQ(ext, "bmp")){
+        return(LOAD_BMP(img_path))
+    } else {
         THROW("Unsupported image format: ",ext)
     }
 }
 
 func int WIDTH(tensor img){
-    RETURN(TLEN(img, 0d1))
+    return(TLEN(img, 0d1))
 }
 
 func int HEIGHT(tensor img){
-    RETURN(TLEN(img, 0d2))
+    return(TLEN(img, 0d2))
 }
 
 func int CHANNELS(tensor img){
-    RETURN(TLEN(img, 0d3))
+    return(TLEN(img, 0d3))
 }
 
 func tensor R(tensor img){
-    RETURN(img[# , # , 0d1])
+    return(img[# , # , 0d1])
 }
 
 func tensor G(tensor img){
-    RETURN(img[# , # , 0d2])
+    return(img[# , # , 0d2])
 }
 
 func tensor B(tensor img){
-    RETURN(img[# , # , 0d3])
+    return(img[# , # , 0d3])
 }
 
 func tensor A(tensor img){
-    RETURN(img[# , # , 0d4])
+    return(img[# , # , 0d4])
 }
 
 func tensor PIXEL(tensor img, int x, int y){
-    RETURN(img[x, y, #])
+    return(img[x, y, #])
 }
 
 func int PIXEL_R(tensor img, int x, int y){
-    RETURN(img[x, y, 0d1])
+    return(img[x, y, 0d1])
 }
 
 func int PIXEL_G(tensor img, int x, int y){
-    RETURN(img[x, y, 0d2])
+    return(img[x, y, 0d2])
 }
 
 func int PIXEL_B(tensor img, int x, int y){
-    RETURN(img[x, y, 0d3])
+    return(img[x, y, 0d3])
 }
 
 func int PIXEL_A(tensor img, int x, int y){
-    RETURN(img[x, y, 0d4])
+    return(img[x, y, 0d4])
 }
 
 func tensor FLIP_V(tensor img){
-    RETURN(TFLIP(img, 0d1))
+    return(TFLIP(img, 0d1))
 }
 
 func tensor FLIP_H(tensor img){
-    RETURN(TFLIP(img, 0d2))
+    return(TFLIP(img, 0d2))
 }
 
 func tensor INVERT(tensor img){
     tensor return = M-(tensor(SHAPE(img), 0xFF), img)
     return[# , # , 0d4] = img[# , # , 0d4] ! Preserve alpha
-    POP("return")
+    pop("return")
 }
 
 func tensor RECT(tensor img, int x, int y, int width, int height, tensor color, int fill, int thickness){
@@ -93,34 +93,34 @@ func tensor RECT(tensor img, int x, int y, int width, int height, tensor color, 
         [x, +(y, -(height, 0d1))], ^
         [x, y] ^
     ]
-    RETURN(POLYGON(img, pts, color, fill, thickness))
+    return(POLYGON(img, pts, color, fill, thickness))
 }
 
 func tensor RECTANGLE(tensor img, int x, int y, int width, int height, tensor color, int fill, int thickness){
-    RETURN(RECT(img, x, y, width, height, color, fill, thickness))
+    return(RECT(img, x, y, width, height, color, fill, thickness))
 }
 
 func tensor FILL_RECT(tensor img, int x, int y, int width, int height, tensor color){
-    RETURN(RECT(img, x, y, width, height, color, 0d1, 0d1))
+    return(RECT(img, x, y, width, height, color, 0d1, 0d1))
 }
 
 func tensor FILL_ELLIPSE(tensor img, tensor center, int rx, int ry, tensor color){
-    RETURN(ELLIPSE(img, center, rx, ry, color, 0d1, 0d1))
+    return(ELLIPSE(img, center, rx, ry, color, 0d1, 0d1))
 }
  
 func tensor SQUARE(tensor img, int x, int y, int size, tensor color, int fill, int thickness){
-    RETURN(RECT(img, x, y, size, size, color, fill, thickness))
+    return(RECT(img, x, y, size, size, color, fill, thickness))
 }
 
 func tensor CIRCLE(tensor img, tensor center, int radius, tensor color, int fill, int thickness){
-    RETURN(ELLIPSE(img, center, radius, radius, color, fill, thickness))
+    return(ELLIPSE(img, center, radius, radius, color, fill, thickness))
 }
 
 func tensor CROP(tensor img, tensor corners){
-    IF(NEQ(SHAPE(corners), [0d4, 0d2])){
+    if(NEQ(SHAPE(corners), [0d4, 0d2])){
         THROW("CROP corners must be a 0d4 by 0d2 tensor: [[tl_x, tl_y], [tr_x, tr_y], [bl_x, bl_y], [br_x, br_y]]")
     }
-    RETURN(img[MIN(corners[# , 0d1]):MAX(corners[# , 0d1]), MIN(corners[# , 0d2]):MAX(corners[# , 0d2]), #])
+    return(img[MIN(corners[# , 0d1]):MAX(corners[# , 0d1]), MIN(corners[# , 0d2]):MAX(corners[# , 0d2]), #])
 }
 
 func bool SHOW(tensor img){
@@ -132,5 +132,5 @@ func bool SHOW(tensor img){
     ! Use NULL hwnd (0), operation "open", empty params and dir, showcmd=1
     win32.WIN_CALL("shell32", "ShellExecuteW", "PSSSSI", "P", 0d0, "open", img_path, "", "", 0d1)
     DEL("img_path")
-    RETURN(FALSE)
+    return(FALSE)
 }

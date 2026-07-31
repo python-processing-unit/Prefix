@@ -75,7 +75,7 @@ failing:
   - name: keys-thr
     language: Prefix
     source: |
-        KEYS(ASYNC{})
+        KEYS(async{})
         
   - name: keys-tns
     language: Prefix
@@ -120,7 +120,7 @@ failing:
   - name: values-thr
     language: Prefix
     source: |
-        VALUES(ASYNC{})
+        VALUES(async{})
         
   - name: values-tns
     language: Prefix

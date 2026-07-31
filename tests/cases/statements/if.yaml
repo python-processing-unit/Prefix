@@ -2,50 +2,50 @@ passing:
   - name: if-else
     language: Prefix
     source: |
-        IF(FALSE){
+        if(FALSE){
             ASSERT(FALSE)
-        } ELSE {
+        } else {
             ASSERT(TRUE)
         }
-        IF(TRUE){
+        if(TRUE){
             ASSERT(TRUE)
-        } ELSE {
+        } else {
             ASSERT(FALSE)
         }
         
   - name: if-elseif-else
     language: Prefix
     source: |
-        IF(FALSE){
+        if(FALSE){
             ASSERT(FALSE)
-        } ELSEIF(FALSE){
+        } elseif(FALSE){
             ASSERT(FALSE)
-        } ELSE {
+        } else {
             ASSERT(TRUE)
         }
-        IF(FALSE){
+        if(FALSE){
             ASSERT(FALSE)
-        } ELSEIF(TRUE){
+        } elseif(TRUE){
             ASSERT(TRUE)
-        } ELSE {
+        } else {
             ASSERT(FALSE)
         }
         
   - name: if-elseif-elseif{
     language: Prefix
     source: |
-        IF(FALSE){
+        if(FALSE){
             ASSERT(FALSE)
-        } ELSEIF(FALSE){
+        } elseif(FALSE){
             ASSERT(FALSE)
-        } ELSEIF(TRUE) {
+        } elseif(TRUE) {
             ASSERT(TRUE)
         }
         
   - name: if
     language: Prefix
     source: |
-        IF(FALSE){
+        if(FALSE){
             ASSERT(FALSE)
         }
         
@@ -53,98 +53,98 @@ failing:
   - name: else-no-if
     language: Prefix
     source: |
-        ELSE{
+        else{
             ASSERT(FALSE)
         }
         
   - name: elseif-after-else
     language: Prefix
     source: |
-        IF(FALSE){
+        if(FALSE){
             ASSERT(FALSE)
-        } ELSE {
+        } else {
             ASSERT(FALSE)
-        } ELSEIF(TRUE) {
+        } elseif(TRUE) {
             ASSERT(TRUE)
         }
         
   - name: elseif-else-seperated
     language: Prefix
     source: |
-        IF(FALSE){
+        if(FALSE){
             ASSERT(TRUE)
-        } ELSEIF(FALSE){
+        } elseif(FALSE){
             ASSERT(TRUE)
         }
         
-        ELSE {
+        else {
             ASSERT(TRUE)
         }
         
   - name: elseif-elseif-seperated
     language: Prefix
     source: |
-        IF(FALSE){
+        if(FALSE){
             ASSERT(FALSE)
-        } ELSEIF(FALSE){
+        } elseif(FALSE){
             ASSERT(FALSE)
         }
         
-        ELSEIF(TRUE) {
+        elseif(TRUE) {
             ASSERT(TRUE)
         }
         
   - name: elseif-no-if
     language: Prefix
     source: |
-        ELSEIF(TRUE){
+        elseif(TRUE){
             ASSERT(FALSE)
         }
         
   - name: if-else-no-block
     language: Prefix
     source: |
-        IF(TRUE){}ELSE
+        if(TRUE){}else
         
   - name: if-else-seperated
     language: Prefix
     source: |
-        IF(FALSE){
+        if(FALSE){
             ASSERT(TRUE)
         }
         
-        ELSE{
+        else{
             ASSERT(FALSE)
         }
         
   - name: if-elseif-no-block
     language: Prefix
     source: |
-        IF(TRUE){}ELSEIF()
+        if(TRUE){}elseif()
         
   - name: if-elseif-no-condition
     language: Prefix
     source: |
-        IF(TRUE){}ELSEIF(){}
+        if(TRUE){}elseif(){}
         
   - name: if-elseif-seperated
     language: Prefix
     source: |
-        IF(FALSE){
+        if(FALSE){
             ASSERT(TRUE)
         }
         
-        ELSEIF(TRUE){
+        elseif(TRUE){
             ASSERT(FALSE)
         }
         
   - name: if-no-block
     language: Prefix
     source: |
-        IF()
+        if()
         
   - name: if-no-condition
     language: Prefix
     source: |
-        IF{}
+        if{}
         

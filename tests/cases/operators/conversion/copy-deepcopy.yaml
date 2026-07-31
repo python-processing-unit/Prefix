@@ -20,7 +20,7 @@ passing:
     language: Prefix
     source: |
         func int identity(int value){
-            RETURN(value)
+            return(value)
         }
         
         func func_copy = COPY(identity)
@@ -74,7 +74,7 @@ passing:
     language: Prefix
     source: |
         func int identity(int value){
-            RETURN(value)
+            return(value)
         }
         
         func func_copy = DEEPCOPY(identity)

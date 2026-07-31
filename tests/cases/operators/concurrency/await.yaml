@@ -2,7 +2,7 @@ passing:
   - name: await-expression-handle
     language: Prefix
     source: |
-        thread worker = ASYNC{}
+        thread worker = async{}
         thread awaited = AWAIT(worker)
         
         ASSERT(EQ(TYPE(awaited), "thread"))
@@ -23,7 +23,7 @@ passing:
         int shared = 0d0
         
         thread(worker){
-            FOR(i, 0d256){
+            for(i, 0d256){
             }
             shared = 0d1
         }

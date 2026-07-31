@@ -17,14 +17,14 @@ passing:
           Set-Content -Path $modulePath -Encoding Ascii -Value @"
         str marker = "$markerLiteral"
         
-        IF(EXISTFILE(marker)){
+        if(EXISTFILE(marker)){
             WRITEFILE("reloaded", marker)
-        } ELSE {
+        } else {
             WRITEFILE("loaded", marker)
         }
         
         func str marker_text(){
-            RETURN(READFILE(marker))
+            return(READFILE(marker))
         }
         "@
         
@@ -62,7 +62,7 @@ passing:
         int module_var = 0d7
         
         func int read_module_var(){
-            RETURN(module_var)
+            return(module_var)
         }
         '@
         
@@ -103,13 +103,13 @@ passing:
         
           Set-Content -Path $localModulePath -Encoding Ascii -Value @'
         func str identify(){
-            RETURN("local")
+            return("local")
         }
         '@
         
           Set-Content -Path $stdlibPath -Encoding Ascii -Value @'
         func str identify(){
-            RETURN("stdlib")
+            return("stdlib")
         }
         '@
         
@@ -146,7 +146,7 @@ passing:
         
           Set-Content -Path $modulePath -Encoding Ascii -Value @'
         func str identify(){
-            RETURN("source")
+            return("source")
         }
         '@
         
@@ -186,7 +186,7 @@ passing:
         
           Set-Content -Path $initPath -Encoding Ascii -Value @'
         func str identify(){
-            RETURN("package")
+            return("package")
         }
         '@
         
@@ -224,7 +224,7 @@ passing:
         
           Set-Content -Path $modulePath -Encoding Ascii -Value @'
         func str identify(){
-            RETURN("module")
+            return("module")
         }
         '@
         
@@ -261,13 +261,13 @@ passing:
         
           Set-Content -Path $modulePath -Encoding Ascii -Value @'
         func str identify(){
-            RETURN("module")
+            return("module")
         }
         '@
         
           Set-Content -Path $initPath -Encoding Ascii -Value @'
         func str identify(){
-            RETURN("package")
+            return("package")
         }
         '@
         
@@ -343,13 +343,13 @@ passing:
         
           Set-Content -Path $stdlibPath -Encoding Ascii -Value @'
         func str identify(){
-            RETURN("stdlib")
+            return("stdlib")
         }
         '@
         
           Set-Content -Path $userlibPath -Encoding Ascii -Value @'
         func str identify(){
-            RETURN("userlib")
+            return("userlib")
         }
         '@
         
@@ -460,7 +460,7 @@ failing:
   - name: include-type-thr
     language: Prefix
     source: |
-        INCLUDE(ASYNC{})
+        INCLUDE(async{})
         
   - name: include-type-tns
     language: Prefix

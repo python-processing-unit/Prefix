@@ -7,9 +7,9 @@ int MS_DEN = 0d1000
 int AUDIO_MAX = 0d100
 
 func int AUDIO_CLAMP(int v){
-    IF(GT(v, AUDIO_MAX)){ RETURN(AUDIO_MAX) }
-    IF(LT(v, NEG(AUDIO_MAX))){ RETURN(NEG(AUDIO_MAX)) }
-    RETURN(v)
+    if(GT(v, AUDIO_MAX)){ return(AUDIO_MAX) }
+    if(LT(v, NEG(AUDIO_MAX))){ return(NEG(AUDIO_MAX)) }
+    return(v)
 }
 
 func tensor SQUARE(int freq, int ms, int amp, int sr){
@@ -21,12 +21,12 @@ func tensor SQUARE(int freq, int ms, int amp, int sr){
     tensor out = tensor(shape, 0d0)
     DEL("shape")
     int period = CDIV(sr, freq)
-    IF(LTE(period, 0d0)){ RETURN(out) }
+    if(LTE(period, 0d0)){ return(out) }
     int half = /(period, 0d2)
-    PARFOR(idx, frames){
+    parfor(idx, frames){
         int pos = MOD(-(idx, 0d1), period)
         int v = amp
-        IF(GTE(pos, half)){ v = NEG(amp) }
+        if(GTE(pos, half)){ v = NEG(amp) }
         out[idx] = AUDIO_CLAMP(v)
     }
     DEL("frames")
@@ -34,7 +34,7 @@ func tensor SQUARE(int freq, int ms, int amp, int sr){
     DEL("half")
     DEL("pos")
     DEL("v")
-    RETURN(out)
+    return(out)
 }
 
 func tensor SAWTOOTH(int freq, int ms, int amp, int sr){
@@ -46,8 +46,8 @@ func tensor SAWTOOTH(int freq, int ms, int amp, int sr){
     tensor out = tensor(shape, 0d0)
     DEL("shape")
     int period = CDIV(sr, freq)
-    IF(LTE(period, 0d0)){ RETURN(out) }
-    PARFOR(idx, frames){
+    if(LTE(period, 0d0)){ return(out) }
+    parfor(idx, frames){
         int pos = MOD(-(idx, 0d1), period)
         int num = *(*(*(pos, 0d4), amp), 0d1)
         int tmp = /(num, period)
@@ -60,7 +60,7 @@ func tensor SAWTOOTH(int freq, int ms, int amp, int sr){
     DEL("num")
     DEL("tmp")
     DEL("v")
-    RETURN(out)
+    return(out)
 }
 
 func tensor TRIANGLE(int freq, int ms, int amp, int sr){
@@ -72,16 +72,16 @@ func tensor TRIANGLE(int freq, int ms, int amp, int sr){
     tensor out = tensor(shape, 0d0)
     DEL("shape")
     int period = CDIV(sr, freq)
-    IF(LTE(period, 0d0)){ RETURN(out) }
+    if(LTE(period, 0d0)){ return(out) }
     int half = /(period, 0d2)
-    PARFOR(idx, frames){
+    parfor(idx, frames){
         int pos = MOD(-(idx, 0d1), period)
         int v = 0d0
-        IF(LT(pos, half)){
+        if(LT(pos, half)){
             int num = *(*(*(pos, 0d4), amp), 0d1)
             int tmp = /(num, period)
             v = +(NEG(amp), tmp)
-        }ELSE{
+        }else{
             int t = -(pos, half)
             int num = *(*(*(t, 0d4), amp), 0d1)
             int tmp = /(num, period)
@@ -97,7 +97,7 @@ func tensor TRIANGLE(int freq, int ms, int amp, int sr){
     DEL("num")
     DEL("tmp")
     DEL("t")
-    RETURN(out)
+    return(out)
 }
 
 func tensor SINE(int freq, int ms, int amp, int sr){
@@ -109,11 +109,11 @@ func tensor SINE(int freq, int ms, int amp, int sr){
     tensor base = SAWTOOTH(freq, ms, amp, sr)
     tensor out = tensor(shape, 0d0)
     DEL("shape")
-    PARFOR(idx, frames){
+    parfor(idx, frames){
         int previ = idx
-        IF(GT(idx, 0d1)){ previ = -(idx, 0d1) }
+        if(GT(idx, 0d1)){ previ = -(idx, 0d1) }
         int nexti = idx
-        IF(LT(idx, frames)){ nexti = +(idx, 0d1) }
+        if(LT(idx, frames)){ nexti = +(idx, 0d1) }
         int a = base[previ]
         int b = base[idx]
         int c = base[nexti]
@@ -128,7 +128,7 @@ func tensor SINE(int freq, int ms, int amp, int sr){
     DEL("b")
     DEL("c")
     DEL("sum")
-    RETURN(out)
+    return(out)
 }
 
 func tensor PULSE(int freq, int ms, int amp, int sr, int duty){
@@ -142,12 +142,12 @@ func tensor PULSE(int freq, int ms, int amp, int sr, int duty){
     tensor out = tensor(shape, 0d0)
     DEL("shape")
     int period = CDIV(sr, freq)
-    IF(LTE(period, 0d0)){ RETURN(out) }
+    if(LTE(period, 0d0)){ return(out) }
     int thresh = /(*(period, duty), 0d100)
-    PARFOR(idx, frames){
+    parfor(idx, frames){
         int pos = MOD(-(idx, 0d1), period)
         int v = amp
-        IF(GTE(pos, thresh)){ v = NEG(amp) }
+        if(GTE(pos, thresh)){ v = NEG(amp) }
         out[idx] = AUDIO_CLAMP(v)
     }
     DEL("frames")
@@ -155,7 +155,7 @@ func tensor PULSE(int freq, int ms, int amp, int sr, int duty){
     DEL("thresh")
     DEL("pos")
     DEL("v")
-    RETURN(out)
+    return(out)
 }
 
 ! Filters
@@ -174,48 +174,48 @@ func tensor ENVELOPE_ADSR( ^
     ! determine frames from shape tensor ([1, frames] expected)
     int slen = TLEN(shape, 0d1)
     int frames = 0
-    IF(EQ(slen, 0d1)){
+    if(EQ(slen, 0d1)){
         frames = shape[0d1]
-    } ELSE {
+    } else {
         frames = shape[0d2]
     }
     tensor out = tensor(shape, 0d0)
     ! clamp segment lengths so they don't exceed frames
     int a = attack
-    IF(GT(a, frames)){ a = frames }
+    if(GT(a, frames)){ a = frames }
     int d = decay
-    IF(GT(+(a,d), frames)){ d = -(frames, a) }
+    if(GT(+(a,d), frames)){ d = -(frames, a) }
     int r = release
-    IF(GT(+(+(a,d), r), frames)){ r = -(frames, +(a,d)) }
+    if(GT(+(+(a,d), r), frames)){ r = -(frames, +(a,d)) }
     int s_len = -(frames, +(+(a,d), r))
-    PARFOR(idx, frames){
+    parfor(idx, frames){
         int z = -(idx, 0d1)
         int v = 0d0
-        IF(LT(z, a)){
+        if(LT(z, a)){
             ! attack: ramp 0 -> 100
-            IF(EQ(a, 0d0)){ v = 0d4 }ELSE{
+            if(EQ(a, 0d0)){ v = 0d4 }else{
                 int num = *(idx, 0d4)
                 v = /(num, a)
             }
-        } ELSE {
+        } else {
             int pos = -(z, a)
-            IF(LT(pos, d)){
+            if(LT(pos, d)){
                 ! decay: ramp 100 -> sustain
-                IF(EQ(d, 0d0)){ v = sustain }ELSE{
+                if(EQ(d, 0d0)){ v = sustain }else{
                     int num = *(-(0d4, sustain), -(d, pos))
                     int tmp = /(num, d)
                     v = +(sustain, tmp)
                 }
-            }ELSE{
+            }else{
                 int pos2 = -(pos, d)
-                IF(LT(pos2, s_len)){
+                if(LT(pos2, s_len)){
                     ! sustain region
                     v = sustain
-                }ELSE{
+                }else{
                     ! release region: ramp sustain -> 0
                     int relpos = -(pos2, s_len)
                     int relrem = -(r, relpos)
-                    IF(OR(EQ(r, 0d0), LTE(relrem, 0d0))){ v = 0d0 }ELSE{
+                    if(OR(EQ(r, 0d0), LTE(relrem, 0d0))){ v = 0d0 }else{
                         int num = *(sustain, relrem)
                         v = /(num, r)
                     }
@@ -230,7 +230,7 @@ func tensor ENVELOPE_ADSR( ^
     DEL("d")
     DEL("r")
     DEL("s_len")
-    RETURN(out)
+    return(out)
 }
 
 func tensor LOWPASS(tensor inp, int cutoff, int sr){
@@ -239,25 +239,25 @@ func tensor LOWPASS(tensor inp, int cutoff, int sr){
     tensor shape = SHAPE(inp)
     int slen = TLEN(shape, 0d1)
     int frames = 0
-    IF(EQ(slen, 0d1)){frames = shape[0d1] }ELSE{ frames = shape[0d2]}
+    if(EQ(slen, 0d1)){frames = shape[0d1] }else{ frames = shape[0d2]}
     tensor out = tensor(shape, 0d0)
     int period = CDIV(sr, cutoff)
-    IF(LTE(period, 0d0)){ RETURN(out) }
-    PARFOR(idx, frames){
+    if(LTE(period, 0d0)){ return(out) }
+    parfor(idx, frames){
         int z = -(idx, 0d1)
         ! compute window start
         int start = -(z, -(period, 0d1))
-        IF(LT(start, 0d0)){ start = 0d0 }
+        if(LT(start, 0d0)){ start = 0d0 }
         int j = start
         int sum = 0d0
-        WHILE(LTE(j, z)){
+        while(LTE(j, z)){
             int sample = inp[+(j, 0d1)]
             sum = +(sum, sample)
             j = +(j, 0d1)
         }
         int count = -( +(z, 0d1), start )
         int avg = 0d0
-        IF(GTE(count, 0d1)){ avg = /(sum, count) }
+        if(GTE(count, 0d1)){ avg = /(sum, count) }
         out[idx] = AUDIO_CLAMP(avg)
     }
     DEL("slen")
@@ -268,7 +268,7 @@ func tensor LOWPASS(tensor inp, int cutoff, int sr){
     DEL("sum")
     DEL("count")
     DEL("avg")
-    RETURN(out)
+    return(out)
 }
 
 func tensor HIGHPASS(tensor inp, int cutoff, int sr){
@@ -278,8 +278,8 @@ func tensor HIGHPASS(tensor inp, int cutoff, int sr){
     tensor out = tensor(shape, 0d0)
     int slen = TLEN(shape, 0d1)
     int frames = 0d0
-    IF(EQ(slen, 0d1)){frames = shape[0d1]} ELSE {frames = shape[0d2]}
-    PARFOR(idx, frames){
+    if(EQ(slen, 0d1)){frames = shape[0d1]} else {frames = shape[0d2]}
+    parfor(idx, frames){
         int i1 = idx
         int a = inp[i1]
         int b = low[i1]
@@ -288,5 +288,5 @@ func tensor HIGHPASS(tensor inp, int cutoff, int sr){
     DEL("slen")
     DEL("frames")
     DEL("low")
-    RETURN(out)
+    return(out)
 }

@@ -28,7 +28,7 @@ passing:
         str helper_path = JOIN(tests_dir, "/helpers/import_path_cache_target.pre")
         str marker_path = path.TEMPFILE("prefix-import-path-cache-target.txt")
         
-        IF(EXISTFILE(marker_path)){
+        if(EXISTFILE(marker_path)){
             ASSERT(DELETEFILE(marker_path))
         }
         
@@ -73,14 +73,14 @@ passing:
           Set-Content -Path $modulePath -Encoding Ascii -Value @"
         str marker = "$markerLiteral"
         
-        IF(EXISTFILE(marker)){
+        if(EXISTFILE(marker)){
             WRITEFILE("reloaded", marker)
-        } ELSE {
+        } else {
             WRITEFILE("loaded", marker)
         }
         
         func str marker_text(){
-            RETURN(READFILE(marker))
+            return(READFILE(marker))
         }
         "@
         
@@ -140,7 +140,7 @@ passing:
         
           Set-Content -Path $initPath -Encoding Ascii -Value @'
         func str identify(){
-            RETURN("package")
+            return("package")
         }
         '@
         
@@ -177,7 +177,7 @@ passing:
         
           Set-Content -Path $modulePath -Encoding Ascii -Value @'
         func str identify(){
-            RETURN("module")
+            return("module")
         }
         '@
         
@@ -260,7 +260,7 @@ failing:
         str tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
         str helper_path = JOIN(tests_dir, "/helpers/import_path_basic_target.pre")
         
-        IMPORT_PATH(helper_path, ASYNC{})
+        IMPORT_PATH(helper_path, async{})
   - name: import_path-alias-type-tns
     language: Prefix
     source: |
@@ -313,7 +313,7 @@ failing:
     source: IMPORT_PATH(<>)
   - name: import_path-type-thr
     language: Prefix
-    source: IMPORT_PATH(ASYNC{})
+    source: IMPORT_PATH(async{})
   - name: import_path-type-tns
     language: Prefix
     source: IMPORT_PATH([0d1])

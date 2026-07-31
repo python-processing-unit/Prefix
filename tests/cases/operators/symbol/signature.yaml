@@ -5,16 +5,16 @@ passing:
         int sample_value = 0d5
         
         func int plain(int left, str right = "def"){
-            RETURN(left)
+            return(left)
         }
         
         func int coerced(~int value, str suffix = "x"){
-            RETURN(value)
+            return(value)
         }
         
         func str local_signature(){
             int inner_value = 0d1
-            RETURN(SIGNATURE(inner_value))
+            return(SIGNATURE(inner_value))
         }
         
         ASSERT(EQ(SIGNATURE(sample_value), 'int sample_value'))

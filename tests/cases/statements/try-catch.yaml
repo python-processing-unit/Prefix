@@ -2,9 +2,9 @@ passing:
   - name: try-catch-err
     language: Prefix
     source: |
-        TRY{
+        try{
             ASSERT(FALSE)
-        } CATCH(err) {
+        } catch(err) {
             ASSERT(EXIST("err"))
         }
         REFUTE(EXIST("err"))
@@ -12,14 +12,14 @@ passing:
   - name: try-catch
     language: Prefix
     source: |
-        TRY{
+        try{
             ASSERT(TRUE)
-        } CATCH {
+        } catch {
             ASSERT(FALSE)
         }
-        TRY{
+        try{
             ASSERT(FALSE)
-        } CATCH {
+        } catch {
             ASSERT(TRUE)
         }
         
@@ -27,29 +27,29 @@ failing:
   - name: catch-no-try
     language: Prefix
     source: |
-        CATCH{}
+        catch{}
         
   - name: try-catch-err-pseudotype
     language: Prefix
     source: |
-        TRY{
+        try{
             ASSERT(FALSE)
-        } CATCH(SYMBOL: err) {
+        } catch(SYMBOL: err) {
             ASSERT(EXIST("err"))
         }
         
   - name: try-catch-seperated
     language: Prefix
     source: |
-        TRY{
+        try{
             ASSERT(FALSE)
         }
-        CATCH {
+        catch {
             ASSERT(TRUE)
         }
         
   - name: try-no-catch
     language: Prefix
     source: |
-        TRY{}
+        try{}
         
