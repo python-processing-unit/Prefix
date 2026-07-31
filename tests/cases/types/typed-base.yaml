@@ -3,7 +3,7 @@ passing:
     language: Prefix
     source: |
         func int{0d2} add(~int{0d2} a, ~int{0d2} b) {
-            RETURN(+(a, b))
+            return(+(a, b))
         }
         ASSERT(EQ(add(0d5, 0d6), 0b1011))
         ASSERT(EQ(add(0xA, 0xB), 0b10101))
@@ -11,7 +11,7 @@ passing:
         ASSERT(EQ(BASE(add(0d1, 0d1)), 0d2))
         
         func float{0d16} scale(~float{0d16} x) {
-            RETURN(*(x, 0x2.0))
+            return(*(x, 0x2.0))
         }
         ASSERT(EQ(scale(0d3.0), 0x6.0))
         ASSERT(EQ(BASE(scale(0d1.0)), 0d16))
@@ -20,13 +20,13 @@ passing:
     language: Prefix
     source: |
         func int{0d2} make_binary(int x) {
-            RETURN(CONVERT(x, 0d2))
+            return(CONVERT(x, 0d2))
         }
         ASSERT(EQ(make_binary(0d5), 0b101))
         ASSERT(EQ(BASE(make_binary(0d5)), 0d2))
         
         func float{0d16} make_hex(float x) {
-            RETURN(CONVERT(x, 0d16))
+            return(CONVERT(x, 0d16))
         }
         ASSERT(EQ(make_hex(0d3.0), 0x3.0))
         ASSERT(EQ(BASE(make_hex(0d3.0)), 0d16))
@@ -35,13 +35,13 @@ passing:
     language: Prefix
     source: |
         func add_binary = LAMBDA int{0d2} (int{0d2} a, int{0d2} b) {
-            RETURN(+(a, b))
+            return(+(a, b))
         }
         ASSERT(EQ(add_binary(0b101, 0b110), 0b1011))
         ASSERT(EQ(SIGNATURE(add_binary), "int{0d2} add_binary(int{0d2} a, int{0d2} b)"))
         
         func scale_hex = LAMBDA float{0d16} (~float{0d16} x) {
-            RETURN(*(x, 0x2.0))
+            return(*(x, 0x2.0))
         }
         ASSERT(EQ(scale_hex(0d2.5), 0x5.0))
         ASSERT(EQ(BASE(scale_hex(0d2.5)), 0d16))
@@ -50,12 +50,12 @@ passing:
     language: Prefix
     source: |
         func int{0d2} add(int{0d2} a, int{0d2} b) {
-            RETURN(+(a, b))
+            return(+(a, b))
         }
         ASSERT(EQ(SIGNATURE(add), "int{0d2} add(int{0d2} a, int{0d2} b)"))
         
         func float{0d16} scale(float{0d16} x) {
-            RETURN(*(x, 0x2.0))
+            return(*(x, 0x2.0))
         }
         ASSERT(EQ(SIGNATURE(scale), "float{0d16} scale(float{0d16} x)"))
         
@@ -138,7 +138,7 @@ failing:
     language: Prefix
     source: |
         func int{0d2} add(int{0d2} a, int{0d2} b) {
-            RETURN(+(a, b))
+            return(+(a, b))
         }
         add(0d5, 0d6)
         
@@ -146,7 +146,7 @@ failing:
     language: Prefix
     source: |
         func int{0d2} make_binary(int x) {
-            RETURN(x)
+            return(x)
         }
         make_binary(0d5)
         

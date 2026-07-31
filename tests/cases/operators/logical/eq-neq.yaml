@@ -24,7 +24,7 @@ passing:
         map map_copy = map_value
         
         func int identity(int value){
-            RETURN(value)
+            return(value)
         }
         func identity_alias = identity
         
@@ -64,7 +64,7 @@ passing:
         map different_map = <"alpha" = 0d1, "beta" = [0d2, 0d4]>
         
         func int identity(int value){
-            RETURN(value)
+            return(value)
         }
         func identity_alias = identity
         

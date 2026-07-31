@@ -114,7 +114,7 @@ failing:
   - name: assign-map-index-on-thr
     language: Prefix
     source: |
-        thread t = ASYNC{}
+        thread t = async{}
         ASSIGN(t<"k">, 0d1)
         
   - name: assign-map-index-on-tns
@@ -162,7 +162,7 @@ failing:
   - name: assign-tns-index-on-thr
     language: Prefix
     source: |
-        thread t = ASYNC{}
+        thread t = async{}
         ASSIGN(t[0d1], 0d1)
         
   - name: decl-conflicting-type
@@ -238,10 +238,10 @@ failing:
   - name: uppercase-func-rejected
     language: Prefix
     source: |
-        FUNC int f(int x){RETURN(x)}
+        FUNC int f(int x){return(x)}
         
   - name: uppercase-thread-rejected
     language: Prefix
     source: |
-        THR t = ASYNC{}
+        THR t = async{}
         

@@ -10,7 +10,7 @@ passing:
         map sample_map = <"n" = 0d1>
         
         func int sample_func(){
-            RETURN(0d1)
+            return(0d1)
         }
         
         thread(sample_thr){}

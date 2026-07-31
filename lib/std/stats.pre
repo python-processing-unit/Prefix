@@ -6,70 +6,70 @@
 
 func float MEAN(tensor values){
     int n = TLEN(values, 0d1)
-    IF(EQ(n, 0d0)) { THROW("empty input") }
+    if(EQ(n, 0d0)) { THROW("empty input") }
     float sum = 0d0.0
-    FOR(i, n){
+    for(i, n){
         F+(@sum, values[i])
     }
-    RETURN(F/(sum, n))
+    return(F/(sum, n))
 }
 
 func float MEDIAN(tensor values){
     int n = TLEN(values, 0d1)
-    IF(EQ(n, 0d0)) { THROW("empty input") }
+    if(EQ(n, 0d0)) { THROW("empty input") }
     ! k1 is the lower median rank (1-based)
     int k1 = /(+(n, 0d1), 0d10) ! / by 2 (binary 10)
     ! if even, k2 is k1+1, else k2==k1
     int is_even = MOD(n, 0d10)
     int k2 = k1
-    IF(EQ(is_even, 0d0)) { k2 = +(k1, 0d1) }
+    if(EQ(is_even, 0d0)) { k2 = +(k1, 0d1) }
 
     ! find k1
     float val1 = 0d0.0
-    FOR(i, n){
+    for(i, n){
         float cand = float(values[i])
         int less = 0d0
         int le = 0d0
-        FOR(j, n){
+        for(j, n){
             float v = float(values[j])
-            IF(LT(v, cand)) { +(@less, 0d1) }
-            IF(OR(LT(v, cand), EQ(v, cand))) { +(@le, 0d1) }
+            if(LT(v, cand)) { +(@less, 0d1) }
+            if(OR(LT(v, cand), EQ(v, cand))) { +(@le, 0d1) }
         }
-        IF(AND(LT(less, k1), LTE(k1, le))){ val1 = cand; BREAK(0d1) }
+        if(AND(LT(less, k1), LTE(k1, le))){ val1 = cand; break(0d1) }
     }
 
-    IF(EQ(k1, k2)) { RETURN(val1) }
+    if(EQ(k1, k2)) { return(val1) }
 
     ! find k2
     float val2 = 0d0.0
-    FOR(i, n){
+    for(i, n){
         float cand = float(values[i])
         int less = 0d0
         int le = 0d0
-        FOR(j, n){
+        for(j, n){
             float v = float(values[j])
-            IF(LT(v, cand)) { +(@less, 0d1) }
-            IF(OR(LT(v, cand), EQ(v, cand))) { +(@le, 0d1) }
+            if(LT(v, cand)) { +(@less, 0d1) }
+            if(OR(LT(v, cand), EQ(v, cand))) { +(@le, 0d1) }
         }
-        IF(AND(LT(less, k2), LTE(k2, le))){ val2 = cand; BREAK(0d1) }
+        if(AND(LT(less, k2), LTE(k2, le))){ val2 = cand; break(0d1) }
     }
 
-    RETURN(/(+(val1, val2), 0d2.0))
+    return(/(+(val1, val2), 0d2.0))
 }
 
 func tensor MODE(tensor values){
     int n = TLEN(values, 0d1)
-    IF(EQ(n, 0d0)) { RETURN([ ]) }
+    if(EQ(n, 0d0)) { return([ ]) }
 
     ! Count frequencies via map to avoid O(n^2) rescans.
     map counts = < float(values[1]) = 1 >
-    IF(GT(n, 0d1)){
-        FOR(i, -(n, 0d1)){
+    if(GT(n, 0d1)){
+        for(i, -(n, 0d1)){
             int idx = +(i, 0d1)
             float v = float(values[idx])
-            IF(KEYIN(v, counts)){
+            if(KEYIN(v, counts)){
                 counts<v> = +(counts<v>, 0d1)
-            } ELSE {
+            } else {
                 counts<v> = 0d1
             }
         }
@@ -80,37 +80,37 @@ func tensor MODE(tensor values){
     int klen = TLEN(keys, 0d1)
 
     int mode_count = 0d0
-    FOR(i, klen){
+    for(i, klen){
         float k = float(keys[i])
-        IF(EQ(counts<k>, max_count)) { +(@mode_count, 0d1) }
+        if(EQ(counts<k>, max_count)) { +(@mode_count, 0d1) }
     }
-    IF(EQ(mode_count, 0d0)) { RETURN([ ]) }
+    if(EQ(mode_count, 0d0)) { return([ ]) }
 
     tensor out = tensor([mode_count], 0d0.0)
     int out_i = 0d0
-    FOR(i, klen){
+    for(i, klen){
         float k = float(keys[i])
-        IF(EQ(counts<k>, max_count)){
+        if(EQ(counts<k>, max_count)){
             +(@out_i, 0d1)
             out[out_i] = k
         }
     }
-    RETURN(out)
+    return(out)
 }
 
 func float HMEAN(tensor values){
     int n = TLEN(values, 0d1)
-    IF(EQ(n, 0d0)) { THROW("empty input") }
+    if(EQ(n, 0d0)) { THROW("empty input") }
     float denom = 0d0.0
-    FOR(i, n){
+    for(i, n){
         +(@denom, F/(0d1.0, values[i]))
     }
-    RETURN(F/(n, denom))
+    return(F/(n, denom))
 }
 
 func float QUANTILE(tensor values, int q_num, int q_den){
     int n = TLEN(values, 0d1)
-    IF(EQ(n, 0d0)) { THROW("empty input") }
+    if(EQ(n, 0d0)) { THROW("empty input") }
     ! target index = floor(q * (n-1)) + 1, with q = q_num/q_den
     int range = -(n, 0d1)
     int prod = *(q_num, range)
@@ -118,26 +118,26 @@ func float QUANTILE(tensor values, int q_num, int q_den){
     int k = +(target, 0d1)
 
     float out = 0d0.0
-    FOR(i, n){
+    for(i, n){
         float cand = float(values[i])
         int less = 0d0
         int le = 0d0
-        FOR(j, n){
+        for(j, n){
             float v = float(values[j])
-            IF(LT(v, cand)) { +(@less, 0d1) }
-            IF(OR(LT(v, cand), EQ(v, cand))) { +(@le, 0d1) }
+            if(LT(v, cand)) { +(@less, 0d1) }
+            if(OR(LT(v, cand), EQ(v, cand))) { +(@le, 0d1) }
         }
-        IF(AND(LT(less, k), LTE(k, le))){ out = cand; BREAK(0d1) }
+        if(AND(LT(less, k), LTE(k, le))){ out = cand; break(0d1) }
     }
-    RETURN(out)
+    return(out)
 }
 
 func float VARIANCE(tensor values, int sample = 0d0){
     int n = TLEN(values, 0d1)
-    IF(EQ(n, 0d0)) { THROW("empty input") }
+    if(EQ(n, 0d0)) { THROW("empty input") }
     float mean = MEAN(values)
     float var_sum = 0d0.0
-    FOR(i, n){
+    for(i, n){
         float diff = F-(values[i], mean)
         +(@var_sum, *(diff, diff))
     }
@@ -145,38 +145,38 @@ func float VARIANCE(tensor values, int sample = 0d0){
     ! Tests expect integer-division semantics (truncation) for variance
     float raw = F/(var_sum, denom)
     float truncated = float(int(raw))
-    RETURN(truncated)
+    return(truncated)
 }
 
 func float STDEV(tensor values, int sample = 0d0){
     float var = VARIANCE(values, sample)
     ! Square root: exponent 1/2 -> binary literal 0.1 (equals 0.5)
-    RETURN(POW(var, 0d0.5))
+    return(POW(var, 0d0.5))
 }
 
 func tensor HISTOGRAM(tensor values, int bins){
     int n = TLEN(values, 0d1)
-    IF(OR(EQ(n, 0d0), LT(bins, 0d1))) { RETURN(tensor([bins], 0d0)) }
+    if(OR(EQ(n, 0d0), LT(bins, 0d1))) { return(tensor([bins], 0d0)) }
 
     ! find min and max
     float mn = float(values[0d1])
     float mx = float(values[0d1])
-    FOR(i, n){
+    for(i, n){
         float v = float(values[i])
-        IF(LT(v, mn)) { mn = v }
-        IF(GT(v, mx)) { mx = v }
+        if(LT(v, mn)) { mn = v }
+        if(GT(v, mx)) { mx = v }
     }
 
     tensor hist = tensor([bins], 0d0)
-    IF(EQ(mn, mx)){
+    if(EQ(mn, mx)){
         ! all values equal -> put all counts in first bin
         hist[0d1] = n
-        RETURN(hist)
+        return(hist)
     }
 
     ! width denominator: (mx - mn + 1) to ensure max maps to last bin
     float den = +(-(mx, mn), 0d1.0)
-    FOR(i, n){
+    for(i, n){
         float offset = F-(values[i], mn)
         float ratio = F/(F*(offset, bins), den)
         int bin = int(ratio)
@@ -184,16 +184,16 @@ func tensor HISTOGRAM(tensor values, int bins){
         int bi = +(bin, 0d1)
         hist[bi] = +(hist[bi], 0d1)
     }
-    RETURN(hist)
+    return(hist)
 }
 
 func tensor DESCRIBE(tensor values){
     int n = TLEN(values, 0d1)
     ! desc layout: [count, mean, stdev, min, max] -> length 5 (binary 101)
     tensor desc = tensor([101], 0d0)
-    IF(EQ(n, 0d0)){
+    if(EQ(n, 0d0)){
         desc[0d1] = 0d0
-        RETURN(desc)
+        return(desc)
     }
     desc[0d1] = n
     desc[0d2] = int(MEAN(values))
@@ -202,16 +202,16 @@ func tensor DESCRIBE(tensor values){
     ! min / max
     float mn = float(values[0d1])
     float mx = float(values[0d1])
-    FOR(i, n){
+    for(i, n){
         float v = float(values[i])
-        IF(LT(v, mn)) {
+        if(LT(v, mn)) {
             mn = v
         }
-        IF(GT(v, mx)) {
+        if(GT(v, mx)) {
             mx = v
         }
     }
     desc[0d4] = int(mn)
     desc[0d5] = int(mx)
-    RETURN(desc)
+    return(desc)
 }

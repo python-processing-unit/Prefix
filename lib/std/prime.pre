@@ -1,31 +1,31 @@
 ! Primality and factorization functions
 
 func bool IS_PRIME(int n){
-    IF(LTE(n, 0d1)){
-        RETURN(FALSE)
+    if(LTE(n, 0d1)){
+        return(FALSE)
     }
-    IF(EQ(n, 0d2)){
-        RETURN(TRUE)
+    if(EQ(n, 0d2)){
+        return(TRUE)
     }
     ! reject even numbers greater than 2
-    IF(EQ(MOD(n, 0d2), 0d0)){
-        RETURN(FALSE)
+    if(EQ(MOD(n, 0d2), 0d0)){
+        return(FALSE)
     }
     int i = 0d3
-    WHILE(LTE(*(i, i), n)){
-        IF(EQ(MOD(n, i), 0d0)){
-            RETURN(FALSE)
+    while(LTE(*(i, i), n)){
+        if(EQ(MOD(n, i), 0d0)){
+            return(FALSE)
         }
         +(@i, 0d2)
     }
-    RETURN(TRUE)
+    return(TRUE)
 }
 
 func int NEXT_PRIME(int start){
     int n = +(start, 0d1)
-    WHILE(0d1){
-        IF(IS_PRIME(n)){
-            RETURN(n)
+    while(0d1){
+        if(IS_PRIME(n)){
+            return(n)
         }
         +(@n, 0d1)
     }
@@ -33,47 +33,47 @@ func int NEXT_PRIME(int start){
 
 func int PREV_PRIME(int start){
     int n = -(start, 0d1)
-    WHILE(GT(n, 0d1)){
-        IF(IS_PRIME(n)){
-            RETURN(n)
+    while(GT(n, 0d1)){
+        if(IS_PRIME(n)){
+            return(n)
         }
         -(@n, 0d1)
     }
-    RETURN(0d0)
+    return(0d0)
 }
 
 func bool IS_MERSENNE_PRIME(int p){
-    IF(IS_PRIME(p)){
+    if(IS_PRIME(p)){
         int exp = POW(0d2, p)
         int mersenne = -(exp, 0d1)
-        IF(IS_PRIME(mersenne)){
-            RETURN(TRUE)
+        if(IS_PRIME(mersenne)){
+            return(TRUE)
         }
-        RETURN(FALSE)
-    }ELSE{
-        RETURN(FALSE)
+        return(FALSE)
+    }else{
+        return(FALSE)
     }
 }
 
 func tensor FACTOR(int n){
-    IF(LTE(n, 0d1)){
+    if(LTE(n, 0d1)){
         tensor empty = [0d0]
-        RETURN(empty)
+        return(empty)
     }
     int p = 0d2
     int coll_len = 0d0
     tensor coll = [0d0]  ! placeholder, real shape tracked by coll_len
-    WHILE(LTE(*(p, p), n)){
-        IF(EQ(MOD(n, p), 0d0)){
-            IF(EQ(coll_len, 0d0)){
+    while(LTE(*(p, p), n)){
+        if(EQ(MOD(n, p), 0d0)){
+            if(EQ(coll_len, 0d0)){
                 tensor first = [p]
                 coll = first
                 coll_len = 0d1
-            } ELSE {
+            } else {
                 int old_len = TLEN(coll, 0d1)
                 int new_len = +(old_len, 0d1)
                 tensor new_coll = tensor([new_len], 0d0)
-                FOR(i, old_len){
+                for(i, old_len){
                     new_coll[i] = coll[i]
                 }
                 new_coll[new_len] = p
@@ -81,20 +81,20 @@ func tensor FACTOR(int n){
                 coll_len = new_len
             }
             /(@n, p)
-        } ELSE {
+        } else {
             p = NEXT_PRIME( +(p, 0d1) )
         }
     }
-    IF(GT(n, 0d1)){
-        IF(EQ(coll_len, 0d0)){
+    if(GT(n, 0d1)){
+        if(EQ(coll_len, 0d0)){
             tensor last = [n]
             coll = last
             coll_len = 0d1
-        } ELSE {
+        } else {
             int old_len2 = TLEN(coll, 0d1)
             int new_len2 = +(old_len2, 0d1)
             tensor new_coll2 = tensor([new_len2], 0d0)
-            FOR(j, old_len2){
+            for(j, old_len2){
                 new_coll2[j] = coll[j]
             }
             new_coll2[new_len2] = n
@@ -102,5 +102,5 @@ func tensor FACTOR(int n){
             coll_len = new_len2
         }
     }
-    RETURN(coll)
+    return(coll)
 }

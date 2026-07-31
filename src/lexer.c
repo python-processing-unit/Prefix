@@ -58,24 +58,24 @@ static PTokenType check_keyword(const char *text, size_t length) {
     if (length == strlen(str) && memcmp(text, str, length) == 0)                                                       \
         return type;
 
-    KEYWORD("TRY", TOKEN_TRY);
-    KEYWORD("CATCH", TOKEN_CATCH);
-    KEYWORD("IF", TOKEN_IF);
-    KEYWORD("ELSEIF", TOKEN_ELSEIF);
-    KEYWORD("ELSE", TOKEN_ELSE);
-    KEYWORD("WHILE", TOKEN_WHILE);
-    KEYWORD("FOR", TOKEN_FOR);
-    KEYWORD("PARFOR", TOKEN_PARFOR);
+    KEYWORD("try", TOKEN_TRY);
+    KEYWORD("catch", TOKEN_CATCH);
+    KEYWORD("if", TOKEN_IF);
+    KEYWORD("elseif", TOKEN_ELSEIF);
+    KEYWORD("else", TOKEN_ELSE);
+    KEYWORD("while", TOKEN_WHILE);
+    KEYWORD("for", TOKEN_FOR);
+    KEYWORD("parfor", TOKEN_PARFOR);
     KEYWORD("thread", TOKEN_THREAD);
     KEYWORD("func", TOKEN_FUNC);
     KEYWORD("LAMBDA", TOKEN_LAMBDA);
-    KEYWORD("ASYNC", TOKEN_ASYNC);
-    KEYWORD("RETURN", TOKEN_RETURN);
-    KEYWORD("POP", TOKEN_POP);
-    KEYWORD("BREAK", TOKEN_BREAK);
-    KEYWORD("CONTINUE", TOKEN_CONTINUE);
-    KEYWORD("GOTO", TOKEN_GOTO);
-    KEYWORD("GOTOPOINT", TOKEN_GOTOPOINT);
+    KEYWORD("async", TOKEN_ASYNC);
+    KEYWORD("return", TOKEN_RETURN);
+    KEYWORD("pop", TOKEN_POP);
+    KEYWORD("break", TOKEN_BREAK);
+    KEYWORD("continue", TOKEN_CONTINUE);
+    KEYWORD("goto", TOKEN_GOTO);
+    KEYWORD("gotopoint", TOKEN_GOTOPOINT);
 
 #undef KEYWORD
     return TOKEN_IDENT;

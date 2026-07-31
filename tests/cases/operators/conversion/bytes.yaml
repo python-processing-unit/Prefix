@@ -40,7 +40,7 @@ failing:
   - name: bytes-first-func
     language: Prefix
     source: |
-        func int ff(int x){ RETURN x }
+        func int ff(int x){ return x }
         BYTES(ff)
         
   - name: bytes-first-map
@@ -51,7 +51,7 @@ failing:
   - name: bytes-first-thr
     language: Prefix
     source: |
-        BYTES(ASYNC{ TRUE })
+        BYTES(async{ TRUE })
         
   - name: bytes-first-tns
     language: Prefix
@@ -81,7 +81,7 @@ failing:
   - name: bytes-second-func
     language: Prefix
     source: |
-        func int ff(int x){ RETURN x }
+        func int ff(int x){ return x }
         BYTES(0d1, endian = ff)
         
   - name: bytes-second-int
@@ -97,7 +97,7 @@ failing:
   - name: bytes-second-thr
     language: Prefix
     source: |
-        BYTES(0d1, endian = ASYNC{ TRUE })
+        BYTES(0d1, endian = async{ TRUE })
         
   - name: bytes-second-tns
     language: Prefix

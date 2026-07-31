@@ -9,26 +9,26 @@ passing:
         REFUTE(PERMAFROZEN("frozen_value"))
         
         bool freeze_undefined_failed = FALSE
-        TRY{
+        try{
             FREEZE("not_declared")
-        } CATCH {
+        } catch {
             freeze_undefined_failed = TRUE
         }
         ASSERT(freeze_undefined_failed)
         
         bool reassignment_failed = FALSE
-        TRY{
+        try{
             frozen_value = FALSE
-        } CATCH {
+        } catch {
             reassignment_failed = TRUE
         }
         ASSERT(reassignment_failed)
         ASSERT(EQ(frozen_value, TRUE))
         
         bool deletion_failed = FALSE
-        TRY{
+        try{
             DEL("frozen_value")
-        } CATCH {
+        } catch {
             deletion_failed = TRUE
         }
         ASSERT(deletion_failed)
@@ -64,35 +64,35 @@ passing:
         ASSERT(PERMAFROZEN("locked_value"))
         
         bool permafreeze_undefined_failed = FALSE
-        TRY{
+        try{
             PERMAFREEZE("not_declared")
-        } CATCH {
+        } catch {
             permafreeze_undefined_failed = TRUE
         }
         ASSERT(permafreeze_undefined_failed)
         
         bool reassignment_failed = FALSE
-        TRY{
+        try{
             locked_value = FALSE
-        } CATCH {
+        } catch {
             reassignment_failed = TRUE
         }
         ASSERT(reassignment_failed)
         ASSERT(EQ(locked_value, TRUE))
         
         bool deletion_failed = FALSE
-        TRY{
+        try{
             DEL("locked_value")
-        } CATCH {
+        } catch {
             deletion_failed = TRUE
         }
         ASSERT(deletion_failed)
         ASSERT(EXIST("locked_value"))
         
         bool thaw_failed = FALSE
-        TRY{
+        try{
             THAW("locked_value")
-        } CATCH {
+        } catch {
             thaw_failed = TRUE
         }
         ASSERT(thaw_failed)
@@ -125,9 +125,9 @@ passing:
         ASSERT(EQ(thaw_value, FALSE))
         
         bool thaw_undefined_failed = FALSE
-        TRY{
+        try{
             THAW("not_declared")
-        } CATCH {
+        } catch {
             thaw_undefined_failed = TRUE
         }
         ASSERT(thaw_undefined_failed)

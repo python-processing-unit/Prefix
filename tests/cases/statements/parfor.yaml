@@ -4,10 +4,10 @@ passing:
     source: |
         int outer = 0d0
         
-        FOR(j, 0d3){
+        for(j, 0d3){
             +(@outer, 0d1)
-            PARFOR(i, 0d5){
-                BREAK(0d2)
+            parfor(i, 0d5){
+                break(0d2)
             }
             ASSERT(FALSE)
         }
@@ -22,10 +22,10 @@ passing:
         int outer = 0d0
         int after = 0d0
         
-        FOR(j, 0d3){
+        for(j, 0d3){
             +(@outer, 0d1)
-            PARFOR(i, 0d5){
-                BREAK(0d1)
+            parfor(i, 0d5){
+                break(0d1)
             }
             +(@after, 0d1)
         }
@@ -39,9 +39,9 @@ passing:
     language: Prefix
     source: |
         tensor seen = [0d0, 0d0, 0d0, 0d0]
-        PARFOR(i, 0d4){
-            IF(EQ(i, 0d2)){
-                CONTINUE()
+        parfor(i, 0d4){
+            if(EQ(i, 0d2)){
+                continue()
             }
             seen[i] = i
         }
@@ -54,15 +54,15 @@ passing:
         tensor seen = [0d0, 0d0, 0d0]
         bool caught = FALSE
         
-        TRY{
-            PARFOR(i, 0d3){
+        try{
+            parfor(i, 0d3){
                 seen[i] = i
-                IF(EQ(i, 0d2)){
+                if(EQ(i, 0d2)){
                     ASSERT(FALSE)
                 }
             }
             ASSERT(FALSE)
-        } CATCH {
+        } catch {
             caught = TRUE
         }
         
@@ -72,8 +72,8 @@ passing:
   - name: parfor-merge-symbol
     language: Prefix
     source: |
-        PARFOR(i, 0d3){
-            IF(EQ(i, 0d2)){
+        parfor(i, 0d3){
+            if(EQ(i, 0d2)){
                 int merged = 0d7
             }
         }
@@ -88,11 +88,11 @@ passing:
         
         func int get_target(){
             +(@target_calls, 0d1)
-            RETURN(0d3)
+            return(0d3)
         }
         
         tensor seen = [0d0, 0d0, 0d0]
-        PARFOR(i, get_target()){
+        parfor(i, get_target()){
             seen[i] = i
         }
         ASSERT(EQ(target_calls, 0d1))
@@ -104,7 +104,7 @@ passing:
     source: |
         bool i = TRUE
         int runs = 0d0
-        PARFOR(i, 0d5){
+        parfor(i, 0d5){
             +(@runs, 0d1)
         }
         ASSERT(EQ(runs, 0d0))
@@ -114,7 +114,7 @@ passing:
     language: Prefix
     source: |
         tensor seen = [0d0, 0d0, 0d0, 0d0]
-        PARFOR(i, 0d4){
+        parfor(i, 0d4){
             seen[i] = i
         }
         ASSERT(EQ(seen, [0d1, 0d2, 0d3, 0d4]))
@@ -124,15 +124,15 @@ failing:
   - name: parfor-no-block
     language: Prefix
     source: |
-        PARFOR(i, 0d1)
+        parfor(i, 0d1)
         
   - name: parfor-no-target
     language: Prefix
     source: |
-        PARFOR(i, ){}
+        parfor(i, ){}
         
   - name: parfor-target-not-int
     language: Prefix
     source: |
-        PARFOR(i, TRUE){}
+        parfor(i, TRUE){}
         

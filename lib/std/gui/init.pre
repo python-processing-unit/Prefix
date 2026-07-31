@@ -3,17 +3,17 @@
 EXTEND("gui")
 
 func int SCREEN_WIDTH(){
-    RETURN(SCREEN()[0d1])
+    return(SCREEN()[0d1])
 }
 
 func int SCREEN_HEIGHT(){
-    RETURN(SCREEN()[0d2])
+    return(SCREEN()[0d2])
 }
 
 func int WINDOW_WIDTH(int handle){
-    RETURN(WINDOW(handle)[0d1])
+    return(WINDOW(handle)[0d1])
 }
 
 func int WINDOW_HEIGHT(int handle){
-    RETURN(WINDOW(handle)[0d2])
+    return(WINDOW(handle)[0d2])
 }

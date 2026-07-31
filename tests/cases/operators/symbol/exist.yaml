@@ -7,16 +7,16 @@ passing:
         str outer_name = "outer"
         
         func bool outer_visible(){
-            RETURN(EXIST(outer_name))
+            return(EXIST(outer_name))
         }
         
         func bool inner_visible(){
             bool inner = TRUE
-            RETURN(EXIST("inner"))
+            return(EXIST("inner"))
         }
         
         func bool missing_visible(){
-            RETURN(EXIST("missing"))
+            return(EXIST("missing"))
         }
         
         ASSERT(EXIST(outer_name))

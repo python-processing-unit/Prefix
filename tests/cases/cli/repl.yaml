@@ -40,7 +40,7 @@ passing:
         
         $input = @'
         func str hello(){
-        RETURN("hi")
+        return("hi")
         }
         PRINT(hello())
         .exit

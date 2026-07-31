@@ -25,7 +25,7 @@ passing:
     source: |
         ! map schema in function parameter
         func map test(map{<"x" = 0d1>} m) {
-            RETURN(m)
+            return(m)
         }
         map candidate = <"x" = 0d5>
         map result = test(candidate)
@@ -35,7 +35,7 @@ passing:
     source: |
         ! map schema return type
         func map{<"ok" = TRUE>} make_ok() {
-            RETURN(<"ok" = TRUE>)
+            return(<"ok" = TRUE>)
         }
         map result = make_ok()
         ASSERT(result<"ok">)
@@ -138,25 +138,25 @@ passing:
         
         ! SIGNATURE of function with map return schema
         func map{<"ok" = TRUE>} fn_ret_s() {
-            RETURN(<"ok" = TRUE>)
+            return(<"ok" = TRUE>)
         }
         ASSERT(EQ(SIGNATURE(fn_ret_s), "map{<\"ok\" = TRUE>} fn_ret_s()"))
         
         ! SIGNATURE of function with map param schema
         func map process(map{<"a" = 0d1>} input) {
-            RETURN(input)
+            return(input)
         }
         ASSERT(EQ(SIGNATURE(process), "map process(map{<\"a\" = 0d1>} input)"))
         
         ! SIGNATURE of function with both return and param schemas
         func map{<"result" = 0d1>} full_s(map{<"key" = "val">} m) {
-            RETURN(<"result" = 0d1>)
+            return(<"result" = 0d1>)
         }
         ASSERT(EQ(SIGNATURE(full_s), "map{<\"result\" = 0d1>} full_s(map{<\"key\" = \"val\">} m)"))
         
         ! SIGNATURE of function with coerced param and schema
         func map full_coerce(~map{<"in" = 0d1>} m) {
-            RETURN(m)
+            return(m)
         }
         ASSERT(EQ(SIGNATURE(full_coerce), "map full_coerce(~map{<\"in\" = 0d1>} m)"))
         
@@ -165,7 +165,7 @@ failing:
     language: Prefix
     source: |
         func map test(map{<"req" = 0d1>} m) {
-            RETURN(m)
+            return(m)
         }
         test(<"nope" = 0d1>)
   - name: map-schema-empty-braces
@@ -195,25 +195,25 @@ failing:
   - name: map-schema-not-map-func-param
     language: Prefix
     source: |
-        func map func_with_bad_param(map{0d1} p) { RETURN(p); }
+        func map func_with_bad_param(map{0d1} p) { return(p); }
         func_with_bad_param(<>)
         
   - name: map-schema-not-map-func-return
     language: Prefix
     source: |
-        func map{0d1} bad_func() { RETURN(<>); }
+        func map{0d1} bad_func() { return(<>); }
         bad_func()
         
   - name: map-schema-not-map-lambda-param
     language: Prefix
     source: |
-        map g = func map (map{0d1} p) { RETURN(p); }
+        map g = func map (map{0d1} p) { return(p); }
         g(<>)
         
   - name: map-schema-not-map-lambda-return
     language: Prefix
     source: |
-        map f = func map{0d1} () { RETURN(<>); }
+        map f = func map{0d1} () { return(<>); }
         f()
         
   - name: map-schema-not-map
@@ -222,6 +222,6 @@ failing:
   - name: map-schema-return-mismatch
     language: Prefix
     source: |
-        func map{<"x" = 0d1>} bad_return() { RETURN(<"y" = 0d2>); }
+        func map{<"x" = 0d1>} bad_return() { return(<"y" = 0d2>); }
         bad_return()
         

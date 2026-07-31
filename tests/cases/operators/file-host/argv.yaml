@@ -4,7 +4,7 @@ passing:
     source: |
         tensor args = ARGV()
         
-        FOR(i, TLEN(args, 0d1)){
+        for(i, TLEN(args, 0d1)){
             ASSERT(isstr(args[i]))
         }
   - name: argv-order-program-arg-last

@@ -4,9 +4,9 @@ passing:
     source: |
         bool caught = FALSE
         
-        TRY{
+        try{
             THROW("left=", 0d42, ",right=", -0b10)
-        } CATCH(err) {
+        } catch(err) {
             caught = TRUE
             PRINT(err) ! debug
             ASSERT(EQ(err, "left=0d42,right=-0b10"))
@@ -18,11 +18,11 @@ passing:
     source: |
         int step = 0d0
         
-        TRY{
+        try{
             step = 0d1
             THROW('stop')
             step = +(step, 0d1)
-        } CATCH {
+        } catch {
             step = +(step, 0d10)
         }
         
@@ -32,9 +32,9 @@ passing:
     source: |
         bool caught = FALSE
         
-        TRY{
+        try{
             THROW()
-        } CATCH(err) {
+        } catch(err) {
             caught = TRUE
             ASSERT(EQ(err, 'Exception thrown'))
         }
@@ -45,9 +45,9 @@ passing:
     source: |
         bool caught = FALSE
         
-        TRY{
+        try{
             THROW('')
-        } CATCH(err) {
+        } catch(err) {
             caught = TRUE
             ASSERT(EQ(err, 'Exception thrown'))
             ASSERT(EQ(SLEN(err), 0d16))
@@ -59,9 +59,9 @@ passing:
     source: |
         bool caught = FALSE
         
-        TRY{
+        try{
             THROW('prefix')
-        } CATCH(err) {
+        } catch(err) {
             caught = TRUE
             ASSERT(EQ(err, 'prefix'))
         }

@@ -1,3 +1,3 @@
 func str identify(){
-    RETURN("basic")
+    return("basic")
 }

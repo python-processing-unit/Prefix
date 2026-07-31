@@ -38,9 +38,9 @@ passing:
         
         str d = path.TEMPFILE("prefix-writefile-fail-dir")
         
-        IF(EQ(OS(),"win")){
+        if(EQ(OS(),"win")){
             ASSERT(EQ(CL(JOIN("powershell -NoProfile -NonInteractive -Command \"New-Item -ItemType Directory -Force -Path '", path.WINPATH(d), "'\"")), 0d0))
-        } ELSE {
+        } else {
             ASSERT(EQ(CL(JOIN("mkdir -p ", d)), 0d0))
         }
         

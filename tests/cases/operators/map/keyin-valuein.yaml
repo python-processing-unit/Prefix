@@ -78,7 +78,7 @@ failing:
   - name: keyin-first-thr
     language: Prefix
     source: |
-        KEYIN(ASYNC{}, <"a" = 0d1>)
+        KEYIN(async{}, <"a" = 0d1>)
         
   - name: keyin-first-tns
     language: Prefix
@@ -113,7 +113,7 @@ failing:
   - name: keyin-second-thr
     language: Prefix
     source: |
-        KEYIN("a", ASYNC{})
+        KEYIN("a", async{})
         
   - name: keyin-second-tns
     language: Prefix
@@ -163,7 +163,7 @@ failing:
   - name: valuein-second-thr
     language: Prefix
     source: |
-        VALUEIN("a", ASYNC{})
+        VALUEIN("a", async{})
         
   - name: valuein-second-tns
     language: Prefix

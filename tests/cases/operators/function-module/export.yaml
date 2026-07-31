@@ -61,7 +61,7 @@ passing:
         IMPORT("path", "helper")
         
         func str describe(){
-            RETURN("exported")
+            return("exported")
         }
         
         REFUTE(EXPORT("describe", "helper"))
@@ -155,7 +155,7 @@ failing:
     language: Prefix
     source: |
         int value = 0d1
-        EXPORT(value, ASYNC{})
+        EXPORT(value, async{})
   - name: export-module-type-tns
     language: Prefix
     source: |
@@ -230,7 +230,7 @@ failing:
         str helper_path = JOIN(tests_dir, "/helpers/export_target.pre")
         
         REFUTE(IMPORT_PATH(helper_path, "helper"))
-        EXPORT(ASYNC{}, "helper")
+        EXPORT(async{}, "helper")
   - name: export-symbol-type-tns
     language: Prefix
     source: |

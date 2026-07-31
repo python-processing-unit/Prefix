@@ -35,7 +35,7 @@ static const char *stmt_type_name(StmtType type) {
     case STMT_BLOCK:
         return "BLOCK";
     case STMT_ASYNC:
-        return "ASYNC";
+        return "async";
     case STMT_EXPR:
         return "EXPR";
     case STMT_ASSIGN:
@@ -43,31 +43,31 @@ static const char *stmt_type_name(StmtType type) {
     case STMT_DECL:
         return "DECL";
     case STMT_IF:
-        return "IF";
+        return "if";
     case STMT_WHILE:
-        return "WHILE";
+        return "while";
     case STMT_FOR:
-        return "FOR";
+        return "for";
     case STMT_PARFOR:
-        return "PARFOR";
+        return "parfor";
     case STMT_FUNC:
         return "func";
     case STMT_RETURN:
-        return "RETURN";
+        return "return";
     case STMT_BREAK:
-        return "BREAK";
+        return "break";
     case STMT_CONTINUE:
-        return "CONTINUE";
+        return "continue";
     case STMT_THREAD:
         return "thread";
     case STMT_POP:
-        return "POP";
+        return "pop";
     case STMT_TRY:
-        return "TRY";
+        return "try";
     case STMT_GOTO:
-        return "GOTO";
+        return "goto";
     case STMT_GOTOPOINT:
-        return "GOTOPOINT";
+        return "gotopoint";
     default:
         return "UNKNOWN";
     }
@@ -507,7 +507,7 @@ static int parfor_merge_iteration_env(ParforStart *start, char **merge_error) {
             if (!env_set_alias(parent_env, entry->name, entry->alias_target, entry->decl_type, entry->decl_base,
                                true)) {
                 char buf[256];
-                snprintf(buf, sizeof(buf), "PARFOR merge failed for alias '%s'", entry->name);
+                snprintf(buf, sizeof(buf), "parfor merge failed for alias '%s'", entry->name);
                 if (merge_error) {
                     *merge_error = strdup(buf);
                 }
@@ -533,7 +533,7 @@ static int parfor_merge_iteration_env(ParforStart *start, char **merge_error) {
                 if (!env_assign(parent_env, entry->name, merged, entry->decl_type, entry->decl_base, true)) {
                     value_free(merged);
                     char buf[256];
-                    snprintf(buf, sizeof(buf), "PARFOR merge failed for identifier '%s'", entry->name);
+                    snprintf(buf, sizeof(buf), "parfor merge failed for identifier '%s'", entry->name);
                     if (merge_error) {
                         *merge_error = strdup(buf);
                     }
@@ -770,7 +770,7 @@ static int start_deferred_async_handle(Interpreter *interp, Value thread_val, in
 
     if (!thread_val.as.thread->body || !thread_val.as.thread->env) {
         if (interp && !interp->error) {
-            interp->error = strdup("Cannot start deferred ASYNC: missing body or environment");
+            interp->error = strdup("Cannot start deferred async: missing body or environment");
             interp->error_line = line;
             interp->error_col = col;
         }
@@ -800,7 +800,7 @@ static int start_deferred_async_handle(Interpreter *interp, Value thread_val, in
         free(thr_interp);
         free(start);
         if (interp && !interp->error) {
-            interp->error = strdup("Failed to start deferred ASYNC");
+            interp->error = strdup("Failed to start deferred async");
             interp->error_line = line;
             interp->error_col = col;
         }
@@ -1643,7 +1643,7 @@ Value eval_expr(Interpreter *interp, Expr *expr, Env *env) {
                 // Call builtin
                 Value result = builtin->impl(interp, args, effective_argc, arg_nodes, env, expr->line, expr->column);
 
-                // Start deferred STOP/PAUSE ASYNC argument only after the builtin call completes.
+                // Start deferred STOP/PAUSE async argument only after the builtin call completes.
                 if (deferred_async_arg0 && args && max_slot > 0) {
                     if (start_deferred_async_handle(interp, args[0], expr->line, expr->column) != 0) {
                         value_free(result);
@@ -2375,7 +2375,7 @@ Value eval_expr(Interpreter *interp, Expr *expr, Env *env) {
             value_free(thread_for_worker);
             free(thr_interp);
             free(start);
-            interp->error = strdup("Failed to start ASYNC");
+            interp->error = strdup("Failed to start async");
             interp->error_line = expr->line;
             interp->error_col = expr->column;
             value_free(thread_val);
@@ -3515,12 +3515,12 @@ static ExecResult exec_stmt(Interpreter *interp, Stmt *stmt, Env *env, LabelMap 
     }
 
     case STMT_RETURN: {
-        // RETURN is valid only inside a function. Detect function
+        // return is valid only inside a function. Detect function
         // execution context by inspecting the trace stack: function
         // call frames are pushed with has_call_location == 1.
         if (interp->trace_stack_count == 0 ||
             interp->trace_stack[interp->trace_stack_count - 1].has_call_location == 0) {
-            return make_error("RETURN used outside function", stmt->line, stmt->column);
+            return make_error("return used outside function", stmt->line, stmt->column);
         }
 
         // Evaluate return expression and propagate as EXEC_RETURN
@@ -3542,11 +3542,11 @@ static ExecResult exec_stmt(Interpreter *interp, Stmt *stmt, Env *env, LabelMap 
     }
 
     case STMT_POP: {
-        // POP: evaluate expression that yields the symbol name (str),
+        // pop: evaluate expression that yields the symbol name (str),
         // delete the binding with that name, and return the retrieved value.
-        // POP is only valid inside a function (env != global_env)
+        // pop is only valid inside a function (env != global_env)
         if (env == interp->global_env) {
-            return make_error("POP used outside function", stmt->line, stmt->column);
+            return make_error("pop used outside function", stmt->line, stmt->column);
         }
 
         Value name_val = eval_expr(interp, stmt->as.pop_stmt.expr, env);
@@ -3558,7 +3558,7 @@ static ExecResult exec_stmt(Interpreter *interp, Stmt *stmt, Env *env, LabelMap 
 
         if (name_val.type != VAL_STR) {
             value_free(name_val);
-            return make_error("POP requires a str argument", stmt->line, stmt->column);
+            return make_error("pop requires a str argument", stmt->line, stmt->column);
         }
 
         const char *name_c = name_val.as.s ? name_val.as.s : "";
@@ -3570,13 +3570,13 @@ static ExecResult exec_stmt(Interpreter *interp, Stmt *stmt, Env *env, LabelMap 
         bool initialized = false;
         if (!env_get(env, name, &v, &dtype, NULL, &initialized) || !initialized) {
             free(name);
-            return make_error("Cannot POP undefined or uninitialized identifier", stmt->line, stmt->column);
+            return make_error("Cannot pop undefined or uninitialized identifier", stmt->line, stmt->column);
         }
 
         if (!env_delete(env, name)) {
             free(name);
             value_free(v);
-            return make_error("Failed to delete identifier during POP", stmt->line, stmt->column);
+            return make_error("Failed to delete identifier during pop", stmt->line, stmt->column);
         }
 
         free(name);
@@ -3613,7 +3613,7 @@ static ExecResult exec_stmt(Interpreter *interp, Stmt *stmt, Env *env, LabelMap 
             clear_error(interp);
 
             // If a catch block exists, execute it. For the parameterized
-            // form `CATCH(SYMBOL: name)` create a child environment so the
+            // form `catch(SYMBOL: name)` create a child environment so the
             // binding is temporary and shadows any outer binding only for
             // the duration of the catch block (per specification).
             if (stmt->as.try_stmt.catch_block) {
@@ -3663,16 +3663,16 @@ static ExecResult exec_stmt(Interpreter *interp, Stmt *stmt, Env *env, LabelMap 
         }
         if (v.type != VAL_INT) {
             value_free(v);
-            return make_error("BREAK requires int argument", stmt->line, stmt->column);
+            return make_error("break requires int argument", stmt->line, stmt->column);
         }
         int64_t bc = v.as.i;
         if (bc <= 0) {
             value_free(v);
-            return make_error("BREAK count must be > 0", stmt->line, stmt->column);
+            return make_error("break count must be > 0", stmt->line, stmt->column);
         }
         if (bc > interp->loop_depth) {
             char buf[128];
-            snprintf(buf, sizeof(buf), "BREAK count %lld exceeds current loop nesting depth %d", (long long)bc,
+            snprintf(buf, sizeof(buf), "break count %lld exceeds current loop nesting depth %d", (long long)bc,
                      interp->loop_depth);
             value_free(v);
             return make_error(buf, stmt->line, stmt->column);
@@ -3690,9 +3690,9 @@ static ExecResult exec_stmt(Interpreter *interp, Stmt *stmt, Env *env, LabelMap 
     }
 
     case STMT_CONTINUE: {
-        // CONTINUE is only valid inside a loop
+        // continue is only valid inside a loop
         if (interp->loop_depth == 0) {
-            return make_error("CONTINUE used outside loop", stmt->line, stmt->column);
+            return make_error("continue used outside loop", stmt->line, stmt->column);
         }
 
         ExecResult res;
@@ -3722,19 +3722,19 @@ static ExecResult exec_stmt(Interpreter *interp, Stmt *stmt, Env *env, LabelMap 
 
         if (!(target.type == VAL_INT || target.type == VAL_STR)) {
             value_free(target);
-            return make_error("GOTO requires int or str argument", stmt->line, stmt->column);
+            return make_error("goto requires int or str argument", stmt->line, stmt->column);
         }
 
         if (target.type == VAL_INT && target.as.i < 0) {
             value_free(target);
-            return make_error("Negative GOTO target is not allowed", stmt->line, stmt->column);
+            return make_error("Negative goto target is not allowed", stmt->line, stmt->column);
         }
 
         int idx = label_map_find(labels, target);
         value_free(target);
 
         if (idx < 0) {
-            return make_error("Unregistered GOTO target", stmt->line, stmt->column);
+            return make_error("Unregistered goto target", stmt->line, stmt->column);
         }
 
         ExecResult res;
@@ -3821,7 +3821,7 @@ static ExecResult exec_stmt(Interpreter *interp, Stmt *stmt, Env *env, LabelMap 
             value_free(thread_for_worker);
             free(thr_interp);
             free(start);
-            return make_error("Failed to start ASYNC", stmt->line, stmt->column);
+            return make_error("Failed to start async", stmt->line, stmt->column);
         }
         return make_ok(value_null());
     }
@@ -3927,7 +3927,7 @@ static ExecResult exec_stmt(Interpreter *interp, Stmt *stmt, Env *env, LabelMap 
         if (target.type != VAL_INT) {
             value_free(target);
             interp->loop_depth--;
-            return make_error("FOR target must be int", stmt->line, stmt->column);
+            return make_error("for target must be int", stmt->line, stmt->column);
         }
 
         int64_t limit = target.as.i;
@@ -3994,7 +3994,7 @@ static ExecResult exec_stmt(Interpreter *interp, Stmt *stmt, Env *env, LabelMap 
             if (retries >= 1000) {
                 value_free(prev_val);
                 interp->loop_depth--;
-                return make_error("Internal error setting up FOR counter", stmt->line, stmt->column);
+                return make_error("Internal error setting up for counter", stmt->line, stmt->column);
             }
         }
 
@@ -4108,7 +4108,7 @@ static ExecResult exec_stmt(Interpreter *interp, Stmt *stmt, Env *env, LabelMap 
         if (target.type != VAL_INT) {
             value_free(target);
             interp->loop_depth--;
-            return make_error("PARFOR target must be int", stmt->line, stmt->column);
+            return make_error("parfor target must be int", stmt->line, stmt->column);
         }
 
         int64_t limit = target.as.i;
@@ -4116,7 +4116,7 @@ static ExecResult exec_stmt(Interpreter *interp, Stmt *stmt, Env *env, LabelMap 
 
         if (limit < 0) {
             interp->loop_depth--;
-            return make_error("PARFOR target must be non-negative", stmt->line, stmt->column);
+            return make_error("parfor target must be non-negative", stmt->line, stmt->column);
         }
 
         // Spawn worker threads for each iteration
@@ -4197,7 +4197,7 @@ static ExecResult exec_stmt(Interpreter *interp, Stmt *stmt, Env *env, LabelMap 
             thr_interp->isolate_env_writes = true;
 
             start->interp = thr_interp;
-            /* Create a per-iteration child env so each PARFOR iteration
+            /* Create a per-iteration child env so each parfor iteration
                gets its own counter binding and does not race with others. */
             Env *thread_env = env_create(env);
             int64_t idx = (int64_t)i + 1; /* iterations are 1-based */
@@ -4237,7 +4237,7 @@ static ExecResult exec_stmt(Interpreter *interp, Stmt *stmt, Env *env, LabelMap 
                 value_thread_set_finished(thread_vals[i], 1);
                 free(thr_interp);
                 free(start);
-                errors[i] = strdup("Failed to start PARFOR iteration");
+                errors[i] = strdup("Failed to start parfor iteration");
                 /* continue launching others */
             } else {
                 /* only mark started after successful thread creation */
@@ -4297,7 +4297,7 @@ static ExecResult exec_stmt(Interpreter *interp, Stmt *stmt, Env *env, LabelMap 
 
         if (first_err) {
             /* Propagate iteration error into parent interpreter state
-             * so surrounding TRY blocks reliably observe it. */
+             * so surrounding try blocks reliably observe it. */
             if (interp->error) {
                 free(interp->error);
             }
@@ -4344,11 +4344,11 @@ static ExecResult exec_stmt_list(Interpreter *interp, StmtList *list, Env *env, 
             }
             if (!(target.type == VAL_INT || target.type == VAL_STR)) {
                 value_free(target);
-                return make_error("GOTOPOINT requires int or str argument", stmt->line, stmt->column);
+                return make_error("gotopoint requires int or str argument", stmt->line, stmt->column);
             }
             if (target.type == VAL_INT && target.as.i < 0) {
                 value_free(target);
-                return make_error("Negative GOTOPOINT identifier is not allowed", stmt->line, stmt->column);
+                return make_error("Negative gotopoint identifier is not allowed", stmt->line, stmt->column);
             }
             label_map_add(labels, target, (int)i);
             value_free(target);
@@ -4564,7 +4564,7 @@ ExecResult exec_program_in_env(Interpreter *interp, Stmt *program, Env *env) {
 }
 
 // Execute a parsed function body (`program`) within an existing Interpreter
-// and Env treating the execution as a function call frame so `RETURN` is
+// and Env treating the execution as a function call frame so `return` is
 // permitted. `func_name` is used for traceback entries.
 ExecResult exec_program_in_env_as_function(Interpreter *interp, Stmt *program, Env *env, const char *func_name) {
     if (!interp || !program || !env) {
@@ -4572,7 +4572,7 @@ ExecResult exec_program_in_env_as_function(Interpreter *interp, Stmt *program, E
         return r;
     }
 
-    // Ensure there's a call-like trace frame so RETURN is valid.
+    // Ensure there's a call-like trace frame so return is valid.
     if (interp->trace_stack_count == 0) {
         (void)trace_push_frame(interp, func_name ? func_name : "<lambda>", env, 0, 0, 1);
     } else {

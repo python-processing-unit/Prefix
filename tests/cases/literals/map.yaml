@@ -3,7 +3,7 @@ passing:
     language: Prefix
     source: |
         func int GET_FIVE(){
-            RETURN(0d5)
+            return(0d5)
         }
         
         map empty = <>
@@ -12,15 +12,15 @@ passing:
         
         ASSERT(EQ(empty, <>))
         
-        IF(empty){
+        if(empty){
             ASSERT(FALSE)
-        } ELSE {
+        } else {
             ASSERT(TRUE)
         }
         
-        IF(<"false_value" = FALSE>){
+        if(<"false_value" = FALSE>){
             ASSERT(TRUE)
-        } ELSE {
+        } else {
             ASSERT(FALSE)
         }
         
@@ -46,9 +46,9 @@ passing:
         
         ASSERT(EQ(nested<"outer", "inner">, 0d9))
         ASSERT(EQ(nested<"empty_inner">, <>))
-        IF(nested<"empty_inner">){
+        if(nested<"empty_inner">){
             ASSERT(FALSE)
-        } ELSE {
+        } else {
             ASSERT(TRUE)
         }
         
@@ -56,7 +56,7 @@ passing:
     language: Prefix
     source: |
         func int GET_FIVE(){
-            RETURN(0d5)
+            return(0d5)
         }
         
         thread(worker){}

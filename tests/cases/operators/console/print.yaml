@@ -72,7 +72,7 @@ failing:
     source: 'PRINT(<"key" = 0d1>)'
   - name: print-first-thr
     language: Prefix
-    source: PRINT(ASYNC{})
+    source: PRINT(async{})
   - name: print-first-tns
     language: Prefix
     source: PRINT([0d1])

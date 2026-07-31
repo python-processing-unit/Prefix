@@ -6,9 +6,9 @@ passing:
         REFUTE(FREEZE("frozen_symbol"))
         
         bool frozen_delete_failed = FALSE
-        TRY{
+        try{
             DEL("frozen_symbol")
-        } CATCH {
+        } catch {
             frozen_delete_failed = TRUE
         }
         ASSERT(frozen_delete_failed)
@@ -22,9 +22,9 @@ passing:
         REFUTE(PERMAFREEZE("permafrozen_symbol"))
         
         bool permafrozen_delete_failed = FALSE
-        TRY{
+        try{
             DEL("permafrozen_symbol")
-        } CATCH {
+        } catch {
             permafrozen_delete_failed = TRUE
         }
         ASSERT(permafrozen_delete_failed)
@@ -38,9 +38,9 @@ passing:
         ASSERT(EQ(top, <"keep" = 0d1>))
         
         bool top_missing = FALSE
-        TRY{
+        try{
             top<"drop">
-        } CATCH {
+        } catch {
             top_missing = TRUE
         }
         ASSERT(top_missing)
@@ -66,9 +66,9 @@ passing:
         REFUTE(EXIST("symbol"))
         
         bool deleted_read_failed = FALSE
-        TRY{
+        try{
         	symbol
-        } CATCH {
+        } catch {
         	deleted_read_failed = TRUE
         }
         ASSERT(deleted_read_failed)

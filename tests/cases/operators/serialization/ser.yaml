@@ -3,15 +3,15 @@ passing:
     language: Prefix
     source: |
         func bool contains(str haystack, str needle){
-            RETURN(GT(TLEN(SPLIT(haystack, needle), 0d1), 0d1))
+            return(GT(TLEN(SPLIT(haystack, needle), 0d1), 0d1))
         }
         
         func int occurrences(str haystack, str needle){
-            RETURN(-(TLEN(SPLIT(haystack, needle), 0d1), 0d1))
+            return(-(TLEN(SPLIT(haystack, needle), 0d1), 0d1))
         }
         
         func int identity(int value){
-            RETURN(value)
+            return(value)
         }
         
         map shared = <"first" = identity, "second" = identity>
@@ -29,14 +29,14 @@ passing:
     language: Prefix
     source: |
         func bool contains(str haystack, str needle){
-            RETURN(GT(TLEN(SPLIT(haystack, needle), 0d1), 0d1))
+            return(GT(TLEN(SPLIT(haystack, needle), 0d1), 0d1))
         }
         
         int seed = 0d9
         int alias = @seed
         
         func int add_seed(~int count, int step = 0d1){
-            RETURN(+(alias, +(count, step)))
+            return(+(alias, +(count, step)))
         }
         
         str json = SER(add_seed)
@@ -102,11 +102,11 @@ passing:
     language: Prefix
     source: |
         func bool contains(str haystack, str needle){
-            RETURN(GT(TLEN(SPLIT(haystack, needle), 0d1), 0d1))
+            return(GT(TLEN(SPLIT(haystack, needle), 0d1), 0d1))
         }
         
         func int occurrences(str haystack, str needle){
-            RETURN(-(TLEN(SPLIT(haystack, needle), 0d1), 0d1))
+            return(-(TLEN(SPLIT(haystack, needle), 0d1), 0d1))
         }
         
         thread(worker){}

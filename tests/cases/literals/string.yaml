@@ -2,27 +2,27 @@ passing:
   - name: string-bool-context
     language: Prefix
     source: |
-        IF(""){
+        if(""){
             ASSERT(FALSE)
-        } ELSE {
+        } else {
             ASSERT(TRUE)
         }
         
-        IF(''){
+        if(''){
             ASSERT(FALSE)
-        } ELSE {
+        } else {
             ASSERT(TRUE)
         }
         
-        IF("x"){
+        if("x"){
             ASSERT(TRUE)
-        } ELSE {
+        } else {
             ASSERT(FALSE)
         }
         
-        IF('x'){
+        if('x'){
             ASSERT(TRUE)
-        } ELSE {
+        } else {
             ASSERT(FALSE)
         }
   - name: string-literals

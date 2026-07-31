@@ -9,24 +9,24 @@ int lcg_state = 0b1
 
 func int SEED(int seed){
     lcg_state = BAND(seed, MASK32)
-    RETURN(lcg_state)
+    return(lcg_state)
 }
 
 func int NEXT(){
     lcg_state = BAND( +( *(LCG_A, lcg_state), LCG_C ), MASK32 )
-    RETURN(lcg_state)
+    return(lcg_state)
 }
 
 func int RANGE(int max){
     ASSERT( GT(max, 0b0) )
-    RETURN( MOD(NEXT(), max) )
+    return( MOD(NEXT(), max) )
 }
 
 func int RANGE_MIN_MAX(int min, int max){
     ASSERT( LTE(min, max) )
     int range = -(max, min)
-    IF( EQ(range, 0b0) ){ RETURN(min) }
+    if( EQ(range, 0b0) ){ return(min) }
     ASSERT( GT(range, 0b0) )
     int offset = RANGE(range)
-    RETURN( +(offset, min) )
+    return( +(offset, min) )
 }

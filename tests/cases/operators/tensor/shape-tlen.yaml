@@ -86,7 +86,7 @@ failing:
   - name: shape-thr
     language: Prefix
     source: |
-        SHAPE(ASYNC{})
+        SHAPE(async{})
         
   - name: tlen-too-large
     language: Prefix

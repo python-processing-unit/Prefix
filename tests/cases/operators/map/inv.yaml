@@ -64,7 +64,7 @@ failing:
     source: INV("map")
   - name: inv-thr
     language: Prefix
-    source: INV(ASYNC{})
+    source: INV(async{})
   - name: inv-tns
     language: Prefix
     source: INV([0d1])
@@ -79,7 +79,7 @@ failing:
     source: 'INV(<"a" = <"x" = 0d1>>)'
   - name: inv-value-thr
     language: Prefix
-    source: 'INV(<"a" = ASYNC{}>)'
+    source: 'INV(<"a" = async{}>)'
   - name: inv-value-tns
     language: Prefix
     source: 'INV(<"a" = [0d1]>)'
