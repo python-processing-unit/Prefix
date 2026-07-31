@@ -1,7 +1,7 @@
 passing:
   - name: copy-bool
     language: Prefix
-    source: 'ASSERT(EQ(COPY(TRUE), TRUE))'
+    source: 'ASSERT(EQ(COPY(true), true))'
   - name: copy-flt
     language: Prefix
     source: 'ASSERT(EQ(COPY(0d1.5), 0d1.5))'
@@ -55,7 +55,7 @@ passing:
         ASSERT(EQ(COPY(tensor), tensor))
   - name: deepcopy-bool
     language: Prefix
-    source: 'ASSERT(EQ(DEEPCOPY(TRUE), TRUE))'
+    source: 'ASSERT(EQ(DEEPCOPY(true), true))'
   - name: deepcopy-flt
     language: Prefix
     source: 'ASSERT(EQ(DEEPCOPY(0d1.5), 0d1.5))'

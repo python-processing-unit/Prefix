@@ -53,7 +53,7 @@ Calls MAY target any expression that evaluates to a callable value. Arguments MU
 
 Default parameter expressions MUST be evaluated at call time in the function's lexical environment after earlier parameters have been bound. For an ordinary parameter, the supplied or defaulted value MUST already have the declared type. For a coerced parameter, the runtime MUST attempt conversion to the declared type and MUST raise a runtime error if that conversion fails.
 
-Any explicit return value MUST match the declared return type. If execution reaches the end of a function body without an explicit return, the runtime MUST apply the following default-return rules: `bool` functions MUST return `FALSE`, `int` functions MUST return `0`, `float` functions MUST return `0.0`, and `str` functions MUST return the empty string. Functions declared with return type `tensor`, `map`, `func`, or `thread` MUST raise a runtime error if control reaches the end of the body without an explicit `return`.
+Any explicit return value MUST match the declared return type. If execution reaches the end of a function body without an explicit return, the runtime MUST apply the following default-return rules: `bool` functions MUST return `false`, `int` functions MUST return `0`, `float` functions MUST return `0.0`, and `str` functions MUST return the empty string. Functions declared with return type `tensor`, `map`, `func`, or `thread` MUST raise a runtime error if control reaches the end of the body without an explicit `return`.
 
 ---
 

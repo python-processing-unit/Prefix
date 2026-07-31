@@ -60,14 +60,14 @@ passing:
         func float flt_default(){}
         func str str_default(){}
         
-        ASSERT(EQ(bool_default(), FALSE))
+        ASSERT(EQ(bool_default(), false))
         ASSERT(EQ(int_default(), 0d0))
         ASSERT(EQ(flt_default(), 0d0.0))
         ASSERT(EQ(str_default(), ""))
         
-        bool func_truthy = FALSE
+        bool func_truthy = false
         if(add_alias){
-            func_truthy = TRUE
+            func_truthy = true
         }
         ASSERT(func_truthy)
         
@@ -186,11 +186,11 @@ passing:
         map method_alias = @method_map
         
         ASSERT(EQ(method_copy<"install">()(), 0d7))
-        bool copy_did_not_mutate_source = FALSE
+        bool copy_did_not_mutate_source = false
         try{
             method_map<"tag">()
         } catch(err){
-            copy_did_not_mutate_source = TRUE
+            copy_did_not_mutate_source = true
         }
         ASSERT(copy_did_not_mutate_source)
         
@@ -207,11 +207,11 @@ passing:
         }
         
         ASSERT(EQ(take_and_delete(), 0d8))
-        bool pop_deleted = FALSE
+        bool pop_deleted = false
         try{
             pop_target
         } catch(err){
-            pop_deleted = TRUE
+            pop_deleted = true
         }
         ASSERT(pop_deleted)
         

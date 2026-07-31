@@ -2,7 +2,7 @@ passing:
   - name: pause-async-deferred-arg
     language: Prefix
     source: |
-        bool released = FALSE
+        bool released = false
         
         thread paused = PAUSE(async{
             while(NOT(released)){}
@@ -12,7 +12,7 @@ passing:
         ASSERT(bool(paused))
         ASSERT(PAUSED(paused))
         
-        released = TRUE
+        released = true
         
         AWAIT(paused)
         
@@ -22,7 +22,7 @@ passing:
   - name: pause-async-handle-autoresume
     language: Prefix
     source: |
-        bool released = FALSE
+        bool released = false
         
         thread worker = async{
             while(NOT(released)){}
@@ -35,7 +35,7 @@ passing:
         ASSERT(bool(worker))
         ASSERT(PAUSED(worker))
         
-        released = TRUE
+        released = true
         
         AWAIT(worker)
         
@@ -44,7 +44,7 @@ passing:
   - name: pause-explicit-negative-duration
     language: Prefix
     source: |
-        bool released = FALSE
+        bool released = false
         
         thread(worker){
             while(NOT(released)){}
@@ -55,7 +55,7 @@ passing:
         ASSERT(EQ(paused, worker))
         ASSERT(PAUSED(worker))
         
-        released = TRUE
+        released = true
         
         ASSERT(PAUSED(worker))
         
@@ -72,7 +72,7 @@ passing:
   - name: pause-thread-handle
     language: Prefix
     source: |
-        bool released = FALSE
+        bool released = false
         
         thread(worker){
             while(NOT(released)){}
@@ -87,7 +87,7 @@ passing:
         ASSERT(bool(worker))
         ASSERT(PAUSED(worker))
         
-        released = TRUE
+        released = true
         
         ASSERT(PAUSED(worker))
         
@@ -100,7 +100,7 @@ failing:
     language: Prefix
     source: |
         thread(worker){
-            while(TRUE){}
+            while(true){}
         }
         
         PAUSE(worker)
@@ -118,7 +118,7 @@ failing:
     language: Prefix
     source: |
         thread(worker){}
-        PAUSE(worker, seconds = TRUE)
+        PAUSE(worker, seconds = true)
   - name: pause-second-func
     language: Prefix
     source: |
@@ -152,7 +152,7 @@ failing:
         PAUSE(worker, seconds = [0d1])
   - name: pause-type-bool
     language: Prefix
-    source: PAUSE(TRUE)
+    source: PAUSE(true)
   - name: pause-type-flt
     language: Prefix
     source: PAUSE(0d1.0)

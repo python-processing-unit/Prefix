@@ -2,12 +2,11 @@ passing:
   - name: bool
     language: Prefix
     source: |
-        bool truthy = TRUE
-        bool falsy = FALSE
+        bool truthy = true
+        bool falsy = false
         
         ASSERT(truthy)
         REFUTE(falsy)
-failing:
   - name: bool-lowercase
     language: Prefix
     source: ASSERT(true)

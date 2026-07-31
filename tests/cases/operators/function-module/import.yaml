@@ -386,7 +386,7 @@ passing:
 failing:
   - name: import-alias-type-bool
     language: Prefix
-    source: 'IMPORT("path", TRUE)'
+    source: 'IMPORT("path", true)'
   - name: import-alias-type-flt
     language: Prefix
     source: 'IMPORT("path", 0d1.0)'
@@ -416,7 +416,7 @@ failing:
     source: IMPORT("prefiximportmissingmoduletest")
   - name: import-type-bool
     language: Prefix
-    source: IMPORT(TRUE)
+    source: IMPORT(true)
   - name: import-type-flt
     language: Prefix
     source: IMPORT(0d1.0)

@@ -50,7 +50,7 @@ failing:
   - name: keys-bool
     language: Prefix
     source: |
-        KEYS(TRUE)
+        KEYS(true)
         
   - name: keys-flt
     language: Prefix
@@ -95,7 +95,7 @@ failing:
   - name: values-bool
     language: Prefix
     source: |
-        VALUES(TRUE)
+        VALUES(true)
         
   - name: values-flt
     language: Prefix

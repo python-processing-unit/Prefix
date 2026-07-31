@@ -2,25 +2,25 @@ passing:
   - name: stop-async-deferred-arg
     language: Prefix
     source: |
-        bool reached_end = FALSE
+        bool reached_end = false
         
         thread stopped = STOP(async{
             for(i, 0d100000){}
-            reached_end = TRUE
+            reached_end = true
         })
         
         ASSERT(EQ(TYPE(stopped), "thread"))
         REFUTE(bool(stopped))
-        ASSERT(EQ(reached_end, FALSE))
+        ASSERT(EQ(reached_end, false))
         
   - name: stop-async-handle
     language: Prefix
     source: |
-        bool reached_end = FALSE
+        bool reached_end = false
         
         thread worker = async{
             for(i, 0d100000){}
-            reached_end = TRUE
+            reached_end = true
         }
         
         ASSERT(bool(worker))
@@ -31,16 +31,16 @@ passing:
         ASSERT(EQ(stopped, worker))
         REFUTE(bool(worker))
         REFUTE(bool(stopped))
-        ASSERT(EQ(reached_end, FALSE))
+        ASSERT(EQ(reached_end, false))
   - name: stop-thread-handle
     language: Prefix
     source: |
-        bool reached_end = FALSE
+        bool reached_end = false
         
         thread(worker){
             for(i, 0d1000000){
             }
-            reached_end = TRUE
+            reached_end = true
         }
         
         ASSERT(bool(worker))
@@ -51,7 +51,7 @@ passing:
         ASSERT(EQ(stopped, worker))
         REFUTE(bool(worker))
         REFUTE(bool(stopped))
-        ASSERT(EQ(reached_end, FALSE))
+        ASSERT(EQ(reached_end, false))
 failing:
   - name: stop-arity-two
     language: Prefix
@@ -64,7 +64,7 @@ failing:
     source: STOP()
   - name: stop-type-bool
     language: Prefix
-    source: STOP(TRUE)
+    source: STOP(true)
   - name: stop-type-flt
     language: Prefix
     source: STOP(0d1.0)

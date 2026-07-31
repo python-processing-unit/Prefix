@@ -125,7 +125,7 @@ failing:
     language: Prefix
     source: |
         int value = 0d1
-        EXPORT(value, TRUE)
+        EXPORT(value, true)
   - name: export-module-type-flt
     language: Prefix
     source: |
@@ -170,7 +170,7 @@ failing:
         str helper_path = JOIN(tests_dir, "/helpers/export_target.pre")
         
         REFUTE(IMPORT_PATH(helper_path, "helper"))
-        EXPORT(TRUE, "helper")
+        EXPORT(true, "helper")
   - name: export-symbol-type-flt
     language: Prefix
     source: |

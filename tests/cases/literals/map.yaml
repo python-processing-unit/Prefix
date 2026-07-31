@@ -13,15 +13,15 @@ passing:
         ASSERT(EQ(empty, <>))
         
         if(empty){
-            ASSERT(FALSE)
+            ASSERT(false)
         } else {
-            ASSERT(TRUE)
+            ASSERT(true)
         }
         
-        if(<"false_value" = FALSE>){
-            ASSERT(TRUE)
+        if(<"false_value" = false>){
+            ASSERT(true)
         } else {
-            ASSERT(FALSE)
+            ASSERT(false)
         }
         
         ASSERT(EQ(ordered, <"alpha" = 0d1, "beta" = 0d2, "gamma" = 0d3>))
@@ -47,9 +47,9 @@ passing:
         ASSERT(EQ(nested<"outer", "inner">, 0d9))
         ASSERT(EQ(nested<"empty_inner">, <>))
         if(nested<"empty_inner">){
-            ASSERT(FALSE)
+            ASSERT(false)
         } else {
-            ASSERT(TRUE)
+            ASSERT(true)
         }
         
   - name: map-literals-mixed-values
@@ -60,9 +60,9 @@ passing:
         }
         
         thread(worker){}
-        map mixed_values = <"bool" = TRUE, "int" = 0d2, "flt" = 0d3.5, "str" = "four", "tns" = [0d1, 0d2], "map" = <"n" = 0d5>, "func" = GET_FIVE, "thr" = worker>
+        map mixed_values = <"bool" = true, "int" = 0d2, "flt" = 0d3.5, "str" = "four", "tns" = [0d1, 0d2], "map" = <"n" = 0d5>, "func" = GET_FIVE, "thr" = worker>
         
-        ASSERT(EQ(mixed_values<"bool">, TRUE))
+        ASSERT(EQ(mixed_values<"bool">, true))
         ASSERT(EQ(mixed_values<"int">, 0d2))
         ASSERT(EQ(mixed_values<"flt">, 0d3.5))
         ASSERT(EQ(mixed_values<"str">, "four"))
@@ -92,7 +92,7 @@ failing:
   - name: map-literal-bad-key-bool
     language: Prefix
     source: |
-        map bad = <TRUE = 0d1>
+        map bad = <true = 0d1>
         
   - name: map-literal-bad-key-tns
     language: Prefix
@@ -107,7 +107,7 @@ failing:
   - name: map-literal-self-bad-key
     language: Prefix
     source: |
-        map bad = <"value" = 0d1, "copy" = SELF<TRUE>>
+        map bad = <"value" = 0d1, "copy" = SELF<true>>
         
   - name: map-literal-self-forward
     language: Prefix

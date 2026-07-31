@@ -24,7 +24,7 @@ failing:
     source: DELETEFILE()
   - name: deletefile-bool
     language: Prefix
-    source: DELETEFILE(TRUE)
+    source: DELETEFILE(true)
   - name: deletefile-flt
     language: Prefix
     source: DELETEFILE(0d1.0)

@@ -2,9 +2,9 @@ passing:
   - name: lowercase-if-elseif-else
     language: Prefix
     source: |
-        if(FALSE){
+        if(false){
             PRINT("a")
-        } elseif(TRUE){
+        } elseif(true){
             PRINT("b")
         } else {
             PRINT("c")
@@ -105,12 +105,12 @@ failing:
   - name: uppercase-if
     language: Prefix
     source: |
-        IF(TRUE){}
+        IF(true){}
 
   - name: uppercase-elseif
     language: Prefix
     source: |
-        ELSEIF(TRUE){}
+        ELSEIF(true){}
 
   - name: uppercase-else
     language: Prefix
@@ -130,7 +130,7 @@ failing:
   - name: uppercase-while
     language: Prefix
     source: |
-        WHILE(TRUE){}
+        WHILE(true){}
 
   - name: uppercase-for
     language: Prefix

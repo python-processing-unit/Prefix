@@ -2,47 +2,47 @@ passing:
   - name: freeze
     language: Prefix
     source: |
-        bool frozen_value = TRUE
+        bool frozen_value = true
         
         REFUTE(FREEZE("frozen_value"))
         ASSERT(FROZEN("frozen_value"))
         REFUTE(PERMAFROZEN("frozen_value"))
         
-        bool freeze_undefined_failed = FALSE
+        bool freeze_undefined_failed = false
         try{
             FREEZE("not_declared")
         } catch {
-            freeze_undefined_failed = TRUE
+            freeze_undefined_failed = true
         }
         ASSERT(freeze_undefined_failed)
         
-        bool reassignment_failed = FALSE
+        bool reassignment_failed = false
         try{
-            frozen_value = FALSE
+            frozen_value = false
         } catch {
-            reassignment_failed = TRUE
+            reassignment_failed = true
         }
         ASSERT(reassignment_failed)
-        ASSERT(EQ(frozen_value, TRUE))
+        ASSERT(EQ(frozen_value, true))
         
-        bool deletion_failed = FALSE
+        bool deletion_failed = false
         try{
             DEL("frozen_value")
         } catch {
-            deletion_failed = TRUE
+            deletion_failed = true
         }
         ASSERT(deletion_failed)
         ASSERT(EXIST("frozen_value"))
         
         REFUTE(THAW("frozen_value"))
         REFUTE(FROZEN("frozen_value"))
-        frozen_value = FALSE
-        ASSERT(EQ(frozen_value, FALSE))
+        frozen_value = false
+        ASSERT(EQ(frozen_value, false))
         
   - name: frozen
     language: Prefix
     source: |
-        bool normal_value = TRUE
+        bool normal_value = true
         REFUTE(FROZEN("normal_value"))
         
         REFUTE(FREEZE("normal_value"))
@@ -57,43 +57,43 @@ passing:
   - name: permafreeze
     language: Prefix
     source: |
-        bool locked_value = TRUE
+        bool locked_value = true
         
         REFUTE(PERMAFREEZE("locked_value"))
         ASSERT(FROZEN("locked_value"))
         ASSERT(PERMAFROZEN("locked_value"))
         
-        bool permafreeze_undefined_failed = FALSE
+        bool permafreeze_undefined_failed = false
         try{
             PERMAFREEZE("not_declared")
         } catch {
-            permafreeze_undefined_failed = TRUE
+            permafreeze_undefined_failed = true
         }
         ASSERT(permafreeze_undefined_failed)
         
-        bool reassignment_failed = FALSE
+        bool reassignment_failed = false
         try{
-            locked_value = FALSE
+            locked_value = false
         } catch {
-            reassignment_failed = TRUE
+            reassignment_failed = true
         }
         ASSERT(reassignment_failed)
-        ASSERT(EQ(locked_value, TRUE))
+        ASSERT(EQ(locked_value, true))
         
-        bool deletion_failed = FALSE
+        bool deletion_failed = false
         try{
             DEL("locked_value")
         } catch {
-            deletion_failed = TRUE
+            deletion_failed = true
         }
         ASSERT(deletion_failed)
         ASSERT(EXIST("locked_value"))
         
-        bool thaw_failed = FALSE
+        bool thaw_failed = false
         try{
             THAW("locked_value")
         } catch {
-            thaw_failed = TRUE
+            thaw_failed = true
         }
         ASSERT(thaw_failed)
         ASSERT(PERMAFROZEN("locked_value"))
@@ -101,7 +101,7 @@ passing:
   - name: permafrozen
     language: Prefix
     source: |
-        bool normal_value = TRUE
+        bool normal_value = true
         REFUTE(PERMAFROZEN("normal_value"))
         
         REFUTE(PERMAFREEZE("normal_value"))
@@ -111,7 +111,7 @@ passing:
   - name: thaw
     language: Prefix
     source: |
-        bool thaw_value = TRUE
+        bool thaw_value = true
         
         REFUTE(THAW("thaw_value"))
         ASSERT(thaw_value)
@@ -121,14 +121,14 @@ passing:
         REFUTE(THAW("thaw_value"))
         REFUTE(FROZEN("thaw_value"))
         
-        thaw_value = FALSE
-        ASSERT(EQ(thaw_value, FALSE))
+        thaw_value = false
+        ASSERT(EQ(thaw_value, false))
         
-        bool thaw_undefined_failed = FALSE
+        bool thaw_undefined_failed = false
         try{
             THAW("not_declared")
         } catch {
-            thaw_undefined_failed = TRUE
+            thaw_undefined_failed = true
         }
         ASSERT(thaw_undefined_failed)
         

@@ -2,18 +2,18 @@ passing:
   - name: all
     language: Prefix
     source: |
-        ASSERT(ALL(TRUE, TRUE))
-        REFUTE(ALL(TRUE, FALSE))
-        ASSERT(ALL(TRUE, TRUE, TRUE))
-        REFUTE(ALL(TRUE, TRUE, FALSE))
+        ASSERT(ALL(true, true))
+        REFUTE(ALL(true, false))
+        ASSERT(ALL(true, true, true))
+        REFUTE(ALL(true, true, false))
         
   - name: any
     language: Prefix
     source: |
-        ASSERT(NOT(ANY(FALSE, FALSE)))
-        ASSERT(ANY(FALSE, TRUE))
-        ASSERT(ANY(FALSE, FALSE, TRUE))
-        ASSERT(NOT(ANY(FALSE, FALSE, FALSE)))
+        ASSERT(NOT(ANY(false, false)))
+        ASSERT(ANY(false, true))
+        ASSERT(ANY(false, false, true))
+        ASSERT(NOT(ANY(false, false, false)))
         
 failing:
   - name: all-arity-zero

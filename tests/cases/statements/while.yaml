@@ -12,7 +12,7 @@ failing:
   - name: while-no-block
     language: Prefix
     source: |
-        while(TRUE)
+        while(true)
         
   - name: while-no-condition
     language: Prefix

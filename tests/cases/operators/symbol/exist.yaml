@@ -2,7 +2,7 @@ passing:
   - name: exist
     language: Prefix
     source: |
-        bool outer = TRUE
+        bool outer = true
         bool declared_only
         str outer_name = "outer"
         
@@ -11,7 +11,7 @@ passing:
         }
         
         func bool inner_visible(){
-            bool inner = TRUE
+            bool inner = true
             return(EXIST("inner"))
         }
         
@@ -33,5 +33,5 @@ failing:
   - name: exist-raw-symbol-argument
     language: Prefix
     source: |
-        bool x = TRUE
+        bool x = true
         EXIST(x)

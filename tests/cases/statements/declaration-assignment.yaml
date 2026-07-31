@@ -25,32 +25,32 @@ passing:
   - name: assign
     language: Prefix
     source: |
-        ASSIGN(bool x, TRUE)
+        ASSIGN(bool x, true)
         ASSERT(EXIST("x"))
         
   - name: later-assign-no-type
     language: Prefix
     source: |
-        ASSIGN(bool x, TRUE)
-        ASSIGN(x, FALSE)
+        ASSIGN(bool x, true)
+        ASSIGN(x, false)
         
   - name: later-decl-no-type
     language: Prefix
     source: |
-        bool x = TRUE
-        x = FALSE
+        bool x = true
+        x = false
         
   - name: multi-assign-type
     language: Prefix
     source: |
-        ASSIGN(bool x, TRUE)
-        ASSIGN(bool x, FALSE)
+        ASSIGN(bool x, true)
+        ASSIGN(bool x, false)
         
   - name: multi-decl-type
     language: Prefix
     source: |
-        bool x = TRUE
-        bool x = FALSE
+        bool x = true
+        bool x = false
         
   - name: tns-slice-assign-1d
     language: Prefix
@@ -72,19 +72,19 @@ passing:
     language: Prefix
     source: |
         bool x
-        bool x = TRUE
+        bool x = true
         
   - name: type-then-decl
     language: Prefix
     source: |
         bool x
-        x = TRUE
+        x = true
         
 failing:
   - name: assign-map-index-on-bool
     language: Prefix
     source: |
-        bool b = TRUE
+        bool b = true
         ASSIGN(b<"k">, 0d1)
         
   - name: assign-map-index-on-flt
@@ -126,7 +126,7 @@ failing:
   - name: assign-tns-index-on-bool
     language: Prefix
     source: |
-        bool b = TRUE
+        bool b = true
         ASSIGN(b[0d1], 0d1)
         
   - name: assign-tns-index-on-flt
@@ -174,12 +174,12 @@ failing:
   - name: first-assign-no-type
     language: Prefix
     source: |
-        ASSIGN(x, TRUE)
+        ASSIGN(x, true)
         
   - name: first-decl-no-type
     language: Prefix
     source: |
-        x = TRUE
+        x = true
         
   - name: tns-slice-dim-mismatch
     language: Prefix
@@ -208,7 +208,7 @@ failing:
   - name: uppercase-bool-rejected
     language: Prefix
     source: |
-        BOOL x = TRUE
+        BOOL x = true
         
   - name: uppercase-int-rejected
     language: Prefix

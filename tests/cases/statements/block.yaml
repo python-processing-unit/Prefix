@@ -2,5 +2,5 @@ failing:
   - name: unexpected-block
     language: Prefix
     source: |
-        { bool x = TRUE }
+        { bool x = true }
         

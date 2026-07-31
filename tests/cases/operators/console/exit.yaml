@@ -125,7 +125,7 @@ failing:
   - name: exit-type-bool
     language: Prefix
     source: |
-        EXIT(TRUE)
+        EXIT(true)
         
   - name: exit-type-flt
     language: Prefix

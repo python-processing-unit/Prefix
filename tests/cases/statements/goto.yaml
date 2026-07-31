@@ -17,11 +17,11 @@ passing:
     language: Prefix
     source: |
         int test = 0d0
-        if(TRUE){
+        if(true){
             goto('target')
-            ASSERT(FALSE)
+            ASSERT(false)
         }
-        ASSERT(FALSE)
+        ASSERT(false)
         gotopoint('target')
         ASSERT(EQ(test, 0d0))
         
@@ -31,14 +31,14 @@ passing:
         int errors_caught = 0d0
         
         try {
-            gotopoint(TRUE)
+            gotopoint(true)
         } catch(err) {
             ASSERT(EQ(err, 'gotopoint requires int or str argument'))
              +(@errors_caught, 0d1)
         }
         
         try {
-            goto(TRUE)
+            goto(true)
         } catch(err) {
             ASSERT(EQ(err, 'goto requires int or str argument'))
              +(@errors_caught, 0d1)
@@ -72,7 +72,7 @@ passing:
     source: |
         int value = 0d0
         goto(0d1)
-        ASSERT(FALSE)
+        ASSERT(false)
         gotopoint(0d1)
         +(@value, 0d1)
         ASSERT(EQ(value, 0d1))

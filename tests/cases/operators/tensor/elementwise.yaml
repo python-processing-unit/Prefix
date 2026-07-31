@@ -205,7 +205,7 @@ failing:
     source: M-()
   - name: msub-first-bool
     language: Prefix
-    source: 'M-(TRUE, [0d1])'
+    source: 'M-(true, [0d1])'
   - name: msub-first-flt
     language: Prefix
     source: 'M-(0d1.0, [0d1])'
@@ -229,7 +229,7 @@ failing:
     source: 'M-([0d1, 0d2], [0d1.0, 0d2.0])'
   - name: msub-non-numeric-bool
     language: Prefix
-    source: 'M-([TRUE], [TRUE])'
+    source: 'M-([true], [true])'
   - name: msub-non-numeric-func
     language: Prefix
     source: 'M-([LAMBDA bool: (){}], [LAMBDA bool: (){}])'
@@ -249,7 +249,7 @@ failing:
         M-([inner], [inner])
   - name: msub-second-bool
     language: Prefix
-    source: 'M-([0d1], TRUE)'
+    source: 'M-([0d1], true)'
   - name: msub-second-flt
     language: Prefix
     source: 'M-([0d1], 0d1.0)'

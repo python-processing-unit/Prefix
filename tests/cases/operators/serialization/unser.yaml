@@ -197,15 +197,15 @@ passing:
         
         ASSERT(EQ(value<"alpha">, 0d1))
         ASSERT(EQ(value<0d2>, "two"))
-        ASSERT(EQ(value<0d3.5, "nested">, TRUE))
+        ASSERT(EQ(value<0d3.5, "nested">, true))
         ASSERT(EQ(KEYS(value), ["alpha", 0d2, 0d3.5]))
   - name: unser-scalars
     language: Prefix
     source: |
-        ASSERT(EQ(UNSER('\R{"t":"bool","v":true}'), TRUE))
+        ASSERT(EQ(UNSER('\R{"t":"bool","v":true}'), true))
         
         str spaced_false = JOIN("\n  ", '\R{"t":"bool","v":false}', "\r\t")
-        ASSERT(EQ(UNSER(spaced_false), FALSE))
+        ASSERT(EQ(UNSER(spaced_false), false))
         
         ASSERT(EQ(UNSER('\R{"t":"int","v":"-0xA"}'), -0xA))
         ASSERT(EQ(UNSER('\R{"t":"float","v":"0d3.5"}'), 0d3.5))
@@ -221,7 +221,7 @@ passing:
         ASSERT(EQ(SHAPE(tensor), [0d2, 0d2]))
         
         tensor mixed = UNSER('\R{"t":"tensor","shape":[3],"v":[{"t":"bool","v":true},{"t":"str","v":"two"},{"t":"float","v":"0d3.5"}]}')
-        ASSERT(EQ(mixed, [TRUE, "two", 0d3.5]))
+        ASSERT(EQ(mixed, [true, "two", 0d3.5]))
   - name: unser-thr-ref
     language: Prefix
     source: |
@@ -259,7 +259,7 @@ failing:
     source: UNSER()
   - name: unser-type-bool
     language: Prefix
-    source: UNSER(TRUE)
+    source: UNSER(true)
   - name: unser-type-flt
     language: Prefix
     source: UNSER(0d1.0)

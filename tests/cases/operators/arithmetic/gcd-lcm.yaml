@@ -103,7 +103,7 @@ failing:
   - name: gcd-type-bool
     language: Prefix
     source: |
-        GCD(TRUE, FALSE)
+        GCD(true, false)
         
   - name: gcd-type-str
     language: Prefix
@@ -133,7 +133,7 @@ failing:
   - name: lcm-type-bool
     language: Prefix
     source: |
-        LCM(TRUE, FALSE)
+        LCM(true, false)
         
   - name: lcm-type-str
     language: Prefix

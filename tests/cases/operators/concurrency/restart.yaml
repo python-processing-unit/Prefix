@@ -2,16 +2,16 @@ passing:
   - name: restart-basic
     language: Prefix
     source: |
-        bool finished = FALSE
+        bool finished = false
         
         thread worker = async{
             for(i, 0d1000){}
-            finished = TRUE
+            finished = true
         }
         
         ! Wait for worker to finish
         AWAIT(worker)
-        ASSERT(EQ(finished, TRUE))
+        ASSERT(EQ(finished, true))
         
         ! Restart the finished thread
         thread r = RESTART(worker)
@@ -21,7 +21,7 @@ passing:
         
         ! After restart, the thread should run again and set finished
         AWAIT(r)
-        ASSERT(EQ(finished, TRUE))
+        ASSERT(EQ(finished, true))
         
 failing:
   - name: restart-arity-two
@@ -32,7 +32,7 @@ failing:
     source: RESTART()
   - name: restart-bool
     language: Prefix
-    source: RESTART(TRUE)
+    source: RESTART(true)
   - name: restart-flt
     language: Prefix
     source: RESTART(0d1.0)

@@ -2,51 +2,51 @@ passing:
   - name: if-else
     language: Prefix
     source: |
-        if(FALSE){
-            ASSERT(FALSE)
+        if(false){
+            ASSERT(false)
         } else {
-            ASSERT(TRUE)
+            ASSERT(true)
         }
-        if(TRUE){
-            ASSERT(TRUE)
+        if(true){
+            ASSERT(true)
         } else {
-            ASSERT(FALSE)
+            ASSERT(false)
         }
         
   - name: if-elseif-else
     language: Prefix
     source: |
-        if(FALSE){
-            ASSERT(FALSE)
-        } elseif(FALSE){
-            ASSERT(FALSE)
+        if(false){
+            ASSERT(false)
+        } elseif(false){
+            ASSERT(false)
         } else {
-            ASSERT(TRUE)
+            ASSERT(true)
         }
-        if(FALSE){
-            ASSERT(FALSE)
-        } elseif(TRUE){
-            ASSERT(TRUE)
+        if(false){
+            ASSERT(false)
+        } elseif(true){
+            ASSERT(true)
         } else {
-            ASSERT(FALSE)
+            ASSERT(false)
         }
         
   - name: if-elseif-elseif{
     language: Prefix
     source: |
-        if(FALSE){
-            ASSERT(FALSE)
-        } elseif(FALSE){
-            ASSERT(FALSE)
-        } elseif(TRUE) {
-            ASSERT(TRUE)
+        if(false){
+            ASSERT(false)
+        } elseif(false){
+            ASSERT(false)
+        } elseif(true) {
+            ASSERT(true)
         }
         
   - name: if
     language: Prefix
     source: |
-        if(FALSE){
-            ASSERT(FALSE)
+        if(false){
+            ASSERT(false)
         }
         
 failing:
@@ -54,88 +54,88 @@ failing:
     language: Prefix
     source: |
         else{
-            ASSERT(FALSE)
+            ASSERT(false)
         }
         
   - name: elseif-after-else
     language: Prefix
     source: |
-        if(FALSE){
-            ASSERT(FALSE)
+        if(false){
+            ASSERT(false)
         } else {
-            ASSERT(FALSE)
-        } elseif(TRUE) {
-            ASSERT(TRUE)
+            ASSERT(false)
+        } elseif(true) {
+            ASSERT(true)
         }
         
   - name: elseif-else-seperated
     language: Prefix
     source: |
-        if(FALSE){
-            ASSERT(TRUE)
-        } elseif(FALSE){
-            ASSERT(TRUE)
+        if(false){
+            ASSERT(true)
+        } elseif(false){
+            ASSERT(true)
         }
         
         else {
-            ASSERT(TRUE)
+            ASSERT(true)
         }
         
   - name: elseif-elseif-seperated
     language: Prefix
     source: |
-        if(FALSE){
-            ASSERT(FALSE)
-        } elseif(FALSE){
-            ASSERT(FALSE)
+        if(false){
+            ASSERT(false)
+        } elseif(false){
+            ASSERT(false)
         }
         
-        elseif(TRUE) {
-            ASSERT(TRUE)
+        elseif(true) {
+            ASSERT(true)
         }
         
   - name: elseif-no-if
     language: Prefix
     source: |
-        elseif(TRUE){
-            ASSERT(FALSE)
+        elseif(true){
+            ASSERT(false)
         }
         
   - name: if-else-no-block
     language: Prefix
     source: |
-        if(TRUE){}else
+        if(true){}else
         
   - name: if-else-seperated
     language: Prefix
     source: |
-        if(FALSE){
-            ASSERT(TRUE)
+        if(false){
+            ASSERT(true)
         }
         
         else{
-            ASSERT(FALSE)
+            ASSERT(false)
         }
         
   - name: if-elseif-no-block
     language: Prefix
     source: |
-        if(TRUE){}elseif()
+        if(true){}elseif()
         
   - name: if-elseif-no-condition
     language: Prefix
     source: |
-        if(TRUE){}elseif(){}
+        if(true){}elseif(){}
         
   - name: if-elseif-seperated
     language: Prefix
     source: |
-        if(FALSE){
-            ASSERT(TRUE)
+        if(false){
+            ASSERT(true)
         }
         
-        elseif(TRUE){
-            ASSERT(FALSE)
+        elseif(true){
+            ASSERT(false)
         }
         
   - name: if-no-block

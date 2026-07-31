@@ -2,23 +2,23 @@
 
 func bool IS_PRIME(int n){
     if(LTE(n, 0d1)){
-        return(FALSE)
+        return(false)
     }
     if(EQ(n, 0d2)){
-        return(TRUE)
+        return(true)
     }
     ! reject even numbers greater than 2
     if(EQ(MOD(n, 0d2), 0d0)){
-        return(FALSE)
+        return(false)
     }
     int i = 0d3
     while(LTE(*(i, i), n)){
         if(EQ(MOD(n, i), 0d0)){
-            return(FALSE)
+            return(false)
         }
         +(@i, 0d2)
     }
-    return(TRUE)
+    return(true)
 }
 
 func int NEXT_PRIME(int start){
@@ -47,11 +47,11 @@ func bool IS_MERSENNE_PRIME(int p){
         int exp = POW(0d2, p)
         int mersenne = -(exp, 0d1)
         if(IS_PRIME(mersenne)){
-            return(TRUE)
+            return(true)
         }
-        return(FALSE)
+        return(false)
     }else{
-        return(FALSE)
+        return(false)
     }
 }
 

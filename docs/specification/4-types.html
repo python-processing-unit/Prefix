@@ -33,15 +33,15 @@ Prefix MUST support eight types: `bool` (booleans), `str` (strings), `int` (inte
 
 #### 4.0.1 Boolean literals
 
-The only `bool` literals are `TRUE` and `FALSE`.
+The only `bool` literals are `true` and `false`.
 
 ---
 
 #### 4.0.2 Boolean representation
 
-When a `bool` is used in a boolean context, `FALSE` MUST remain false and `TRUE` MUST remain true.
+When a `bool` is used in a boolean context, `false` MUST remain false and `true` MUST remain true.
 
-When a `bool` is converted to `str`, `TRUE` MUST render as `TRUE` and `FALSE` MUST render as `FALSE`.
+When a `bool` is converted to `str`, `true` MUST render as `true` and `false` MUST render as `false`.
 
 ---
 
@@ -99,7 +99,7 @@ If an invalid escape sequence (or a non-Hexadecimal value when one is expected b
 
 #### 4.1.3 Boolean representation
 
-When a `str` is used in a boolean context, an empty string MUST be treated as `FALSE`, and any non-empty string MUST be treated as `TRUE`.
+When a `str` is used in a boolean context, an empty string MUST be treated as `false`, and any non-empty string MUST be treated as `true`.
 
 ---
 
@@ -123,7 +123,7 @@ Literal digits MUST match the selected base's alphabet. Bases smaller than 2 or 
 
 #### 4.2.2 Boolean representation
 
-When an `int` is used in a boolean context, `0` MUST be treated as `FALSE`, and any non-zero value MUST be treated as `TRUE`.
+When an `int` is used in a boolean context, `0` MUST be treated as `false`, and any non-zero value MUST be treated as `true`.
 
 ---
 
@@ -163,7 +163,7 @@ Mathematical operations MUST produce results in the highest base present among n
 
 #### 4.3.3 Boolean representation
 
-When a `float` is used in a boolean context, `0.0` MUST be treated as `FALSE`, and any non-zero value MUST be treated as `TRUE`.
+When a `float` is used in a boolean context, `0.0` MUST be treated as `false`, and any non-zero value MUST be treated as `true`.
 
 ---
 
@@ -191,7 +191,7 @@ Slice indexing MUST be supported in any index position using a range of the form
 
 #### 4.4.3 Boolean representation
 
-When a `tensor` is used in a boolean context, a `tensor` MUST be treated as `TRUE` if it contains any truthy elements, and `FALSE` otherwise.
+When a `tensor` is used in a boolean context, a `tensor` MUST be treated as `true` if it contains any truthy elements, and `false` otherwise.
 
 ---
 
@@ -223,7 +223,7 @@ When a `map` index expression is used in call position and the indexed value res
 
 #### 4.5.3 Boolean representation
 
-When a `map` is used in a boolean context, a `map` MUST be treated as `TRUE` if it contains any key-value pairs, and `FALSE` otherwise.
+When a `map` is used in a boolean context, a `map` MUST be treated as `true` if it contains any key-value pairs, and `false` otherwise.
 
 ---
 
@@ -257,7 +257,7 @@ If the type declaration of a `func` parameter is prefixed with `~`, the paramete
 
 #### 4.6.4 Boolean representation
 
-When a `func` is used in a boolean context, a `func` MUST be treated as `TRUE`.
+When a `func` is used in a boolean context, a `func` MUST be treated as `true`.
 
 ---
 
@@ -275,7 +275,7 @@ When a `func` is used in a boolean context, a `func` MUST be treated as `TRUE`.
 
 #### 4.7.2 Boolean representation
 
-When a `thread` is used in a boolean context, a completed or stopped `thread` MUST be treated as `FALSE`, and any other state MUST be treated as `TRUE`.
+When a `thread` is used in a boolean context, a completed or stopped `thread` MUST be treated as `false`, and any other state MUST be treated as `true`.
 
 ---
 

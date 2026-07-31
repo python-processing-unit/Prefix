@@ -87,7 +87,7 @@ failing:
     source: FPROD()
   - name: fprod-bool
     language: Prefix
-    source: 'FPROD(TRUE, 0d1)'
+    source: 'FPROD(true, 0d1)'
   - name: fprod-str
     language: Prefix
     source: 'FPROD("1.0", 0d1)'

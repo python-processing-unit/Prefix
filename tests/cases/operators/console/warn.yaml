@@ -2,10 +2,10 @@ passing:
   - name: warn-coerce-scalars
     language: Prefix
     source: |
-        ASSERT(EQ(WARN(TRUE), FALSE))
-        ASSERT(EQ(WARN(0d42), FALSE))
-        ASSERT(EQ(WARN(0d1.5), FALSE))
-        ASSERT(EQ(WARN("value"), FALSE))
+        ASSERT(EQ(WARN(true), false))
+        ASSERT(EQ(WARN(0d42), false))
+        ASSERT(EQ(WARN(0d1.5), false))
+        ASSERT(EQ(WARN("value"), false))
   - name: warn-nonverbose-no-output
     language: PowerShell
     source: |
@@ -18,7 +18,7 @@ passing:
           $programPath = Join-Path $tempDir 'program.pre'
         
           Set-Content -Path $programPath -Encoding Ascii -Value @'
-        ASSERT(EQ(WARN("bool=", TRUE, ",int=", 0d42, ",flt=", INF, ",str=", "ok"), FALSE))
+        ASSERT(EQ(WARN("bool=", true, ",int=", 0d42, ",flt=", INF, ",str=", "ok"), false))
         '@
         
           $startInfo = New-Object System.Diagnostics.ProcessStartInfo
@@ -68,7 +68,7 @@ passing:
           $programPath = Join-Path $tempDir 'program.pre'
         
           Set-Content -Path $programPath -Encoding Ascii -Value @'
-        ASSERT(EQ(WARN("bool=", TRUE, ",int=", 0d42, ",flt=", INF, ",str=", "ok"), TRUE))
+        ASSERT(EQ(WARN("bool=", true, ",int=", 0d42, ",flt=", INF, ",str=", "ok"), true))
         '@
         
           $startInfo = New-Object System.Diagnostics.ProcessStartInfo
@@ -98,7 +98,7 @@ passing:
           Assert-PrefixSuccess $result
           Assert-NoErrorOutput $result
         
-          if (-not [regex]::IsMatch($result.Stdout, '\AWARNING: bool=TRUE,int=0d42,flt=INF,str=ok(?:\r\n|\n)\z')) {
+          if (-not [regex]::IsMatch($result.Stdout, '\AWARNING: bool=true,int=0d42,flt=INF,str=ok(?:\r\n|\n)\z')) {
             $stdout = Format-VisibleText $result.Stdout
             throw "Unexpected stdout: $stdout"
           }

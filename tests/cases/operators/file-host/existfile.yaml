@@ -18,7 +18,7 @@ failing:
     source: EXISTFILE()
   - name: existfile-bool
     language: Prefix
-    source: EXISTFILE(TRUE)
+    source: EXISTFILE(true)
   - name: existfile-flt
     language: Prefix
     source: EXISTFILE(0d1.0)

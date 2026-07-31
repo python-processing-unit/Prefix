@@ -34,8 +34,8 @@ passing:
     language: Prefix
     source: |
         ! map schema return type
-        func map{<"ok" = TRUE>} make_ok() {
-            return(<"ok" = TRUE>)
+        func map{<"ok" = true>} make_ok() {
+            return(<"ok" = true>)
         }
         map result = make_ok()
         ASSERT(result<"ok">)
@@ -137,10 +137,10 @@ passing:
         ASSERT(EQ(SIGNATURE(empty_s), "map{<>} empty_s"))
         
         ! SIGNATURE of function with map return schema
-        func map{<"ok" = TRUE>} fn_ret_s() {
-            return(<"ok" = TRUE>)
+        func map{<"ok" = true>} fn_ret_s() {
+            return(<"ok" = true>)
         }
-        ASSERT(EQ(SIGNATURE(fn_ret_s), "map{<\"ok\" = TRUE>} fn_ret_s()"))
+        ASSERT(EQ(SIGNATURE(fn_ret_s), "map{<\"ok\" = true>} fn_ret_s()"))
         
         ! SIGNATURE of function with map param schema
         func map process(map{<"a" = 0d1>} input) {

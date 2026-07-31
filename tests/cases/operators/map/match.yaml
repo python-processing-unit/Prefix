@@ -128,7 +128,7 @@ failing:
   - name: match-first-bool
     language: Prefix
     source: |
-        MATCH(TRUE, <>)
+        MATCH(true, <>)
         
   - name: match-first-flt
     language: Prefix
@@ -168,7 +168,7 @@ failing:
   - name: match-second-bool
     language: Prefix
     source: |
-        MATCH(<>, TRUE)
+        MATCH(<>, true)
         
   - name: match-second-flt
     language: Prefix

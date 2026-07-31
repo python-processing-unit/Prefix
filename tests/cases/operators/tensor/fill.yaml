@@ -9,9 +9,9 @@ passing:
   - name: fill-bool-elements
     language: Prefix
     source: |
-        tensor flags = [TRUE, FALSE, TRUE]
+        tensor flags = [true, false, true]
         
-        ASSERT(EQ(FILL(flags, FALSE), [FALSE, FALSE, FALSE]))
+        ASSERT(EQ(FILL(flags, false), [false, false, false]))
   - name: fill-rank2-shape
     language: Prefix
     source: |
