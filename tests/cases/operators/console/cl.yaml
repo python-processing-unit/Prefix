@@ -70,7 +70,7 @@ failing:
     source: CL(0d1.0)
   - name: cl-type-func
     language: Prefix
-    source: 'CL(LAMBDA BOOL: (){})'
+    source: 'CL(LAMBDA bool: (){})'
   - name: cl-type-int
     language: Prefix
     source: CL(0d1)

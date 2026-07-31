@@ -2,8 +2,8 @@ passing:
   - name: goto-backward
     language: Prefix
     source: |
-        INT i = 0d0
-        INT hits = 0d0
+        int i = 0d0
+        int hits = 0d0
         GOTOPOINT('loop')
         +(@hits, 0d1)
         IF(LT(i, 0d2)){
@@ -16,7 +16,7 @@ passing:
   - name: goto-cross-block
     language: Prefix
     source: |
-        INT test = 0d0
+        int test = 0d0
         IF(TRUE){
             GOTO('target')
             ASSERT(FALSE)
@@ -28,19 +28,19 @@ passing:
   - name: goto-errors
     language: Prefix
     source: |
-        INT errors_caught = 0d0
+        int errors_caught = 0d0
         
         TRY {
             GOTOPOINT(TRUE)
         } CATCH(err) {
-            ASSERT(EQ(err, 'GOTOPOINT requires INT or STR argument'))
+            ASSERT(EQ(err, 'GOTOPOINT requires int or str argument'))
              +(@errors_caught, 0d1)
         }
         
         TRY {
             GOTO(TRUE)
         } CATCH(err) {
-            ASSERT(EQ(err, 'GOTO requires INT or STR argument'))
+            ASSERT(EQ(err, 'GOTO requires int or str argument'))
              +(@errors_caught, 0d1)
         }
         
@@ -70,7 +70,7 @@ passing:
   - name: goto-forward
     language: Prefix
     source: |
-        INT value = 0d0
+        int value = 0d0
         GOTO(0d1)
         ASSERT(FALSE)
         GOTOPOINT(0d1)

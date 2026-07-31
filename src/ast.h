@@ -6,12 +6,12 @@
 typedef enum {
     TYPE_BOOL,
     TYPE_INT,
-    TYPE_FLT,
+    TYPE_FLOAT,
     TYPE_STR,
-    TYPE_TNS,
+    TYPE_TENSOR,
     TYPE_MAP,
     TYPE_FUNC,
-    TYPE_THR,
+    TYPE_THREAD,
     TYPE_UNKNOWN
 } DeclType;
 
@@ -20,11 +20,11 @@ typedef struct Stmt Stmt;
 
 typedef struct Param {
     DeclType type;
-    int num_base; // 0 = parent INT/FLT, 2..64 = named base
+    int num_base; // 0 = parent int/float, 2..64 = named base
     char *name;
     bool coerced;
     Expr *default_value; // optional
-    Expr *schema_expr;   // NEW: MAP schema expression, NULL if none
+    Expr *schema_expr;   // NEW: map schema expression, NULL if none
 } Param;
 
 typedef struct ParamList {
@@ -36,14 +36,14 @@ typedef struct ParamList {
 typedef enum {
     EXPR_BOOL,
     EXPR_INT,
-    EXPR_FLT,
+    EXPR_FLOAT,
     EXPR_STR,
     EXPR_PTR,
     EXPR_IDENT,
     EXPR_TYPED_IDENT,
     EXPR_CALL,
     EXPR_ASYNC,
-    EXPR_TNS,
+    EXPR_TENSOR,
     EXPR_MAP,
     EXPR_INDEX,
     EXPR_RANGE,
@@ -77,9 +77,9 @@ struct Expr {
         char *ident;
         struct {
             DeclType decl_type;
-            int decl_base; // 0 = parent INT/FLT, 2..64 = named base
+            int decl_base; // 0 = parent int/float, 2..64 = named base
             char *name;
-            Expr *schema_expr; // NEW: MAP schema expression, NULL if none
+            Expr *schema_expr; // NEW: map schema expression, NULL if none
         } typed_ident;
         struct {
             Expr *callee;
@@ -93,13 +93,13 @@ struct Expr {
             Stmt *block;
         } async;
         struct {
-            ExprList parts; // alternating STR parts and embedded expressions
+            ExprList parts; // alternating str parts and embedded expressions
         } fmt_str;
         struct {
             ParamList params;
             DeclType return_type;
-            int return_base;          // 0 = parent INT/FLT, 2..64 = named base
-            Expr *return_schema_expr; // NEW: MAP return schema, NULL if none
+            int return_base;          // 0 = parent int/float, 2..64 = named base
+            Expr *return_schema_expr; // NEW: map return schema, NULL if none
             Stmt *body;
         } lambda;
         ExprList tns_items;
@@ -134,7 +134,7 @@ typedef enum {
     STMT_RETURN,
     STMT_BREAK,
     STMT_CONTINUE,
-    STMT_THR,
+    STMT_THREAD,
     STMT_POP,
     STMT_TRY,
     STMT_GOTO,
@@ -160,17 +160,17 @@ struct Stmt {
         struct {
             bool has_type;
             DeclType decl_type;
-            int decl_base; // 0 = parent INT/FLT, 2..64 = named base
+            int decl_base; // 0 = parent int/float, 2..64 = named base
             char *name;
             Expr *target;
             Expr *value;
-            Expr *schema_expr; // NEW: MAP schema expression, NULL if none
+            Expr *schema_expr; // NEW: map schema expression, NULL if none
         } assign;
         struct {
             DeclType decl_type;
-            int decl_base; // 0 = parent INT/FLT, 2..64 = named base
+            int decl_base; // 0 = parent int/float, 2..64 = named base
             char *name;
-            Expr *schema_expr; // NEW: MAP schema expression, NULL if none
+            Expr *schema_expr; // NEW: map schema expression, NULL if none
         } decl;
         struct {
             Expr *condition;
@@ -197,8 +197,8 @@ struct Stmt {
             char *name;
             ParamList params;
             DeclType return_type;
-            int return_base;          // 0 = parent INT/FLT, 2..64 = named base
-            Expr *return_schema_expr; // NEW: MAP return schema, NULL if none
+            int return_base;          // 0 = parent int/float, 2..64 = named base
+            Expr *return_schema_expr; // NEW: map return schema, NULL if none
             Stmt *body;
         } func_stmt;
         struct {
@@ -213,7 +213,7 @@ struct Stmt {
         struct {
             char *name;
             Stmt *body;
-        } thr_stmt;
+        } thread_stmt;
         struct {
             Stmt *try_block;
             char *catch_name;
@@ -233,14 +233,14 @@ struct Stmt {
 
 Expr *expr_bool(bool value, int line, int column);
 Expr *expr_int(int64_t value, int base, int line, int column);
-Expr *expr_flt(double value, int base, int base_is_nan, int line, int column);
+Expr *expr_float(double value, int base, int base_is_nan, int line, int column);
 Expr *expr_str(char *value, int line, int column);
 Expr *expr_ptr(char *name, int line, int column);
 Expr *expr_ident(char *name, int line, int column);
 Expr *expr_typed_ident(DeclType decl_type, int decl_base, char *name, Expr *schema_expr, int line, int column);
 Expr *expr_call(Expr *callee, int line, int column);
 void call_kw_add(Expr *call, char *name, Expr *value);
-Expr *expr_tns(int line, int column);
+Expr *expr_tensor(int line, int column);
 Expr *expr_async(Stmt *block, int line, int column);
 Expr *expr_map(int line, int column);
 Expr *expr_index(Expr *target, int line, int column, bool is_map);
@@ -266,7 +266,7 @@ Stmt *stmt_return(Expr *value, int line, int column);
 Stmt *stmt_pop(Expr *expr, int line, int column);
 Stmt *stmt_break(Expr *value, int line, int column);
 Stmt *stmt_continue(int line, int column);
-Stmt *stmt_thr(char *name, Stmt *body, int line, int column);
+Stmt *stmt_thread(char *name, Stmt *body, int line, int column);
 Stmt *stmt_try(Stmt *try_block, char *catch_name, Stmt *catch_block, int line, int column);
 Stmt *stmt_goto(Expr *target, int line, int column);
 Stmt *stmt_gotopoint(Expr *target, int line, int column);

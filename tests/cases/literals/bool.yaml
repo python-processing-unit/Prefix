@@ -2,8 +2,8 @@ passing:
   - name: bool
     language: Prefix
     source: |
-        BOOL truthy = TRUE
-        BOOL falsy = FALSE
+        bool truthy = TRUE
+        bool falsy = FALSE
         
         ASSERT(truthy)
         REFUTE(falsy)

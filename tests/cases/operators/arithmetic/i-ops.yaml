@@ -2,18 +2,18 @@ passing:
   - name: iadd-pointer-writeback
     language: Prefix
     source: |
-        INT a1 = 0d10
-        INT b1 = 0d5
+        int a1 = 0d10
+        int b1 = 0d5
         I+(@a1, b1)
         ASSERT(EQ(a1, 0d15))
         
-        INT a2 = 0d10
-        INT b2 = 0d5
+        int a2 = 0d10
+        int b2 = 0d5
         I+(a2, @b2)
         ASSERT(EQ(b2, 0d15))
         
-        INT a3 = 0d10
-        INT b3 = 0d5
+        int a3 = 0d10
+        int b3 = 0d5
         I+(@a3, @b3)
         ASSERT(EQ(a3, 0d15))
         ASSERT(EQ(b3, 0d15))
@@ -22,15 +22,15 @@ passing:
     language: Prefix
     source: |
         ! Passing integer arithmetic, checking coercion and correct logic
-        INT result_add_1 = I+(0d10, 0d5)
-        INT result_add_2 = I+(0d10.5, 0d5.2) ! Coerces to integers before/after?
+        int result_add_1 = I+(0d10, 0d5)
+        int result_add_2 = I+(0d10.5, 0d5.2) ! Coerces to integers before/after?
         ASSERT(EQ(result_add_1, 0d15))
         
   - name: idiv-pointer-writeback
     language: Prefix
     source: |
-        INT a1 = 0d20
-        INT b1 = 0d4
+        int a1 = 0d20
+        int b1 = 0d4
         I/(@a1, b1)
         ASSERT(EQ(a1, 0d5))
         
@@ -38,24 +38,24 @@ passing:
     language: Prefix
     source: |
         ! Passing integer arithmetic, checking coercion and correct logic
-        INT result_div = I/(0d20, 0d4)
+        int result_div = I/(0d20, 0d4)
         ASSERT(EQ(result_div, 0d5))
         
   - name: imul-pointer-writeback
     language: Prefix
     source: |
-        INT a1 = 0d4
-        INT b1 = 0d3
+        int a1 = 0d4
+        int b1 = 0d3
         I*(@a1, b1)
         ASSERT(EQ(a1, 0d12))
         
-        INT a2 = 0d4
-        INT b2 = 0d3
+        int a2 = 0d4
+        int b2 = 0d3
         I*(a2, @b2)
         ASSERT(EQ(b2, 0d12))
         
-        INT a3 = 0d4
-        INT b3 = 0d3
+        int a3 = 0d4
+        int b3 = 0d3
         I*(@a3, @b3)
         ASSERT(EQ(a3, 0d12))
         ASSERT(EQ(b3, 0d12))
@@ -64,28 +64,28 @@ passing:
     language: Prefix
     source: |
         ! Passing integer arithmetic, checking coercion and correct logic
-        INT result_mul = I*(0d4, 0d5)
+        int result_mul = I*(0d4, 0d5)
         ASSERT(EQ(result_mul, 0d20))
         
   - name: ipow
     language: Prefix
     source: |
         ! Passing integer arithmetic, checking coercion and correct logic
-        INT result_pow = IPOW(0d2, 0d3)
+        int result_pow = IPOW(0d2, 0d3)
         ASSERT(EQ(result_pow, 0d8))
         
   - name: isub-int
     language: Prefix
     source: |
         ! Passing integer arithmetic, checking coercion and correct logic
-        INT result_sub = I-(0d10, 0d2.0)
+        int result_sub = I-(0d10, 0d2.0)
         ASSERT(EQ(result_sub, 0d8))
         
   - name: isub-pointer-writeback
     language: Prefix
     source: |
-        INT a1 = 0d10
-        INT b1 = 0d5
+        int a1 = 0d10
+        int b1 = 0d5
         I-(@a1, b1)
         ASSERT(EQ(a1, 0d5))
         
@@ -123,7 +123,7 @@ failing:
   - name: idiv-zero-int
     language: Prefix
     source: |
-        INT a = 0d1
-        INT b = 0d0
+        int a = 0d1
+        int b = 0d0
         I/(a, b)
         

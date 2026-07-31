@@ -2,7 +2,7 @@ passing:
   - name: strip-basic
     language: Prefix
     source: |
-        ASSERT(EQ(TYPE(STRIP("prefix", "fix")), "STR"))
+        ASSERT(EQ(TYPE(STRIP("prefix", "fix")), "str"))
         ASSERT(EQ(STRIP("prefix", "fix"), "pre"))
         
   - name: strip-empty-and-whole

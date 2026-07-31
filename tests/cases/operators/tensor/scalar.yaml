@@ -2,9 +2,9 @@ passing:
   - name: tadd-basic
     language: Prefix
     source: |
-        TNS out = T+([0d1, 0d2, 0d3], 0d4)
+        tensor out = T+([0d1, 0d2, 0d3], 0d4)
         
-        ASSERT(EQ(TYPE(out), "TNS"))
+        ASSERT(EQ(TYPE(out), "tensor"))
         ASSERT(EQ(out, [0d5, 0d6, 0d7]))
         
   - name: tadd-float
@@ -15,8 +15,8 @@ passing:
   - name: tadd-rank2-shape
     language: Prefix
     source: |
-        TNS src = [[0d1, 0d2], [0d3, 0d4]]
-        TNS out = T+(src, 0d10)
+        tensor src = [[0d1, 0d2], [0d3, 0d4]]
+        tensor out = T+(src, 0d10)
         
         ASSERT(EQ(out, [[0d11, 0d12], [0d13, 0d14]]))
         ASSERT(EQ(SHAPE(out), [0d2, 0d2]))
@@ -24,9 +24,9 @@ passing:
   - name: tdiv-basic
     language: Prefix
     source: |
-        TNS out = T/([0d8, 0d6, 0d4], 0d2)
+        tensor out = T/([0d8, 0d6, 0d4], 0d2)
         
-        ASSERT(EQ(TYPE(out), "TNS"))
+        ASSERT(EQ(TYPE(out), "tensor"))
         ASSERT(EQ(out, [0d4, 0d3, 0d2]))
         
   - name: tdiv-float
@@ -37,8 +37,8 @@ passing:
   - name: tdiv-rank2-shape
     language: Prefix
     source: |
-        TNS src = [[0d12, 0d10], [0d8, 0d6]]
-        TNS out = T/(src, 0d2)
+        tensor src = [[0d12, 0d10], [0d8, 0d6]]
+        tensor out = T/(src, 0d2)
         
         ASSERT(EQ(out, [[0d6, 0d5], [0d4, 0d3]]))
         ASSERT(EQ(SHAPE(out), [0d2, 0d2]))
@@ -46,9 +46,9 @@ passing:
   - name: tmul-basic
     language: Prefix
     source: |
-        TNS out = T*([0d2, 0d3, 0d4], 0d5)
+        tensor out = T*([0d2, 0d3, 0d4], 0d5)
         
-        ASSERT(EQ(TYPE(out), "TNS"))
+        ASSERT(EQ(TYPE(out), "tensor"))
         ASSERT(EQ(out, [0d10, 0d15, 0d20]))
         
   - name: tmul-float
@@ -59,8 +59,8 @@ passing:
   - name: tmul-rank2-shape
     language: Prefix
     source: |
-        TNS src = [[0d1, 0d2], [0d3, 0d4]]
-        TNS out = T*(src, 0d6)
+        tensor src = [[0d1, 0d2], [0d3, 0d4]]
+        tensor out = T*(src, 0d6)
         
         ASSERT(EQ(out, [[0d6, 0d12], [0d18, 0d24]]))
         ASSERT(EQ(SHAPE(out), [0d2, 0d2]))
@@ -68,9 +68,9 @@ passing:
   - name: tpow-basic
     language: Prefix
     source: |
-        TNS out = TPOW([0d2, 0d3, 0d4], 0d3)
+        tensor out = TPOW([0d2, 0d3, 0d4], 0d3)
         
-        ASSERT(EQ(TYPE(out), "TNS"))
+        ASSERT(EQ(TYPE(out), "tensor"))
         ASSERT(EQ(out, [0d8, 0d27, 0d64]))
         
   - name: tpow-float
@@ -81,8 +81,8 @@ passing:
   - name: tpow-rank2-shape
     language: Prefix
     source: |
-        TNS src = [[0d1, 0d2], [0d3, 0d4]]
-        TNS out = TPOW(src, 0d2)
+        tensor src = [[0d1, 0d2], [0d3, 0d4]]
+        tensor out = TPOW(src, 0d2)
         
         ASSERT(EQ(out, [[0d1, 0d4], [0d9, 0d16]]))
         ASSERT(EQ(SHAPE(out), [0d2, 0d2]))
@@ -90,9 +90,9 @@ passing:
   - name: tsub-basic
     language: Prefix
     source: |
-        TNS out = T-([0d9, 0d7, 0d5], 0d2)
+        tensor out = T-([0d9, 0d7, 0d5], 0d2)
         
-        ASSERT(EQ(TYPE(out), "TNS"))
+        ASSERT(EQ(TYPE(out), "tensor"))
         ASSERT(EQ(out, [0d7, 0d5, 0d3]))
         
   - name: tsub-float
@@ -103,8 +103,8 @@ passing:
   - name: tsub-rank2-shape
     language: Prefix
     source: |
-        TNS src = [[0d8, 0d7], [0d6, 0d5]]
-        TNS out = T-(src, 0d3)
+        tensor src = [[0d8, 0d7], [0d6, 0d5]]
+        tensor out = T-(src, 0d3)
         
         ASSERT(EQ(out, [[0d5, 0d4], [0d3, 0d2]]))
         ASSERT(EQ(SHAPE(out), [0d2, 0d2]))

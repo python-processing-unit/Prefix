@@ -2,16 +2,16 @@ passing:
   - name: keyin-basic
     language: Prefix
     source: |
-        MAP m = <"a" = 0d1, "b" = 0d2>
+        map m = <"a" = 0d1, "b" = 0d2>
         
         ASSERT(KEYIN("a", m))
         ASSERT(NOT(KEYIN("missing", m)))
-        ASSERT(EQ(TYPE(KEYIN("a", m)), "BOOL"))
+        ASSERT(EQ(TYPE(KEYIN("a", m)), "bool"))
         
   - name: keyin-key-types
     language: Prefix
     source: |
-        MAP m = <0d1 = "int", 0d2.5 = "flt", "three" = "str">
+        map m = <0d1 = "int", 0d2.5 = "flt", "three" = "str">
         
         ASSERT(KEYIN(0d1, m))
         ASSERT(KEYIN(0d2.5, m))
@@ -22,11 +22,11 @@ passing:
   - name: valuein-any-type
     language: Prefix
     source: |
-        MAP bool_map = <"t" = TRUE, "f" = FALSE>
-        MAP int_map = <"i" = 0d7>
-        MAP flt_map = <"p" = 0d2.5>
-        MAP str_map = <"s" = "text">
-        MAP tns_map = <"vec" = [0d1, 0d2]>
+        map bool_map = <"t" = TRUE, "f" = FALSE>
+        map int_map = <"i" = 0d7>
+        map flt_map = <"p" = 0d2.5>
+        map str_map = <"s" = "text">
+        map tns_map = <"vec" = [0d1, 0d2]>
         
         ASSERT(VALUEIN(TRUE, bool_map))
         ASSERT(VALUEIN(0d7, int_map))
@@ -38,11 +38,11 @@ passing:
   - name: valuein-basic
     language: Prefix
     source: |
-        MAP m = <"x" = "cat", "y" = "dog">
+        map m = <"x" = "cat", "y" = "dog">
         
         ASSERT(VALUEIN("cat", m))
         REFUTE(VALUEIN("bird", m))
-        ASSERT(EQ(TYPE(VALUEIN("cat", m)), "BOOL"))
+        ASSERT(EQ(TYPE(VALUEIN("cat", m)), "bool"))
         
 failing:
   - name: keyin-arity-one
@@ -68,7 +68,7 @@ failing:
   - name: keyin-first-func
     language: Prefix
     source: |
-        KEYIN(LAMBDA INT: (){}, <"a" = 0d1>)
+        KEYIN(LAMBDA int: (){}, <"a" = 0d1>)
         
   - name: keyin-first-map
     language: Prefix
@@ -98,7 +98,7 @@ failing:
   - name: keyin-second-func
     language: Prefix
     source: |
-        KEYIN("a", LAMBDA INT: (){})
+        KEYIN("a", LAMBDA int: (){})
         
   - name: keyin-second-int
     language: Prefix
@@ -148,7 +148,7 @@ failing:
   - name: valuein-second-func
     language: Prefix
     source: |
-        VALUEIN("a", LAMBDA INT: (){})
+        VALUEIN("a", LAMBDA int: (){})
         
   - name: valuein-second-int
     language: Prefix

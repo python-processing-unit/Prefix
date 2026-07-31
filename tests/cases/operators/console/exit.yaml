@@ -135,7 +135,7 @@ failing:
   - name: exit-type-func
     language: Prefix
     source: |
-        EXIT(LAMBDA BOOL: (){})
+        EXIT(LAMBDA bool: (){})
         
   - name: exit-type-map
     language: Prefix

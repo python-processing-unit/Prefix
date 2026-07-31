@@ -4,17 +4,17 @@ passing:
     source: |
         IMPORT("path")
         
-        STR tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
-        STR helper_path = JOIN(tests_dir, "/helpers/export_target.pre")
+        str tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
+        str helper_path = JOIN(tests_dir, "/helpers/export_target.pre")
         
         IMPORT_PATH(helper_path)
         IMPORT_PATH(helper_path, "again")
         
-        INT via_name = 0d7
+        int via_name = 0d7
         REFUTE(EXPORT("via_name", "export_target"))
         ASSERT(EQ(again.via_name, 0d7))
         
-        INT via_alias = 0d8
+        int via_alias = 0d8
         REFUTE(EXPORT("via_alias", "again"))
         ASSERT(EQ(export_target.via_alias, 0d8))
   - name: export-copy-map
@@ -22,12 +22,12 @@ passing:
     source: |
         IMPORT("path")
         
-        STR tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
-        STR helper_path = JOIN(tests_dir, "/helpers/export_target.pre")
+        str tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
+        str helper_path = JOIN(tests_dir, "/helpers/export_target.pre")
         
         REFUTE(IMPORT_PATH(helper_path, "helper"))
         
-        MAP box = <"value" = 0d5>
+        map box = <"value" = 0d5>
         REFUTE(EXPORT("box", "helper"))
         
         box<"value"> = 0d6
@@ -41,12 +41,12 @@ passing:
     source: |
         IMPORT("path")
         
-        STR tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
-        STR helper_path = JOIN(tests_dir, "/helpers/export_target.pre")
+        str tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
+        str helper_path = JOIN(tests_dir, "/helpers/export_target.pre")
         
         REFUTE(IMPORT_PATH(helper_path, "helper"))
         
-        TNS tensor = [0d5, 0d6]
+        tensor tensor = [0d5, 0d6]
         REFUTE(EXPORT("tensor", "helper"))
         
         tensor[0d1] = 0d8
@@ -60,7 +60,7 @@ passing:
     source: |
         IMPORT("path", "helper")
         
-        FUNC STR describe(){
+        func str describe(){
             RETURN("exported")
         }
         
@@ -71,27 +71,27 @@ passing:
     source: |
         IMPORT("path")
         
-        STR tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
-        STR helper_path = JOIN(tests_dir, "/helpers/export_target.pre")
+        str tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
+        str helper_path = JOIN(tests_dir, "/helpers/export_target.pre")
         
         REFUTE(IMPORT_PATH(helper_path, "helper"))
         
-        INT value = 0d42
-        BOOL result = EXPORT("value", "helper")
+        int value = 0d42
+        bool result = EXPORT("value", "helper")
         
-        ASSERT(EQ(TYPE(result), "BOOL"))
+        ASSERT(EQ(TYPE(result), "bool"))
         REFUTE(result)
         ASSERT(EQ(helper.value, 0d42))
 failing:
   - name: export-arity-one
     language: Prefix
     source: |
-        INT value = 0d1
+        int value = 0d1
         EXPORT(value)
   - name: export-arity-three
     language: Prefix
     source: |
-        INT value = 0d1
+        int value = 0d1
         EXPORT(value, "helper", extra)
   - name: export-arity-zero
     language: Prefix
@@ -101,73 +101,73 @@ failing:
     source: |
         IMPORT("path")
         
-        STR tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
-        STR helper_path = JOIN(tests_dir, "/helpers/export_target.pre")
+        str tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
+        str helper_path = JOIN(tests_dir, "/helpers/export_target.pre")
         
         REFUTE(IMPORT_PATH(helper_path, "helper"))
         
-        INT value
+        int value
         EXPORT("value", "helper")
   - name: export-deleted-symbol
     language: Prefix
     source: |
         IMPORT("path")
         
-        STR tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
-        STR helper_path = JOIN(tests_dir, "/helpers/export_target.pre")
+        str tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
+        str helper_path = JOIN(tests_dir, "/helpers/export_target.pre")
         
         REFUTE(IMPORT_PATH(helper_path, "helper"))
         
-        INT value = 0d1
+        int value = 0d1
         DEL("value")
         EXPORT("value", "helper")
   - name: export-module-type-bool
     language: Prefix
     source: |
-        INT value = 0d1
+        int value = 0d1
         EXPORT(value, TRUE)
   - name: export-module-type-flt
     language: Prefix
     source: |
-        INT value = 0d1
+        int value = 0d1
         EXPORT(value, 0d1.0)
   - name: export-module-type-func
     language: Prefix
     source: |
-        INT value = 0d1
-        EXPORT(value, LAMBDA BOOL: (){})
+        int value = 0d1
+        EXPORT(value, LAMBDA bool: (){})
   - name: export-module-type-int
     language: Prefix
     source: |
-        INT value = 0d1
+        int value = 0d1
         EXPORT(value, 0d1)
   - name: export-module-type-map
     language: Prefix
     source: |
-        INT value = 0d1
+        int value = 0d1
         EXPORT(value, <>)
   - name: export-module-type-str
     language: Prefix
     source: |
-        INT value = 0d1
+        int value = 0d1
         EXPORT(value, "helper")
   - name: export-module-type-thr
     language: Prefix
     source: |
-        INT value = 0d1
+        int value = 0d1
         EXPORT(value, ASYNC{})
   - name: export-module-type-tns
     language: Prefix
     source: |
-        INT value = 0d1
+        int value = 0d1
         EXPORT(value, [0d1])
   - name: export-symbol-type-bool
     language: Prefix
     source: |
         IMPORT("path")
         
-        STR tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
-        STR helper_path = JOIN(tests_dir, "/helpers/export_target.pre")
+        str tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
+        str helper_path = JOIN(tests_dir, "/helpers/export_target.pre")
         
         REFUTE(IMPORT_PATH(helper_path, "helper"))
         EXPORT(TRUE, "helper")
@@ -176,8 +176,8 @@ failing:
     source: |
         IMPORT("path")
         
-        STR tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
-        STR helper_path = JOIN(tests_dir, "/helpers/export_target.pre")
+        str tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
+        str helper_path = JOIN(tests_dir, "/helpers/export_target.pre")
         
         REFUTE(IMPORT_PATH(helper_path, "helper"))
         EXPORT(0d1.0, "helper")
@@ -186,18 +186,18 @@ failing:
     source: |
         IMPORT("path")
         
-        STR tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
-        STR helper_path = JOIN(tests_dir, "/helpers/export_target.pre")
+        str tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
+        str helper_path = JOIN(tests_dir, "/helpers/export_target.pre")
         
         REFUTE(IMPORT_PATH(helper_path, "helper"))
-        EXPORT(LAMBDA BOOL: (){}, "helper")
+        EXPORT(LAMBDA bool: (){}, "helper")
   - name: export-symbol-type-int
     language: Prefix
     source: |
         IMPORT("path")
         
-        STR tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
-        STR helper_path = JOIN(tests_dir, "/helpers/export_target.pre")
+        str tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
+        str helper_path = JOIN(tests_dir, "/helpers/export_target.pre")
         
         REFUTE(IMPORT_PATH(helper_path, "helper"))
         EXPORT(0d1, "helper")
@@ -206,8 +206,8 @@ failing:
     source: |
         IMPORT("path")
         
-        STR tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
-        STR helper_path = JOIN(tests_dir, "/helpers/export_target.pre")
+        str tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
+        str helper_path = JOIN(tests_dir, "/helpers/export_target.pre")
         
         REFUTE(IMPORT_PATH(helper_path, "helper"))
         EXPORT(<>, "helper")
@@ -216,8 +216,8 @@ failing:
     source: |
         IMPORT("path")
         
-        STR tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
-        STR helper_path = JOIN(tests_dir, "/helpers/export_target.pre")
+        str tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
+        str helper_path = JOIN(tests_dir, "/helpers/export_target.pre")
         
         REFUTE(IMPORT_PATH(helper_path, "helper"))
         EXPORT("value", "helper")
@@ -226,8 +226,8 @@ failing:
     source: |
         IMPORT("path")
         
-        STR tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
-        STR helper_path = JOIN(tests_dir, "/helpers/export_target.pre")
+        str tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
+        str helper_path = JOIN(tests_dir, "/helpers/export_target.pre")
         
         REFUTE(IMPORT_PATH(helper_path, "helper"))
         EXPORT(ASYNC{}, "helper")
@@ -236,8 +236,8 @@ failing:
     source: |
         IMPORT("path")
         
-        STR tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
-        STR helper_path = JOIN(tests_dir, "/helpers/export_target.pre")
+        str tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
+        str helper_path = JOIN(tests_dir, "/helpers/export_target.pre")
         
         REFUTE(IMPORT_PATH(helper_path, "helper"))
         EXPORT([0d1], "helper")
@@ -246,13 +246,13 @@ failing:
     source: |
         IMPORT("path")
         
-        STR tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
-        STR helper_path = JOIN(tests_dir, "/helpers/export_target.pre")
+        str tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
+        str helper_path = JOIN(tests_dir, "/helpers/export_target.pre")
         
         REFUTE(IMPORT_PATH(helper_path, "helper"))
         EXPORT("value", "helper")
   - name: export-unimported-module
     language: Prefix
     source: |
-        INT value = 0d1
+        int value = 0d1
         EXPORT("value", "helper")

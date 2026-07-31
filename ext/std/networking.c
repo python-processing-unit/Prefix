@@ -64,7 +64,7 @@ static NetState g_state = {0};
     do {                                                                                                               \
         if ((idx) >= argc || (args)[(idx)].type != VAL_INT) {                                                          \
             char _buf[128];                                                                                            \
-            snprintf(_buf, sizeof(_buf), "%s expects INT", opname);                                                    \
+            snprintf(_buf, sizeof(_buf), "%s expects int", opname);                                                    \
             RUNTIME_ERROR(interp, _buf, line, col);                                                                    \
         }                                                                                                              \
     } while (0)
@@ -73,7 +73,7 @@ static NetState g_state = {0};
     do {                                                                                                               \
         if ((idx) >= argc || (args)[(idx)].type != VAL_STR) {                                                          \
             char _buf[128];                                                                                            \
-            snprintf(_buf, sizeof(_buf), "%s expects STR", opname);                                                    \
+            snprintf(_buf, sizeof(_buf), "%s expects str", opname);                                                    \
             RUNTIME_ERROR(interp, _buf, line, col);                                                                    \
         }                                                                                                              \
     } while (0)
@@ -190,7 +190,7 @@ static int remove_handle(NetHandle *arr, size_t *count, int id, SOCKET *out) {
     return -1;
 }
 
-static Value bytes_to_tns(const unsigned char *data, size_t len) {
+static Value bytes_to_tensor(const unsigned char *data, size_t len) {
     size_t shape = (len == 0) ? 1 : len;
     Value *items = (Value *)malloc(sizeof(Value) * shape);
     if (!items) {
@@ -203,16 +203,16 @@ static Value bytes_to_tns(const unsigned char *data, size_t len) {
             items[i] = value_int((int64_t)data[i]);
         }
     }
-    Value t = value_tns_from_values(TYPE_INT, 1, &shape, items, shape);
+    Value t = value_tensor_from_values(TYPE_INT, 1, &shape, items, shape);
     free(items);
     return t;
 }
 
 static int tns_to_bytes(Value v, unsigned char **out_data, size_t *out_len) {
-    if (v.type != VAL_TNS || !v.as.tns) {
+    if (v.type != VAL_TENSOR || !v.as.tensor) {
         return -1;
     }
-    Tensor *t = v.as.tns;
+    Tensor *t = v.as.tensor;
     if (t->ndim != 1) {
         return -1;
     }
@@ -909,7 +909,7 @@ static Value op_tcp_recv_bytes(Interpreter *interp, Value *args, int argc, Expr 
         free(buf);
         RUNTIME_ERROR(interp, "TCP_RECV_BYTES failed", line, col);
     }
-    Value out = bytes_to_tns(buf, (size_t)((n < 0) ? 0 : n));
+    Value out = bytes_to_tensor(buf, (size_t)((n < 0) ? 0 : n));
     free(buf);
     if (out.type == VAL_NULL) {
         RUNTIME_ERROR(interp, "TCP_RECV_BYTES failed: allocation", line, col);
@@ -1109,7 +1109,7 @@ static Value op_udp_recv_bytes(Interpreter *interp, Value *args, int argc, Expr 
         free(buf);
         RUNTIME_ERROR(interp, "UDP_RECV_BYTES failed", line, col);
     }
-    Value out = bytes_to_tns(buf, (size_t)((n < 0) ? 0 : n));
+    Value out = bytes_to_tensor(buf, (size_t)((n < 0) ? 0 : n));
     free(buf);
     if (out.type == VAL_NULL) {
         RUNTIME_ERROR(interp, "UDP_RECV_BYTES failed: allocation", line, col);
@@ -1196,7 +1196,7 @@ static Value op_http_get_bytes(Interpreter *interp, Value *args, int argc, Expr 
     if (winhttp_request("GET", url, NULL, 0, NULL, timeout_ms, verify != 0, &status, &body, &blen) != 0) {
         RUNTIME_ERROR(interp, "HTTP_GET_BYTES failed", line, col);
     }
-    Value out = bytes_to_tns(body, blen);
+    Value out = bytes_to_tensor(body, blen);
     free(body);
     if (out.type == VAL_NULL) {
         RUNTIME_ERROR(interp, "HTTP_GET_BYTES failed: allocation", line, col);
@@ -1385,7 +1385,7 @@ static Value op_ftp_get_bytes(Interpreter *interp, Value *args, int argc, Expr *
         free(err);
         RUNTIME_ERROR(interp, msg, line, col);
     }
-    Value v = bytes_to_tns(out, out_len);
+    Value v = bytes_to_tensor(out, out_len);
     free(out);
     if (v.type == VAL_NULL) {
         RUNTIME_ERROR(interp, "FTP_GET_BYTES failed: allocation", line, col);
@@ -1420,7 +1420,7 @@ static Value op_ftp_put_bytes(Interpreter *interp, Value *args, int argc, Expr *
     unsigned char *payload = NULL;
     size_t payload_len = 0;
     if (tns_to_bytes(args[5], &payload, &payload_len) != 0) {
-        RUNTIME_ERROR(interp, "FTP_PUT_BYTES expects TNS byte array", line, col);
+        RUNTIME_ERROR(interp, "FTP_PUT_BYTES expects tensor byte array", line, col);
     }
     char *payload_hex = hex_encode(payload, payload_len);
     free(payload);

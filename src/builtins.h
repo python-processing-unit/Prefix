@@ -41,7 +41,7 @@ void builtins_reset_dynamic(void);
 
 const char *decl_type_name(DeclType dt);
 
-// Convert any value to STR (BOOL, INT, FLT, STR). Returns a newly allocated STR value.
+// Convert any value to str (bool, int, float, str). Returns a newly allocated str value.
 Value builtin_str_value(Interpreter *interp, Value v, int line, int col);
 
 #endif // BUILTINS_H

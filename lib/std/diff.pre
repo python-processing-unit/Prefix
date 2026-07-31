@@ -1,26 +1,26 @@
 ! diff utilities for Prefix
 
-FUNC STR _append_line(STR acc, STR line){
+func str _append_line(str acc, str line){
     IF( EQ(acc, "") ){ RETURN(line) } ELSE { RETURN( JOIN(acc, "\n", line) ) }
 }
 
-FUNC STR UNIFIED(STR mod, STR src){
-    TNS a = SPLIT(mod, "\n")
-    TNS b = SPLIT(src, "\n")
-    INT la = TLEN(a, 0d1)
-    INT lb = TLEN(b, 0d1)
-    INT n = MAX(la, lb)
-    STR out = ""
-    INT i = 0d1
+func str UNIFIED(str mod, str src){
+    tensor a = SPLIT(mod, "\n")
+    tensor b = SPLIT(src, "\n")
+    int la = TLEN(a, 0d1)
+    int lb = TLEN(b, 0d1)
+    int n = MAX(la, lb)
+    str out = ""
+    int i = 0d1
     WHILE( LTE(i, n) ){
-        STR left = ""
+        str left = ""
         IF( LTE(i, la) ){ left = a[i] }
-        STR right = ""
+        str right = ""
         IF( LTE(i, lb) ){ right = b[i] }
 
         IF( EQ(left, right) ){
             IF( NEQ(left, "")){
-                STR line = JOIN(" ", left)
+                str line = JOIN(" ", left)
                 out = _append_line(out, line)
             }
         } ELSE {
@@ -36,30 +36,30 @@ FUNC STR UNIFIED(STR mod, STR src){
     RETURN(out)
 }
 
-FUNC STR CONTEXT(STR mod, STR src){
+func str CONTEXT(str mod, str src){
     ! For simplicity, use the same output as UNIFIED but with a ' ' prefix
-    STR u = UNIFIED(mod, src)
+    str u = UNIFIED(mod, src)
     IF( EQ(u, "") ){ RETURN("") }
     ! Prepend a simple header to resemble context diff
     RETURN( JOIN("*** a", "\n", u) )
 }
 
-FUNC STR SIDE_BY_SIDE(STR mod, STR src){
-    TNS a = SPLIT(mod, "\n")
-    TNS b = SPLIT(src, "\n")
-    INT la = TLEN(a, 0d1)
-    INT lb = TLEN(b, 0d1)
-    INT n = MAX(la, lb)
-    STR out = ""
-    INT i = 0d1
+func str SIDE_BY_SIDE(str mod, str src){
+    tensor a = SPLIT(mod, "\n")
+    tensor b = SPLIT(src, "\n")
+    int la = TLEN(a, 0d1)
+    int lb = TLEN(b, 0d1)
+    int n = MAX(la, lb)
+    str out = ""
+    int i = 0d1
     WHILE( LTE(i, n) ){
-        STR left = ""
+        str left = ""
         IF( LTE(i, la) ){ left = a[i] }
-        STR right = ""
+        str right = ""
         IF( LTE(i, lb) ){ right = b[i] }
-        STR marker = " "
+        str marker = " "
         IF( NEQ(left, right)){ marker = "|" }
-        STR line = JOIN(left, " ", marker, " ", right)
+        str line = JOIN(left, " ", marker, " ", right)
         out = _append_line(out, line)
         i = +(i, 0d1)
     }

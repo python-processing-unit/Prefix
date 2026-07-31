@@ -29,7 +29,7 @@ typedef struct NsOp {
     char *name;              // symbol name (owned copy)
     Value value;             // for ASSIGN
     DeclType decl_type;      // for DEFINE / ASSIGN / ALIAS
-    int decl_base;           // for DEFINE / ASSIGN / ALIAS (named INT/FLT base)
+    int decl_base;           // for DEFINE / ASSIGN / ALIAS (named int/float base)
     bool declare_if_missing; // for ASSIGN / ALIAS
     char *target_name;       // for ALIAS  (owned copy)
     struct Interpreter *interp;
@@ -40,7 +40,7 @@ typedef struct NsOp {
     int error_line;
     int error_col;
 
-    Value schema; // for DEFINE (MAP schema)
+    Value schema; // for DEFINE (map schema)
 
     // Result fields – filled by the prepare thread after execution
     bool result_ok; // true = success (for bool-returning ops)

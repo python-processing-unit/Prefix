@@ -14,19 +14,19 @@ passing:
   - name: split-default-delimiter
     language: Prefix
     source: |
-        TNS words = SPLIT("foo bar baz")
+        tensor words = SPLIT("foo bar baz")
         
-        ASSERT(EQ(TYPE(words), "TNS"))
+        ASSERT(EQ(TYPE(words), "tensor"))
         ASSERT(EQ(words, ["foo", "bar", "baz"]))
         ASSERT(EQ(TLEN(words, 0d1), 0d3))
         
   - name: split-return-element-type
     language: Prefix
     source: |
-        TNS parts = SPLIT("left|right", "|")
+        tensor parts = SPLIT("left|right", "|")
         
-        ASSERT(EQ(TYPE(parts[0d1]), "STR"))
-        ASSERT(EQ(TYPE(parts[0d2]), "STR"))
+        ASSERT(EQ(TYPE(parts[0d1]), "str"))
+        ASSERT(EQ(TYPE(parts[0d2]), "str"))
         
 failing:
   - name: split-arity-three

@@ -2,42 +2,42 @@ passing:
   - name: match-basic
     language: Prefix
     source: |
-        MAP candidate = <"alpha" = 0d1, "beta" = "dog">
+        map candidate = <"alpha" = 0d1, "beta" = "dog">
         
         ASSERT(MATCH(candidate, <>))
         ASSERT(MATCH(candidate, <"alpha" = 0d99>))
         ASSERT(MATCH(candidate, <"alpha" = "ignored", "beta" = 0d0>))
         REFUTE(MATCH(candidate, <"gamma" = 0d0>))
-        ASSERT(EQ(TYPE(MATCH(candidate, <"alpha" = 0d0>)), "BOOL"))
+        ASSERT(EQ(TYPE(MATCH(candidate, <"alpha" = 0d0>)), "bool"))
         
   - name: match-metadata
     language: Prefix
     source: |
-        MAP typed_candidate = <"value" = 0d1, "other" = "text">
-        MAP typed_schema = <"match" = <"typing" = 0d1>, "value" = 0d1>
-        MAP typed_mismatch_schema = <"match" = <"typing" = 0d1>, "value" = "ignored">
+        map typed_candidate = <"value" = 0d1, "other" = "text">
+        map typed_schema = <"match" = <"typing" = 0d1>, "value" = 0d1>
+        map typed_mismatch_schema = <"match" = <"typing" = 0d1>, "value" = "ignored">
         
-        MAP missing_candidate = <"outer" = <"present" = 0d1>>
-        MAP missing_schema = <"match" = <"recurse" = 0d1>, "outer" = <"missing" = 0d1>>
+        map missing_candidate = <"outer" = <"present" = 0d1>>
+        map missing_schema = <"match" = <"recurse" = 0d1>, "outer" = <"missing" = 0d1>>
         
-        MAP shape_candidate = <"tensor" = [[0d1, 0d2], [0d3, 0d4]]>
-        MAP shape_schema = <"match" = <"shape" = 0d1>, "tensor" = [0d9, 0d8, 0d7, 0d6]>
+        map shape_candidate = <"tensor" = [[0d1, 0d2], [0d3, 0d4]]>
+        map shape_schema = <"match" = <"shape" = 0d1>, "tensor" = [0d9, 0d8, 0d7, 0d6]>
         
-        MAP explicit_typing_candidate = <"value" = 0d1>
-        MAP explicit_typing_schema = <"match" = <"typing" = 0d1>, "value" = "ignored">
+        map explicit_typing_candidate = <"value" = 0d1>
+        map explicit_typing_schema = <"match" = <"typing" = 0d1>, "value" = "ignored">
         
-        MAP explicit_recurse_candidate = <"outer" = <"present" = 0d1>>
-        MAP explicit_recurse_schema = <"match" = <"recurse" = 0d1>, "outer" = <"missing" = 0d1>>
+        map explicit_recurse_candidate = <"outer" = <"present" = 0d1>>
+        map explicit_recurse_schema = <"match" = <"recurse" = 0d1>, "outer" = <"missing" = 0d1>>
         
-        MAP explicit_shape_candidate = <"tensor" = [[0d1, 0d2], [0d3, 0d4]]>
-        MAP explicit_shape_schema = <"match" = <"shape" = 0d1>, "tensor" = [0d9, 0d8, 0d7, 0d6]>
+        map explicit_shape_candidate = <"tensor" = [[0d1, 0d2], [0d3, 0d4]]>
+        map explicit_shape_schema = <"match" = <"shape" = 0d1>, "tensor" = [0d9, 0d8, 0d7, 0d6]>
         
-        MAP nested_candidate = <"outer" = <"value" = 0d1>>
-        MAP nested_schema = <"outer" = <"match" = <"typing" = 0d1>, "value" = 0d1>>
-        MAP nested_mismatch_schema = <"outer" = <"match" = <"typing" = 0d1>, "value" = "ignored">>
+        map nested_candidate = <"outer" = <"value" = 0d1>>
+        map nested_schema = <"outer" = <"match" = <"typing" = 0d1>, "value" = 0d1>>
+        map nested_mismatch_schema = <"outer" = <"match" = <"typing" = 0d1>, "value" = "ignored">>
         
-        MAP normal_match_candidate = <"match" = "same", "other" = 0d1>
-        MAP normal_match_schema = <"match" = "same">
+        map normal_match_candidate = <"match" = "same", "other" = 0d1>
+        map normal_match_schema = <"match" = "same">
         
         ASSERT(MATCH(typed_candidate, typed_schema))
         REFUTE(MATCH(typed_candidate, typed_mismatch_schema))
@@ -69,14 +69,14 @@ passing:
   - name: match-recurse
     language: Prefix
     source: |
-        MAP missing_candidate = <"outer" = <"present" = 0d1>>
-        MAP missing_schema = <"outer" = <"missing" = 0d1>>
+        map missing_candidate = <"outer" = <"present" = 0d1>>
+        map missing_schema = <"outer" = <"missing" = 0d1>>
         
-        MAP type_candidate = <"outer" = <"value" = 0d1>>
-        MAP type_schema = <"outer" = <"value" = "x">>
+        map type_candidate = <"outer" = <"value" = 0d1>>
+        map type_schema = <"outer" = <"value" = "x">>
         
-        MAP shape_candidate = <"outer" = <"tensor" = [[0d1, 0d2], [0d3, 0d4]]>>
-        MAP shape_schema = <"outer" = <"tensor" = [0d9, 0d8, 0d7, 0d6]>>
+        map shape_candidate = <"outer" = <"tensor" = [[0d1, 0d2], [0d3, 0d4]]>>
+        map shape_schema = <"outer" = <"tensor" = [0d9, 0d8, 0d7, 0d6]>>
         
         ASSERT(MATCH(missing_candidate, missing_schema))
         REFUTE(MATCH(missing_candidate, missing_schema, recurse = 0d1))
@@ -92,7 +92,7 @@ passing:
   - name: match-shape
     language: Prefix
     source: |
-        MAP candidate = <"tensor" = [[0d1, 0d2], [0d3, 0d4]], "scalar" = 0d1>
+        map candidate = <"tensor" = [[0d1, 0d2], [0d3, 0d4]], "scalar" = 0d1>
         
         ASSERT(MATCH(candidate, <"tensor" = [0d9, 0d8, 0d7, 0d6]>))
         ASSERT(MATCH(candidate, <"tensor" = [[0d9, 0d8], [0d7, 0d6]]>, shape = 0d1))
@@ -102,7 +102,7 @@ passing:
   - name: match-typing
     language: Prefix
     source: |
-        MAP candidate = <"value" = 0d1, "other" = "text">
+        map candidate = <"value" = 0d1, "other" = "text">
         
         ASSERT(MATCH(candidate, <"value" = "1">))
         ASSERT(MATCH(candidate, <"value" = 0d99>, typing = 0d1))
@@ -138,7 +138,7 @@ failing:
   - name: match-first-func
     language: Prefix
     source: |
-        MATCH(LAMBDA INT: (){}, <>)
+        MATCH(LAMBDA int: (){}, <>)
         
   - name: match-first-int
     language: Prefix
@@ -178,7 +178,7 @@ failing:
   - name: match-second-func
     language: Prefix
     source: |
-        MATCH(<>, LAMBDA INT: (){})
+        MATCH(<>, LAMBDA int: (){})
         
   - name: match-second-int
     language: Prefix

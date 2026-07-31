@@ -3,49 +3,49 @@ passing:
     language: Prefix
     source: |
         ! Passing float arithmetic, checking coercion and correct logic
-        FLT result_add = F+(0d10.5, 0d5.25)
+        float result_add = F+(0d10.5, 0d5.25)
         ASSERT(EQ(result_add, 0d15.75))
         
-        FLT result_sub = F-(0d10.0, 0d2)
+        float result_sub = F-(0d10.0, 0d2)
         ASSERT(EQ(result_sub, 0d8.0))
         
-        FLT result_mul = F*(0d4.25, 0d2.0)
+        float result_mul = F*(0d4.25, 0d2.0)
         ASSERT(EQ(result_mul, 0d8.5))
         
-        FLT result_pow = FPOW(0d2.5, 0d2.0)
+        float result_pow = FPOW(0d2.5, 0d2.0)
         ASSERT(EQ(result_pow, 0d6.25))
         
-        FLT result_root_normal = FROOT(0d16.0, 0d2.0)
+        float result_root_normal = FROOT(0d16.0, 0d2.0)
         ASSERT(EQ(result_root_normal, 0d4.0))
   - name: op-arithmetic-coerce-int-pass
     language: Prefix
     source: |
         ! Passing integer arithmetic, checking coercion and correct logic
-        INT result_add_1 = I+(0d10, 0d5)
-        INT result_add_2 = I+(0d10.5, 0d5.2) ! Coerces to integers before/after?
+        int result_add_1 = I+(0d10, 0d5)
+        int result_add_2 = I+(0d10.5, 0d5.2) ! Coerces to integers before/after?
         ASSERT(EQ(result_add_1, 0d15))
         
-        INT result_sub = I-(0d10, 0d2.0)
+        int result_sub = I-(0d10, 0d2.0)
         ASSERT(EQ(result_sub, 0d8))
         
-        INT result_mul = I*(0d4, 0d5)
+        int result_mul = I*(0d4, 0d5)
         ASSERT(EQ(result_mul, 0d20))
         
-        INT result_div = I/(0d20, 0d4)
+        int result_div = I/(0d20, 0d4)
         ASSERT(EQ(result_div, 0d5))
         
-        INT result_pow = IPOW(0d2, 0d3)
+        int result_pow = IPOW(0d2, 0d3)
         ASSERT(EQ(result_pow, 0d8))
         
-        INT result_root = IROOT(0d16, 0d2)
+        int result_root = IROOT(0d16, 0d2)
         ASSERT(EQ(result_root, 0d4))
         
   - name: op-arithmetic-flt
     language: Prefix
     source: |
-        FLT left_oct = 0o1.4
-        FLT right_hex = 0x0.8
-        FLT left_oct_one = 0o1.0
+        float left_oct = 0o1.4
+        float right_hex = 0x0.8
+        float left_oct_one = 0o1.0
         
         ASSERT(EQ(+(left_oct_one, right_hex), 0x1.8))
         ASSERT(EQ(BASE(+(left_oct_one, right_hex)), 0d16))
@@ -53,9 +53,9 @@ passing:
   - name: op-arithmetic-int
     language: Prefix
     source: |
-        INT left_dec = 0d2
-        INT right_bin = 0b11
-        INT wide_hex = 0x10
+        int left_dec = 0d2
+        int right_bin = 0b11
+        int wide_hex = 0x10
         
         ASSERT(EQ(+(left_dec, right_bin), 0d5))
         ASSERT(EQ(BASE(+(left_dec, right_bin)), 0d10))

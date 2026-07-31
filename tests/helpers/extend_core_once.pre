@@ -1,1 +1,1 @@
-BOOL extend_result = EXTEND("extend_core")
+bool extend_result = EXTEND("extend_core")

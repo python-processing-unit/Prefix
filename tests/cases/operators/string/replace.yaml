@@ -2,7 +2,7 @@ passing:
   - name: replace-basic
     language: Prefix
     source: |
-        ASSERT(EQ(TYPE(REPLACE("prefix", "fix", "lude")), "STR"))
+        ASSERT(EQ(TYPE(REPLACE("prefix", "fix", "lude")), "str"))
         ASSERT(EQ(REPLACE("prefix", "fix", "lude"), "prelude"))
         
   - name: replace-empty-new

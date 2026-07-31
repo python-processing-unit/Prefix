@@ -31,9 +31,9 @@ Value value_int(int64_t v) {
     return val;
 }
 
-Value value_flt(double v) {
+Value value_float(double v) {
     Value val;
-    val.type = VAL_FLT;
+    val.type = VAL_FLOAT;
     val.as.f = v;
     val.num_base = 2;
     val.num_base_nan = 0;
@@ -49,18 +49,18 @@ Value value_int_base(int64_t v, int base) {
     return val;
 }
 
-Value value_flt_base(double v, int base) {
+Value value_float_base(double v, int base) {
     Value val;
-    val.type = VAL_FLT;
+    val.type = VAL_FLOAT;
     val.as.f = v;
     val.num_base = base;
     val.num_base_nan = 0;
     return val;
 }
 
-Value value_flt_nan_base(double v) {
+Value value_float_nan_base(double v) {
     Value val;
-    val.type = VAL_FLT;
+    val.type = VAL_FLOAT;
     val.as.f = v;
     val.num_base = 0;
     val.num_base_nan = 1;
@@ -85,8 +85,8 @@ Value value_func(struct Func *func) {
     return val;
 }
 
-Value value_thr_new(void) {
-    Thr *t = malloc(sizeof(Thr));
+Value value_thread_new(void) {
+    Thread *t = malloc(sizeof(Thread));
     if (!t) {
         fprintf(stderr, "Out of memory\n");
         exit(1);
@@ -101,104 +101,104 @@ Value value_thr_new(void) {
     mtx_init(&t->state_lock, 0);
     memset(&t->thread, 0, sizeof(thrd_t));
     Value v;
-    v.type = VAL_THR;
+    v.type = VAL_THREAD;
     v.num_base = 2;
     v.num_base_nan = 0;
-    v.as.thr = t;
+    v.as.thread = t;
     return v;
 }
 
-int value_thr_is_running(Value v) {
-    if (v.type != VAL_THR || !v.as.thr) {
+int value_thread_is_running(Value v) {
+    if (v.type != VAL_THREAD || !v.as.thread) {
         return 0;
     }
     int finished_or_stopping = 0;
-    mtx_lock(&v.as.thr->state_lock);
-    finished_or_stopping = v.as.thr->finished || v.as.thr->stop_requested;
-    mtx_unlock(&v.as.thr->state_lock);
+    mtx_lock(&v.as.thread->state_lock);
+    finished_or_stopping = v.as.thread->finished || v.as.thread->stop_requested;
+    mtx_unlock(&v.as.thread->state_lock);
     return finished_or_stopping ? 0 : 1;
 }
 
-void value_thr_set_stop_requested(Value v, int stop_requested) {
-    if (v.type != VAL_THR || !v.as.thr) {
+void value_thread_set_stop_requested(Value v, int stop_requested) {
+    if (v.type != VAL_THREAD || !v.as.thread) {
         return;
     }
-    mtx_lock(&v.as.thr->state_lock);
-    v.as.thr->stop_requested = stop_requested ? 1 : 0;
-    mtx_unlock(&v.as.thr->state_lock);
+    mtx_lock(&v.as.thread->state_lock);
+    v.as.thread->stop_requested = stop_requested ? 1 : 0;
+    mtx_unlock(&v.as.thread->state_lock);
 }
 
-int value_thr_get_stop_requested(Value v) {
-    if (v.type != VAL_THR || !v.as.thr) {
+int value_thread_get_stop_requested(Value v) {
+    if (v.type != VAL_THREAD || !v.as.thread) {
         return 0;
     }
     int stop = 0;
-    mtx_lock(&v.as.thr->state_lock);
-    stop = v.as.thr->stop_requested;
-    mtx_unlock(&v.as.thr->state_lock);
+    mtx_lock(&v.as.thread->state_lock);
+    stop = v.as.thread->stop_requested;
+    mtx_unlock(&v.as.thread->state_lock);
     return stop;
 }
 
-void value_thr_set_finished(Value v, int finished) {
-    if (v.type != VAL_THR || !v.as.thr) {
+void value_thread_set_finished(Value v, int finished) {
+    if (v.type != VAL_THREAD || !v.as.thread) {
         return;
     }
-    mtx_lock(&v.as.thr->state_lock);
-    v.as.thr->finished = finished ? 1 : 0;
+    mtx_lock(&v.as.thread->state_lock);
+    v.as.thread->finished = finished ? 1 : 0;
     if (finished) {
-        v.as.thr->paused = 0;
+        v.as.thread->paused = 0;
     }
-    mtx_unlock(&v.as.thr->state_lock);
+    mtx_unlock(&v.as.thread->state_lock);
 }
 
-int value_thr_get_finished(Value v) {
-    if (v.type != VAL_THR || !v.as.thr) {
+int value_thread_get_finished(Value v) {
+    if (v.type != VAL_THREAD || !v.as.thread) {
         return 1;
     }
     int finished = 1;
-    mtx_lock(&v.as.thr->state_lock);
-    finished = v.as.thr->finished;
-    mtx_unlock(&v.as.thr->state_lock);
+    mtx_lock(&v.as.thread->state_lock);
+    finished = v.as.thread->finished;
+    mtx_unlock(&v.as.thread->state_lock);
     return finished;
 }
 
-void value_thr_set_paused(Value v, int paused) {
-    if (v.type != VAL_THR || !v.as.thr) {
+void value_thread_set_paused(Value v, int paused) {
+    if (v.type != VAL_THREAD || !v.as.thread) {
         return;
     }
-    mtx_lock(&v.as.thr->state_lock);
-    v.as.thr->paused = paused ? 1 : 0;
-    mtx_unlock(&v.as.thr->state_lock);
+    mtx_lock(&v.as.thread->state_lock);
+    v.as.thread->paused = paused ? 1 : 0;
+    mtx_unlock(&v.as.thread->state_lock);
 }
 
-int value_thr_get_paused(Value v) {
-    if (v.type != VAL_THR || !v.as.thr) {
+int value_thread_get_paused(Value v) {
+    if (v.type != VAL_THREAD || !v.as.thread) {
         return 0;
     }
     int paused = 0;
-    mtx_lock(&v.as.thr->state_lock);
-    paused = v.as.thr->paused;
-    mtx_unlock(&v.as.thr->state_lock);
+    mtx_lock(&v.as.thread->state_lock);
+    paused = v.as.thread->paused;
+    mtx_unlock(&v.as.thread->state_lock);
     return paused;
 }
 
-void value_thr_set_started(Value v, int started) {
-    if (v.type != VAL_THR || !v.as.thr) {
+void value_thread_set_started(Value v, int started) {
+    if (v.type != VAL_THREAD || !v.as.thread) {
         return;
     }
-    mtx_lock(&v.as.thr->state_lock);
-    v.as.thr->started = started ? 1 : 0;
-    mtx_unlock(&v.as.thr->state_lock);
+    mtx_lock(&v.as.thread->state_lock);
+    v.as.thread->started = started ? 1 : 0;
+    mtx_unlock(&v.as.thread->state_lock);
 }
 
-int value_thr_get_started(Value v) {
-    if (v.type != VAL_THR || !v.as.thr) {
+int value_thread_get_started(Value v) {
+    if (v.type != VAL_THREAD || !v.as.thread) {
         return 0;
     }
     int started = 0;
-    mtx_lock(&v.as.thr->state_lock);
-    started = v.as.thr->started;
-    mtx_unlock(&v.as.thr->state_lock);
+    mtx_lock(&v.as.thread->state_lock);
+    started = v.as.thread->started;
+    mtx_unlock(&v.as.thread->state_lock);
     return started;
 }
 
@@ -214,9 +214,9 @@ static size_t compute_strides(const size_t *shape, size_t ndim, size_t *out_stri
     return len;
 }
 
-Value value_tns_new(DeclType elem_type, size_t ndim, const size_t *shape) {
+Value value_tensor_new(DeclType elem_type, size_t ndim, const size_t *shape) {
     Value v;
-    v.type = VAL_TNS;
+    v.type = VAL_TENSOR;
     v.num_base = 2;
     v.num_base_nan = 0;
     Tensor *t = malloc(sizeof(Tensor));
@@ -238,13 +238,13 @@ Value value_tns_new(DeclType elem_type, size_t ndim, const size_t *shape) {
     }
     t->refcount = 1;
     mtx_init(&t->lock, 0);
-    v.as.tns = t;
+    v.as.tensor = t;
     return v;
 }
 
-Value value_tns_from_values(DeclType elem_type, size_t ndim, const size_t *shape, Value *items, size_t item_count) {
-    Value tval = value_tns_new(elem_type, ndim, shape);
-    Tensor *t = tval.as.tns;
+Value value_tensor_from_values(DeclType elem_type, size_t ndim, const size_t *shape, Value *items, size_t item_count) {
+    Value tval = value_tensor_new(elem_type, ndim, shape);
+    Tensor *t = tval.as.tensor;
     if (item_count != t->length) {
         // Fill with nulls if mismatched
         size_t to_copy = item_count < t->length ? item_count : t->length;
@@ -259,11 +259,11 @@ Value value_tns_from_values(DeclType elem_type, size_t ndim, const size_t *shape
     return tval;
 }
 
-Value value_tns_get(Value v, const size_t *idxs, size_t nidxs) {
-    if (v.type != VAL_TNS) {
+Value value_tensor_get(Value v, const size_t *idxs, size_t nidxs) {
+    if (v.type != VAL_TENSOR) {
         return value_null();
     }
-    Tensor *t = v.as.tns;
+    Tensor *t = v.as.tensor;
     assert(nidxs <= t->ndim);
     size_t offset = 0;
     for (size_t i = 0; i < nidxs; i++) {
@@ -284,8 +284,8 @@ Value value_tns_get(Value v, const size_t *idxs, size_t nidxs) {
         new_shape[i] = t->shape[nidxs + i];
     }
     // Create new tensor and copy data
-    Value out = value_tns_new(t->elem_type, new_ndim, new_shape);
-    Tensor *ot = out.as.tns;
+    Value out = value_tensor_new(t->elem_type, new_ndim, new_shape);
+    Tensor *ot = out.as.tensor;
     // Copy contiguous block segments if lower dimensions match contiguous layout
     size_t copy_count = ot->length;
     for (size_t i = 0; i < copy_count; i++) {
@@ -297,12 +297,12 @@ Value value_tns_get(Value v, const size_t *idxs, size_t nidxs) {
     return out;
 }
 
-Value value_tns_slice(Value v, const int64_t *starts, const int64_t *ends, size_t n) {
+Value value_tensor_slice(Value v, const int64_t *starts, const int64_t *ends, size_t n) {
     // starts/ends are 1-based inclusive per spec; negative values handled as Python-style
-    if (v.type != VAL_TNS) {
+    if (v.type != VAL_TENSOR) {
         return value_null();
     }
-    Tensor *t = v.as.tns;
+    Tensor *t = v.as.tensor;
     size_t use_n = n < t->ndim ? n : t->ndim;
 
     // normalized starts/ends in 1-based inclusive form -> we'll keep int64_t
@@ -371,8 +371,8 @@ Value value_tns_slice(Value v, const int64_t *starts, const int64_t *ends, size_
         }
     }
 
-    Value out = value_tns_new(t->elem_type, new_ndim, new_shape);
-    Tensor *ot = out.as.tns;
+    Value out = value_tensor_new(t->elem_type, new_ndim, new_shape);
+    Tensor *ot = out.as.tensor;
 
     // iterate over output positions and copy corresponding element
     for (size_t out_idx = 0; out_idx < ot->length; out_idx++) {
@@ -435,7 +435,7 @@ static uint64_t map_hash_key(Value key) {
     if (key.type == VAL_INT) {
         return map_hash_mix((uint64_t)key.as.i ^ 0x9e3779b97f4a7c15ULL);
     }
-    if (key.type == VAL_FLT) {
+    if (key.type == VAL_FLOAT) {
         double d = key.as.f;
         if (d == 0.0) {
             d = 0.0;
@@ -457,7 +457,7 @@ static int map_key_equals(Value a, Value b) {
     if (a.type == VAL_INT) {
         return a.as.i == b.as.i;
     }
-    if (a.type == VAL_FLT) {
+    if (a.type == VAL_FLOAT) {
         return a.as.f == b.as.f;
     }
     if (a.type == VAL_STR) {
@@ -698,11 +698,11 @@ Value *value_map_get_ptr(Value *mapval, Value key, bool create_if_missing) {
     return &m->items[(size_t)new_idx].value;
 }
 
-Value *value_tns_get_ptr(Value v, const size_t *idxs, size_t nidxs) {
-    if (v.type != VAL_TNS || !v.as.tns) {
+Value *value_tensor_get_ptr(Value v, const size_t *idxs, size_t nidxs) {
+    if (v.type != VAL_TENSOR || !v.as.tensor) {
         return NULL;
     }
-    Tensor *t = v.as.tns;
+    Tensor *t = v.as.tensor;
     if (nidxs != t->ndim) {
         return NULL;
     }
@@ -717,13 +717,13 @@ Value *value_tns_get_ptr(Value v, const size_t *idxs, size_t nidxs) {
     return &t->data[offset];
 }
 
-// Shallow copy semantics: increment refcount for MAP/TNS and return aliasing Value.
+// Shallow copy semantics: increment refcount for map/tensor and return aliasing Value.
 Value value_copy(Value v) {
     Value out = v;
     if (v.type == VAL_STR && v.as.s) {
         out.as.s = strdup(v.as.s);
-    } else if (v.type == VAL_TNS && v.as.tns) {
-        Tensor *t = v.as.tns;
+    } else if (v.type == VAL_TENSOR && v.as.tensor) {
+        Tensor *t = v.as.tensor;
         Tensor *t2 = malloc(sizeof(Tensor));
         if (!t2) {
             fprintf(stderr, "Out of memory\n");
@@ -745,7 +745,7 @@ Value value_copy(Value v) {
         }
         t2->refcount = 1;
         mtx_init(&t2->lock, 0);
-        out.as.tns = t2;
+        out.as.tensor = t2;
     } else if (v.type == VAL_MAP && v.as.map) {
         Map *m = v.as.map;
         Map *m2 = malloc(sizeof(Map));
@@ -780,41 +780,41 @@ Value value_copy(Value v) {
             map_rehash(m2, map_recommended_bucket_count(m2->count));
         }
         out.as.map = m2;
-    } else if (v.type == VAL_THR && v.as.thr) {
-        Thr *th = v.as.thr;
+    } else if (v.type == VAL_THREAD && v.as.thread) {
+        Thread *th = v.as.thread;
         mtx_lock(&th->state_lock);
         th->refcount++;
         mtx_unlock(&th->state_lock);
-        out.as.thr = th;
+        out.as.thread = th;
     }
     return out;
 }
 
-// Alias/shallow-copy helper: preserve previous semantics where MAP/TNS
+// Alias/shallow-copy helper: preserve previous semantics where map/tensor
 // were reference types. This function performs the former behavior of
 // `value_copy` (increment refcounts and return aliasing container).
 Value value_alias(Value v) {
     Value out = v;
     if (v.type == VAL_STR && v.as.s) {
         out.as.s = strdup(v.as.s);
-    } else if (v.type == VAL_TNS && v.as.tns) {
-        Tensor *t = v.as.tns;
+    } else if (v.type == VAL_TENSOR && v.as.tensor) {
+        Tensor *t = v.as.tensor;
         mtx_lock(&t->lock);
         t->refcount++;
         mtx_unlock(&t->lock);
-        out.as.tns = t;
+        out.as.tensor = t;
     } else if (v.type == VAL_MAP && v.as.map) {
         Map *m = v.as.map;
         mtx_lock(&m->lock);
         m->refcount++;
         mtx_unlock(&m->lock);
         out.as.map = m;
-    } else if (v.type == VAL_THR && v.as.thr) {
-        Thr *th = v.as.thr;
+    } else if (v.type == VAL_THREAD && v.as.thread) {
+        Thread *th = v.as.thread;
         mtx_lock(&th->state_lock);
         th->refcount++;
         mtx_unlock(&th->state_lock);
-        out.as.thr = th;
+        out.as.thread = th;
     }
     return out;
 }
@@ -824,8 +824,8 @@ Value value_deep_copy(Value v) {
     Value out = v;
     if (v.type == VAL_STR && v.as.s) {
         out.as.s = strdup(v.as.s);
-    } else if (v.type == VAL_TNS && v.as.tns) {
-        Tensor *t = v.as.tns;
+    } else if (v.type == VAL_TENSOR && v.as.tensor) {
+        Tensor *t = v.as.tensor;
         Tensor *t2 = malloc(sizeof(Tensor));
         if (!t2) {
             fprintf(stderr, "Out of memory\n");
@@ -846,7 +846,7 @@ Value value_deep_copy(Value v) {
         }
         t2->refcount = 1;
         mtx_init(&t2->lock, 0);
-        out.as.tns = t2;
+        out.as.tensor = t2;
     } else if (v.type == VAL_MAP && v.as.map) {
         Map *m = v.as.map;
         Map *m2 = malloc(sizeof(Map));
@@ -870,13 +870,13 @@ Value value_deep_copy(Value v) {
         m2->refcount = 1;
         mtx_init(&m2->lock, 0);
         out.as.map = m2;
-    } else if (v.type == VAL_THR && v.as.thr) {
+    } else if (v.type == VAL_THREAD && v.as.thread) {
         // Threads are not deep-copyable; preserve handle semantics (share)
-        Thr *th = v.as.thr;
+        Thread *th = v.as.thread;
         mtx_lock(&th->state_lock);
         th->refcount++;
         mtx_unlock(&th->state_lock);
-        out.as.thr = th;
+        out.as.thread = th;
     }
     return out;
 }
@@ -884,8 +884,8 @@ Value value_deep_copy(Value v) {
 void value_free(Value v) {
     if (v.type == VAL_STR) {
         free(v.as.s);
-    } else if (v.type == VAL_TNS && v.as.tns) {
-        Tensor *t = v.as.tns;
+    } else if (v.type == VAL_TENSOR && v.as.tensor) {
+        Tensor *t = v.as.tensor;
         int free_now = 0;
         mtx_lock(&t->lock);
         if (--t->refcount <= 0) {
@@ -930,8 +930,8 @@ void value_free(Value v) {
             mtx_destroy(&m->lock);
             free(m);
         }
-    } else if (v.type == VAL_THR && v.as.thr) {
-        Thr *th = v.as.thr;
+    } else if (v.type == VAL_THREAD && v.as.thread) {
+        Thread *th = v.as.thread;
         int free_now = 0;
         mtx_lock(&th->state_lock);
         if (--th->refcount <= 0) {
@@ -948,28 +948,28 @@ void value_free(Value v) {
 const char *value_type_name(Value v) {
     switch (v.type) {
     case VAL_BOOL:
-        return "BOOL";
+        return "bool";
     case VAL_INT:
-        return "INT";
-    case VAL_FLT:
-        return "FLT";
+        return "int";
+    case VAL_FLOAT:
+        return "float";
     case VAL_MAP:
-        return "MAP";
-    case VAL_TNS:
-        return "TNS";
+        return "map";
+    case VAL_TENSOR:
+        return "tensor";
     case VAL_STR:
-        return "STR";
+        return "str";
     case VAL_FUNC:
-        return "FUNC";
-    case VAL_THR:
-        return "THR";
+        return "func";
+    case VAL_THREAD:
+        return "thread";
     default:
         return "NULL";
     }
 }
 
 int value_num_base(Value v) {
-    if (v.type == VAL_INT || v.type == VAL_FLT) {
+    if (v.type == VAL_INT || v.type == VAL_FLOAT) {
         return v.num_base;
     }
     return 0;
@@ -981,18 +981,18 @@ DeclType value_to_decl_type(Value v) {
         return TYPE_BOOL;
     case VAL_INT:
         return TYPE_INT;
-    case VAL_FLT:
-        return TYPE_FLT;
+    case VAL_FLOAT:
+        return TYPE_FLOAT;
     case VAL_STR:
         return TYPE_STR;
-    case VAL_TNS:
-        return TYPE_TNS;
+    case VAL_TENSOR:
+        return TYPE_TENSOR;
     case VAL_MAP:
         return TYPE_MAP;
     case VAL_FUNC:
         return TYPE_FUNC;
-    case VAL_THR:
-        return TYPE_THR;
+    case VAL_THREAD:
+        return TYPE_THREAD;
     default:
         return TYPE_UNKNOWN;
     }
@@ -1002,7 +1002,7 @@ bool decl_type_equal(DeclType a, int base_a, DeclType b, int base_b) {
     if (a != b) {
         return false;
     }
-    if (a == TYPE_INT || a == TYPE_FLT) {
+    if (a == TYPE_INT || a == TYPE_FLOAT) {
         if (base_a != 0 && base_b != 0 && base_a != base_b) {
             return false;
         }
@@ -1015,7 +1015,7 @@ bool decl_type_accepts_value(DeclType expected, int expected_base, Value value) 
     if (expected != actual) {
         return false;
     }
-    if (expected == TYPE_INT || expected == TYPE_FLT) {
+    if (expected == TYPE_INT || expected == TYPE_FLOAT) {
         int actual_base = value_num_base(value);
         if (expected_base != 0 && actual_base != 0 && expected_base != actual_base) {
             return false;
@@ -1028,34 +1028,34 @@ const char *decl_type_name_base(DeclType type, int base, char *buf, size_t buf_s
     const char *name = "UNKNOWN";
     switch (type) {
     case TYPE_BOOL:
-        name = "BOOL";
+        name = "bool";
         break;
     case TYPE_INT:
-        name = "INT";
+        name = "int";
         break;
-    case TYPE_FLT:
-        name = "FLT";
+    case TYPE_FLOAT:
+        name = "float";
         break;
     case TYPE_STR:
-        name = "STR";
+        name = "str";
         break;
-    case TYPE_TNS:
-        name = "TNS";
+    case TYPE_TENSOR:
+        name = "tensor";
         break;
     case TYPE_MAP:
-        name = "MAP";
+        name = "map";
         break;
     case TYPE_FUNC:
-        name = "FUNC";
+        name = "func";
         break;
-    case TYPE_THR:
-        name = "THR";
+    case TYPE_THREAD:
+        name = "thread";
         break;
     default:
         name = "UNKNOWN";
         break;
     }
-    if ((type == TYPE_INT || type == TYPE_FLT) && base != 0) {
+    if ((type == TYPE_INT || type == TYPE_FLOAT) && base != 0) {
         char base_buf[32];
         snprintf(base_buf, sizeof(base_buf), "0d%d", base);
         snprintf(buf, buf_size, "%s{%s}", name, base_buf);

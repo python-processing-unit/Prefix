@@ -81,29 +81,29 @@ static void skip_newlines(Parser *parser) {
 }
 
 static DeclType parse_type_name(const char *name) {
-    if (strcmp(name, "BOOL") == 0) {
+    if (strcmp(name, "bool") == 0) {
         return TYPE_BOOL;
     }
-    if (strcmp(name, "INT") == 0) {
+    if (strcmp(name, "int") == 0) {
         return TYPE_INT;
     }
-    if (strcmp(name, "FLT") == 0) {
-        return TYPE_FLT;
+    if (strcmp(name, "float") == 0) {
+        return TYPE_FLOAT;
     }
-    if (strcmp(name, "STR") == 0) {
+    if (strcmp(name, "str") == 0) {
         return TYPE_STR;
     }
-    if (strcmp(name, "MAP") == 0) {
+    if (strcmp(name, "map") == 0) {
         return TYPE_MAP;
     }
-    if (strcmp(name, "FUNC") == 0) {
+    if (strcmp(name, "func") == 0) {
         return TYPE_FUNC;
     }
-    if (strcmp(name, "THR") == 0) {
-        return TYPE_THR;
+    if (strcmp(name, "thread") == 0) {
+        return TYPE_THREAD;
     }
-    if (strcmp(name, "TNS") == 0) {
-        return TYPE_TNS;
+    if (strcmp(name, "tensor") == 0) {
+        return TYPE_TENSOR;
     }
     return TYPE_UNKNOWN;
 }
@@ -115,8 +115,8 @@ static Expr *parse_expression(Parser *parser);
 
 typedef struct {
     DeclType type;
-    int base;          // 0 = parent, 2..64 = named INT/FLT base
-    Expr *schema_expr; // NEW: MAP schema expression, NULL for non-MAP or bare MAP
+    int base;          // 0 = parent, 2..64 = named int/float base
+    Expr *schema_expr; // NEW: map schema expression, NULL for non-map or bare map
     Token end_tok;     // last token of the annotation (type name, closing '}', or closing brace)
 } TypeAnnotation;
 
@@ -130,20 +130,24 @@ static TypeAnnotation parse_type_annotation(Parser *parser) {
         return ta;
     }
     ta.type = parse_type_name(parser->current_token.literal);
+    if (ta.type == TYPE_UNKNOWN) {
+        report_error(parser, "Unknown type name");
+        return ta;
+    }
     ta.end_tok = parser->current_token;
     advance(parser); // consume type name
 
-    if (ta.type == TYPE_INT || ta.type == TYPE_FLT) {
+    if (ta.type == TYPE_INT || ta.type == TYPE_FLOAT) {
         if (match(parser, TOKEN_LBRACE)) {
-            // Parse base as an INT literal
+            // Parse base as an int literal
             Token lit = parser->current_token;
             int64_t base_val = 0;
             int lit_base = 2;
             if (lit.type != TOKEN_NUMBER || !parse_prefixed_int_literal(lit.literal, &base_val, &lit_base)) {
                 if (lit.type == TOKEN_RBRACE) {
-                    report_error(parser, "INT{} requires a base number inside braces");
+                    report_error(parser, "int{} requires a base number inside braces");
                 } else {
-                    report_error(parser, "Expected INT literal for base");
+                    report_error(parser, "Expected int literal for base");
                 }
                 ta.type = TYPE_UNKNOWN;
                 return ta;
@@ -164,9 +168,9 @@ static TypeAnnotation parse_type_annotation(Parser *parser) {
             advance(parser); // consume '}'
         }
     } else if (ta.type == TYPE_MAP && match(parser, TOKEN_LBRACE)) {
-        // Parse MAP schema expression
+        // Parse map schema expression
         if (parser->current_token.type == TOKEN_RBRACE) {
-            report_error(parser, "MAP{} requires a schema expression; use MAP without braces for bare MAP");
+            report_error(parser, "map{} requires a schema expression; use map without braces for bare map");
             ta.type = TYPE_UNKNOWN;
             return ta;
         }
@@ -175,13 +179,13 @@ static TypeAnnotation parse_type_annotation(Parser *parser) {
             ta.type = TYPE_UNKNOWN;
             return ta;
         }
-        if (!consume(parser, TOKEN_RBRACE, "Expected '}' after MAP schema")) {
+        if (!consume(parser, TOKEN_RBRACE, "Expected '}' after map schema")) {
             ta.type = TYPE_UNKNOWN;
             return ta;
         }
         ta.end_tok = parser->previous_token; // the '}'
     } else if (match(parser, TOKEN_LBRACE)) {
-        report_error(parser, "Base annotation is only valid for INT and FLT");
+        report_error(parser, "Base annotation is only valid for int and float");
         ta.type = TYPE_UNKNOWN;
     }
     return ta;
@@ -200,7 +204,7 @@ static size_t token_source_width(const Token *token) {
     switch (token->type) {
     case TOKEN_FUNC:
         return 4;
-    case TOKEN_THR:
+    case TOKEN_THREAD:
         return 3;
     default:
         return 0;
@@ -215,7 +219,7 @@ static bool require_space_only_gap(Parser *parser, const Token *left, const Toke
     int gap_end_col;
 
     /* Allow the right token to be an identifier or the '(' that begins a
-       parameter list. This lets constructs like `LAMBDA INT (INT x)` use
+       parameter list. This lets constructs like `LAMBDA int (int x)` use
        the same space-only gap rules as typed function declarations. */
     if (!left || !right || (right->type != TOKEN_IDENT && right->type != TOKEN_LPAREN)) {
         report_error(parser, message);
@@ -567,7 +571,7 @@ static void append_parse_error_throw_stmt(Parser *parser, Stmt *block) {
 }
 
 static bool is_type_token(PTokenType type) {
-    return (type == TOKEN_IDENT || type == TOKEN_FUNC || type == TOKEN_THR) != 0;
+    return (type == TOKEN_IDENT || type == TOKEN_FUNC || type == TOKEN_THREAD) != 0;
 }
 
 static bool starts_named_type_annotation(Parser *parser) {
@@ -577,11 +581,11 @@ static bool starts_named_type_annotation(Parser *parser) {
     if (parser->next_token.type == TOKEN_IDENT || parser->next_token.type == TOKEN_COLON) {
         return true;
     }
-    // Named number types: INT{base} or FLT{base} followed by a name
-    // MAP schema: MAP{expr} followed by a name
+    // Named number types: int{base} or float{base} followed by a name
+    // map schema: map{expr} followed by a name
     if (parser->next_token.type == TOKEN_LBRACE) {
         DeclType t = parse_type_name(parser->current_token.literal);
-        if (t == TYPE_INT || t == TYPE_FLT || t == TYPE_MAP) {
+        if (t == TYPE_INT || t == TYPE_FLOAT || t == TYPE_MAP) {
             return true;
         }
     }
@@ -595,11 +599,11 @@ static bool looks_like_func_definition(Parser *parser) {
     if (parser->lookahead2_token.type == TOKEN_IDENT || parser->lookahead2_token.type == TOKEN_COLON) {
         return true;
     }
-    // Named number return type: FUNC INT{base} name(...)
-    // MAP schema return type: FUNC MAP{expr} name(...)
+    // Named number return type: func int{base} name(...)
+    // map schema return type: func map{expr} name(...)
     if (parser->lookahead2_token.type == TOKEN_LBRACE) {
         DeclType t = parse_type_name(parser->next_token.literal);
-        if (t == TYPE_INT || t == TYPE_FLT || t == TYPE_MAP) {
+        if (t == TYPE_INT || t == TYPE_FLOAT || t == TYPE_MAP) {
             return true;
         }
     }
@@ -665,7 +669,7 @@ static Expr *parse_typed_ident_expr(Parser *parser) {
 
 static Expr *parse_primary(Parser *parser) {
     Token token = parser->current_token;
-    // Recognize FLT literal names `INF` and `NaN` as primary expressions
+    // Recognize float literal names `INF` and `NaN` as primary expressions
     if (parser->current_token.type == TOKEN_IDENT) {
         if (strcmp(parser->current_token.literal, "TRUE") == 0) {
             Token t = parser->current_token;
@@ -680,12 +684,12 @@ static Expr *parse_primary(Parser *parser) {
         if (strcmp(parser->current_token.literal, "INF") == 0) {
             Token t = parser->current_token;
             advance(parser);
-            return expr_flt(INFINITY, 0, 1, t.line, t.column);
+            return expr_float(INFINITY, 0, 1, t.line, t.column);
         }
         if (strcmp(parser->current_token.literal, "NaN") == 0) {
             Token t = parser->current_token;
             advance(parser);
-            return expr_flt(NAN, 0, 1, t.line, t.column);
+            return expr_float(NAN, 0, 1, t.line, t.column);
         }
     }
     // Support negative INF written as `-INF` (but disallow `-NaN`)
@@ -694,7 +698,7 @@ static Expr *parse_primary(Parser *parser) {
             Token dash = parser->current_token;
             advance(parser); // consume '-'
             advance(parser); // consume 'INF'
-            return expr_flt(-INFINITY, 0, 1, dash.line, dash.column);
+            return expr_float(-INFINITY, 0, 1, dash.line, dash.column);
         }
         if (strcmp(parser->next_token.literal, "NaN") == 0) {
             report_error(parser, "NaN must not be negative");
@@ -711,7 +715,7 @@ static Expr *parse_primary(Parser *parser) {
         int64_t iv = 0;
         int base = 2;
         if (!parse_prefixed_int_literal(token.literal, &iv, &base)) {
-            report_error(parser, "Invalid INT literal");
+            report_error(parser, "Invalid int literal");
             return NULL;
         }
         return expr_int(iv, base, token.line, token.column);
@@ -720,10 +724,10 @@ static Expr *parse_primary(Parser *parser) {
         double fv = 0.0;
         int base = 2;
         if (!parse_prefixed_float_literal(token.literal, &fv, &base)) {
-            report_error(parser, "Invalid FLT literal");
+            report_error(parser, "Invalid float literal");
             return NULL;
         }
-        return expr_flt(fv, base, 0, token.line, token.column);
+        return expr_float(fv, base, 0, token.line, token.column);
     }
     if (match(parser, TOKEN_STRING)) {
         return expr_str(token.literal, token.line, token.column);
@@ -775,8 +779,8 @@ static Expr *parse_primary(Parser *parser) {
             return NULL;
         }
 
-        /* Enforce the spec-compliant space-separated form `INT (` and
-           explicitly reject the legacy colon form `INT: (`. Use the same
+        /* Enforce the spec-compliant space-separated form `int (` and
+           explicitly reject the legacy colon form `int: (`. Use the same
            space-only gap rules as for named function declarations so
            that line-continuations and comments are handled consistently. */
         if (!require_space_only_gap(parser, &ret.end_tok, &parser->current_token, k_type_name_gap_error)) {
@@ -839,7 +843,7 @@ static Expr *parse_primary(Parser *parser) {
     }
     if (match(parser, TOKEN_LBRACKET)) {
         Token lb = parser->previous_token; // the '[' token
-        Expr *tns = expr_tns(lb.line, lb.column);
+        Expr *tns = expr_tensor(lb.line, lb.column);
         if (parser->current_token.type == TOKEN_RBRACKET) {
             report_error(parser, "Empty tensor literal is not allowed");
             return NULL;
@@ -1168,10 +1172,10 @@ static Stmt *parse_try(Parser *parser) {
 
 static Stmt *parse_func(Parser *parser) {
     Token tok = parser->current_token;
-    consume(parser, TOKEN_FUNC, "Expected 'FUNC'");
-    /* FUNC R name( params ) { body } */
+    consume(parser, TOKEN_FUNC, "Expected 'func'");
+    /* func R name( params ) { body } */
     if (!is_type_token(parser->current_token.type)) {
-        report_error(parser, "Expected return type after FUNC");
+        report_error(parser, "Expected return type after func");
         return NULL;
     }
     TypeAnnotation ret = parse_type_annotation(parser);
@@ -1202,7 +1206,7 @@ static Stmt *parse_statement(Parser *parser) {
         return parse_func(parser);
     }
 
-    // Handle typed declarations where the type token may be a keyword like THR.
+    // Handle typed declarations where the type token may be a keyword like thread.
     if (starts_named_type_annotation(parser)) {
         Token type_tok = parser->current_token;
         TypeAnnotation ta = parse_type_annotation(parser);
@@ -1214,7 +1218,7 @@ static Stmt *parse_statement(Parser *parser) {
         }
         char *name = parser->current_token.literal;
         advance(parser);
-        // Support typed declaration with indexed-assignment target, e.g. `TNS: t[1-10] = ...`
+        // Support typed declaration with indexed-assignment target, e.g. `tensor: t[1-10] = ...`
         if (parser->current_token.type == TOKEN_LBRACKET || parser->current_token.type == TOKEN_LANGLE) {
             // construct base identifier expr and parse trailing indexers
             Expr *base = expr_ident(name, type_tok.line, type_tok.column);
@@ -1357,19 +1361,19 @@ static Stmt *parse_statement(Parser *parser) {
         consume(parser, TOKEN_RPAREN, "Expected ')' after BREAK value");
         return stmt_break(expr, tok.line, tok.column);
     }
-    case TOKEN_THR: {
+    case TOKEN_THREAD: {
         Token tok = parser->current_token;
         advance(parser);
-        consume(parser, TOKEN_LPAREN, "Expected '(' after THR");
+        consume(parser, TOKEN_LPAREN, "Expected '(' after thread");
         if (parser->current_token.type != TOKEN_IDENT) {
-            report_error(parser, "Expected identifier after THR(");
+            report_error(parser, "Expected identifier after thread(");
             return NULL;
         }
         char *name = parser->current_token.literal;
         advance(parser);
-        consume(parser, TOKEN_RPAREN, "Expected ')' after THR identifier");
+        consume(parser, TOKEN_RPAREN, "Expected ')' after thread identifier");
         Stmt *body = parse_block(parser);
-        return stmt_thr(name, body, tok.line, tok.column);
+        return stmt_thread(name, body, tok.line, tok.column);
     }
     case TOKEN_ASYNC: {
         Token tok = parser->current_token;

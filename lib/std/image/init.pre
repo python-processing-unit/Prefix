@@ -10,8 +10,8 @@ EXTEND("image")
 
 IMPORT("path")
 
-FUNC TNS LOAD(STR img_path){
-    STR ext = path.EXTNAME(img_path)
+func tensor LOAD(str img_path){
+    str ext = path.EXTNAME(img_path)
     IF(EQ(ext, "png")){
         RETURN(LOAD_PNG(img_path))
     } ELSEIF (OR(EQ(ext, "jpg"),EQ(ext, "jpeg"))){
@@ -23,70 +23,70 @@ FUNC TNS LOAD(STR img_path){
     }
 }
 
-FUNC INT WIDTH(TNS img){
+func int WIDTH(tensor img){
     RETURN(TLEN(img, 0d1))
 }
 
-FUNC INT HEIGHT(TNS img){
+func int HEIGHT(tensor img){
     RETURN(TLEN(img, 0d2))
 }
 
-FUNC INT CHANNELS(TNS img){
+func int CHANNELS(tensor img){
     RETURN(TLEN(img, 0d3))
 }
 
-FUNC TNS R(TNS img){
+func tensor R(tensor img){
     RETURN(img[# , # , 0d1])
 }
 
-FUNC TNS G(TNS img){
+func tensor G(tensor img){
     RETURN(img[# , # , 0d2])
 }
 
-FUNC TNS B(TNS img){
+func tensor B(tensor img){
     RETURN(img[# , # , 0d3])
 }
 
-FUNC TNS A(TNS img){
+func tensor A(tensor img){
     RETURN(img[# , # , 0d4])
 }
 
-FUNC TNS PIXEL(TNS img, INT x, INT y){
+func tensor PIXEL(tensor img, int x, int y){
     RETURN(img[x, y, #])
 }
 
-FUNC INT PIXEL_R(TNS img, INT x, INT y){
+func int PIXEL_R(tensor img, int x, int y){
     RETURN(img[x, y, 0d1])
 }
 
-FUNC INT PIXEL_G(TNS img, INT x, INT y){
+func int PIXEL_G(tensor img, int x, int y){
     RETURN(img[x, y, 0d2])
 }
 
-FUNC INT PIXEL_B(TNS img, INT x, INT y){
+func int PIXEL_B(tensor img, int x, int y){
     RETURN(img[x, y, 0d3])
 }
 
-FUNC INT PIXEL_A(TNS img, INT x, INT y){
+func int PIXEL_A(tensor img, int x, int y){
     RETURN(img[x, y, 0d4])
 }
 
-FUNC TNS FLIP_V(TNS img){
+func tensor FLIP_V(tensor img){
     RETURN(TFLIP(img, 0d1))
 }
 
-FUNC TNS FLIP_H(TNS img){
+func tensor FLIP_H(tensor img){
     RETURN(TFLIP(img, 0d2))
 }
 
-FUNC TNS INVERT(TNS img){
-    TNS return = M-(TNS(SHAPE(img), 0xFF), img)
+func tensor INVERT(tensor img){
+    tensor return = M-(tensor(SHAPE(img), 0xFF), img)
     return[# , # , 0d4] = img[# , # , 0d4] ! Preserve alpha
     POP("return")
 }
 
-FUNC TNS RECT(TNS img, INT x, INT y, INT width, INT height, TNS color, INT fill, INT thickness){
-    TNS pts = [ ^
+func tensor RECT(tensor img, int x, int y, int width, int height, tensor color, int fill, int thickness){
+    tensor pts = [ ^
         [x, y], ^
         [+(x, -(width, 0d1)), y], ^
         [+(x, -(width, 0d1)), +(y, -(height, 0d1))], ^
@@ -96,37 +96,37 @@ FUNC TNS RECT(TNS img, INT x, INT y, INT width, INT height, TNS color, INT fill,
     RETURN(POLYGON(img, pts, color, fill, thickness))
 }
 
-FUNC TNS RECTANGLE(TNS img, INT x, INT y, INT width, INT height, TNS color, INT fill, INT thickness){
+func tensor RECTANGLE(tensor img, int x, int y, int width, int height, tensor color, int fill, int thickness){
     RETURN(RECT(img, x, y, width, height, color, fill, thickness))
 }
 
-FUNC TNS FILL_RECT(TNS img, INT x, INT y, INT width, INT height, TNS color){
+func tensor FILL_RECT(tensor img, int x, int y, int width, int height, tensor color){
     RETURN(RECT(img, x, y, width, height, color, 0d1, 0d1))
 }
 
-FUNC TNS FILL_ELLIPSE(TNS img, TNS center, INT rx, INT ry, TNS color){
+func tensor FILL_ELLIPSE(tensor img, tensor center, int rx, int ry, tensor color){
     RETURN(ELLIPSE(img, center, rx, ry, color, 0d1, 0d1))
 }
  
-FUNC TNS SQUARE(TNS img, INT x, INT y, INT size, TNS color, INT fill, INT thickness){
+func tensor SQUARE(tensor img, int x, int y, int size, tensor color, int fill, int thickness){
     RETURN(RECT(img, x, y, size, size, color, fill, thickness))
 }
 
-FUNC TNS CIRCLE(TNS img, TNS center, INT radius, TNS color, INT fill, INT thickness){
+func tensor CIRCLE(tensor img, tensor center, int radius, tensor color, int fill, int thickness){
     RETURN(ELLIPSE(img, center, radius, radius, color, fill, thickness))
 }
 
-FUNC TNS CROP(TNS img, TNS corners){
+func tensor CROP(tensor img, tensor corners){
     IF(NEQ(SHAPE(corners), [0d4, 0d2])){
         THROW("CROP corners must be a 0d4 by 0d2 tensor: [[tl_x, tl_y], [tr_x, tr_y], [bl_x, bl_y], [br_x, br_y]]")
     }
     RETURN(img[MIN(corners[# , 0d1]):MAX(corners[# , 0d1]), MIN(corners[# , 0d2]):MAX(corners[# , 0d2]), #])
 }
 
-FUNC BOOL SHOW(TNS img){
+func bool SHOW(tensor img){
     ! Save the image to the provided path and open it with the system default
     ! viewer on Windows. `img_path` is treated as the target file path.
-    STR img_path = "C:/Windows/Temp/tmp_img.png"
+    str img_path = "C:/Windows/Temp/tmp_img.png"
     SAVE_PNG(img, img_path, 0d0)
     ! ShellExecuteW(hwnd, operation, file, params, dir, showcmd)
     ! Use NULL hwnd (0), operation "open", empty params and dir, showcmd=1

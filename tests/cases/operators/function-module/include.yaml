@@ -15,7 +15,7 @@ passing:
           $modulePath = Join-Path $tempDir "$moduleName.pre"
         
           Set-Content -Path $modulePath -Encoding Ascii -Value @"
-        STR marker = "$markerLiteral"
+        str marker = "$markerLiteral"
         
         IF(EXISTFILE(marker)){
             WRITEFILE("reloaded", marker)
@@ -23,7 +23,7 @@ passing:
             WRITEFILE("loaded", marker)
         }
         
-        FUNC STR marker_text(){
+        func str marker_text(){
             RETURN(READFILE(marker))
         }
         "@
@@ -59,15 +59,15 @@ passing:
           $modulePath = Join-Path $tempDir "$moduleName.pre"
         
           Set-Content -Path $modulePath -Encoding Ascii -Value @'
-        INT module_var = 0d7
+        int module_var = 0d7
         
-        FUNC INT read_module_var(){
+        func int read_module_var(){
             RETURN(module_var)
         }
         '@
         
           Set-Content -Path $programPath -Encoding Ascii -Value @"
-        INT caller_var = 0d11
+        int caller_var = 0d11
         
         INCLUDE("$moduleName")
         
@@ -102,13 +102,13 @@ passing:
           $localModulePath = Join-Path $tempDir "$moduleName.pre"
         
           Set-Content -Path $localModulePath -Encoding Ascii -Value @'
-        FUNC STR identify(){
+        func str identify(){
             RETURN("local")
         }
         '@
         
           Set-Content -Path $stdlibPath -Encoding Ascii -Value @'
-        FUNC STR identify(){
+        func str identify(){
             RETURN("stdlib")
         }
         '@
@@ -145,7 +145,7 @@ passing:
           $pointerPath = Join-Path $tempDir "$moduleName.prex"
         
           Set-Content -Path $modulePath -Encoding Ascii -Value @'
-        FUNC STR identify(){
+        func str identify(){
             RETURN("source")
         }
         '@
@@ -185,7 +185,7 @@ passing:
           New-Item -ItemType Directory -Path $packageDir | Out-Null
         
           Set-Content -Path $initPath -Encoding Ascii -Value @'
-        FUNC STR identify(){
+        func str identify(){
             RETURN("package")
         }
         '@
@@ -223,7 +223,7 @@ passing:
           New-Item -ItemType Directory -Path $packageDir | Out-Null
         
           Set-Content -Path $modulePath -Encoding Ascii -Value @'
-        FUNC STR identify(){
+        func str identify(){
             RETURN("module")
         }
         '@
@@ -260,13 +260,13 @@ passing:
           New-Item -ItemType Directory -Path $packageDir | Out-Null
         
           Set-Content -Path $modulePath -Encoding Ascii -Value @'
-        FUNC STR identify(){
+        func str identify(){
             RETURN("module")
         }
         '@
         
           Set-Content -Path $initPath -Encoding Ascii -Value @'
-        FUNC STR identify(){
+        func str identify(){
             RETURN("package")
         }
         '@
@@ -301,7 +301,7 @@ passing:
           $modulePath = Join-Path $tempDir "$moduleName.pre"
         
           Set-Content -Path $modulePath -Encoding Ascii -Value @'
-        INT hidden = 0d7
+        int hidden = 0d7
         '@
         
           Set-Content -Path $programPath -Encoding Ascii -Value @"
@@ -323,7 +323,7 @@ passing:
   - name: include-return-false
     language: Prefix
     source: |
-        ASSERT(EQ(TYPE(INCLUDE("path")), "BOOL"))
+        ASSERT(EQ(TYPE(INCLUDE("path")), "bool"))
         REFUTE(INCLUDE("path"))
         
   - name: include-stdlib-before-userlib
@@ -342,13 +342,13 @@ passing:
           $programPath = Join-Path $tempDir 'program.pre'
         
           Set-Content -Path $stdlibPath -Encoding Ascii -Value @'
-        FUNC STR identify(){
+        func str identify(){
             RETURN("stdlib")
         }
         '@
         
           Set-Content -Path $userlibPath -Encoding Ascii -Value @'
-        FUNC STR identify(){
+        func str identify(){
             RETURN("userlib")
         }
         '@
@@ -390,7 +390,7 @@ passing:
           $modulePath = Join-Path $tempDir "$moduleName.pre"
         
           Set-Content -Path $modulePath -Encoding Ascii -Value @'
-        INT hidden = 0d7
+        int hidden = 0d7
         '@
         
           Set-Content -Path $programPath -Encoding Ascii -Value @"
@@ -414,7 +414,7 @@ passing:
     source: |
         INCLUDE("path")
         
-        ASSERT(EQ(TYPE(TEMPFILE("include-unqualified-namespace.txt")), "STR"))
+        ASSERT(EQ(TYPE(TEMPFILE("include-unqualified-namespace.txt")), "str"))
         
 failing:
   - name: include-arity-two
@@ -445,7 +445,7 @@ failing:
   - name: include-type-func
     language: Prefix
     source: |
-        INCLUDE(LAMBDA BOOL: (){})
+        INCLUDE(LAMBDA bool: (){})
         
   - name: include-type-int
     language: Prefix

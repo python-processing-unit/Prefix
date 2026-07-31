@@ -33,9 +33,9 @@ The change log is a document recording what changed with every release of Prefix
 ### Minor-level changes
 
 - Add operator `REFUTE`.
-- Add operator `ISMAP`.
-- Add operator `ISFUNC`.
-- Add operator `ISTHR`.
+- Add operator `ismap`.
+- Add operator `isfunc`.
+- Add operator `isthread`.
 - Allow `1` at ident start.
 - Update ident name rules.
 - Document `path` stdlib module.
@@ -55,7 +55,7 @@ The change log is a document recording what changed with every release of Prefix
 
 Add a PowerShell-based automated test suite and run it in CI.
 
-Fix `IADD` so coercing `NaN` and infinities to `INT` fails instead of succeeding.
+Fix `IADD` so coercing `NaN` and infinities to `int` fails instead of succeeding.
 
 Fix `PAUSE` and its tests.
 
@@ -63,11 +63,11 @@ Fix `PARALLEL`.
 
 Fix serialization and deserialization.
 
-Make `MATCH` reject non-`INT` flags and accept later keyword arguments even when earlier optional ones are absent.
+Make `MATCH` reject non-`int` flags and accept later keyword arguments even when earlier optional ones are absent.
 
-Make `WARN` reject empty calls and arguments that cannot be converted with `~STR`, and improve the empty-call error message.
+Make `WARN` reject empty calls and arguments that cannot be converted with `~str`, and improve the empty-call error message.
 
-Make `PRINT` reject empty calls and arguments that cannot be converted with `~STR`.
+Make `PRINT` reject empty calls and arguments that cannot be converted with `~str`.
 
 Reject multiple statements on one logical line.
 
@@ -75,13 +75,13 @@ Make `STRIP` treat `remove` as a substring rather than a character list, and rej
 
 Make `REPLACE` reject an empty `old` value.
 
-Make `IN` reject tensor operands that are not `TNS` values.
+Make `IN` reject tensor operands that are not `tensor` values.
 
-Make `STR` reject invalid operand types.
+Make `str` reject invalid operand types.
 
 Make `KEYIN` reject invalid key types.
 
-Make `BNOT` fail on non-binary `INT` values.
+Make `BNOT` fail on non-binary `int` values.
 
 Make `THROW` concatenate its arguments.
 
@@ -93,7 +93,7 @@ Make `POW` stop writing back through a pointer exponent.
 
 Fix `PARFOR` pointer writeback.
 
-Fix tensor operator handling of `MAP` and `THR` values.
+Fix tensor operator handling of `map` and `thread` values.
 
 Make `MOD` stop overwriting a pointer passed as its second operand.
 
@@ -163,19 +163,19 @@ Fix floating-point rendering so infinities stringify correctly.
 
 ### Major-level changes
 
-Add the first-class `BOOL` type with the `TRUE` and `FALSE` literals, and change the language's Boolean model to use `BOOL` rather than integer sentinel values.
+Add the first-class `bool` type with the `TRUE` and `FALSE` literals, and change the language's Boolean model to use `bool` rather than integer sentinel values.
 
-Change built-in and standard-library APIs that previously returned `INT` sentinel values to return `BOOL` instead, including logical, comparison, type-checking, import, filesystem, console, freeze, and deletion operators, along with helpers such as `prime.IS_PRIME`, `prime.IS_MERSENNE_PRIME`, and `image.SHOW`.
+Change built-in and standard-library APIs that previously returned `int` sentinel values to return `bool` instead, including logical, comparison, type-checking, import, filesystem, console, freeze, and deletion operators, along with helpers such as `prime.IS_PRIME`, `prime.IS_MERSENNE_PRIME`, and `image.SHOW`.
 
 ### Minor-level changes
 
-Bind `SELF` when calling `FUNC` values stored in `MAP` objects, preserving aliasing when the map is accessed through a pointer.
+Bind `SELF` when calling `func` values stored in `map` objects, preserving aliasing when the map is accessed through a pointer.
 
 Update pointer semantics so transformed built-in results write back through pointer operands, and pointer arguments to user-defined functions bind as aliases.
 
 ### Patch-level changes
 
-Allow `BOOL` values in conversions, truthiness, tensor elements, serialization, deserialization, printing, and default `FUNC` returns.
+Allow `bool` values in conversions, truthiness, tensor elements, serialization, deserialization, printing, and default `func` returns.
 
 Fix image save operators to report runtime failures correctly.
 
@@ -221,7 +221,7 @@ Add horizontal rules to [the specification section 9](https://python-processing-
 
 Complete `GOTO` implementation.
 
-Ban implicit `MAP` returns from `FUNC`.
+Ban implicit `map` returns from `func`.
 
 Ban non-ASCII chars from source code.
 
@@ -239,11 +239,11 @@ Fix `SHUSH` specification.
 
 Make `FOR` counter loop-local.
 
-Ban `RETURN` from outside `FUNC`.
+Ban `RETURN` from outside `func`.
 
 Fix [specification 9.2.3](https://python-processing-unit.github.io/Prefix/SPECIFICATION.html#923-conditional-statements).
 
-Fix `MAP`'s Boolean representation.
+Fix `map`'s Boolean representation.
 
 Ban invalid `^`.
 
@@ -251,7 +251,7 @@ Ban incorrect bracket kinds.
 
 Fix [specification section 4.4.1](https://python-processing-unit.github.io/Prefix/SPECIFICATION.html#441-tensor-literals).
 
-Restrict `GOTOPOINT` to `STR` and positive `INT`.
+Restrict `GOTOPOINT` to `str` and positive `int`.
 
 Require parentheses for `CONTINUE`.
 
@@ -281,7 +281,7 @@ Rewrite the documentation.
 
 Allow symbol creation via `ASSIGN`.
 
-Allow `DEL` calls on `MAP` indexes.
+Allow `DEL` calls on `map` indexes.
 
 Fix `-source` mode module name.
 
@@ -311,7 +311,7 @@ N/A
 
 ### Major-level changes
 
-Convert `INT` and `FLT` from binary types to support multiple bases.
+Convert `int` and `float` from binary types to support multiple bases.
 
 ### Minor-level changes
 
@@ -339,7 +339,7 @@ Add `SELF`.
 
 ### Patch-level changes
 
-Convert `MAP` to use a hash table for performance.
+Convert `map` to use a hash table for performance.
 
 ---
 
@@ -377,7 +377,7 @@ N/A
 
 ### Major-level changes
 
-Make `TNS` and `MAP` atomic.
+Make `tensor` and `map` atomic.
 
 ### Minor-level changes
 
@@ -385,7 +385,7 @@ N/A
 
 ### Patch-level changes
 
-Fix `FUNC` handling in `SIGNATURE`.
+Fix `func` handling in `SIGNATURE`.
 
 ---
 
@@ -397,9 +397,9 @@ N/A
 
 ### Minor-level changes
 
-Add `FLT` infinities.
+Add `float` infinities.
 
-Add `FLT` NaN.
+Add `float` NaN.
 
 ### Patch-level changes
 

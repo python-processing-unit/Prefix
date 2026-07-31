@@ -9,8 +9,8 @@ typedef struct Env Env;
 typedef struct EnvEntry {
     char *name;
     DeclType decl_type;
-    int decl_base; // 0 = parent INT/FLT, 2..64 = named base
-    Value schema;  // NEW: MAP schema value, .type==VAL_NULL if none
+    int decl_base; // 0 = parent int/float, 2..64 = named base
+    Value schema;  // NEW: map schema value, .type==VAL_NULL if none
     Value value;
     bool initialized;
     bool frozen;

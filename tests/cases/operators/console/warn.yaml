@@ -112,7 +112,7 @@ failing:
     source: WARN()
   - name: warn-first-func
     language: Prefix
-    source: 'WARN(LAMBDA BOOL: (){})'
+    source: 'WARN(LAMBDA bool: (){})'
   - name: warn-first-map
     language: Prefix
     source: 'WARN(<"key" = 0d1>)'

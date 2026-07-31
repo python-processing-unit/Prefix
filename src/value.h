@@ -7,13 +7,13 @@
 struct EnvEntry; // forward declare for pointer values
 struct Env;      // forward declare Env
 
-typedef enum { VAL_NULL, VAL_BOOL, VAL_INT, VAL_FLT, VAL_STR, VAL_TNS, VAL_MAP, VAL_FUNC, VAL_THR } ValueType;
+typedef enum { VAL_NULL, VAL_BOOL, VAL_INT, VAL_FLOAT, VAL_STR, VAL_TENSOR, VAL_MAP, VAL_FUNC, VAL_THREAD } ValueType;
 
 // Forward declaration - Func is defined in interpreter.h
 struct Func;
 struct Value; // forward declare Value for Tensor.data
 
-typedef struct Thr {
+typedef struct Thread {
     int finished; // 0 = running, 1 = finished/stopped
     int paused;
     int stop_requested;
@@ -25,7 +25,7 @@ typedef struct Thr {
 #endif
     mtx_t state_lock;
     thrd_t thread;
-} Thr;
+} Thread;
 
 typedef struct Tensor {
     DeclType elem_type; // element static type
@@ -41,16 +41,16 @@ typedef struct Tensor {
 typedef struct Value {
     ValueType type;
     int num_base;     // 2..64 for numeric values, default 2
-    int num_base_nan; // 1 when FLT has NaN base (INF/NaN literals), else 0
+    int num_base_nan; // 1 when float has NaN base (INF/NaN literals), else 0
     union {
         bool boolean;
         int64_t i;
         double f;
         char *s;
         struct Func *func;
-        struct Tensor *tns;
+        struct Tensor *tensor;
         struct Map *map;
-        struct Thr *thr;
+        struct Thread *thread;
     } as;
 } Value;
 
@@ -71,10 +71,10 @@ typedef struct Map {
 } Map;
 
 // Tensor helpers
-Value value_tns_new(DeclType elem_type, size_t ndim, const size_t *shape);
-Value value_tns_from_values(DeclType elem_type, size_t ndim, const size_t *shape, Value *items, size_t item_count);
-Value value_tns_get(Value t, const size_t *idxs, size_t nidxs);
-Value value_tns_slice(Value t, const int64_t *starts, const int64_t *ends, size_t n);
+Value value_tensor_new(DeclType elem_type, size_t ndim, const size_t *shape);
+Value value_tensor_from_values(DeclType elem_type, size_t ndim, const size_t *shape, Value *items, size_t item_count);
+Value value_tensor_get(Value t, const size_t *idxs, size_t nidxs);
+Value value_tensor_slice(Value t, const int64_t *starts, const int64_t *ends, size_t n);
 
 // Map helpers
 Value value_map_new(void);
@@ -92,27 +92,27 @@ Value *value_map_get_ptr(Value *mapval, Value key, bool create_if_missing);
 
 // Returns a pointer to a tensor element for full indexing (nidxs must equal ndim).
 // Returned pointer is owned by the tensor; do NOT free it.
-Value *value_tns_get_ptr(Value t, const size_t *idxs, size_t nidxs);
+Value *value_tensor_get_ptr(Value t, const size_t *idxs, size_t nidxs);
 
 Value value_null(void);
 Value value_bool(bool v);
 Value value_int(int64_t v);
-Value value_flt(double v);
+Value value_float(double v);
 Value value_int_base(int64_t v, int base);
-Value value_flt_base(double v, int base);
-Value value_flt_nan_base(double v);
+Value value_float_base(double v, int base);
+Value value_float_nan_base(double v);
 Value value_str(const char *s);
 Value value_func(struct Func *func);
-Value value_thr_new(void);
-int value_thr_is_running(Value v);
-void value_thr_set_finished(Value v, int finished);
-int value_thr_get_finished(Value v);
-void value_thr_set_paused(Value v, int paused);
-int value_thr_get_paused(Value v);
-void value_thr_set_stop_requested(Value v, int stop_requested);
-int value_thr_get_stop_requested(Value v);
-void value_thr_set_started(Value v, int started);
-int value_thr_get_started(Value v);
+Value value_thread_new(void);
+int value_thread_is_running(Value v);
+void value_thread_set_finished(Value v, int finished);
+int value_thread_get_finished(Value v);
+void value_thread_set_paused(Value v, int paused);
+int value_thread_get_paused(Value v);
+void value_thread_set_stop_requested(Value v, int stop_requested);
+int value_thread_get_stop_requested(Value v);
+void value_thread_set_started(Value v, int started);
+int value_thread_get_started(Value v);
 // Note: pointer semantics are implemented at the EnvEntry (alias) level; no PTR Value type.
 
 Value value_copy(Value v);
@@ -120,7 +120,7 @@ Value value_alias(Value v);
 Value value_deep_copy(Value v);
 void value_free(Value v);
 
-// Numeric base helpers for named INT/FLT types
+// Numeric base helpers for named int/float types
 int value_num_base(Value v);
 DeclType value_to_decl_type(Value v);
 const char *value_type_name(Value v);
@@ -128,13 +128,13 @@ const char *value_type_name(Value v);
 // Strict declared-type equality (bases matter for named numbers).
 bool decl_type_equal(DeclType a, int base_a, DeclType b, int base_b);
 
-// Whether a declared type accepts a value (parent INT/FLT accept any base).
+// Whether a declared type accepts a value (parent int/float accept any base).
 bool decl_type_accepts_value(DeclType expected, int expected_base, Value value);
 
-// Format a type name including base for INT/FLT. Returns buf.
+// Format a type name including base for int/float. Returns buf.
 const char *decl_type_name_base(DeclType type, int base, char *buf, size_t buf_size);
 
-// Match a MAP value against a MAP schema (same semantics as MATCH with defaults).
+// Match a map value against a map schema (same semantics as MATCH with defaults).
 // Returns true if all keys in `templ` exist in `map` and satisfy the match (typing=0, recurse=0, shape=0).
 // Supports "match" metadata override in the schema.
 bool value_map_matches(Value map, Value templ);

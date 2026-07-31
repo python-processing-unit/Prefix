@@ -2,32 +2,32 @@ passing:
   - name: shape-rank-1
     language: Prefix
     source: |
-        TNS v = [0d10, 0d20, 0d30, 0d40]
+        tensor v = [0d10, 0d20, 0d30, 0d40]
         
-        ASSERT(EQ(TYPE(SHAPE(v)), "TNS"))
+        ASSERT(EQ(TYPE(SHAPE(v)), "tensor"))
         ASSERT(EQ(SHAPE(v), [0d4]))
         
   - name: shape-rank-2
     language: Prefix
     source: |
-        TNS m = [[0d1, 0d2, 0d3], [0d4, 0d5, 0d6]]
+        tensor m = [[0d1, 0d2, 0d3], [0d4, 0d5, 0d6]]
         
         ASSERT(EQ(SHAPE(m), [0d2, 0d3]))
         
   - name: shape-rank-3
     language: Prefix
     source: |
-        TNS cube = [[[0d1, 0d2]], [[0d3, 0d4]], [[0d5, 0d6]]]
+        tensor cube = [[[0d1, 0d2]], [[0d3, 0d4]], [[0d5, 0d6]]]
         
         ASSERT(EQ(SHAPE(cube), [0d3, 0d1, 0d2]))
         
   - name: shape-result-is-1d
     language: Prefix
     source: |
-        TNS t = [[[0d1], [0d2], [0d3]], [[0d4], [0d5], [0d6]]]
-        TNS dims = SHAPE(t)
+        tensor t = [[[0d1], [0d2], [0d3]], [[0d4], [0d5], [0d6]]]
+        tensor dims = SHAPE(t)
         
-        ASSERT(EQ(TYPE(dims), "TNS"))
+        ASSERT(EQ(TYPE(dims), "tensor"))
         ASSERT(EQ(TLEN(dims, 0d1), 0d3))
         ASSERT(EQ(dims[0d1], 0d2))
         ASSERT(EQ(dims[0d2], 0d3))
@@ -36,7 +36,7 @@ passing:
   - name: tlen
     language: Prefix
     source: |
-        TNS tensor = [[[0d1, 0d2, 0d3]], [[0d4, 0d5, 0d6]]]
+        tensor tensor = [[[0d1, 0d2, 0d3]], [[0d4, 0d5, 0d6]]]
         
         ASSERT(EQ(TLEN(tensor, 0b1), 0d2))
         ASSERT(EQ(TLEN(tensor, 0b10), 0d1))
@@ -66,7 +66,7 @@ failing:
   - name: shape-func
     language: Prefix
     source: |
-        SHAPE(LAMBDA INT: (){})
+        SHAPE(LAMBDA int: (){})
         
   - name: shape-int
     language: Prefix
@@ -91,12 +91,12 @@ failing:
   - name: tlen-too-large
     language: Prefix
     source: |
-        TNS tensor = [[0d1, 0d2], [0d3, 0d4]]
+        tensor tensor = [[0d1, 0d2], [0d3, 0d4]]
         
         TLEN(tensor, 0d3)
   - name: tlen-zero-dim
     language: Prefix
     source: |
-        TNS tensor = [[0d1, 0d2], [0d3, 0d4]]
+        tensor tensor = [[0d1, 0d2], [0d3, 0d4]]
         
         TLEN(tensor, 0d0)

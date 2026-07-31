@@ -12,7 +12,7 @@ passing:
   - name: in-rank2
     language: Prefix
     source: |
-        TNS grid = [[0d1, 0d2], [0d3, 0d4]]
+        tensor grid = [[0d1, 0d2], [0d3, 0d4]]
         
         ASSERT(IN(0d4, grid))
         REFUTE(IN(0d9, grid))
@@ -20,7 +20,7 @@ passing:
   - name: in-return-type
     language: Prefix
     source: |
-        ASSERT(EQ(TYPE(IN(0d1, [0d1])), "BOOL"))
+        ASSERT(EQ(TYPE(IN(0d1, [0d1])), "bool"))
         
   - name: in-strings-bools
     language: Prefix

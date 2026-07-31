@@ -1,6 +1,6 @@
 ! Primality and factorization functions
 
-FUNC BOOL IS_PRIME(INT n){
+func bool IS_PRIME(int n){
     IF(LTE(n, 0d1)){
         RETURN(FALSE)
     }
@@ -11,7 +11,7 @@ FUNC BOOL IS_PRIME(INT n){
     IF(EQ(MOD(n, 0d2), 0d0)){
         RETURN(FALSE)
     }
-    INT i = 0d3
+    int i = 0d3
     WHILE(LTE(*(i, i), n)){
         IF(EQ(MOD(n, i), 0d0)){
             RETURN(FALSE)
@@ -21,8 +21,8 @@ FUNC BOOL IS_PRIME(INT n){
     RETURN(TRUE)
 }
 
-FUNC INT NEXT_PRIME(INT start){
-    INT n = +(start, 0d1)
+func int NEXT_PRIME(int start){
+    int n = +(start, 0d1)
     WHILE(0d1){
         IF(IS_PRIME(n)){
             RETURN(n)
@@ -31,8 +31,8 @@ FUNC INT NEXT_PRIME(INT start){
     }
 }
 
-FUNC INT PREV_PRIME(INT start){
-    INT n = -(start, 0d1)
+func int PREV_PRIME(int start){
+    int n = -(start, 0d1)
     WHILE(GT(n, 0d1)){
         IF(IS_PRIME(n)){
             RETURN(n)
@@ -42,10 +42,10 @@ FUNC INT PREV_PRIME(INT start){
     RETURN(0d0)
 }
 
-FUNC BOOL IS_MERSENNE_PRIME(INT p){
+func bool IS_MERSENNE_PRIME(int p){
     IF(IS_PRIME(p)){
-        INT exp = POW(0d2, p)
-        INT mersenne = -(exp, 0d1)
+        int exp = POW(0d2, p)
+        int mersenne = -(exp, 0d1)
         IF(IS_PRIME(mersenne)){
             RETURN(TRUE)
         }
@@ -55,24 +55,24 @@ FUNC BOOL IS_MERSENNE_PRIME(INT p){
     }
 }
 
-FUNC TNS FACTOR(INT n){
+func tensor FACTOR(int n){
     IF(LTE(n, 0d1)){
-        TNS empty = [0d0]
+        tensor empty = [0d0]
         RETURN(empty)
     }
-    INT p = 0d2
-    INT coll_len = 0d0
-    TNS coll = [0d0]  ! placeholder, real shape tracked by coll_len
+    int p = 0d2
+    int coll_len = 0d0
+    tensor coll = [0d0]  ! placeholder, real shape tracked by coll_len
     WHILE(LTE(*(p, p), n)){
         IF(EQ(MOD(n, p), 0d0)){
             IF(EQ(coll_len, 0d0)){
-                TNS first = [p]
+                tensor first = [p]
                 coll = first
                 coll_len = 0d1
             } ELSE {
-                INT old_len = TLEN(coll, 0d1)
-                INT new_len = +(old_len, 0d1)
-                TNS new_coll = TNS([new_len], 0d0)
+                int old_len = TLEN(coll, 0d1)
+                int new_len = +(old_len, 0d1)
+                tensor new_coll = tensor([new_len], 0d0)
                 FOR(i, old_len){
                     new_coll[i] = coll[i]
                 }
@@ -87,13 +87,13 @@ FUNC TNS FACTOR(INT n){
     }
     IF(GT(n, 0d1)){
         IF(EQ(coll_len, 0d0)){
-            TNS last = [n]
+            tensor last = [n]
             coll = last
             coll_len = 0d1
         } ELSE {
-            INT old_len2 = TLEN(coll, 0d1)
-            INT new_len2 = +(old_len2, 0d1)
-            TNS new_coll2 = TNS([new_len2], 0d0)
+            int old_len2 = TLEN(coll, 0d1)
+            int new_len2 = +(old_len2, 0d1)
+            tensor new_coll2 = tensor([new_len2], 0d0)
             FOR(j, old_len2){
                 new_coll2[j] = coll[j]
             }

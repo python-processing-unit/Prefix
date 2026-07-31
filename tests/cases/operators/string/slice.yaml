@@ -2,13 +2,13 @@ passing:
   - name: slice-int-type
     language: Prefix
     source: |
-        ASSERT(EQ(TYPE(SLICE(0d12345, 0d2, 0d4)), "INT"))
-        ASSERT(EQ(TYPE(SLICE(0b1101, 0d1, 0d2)), "INT"))
+        ASSERT(EQ(TYPE(SLICE(0d12345, 0d2, 0d4)), "int"))
+        ASSERT(EQ(TYPE(SLICE(0b1101, 0d1, 0d2)), "int"))
         
   - name: slice-str-basic
     language: Prefix
     source: |
-        ASSERT(EQ(TYPE(SLICE("abcdef", 0d1, 0d3)), "STR"))
+        ASSERT(EQ(TYPE(SLICE("abcdef", 0d1, 0d3)), "str"))
         ASSERT(EQ(SLICE("abcdef", 0d1, 0d3), "abc"))
         ASSERT(EQ(SLICE("abcdef", 0d1, 0d6), "abcdef"))
         

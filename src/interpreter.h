@@ -19,10 +19,10 @@ typedef struct {
 struct Func {
     char *name;
     DeclType return_type;
-    int return_base;           // 0 = parent INT/FLT, 2..64 = named base
-    Value return_schema_value; // MAP return schema, .type==VAL_NULL if none
+    int return_base;           // 0 = parent int/float, 2..64 = named base
+    Value return_schema_value; // map return schema, .type==VAL_NULL if none
     ParamList params;
-    Value *param_schema_values; // evaluated MAP schemas for each param, NULL if none. length = params.count
+    Value *param_schema_values; // evaluated map schemas for each param, NULL if none. length = params.count
     Stmt *body;
     Env *closure;
 };
@@ -84,7 +84,7 @@ typedef struct Interpreter {
     // When non-zero, forwarding of console output (PRINT/CL) is suppressed
     int shushed;
     // Current thread handle when executing in a background thread (NULL in main thread)
-    struct Thr *current_thr;
+    struct Thread *current_thread;
     // When true, first-declarations/typed first-assignment stay in the current
     // env instead of being redirected to parent env (used by PARFOR workers).
     bool isolate_env_writes;
@@ -128,9 +128,9 @@ int value_truthiness(Value v);
 void clear_error(Interpreter *interp);
 // Expose indexed-assignment helper so builtins can reuse it
 ExecResult assign_index_chain(Interpreter *interp, Env *env, Expr *idx_expr, Value rhs, int stmt_line, int stmt_col);
-// Restart a finished thread `thr_val` by re-launching its stored body/env.
+// Restart a finished thread `thread_val` by re-launching its stored body/env.
 // Returns 0 on success, -1 on failure. On failure, sets interp->error/message.
-int interpreter_restart_thread(Interpreter *interp, Value thr_val, int line, int col);
+int interpreter_restart_thread(Interpreter *interp, Value thread_val, int line, int col);
 
 // Module registry helpers
 // Register a module name and create its isolated Env. Returns 0 on success, -1 on error.

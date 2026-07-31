@@ -32,29 +32,29 @@ failing:
   - name: string-invalid-U-escape-uppercase
     language: Prefix
     source: |
-        STR bad = "\U0000G000"
+        str bad = "\U0000G000"
         
   - name: string-invalid-U-short-escape
     language: Prefix
-    source: 'STR bad = "\U0000123"'
+    source: 'str bad = "\U0000123"'
   - name: string-invalid-escape
     language: Prefix
     source: |
-        STR bad = "oops\q"
+        str bad = "oops\q"
         
   - name: string-invalid-u-escape
     language: Prefix
     source: |
-        STR bad = "\u12G4"
+        str bad = "\u12G4"
         
   - name: string-invalid-u-short
     language: Prefix
-    source: 'STR bad = "\u123"'
+    source: 'str bad = "\u123"'
   - name: string-invalid-x-escape
     language: Prefix
     source: |
-        STR bad = "\xGG"
+        str bad = "\xGG"
         
   - name: string-invalid-x-short
     language: Prefix
-    source: 'STR bad = "\x4"'
+    source: 'str bad = "\x4"'

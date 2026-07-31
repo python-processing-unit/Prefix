@@ -46,7 +46,7 @@ typedef enum {
     TOKEN_WHILE,
     TOKEN_FOR,
     TOKEN_PARFOR,
-    TOKEN_THR,
+    TOKEN_THREAD,
     TOKEN_FUNC,
     TOKEN_LAMBDA,
     TOKEN_ASYNC,

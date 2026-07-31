@@ -2,7 +2,7 @@ passing:
   - name: throw-concat-message
     language: Prefix
     source: |
-        BOOL caught = FALSE
+        bool caught = FALSE
         
         TRY{
             THROW("left=", 0d42, ",right=", -0b10)
@@ -16,7 +16,7 @@ passing:
   - name: throw-control-transfer
     language: Prefix
     source: |
-        INT step = 0d0
+        int step = 0d0
         
         TRY{
             step = 0d1
@@ -30,7 +30,7 @@ passing:
   - name: throw-default-message
     language: Prefix
     source: |
-        BOOL caught = FALSE
+        bool caught = FALSE
         
         TRY{
             THROW()
@@ -43,7 +43,7 @@ passing:
   - name: throw-empty-message
     language: Prefix
     source: |
-        BOOL caught = FALSE
+        bool caught = FALSE
         
         TRY{
             THROW('')
@@ -57,7 +57,7 @@ passing:
   - name: throw-string-message
     language: Prefix
     source: |
-        BOOL caught = FALSE
+        bool caught = FALSE
         
         TRY{
             THROW('prefix')

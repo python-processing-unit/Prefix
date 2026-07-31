@@ -2,42 +2,42 @@ passing:
   - name: await-expression-handle
     language: Prefix
     source: |
-        THR worker = ASYNC{}
-        THR awaited = AWAIT(worker)
+        thread worker = ASYNC{}
+        thread awaited = AWAIT(worker)
         
-        ASSERT(EQ(TYPE(awaited), "THR"))
+        ASSERT(EQ(TYPE(awaited), "thread"))
         ASSERT(EQ(awaited, worker))
-        REFUTE(BOOL(awaited))
+        REFUTE(bool(awaited))
   - name: await-finished-thread
     language: Prefix
     source: |
-        THR(worker){}
+        thread(worker){}
         
         AWAIT(worker)
         
         ASSERT(EQ(AWAIT(worker), worker))
-        REFUTE(BOOL(worker))
+        REFUTE(bool(worker))
   - name: await-shared-mutation
     language: Prefix
     source: |
-        INT shared = 0d0
+        int shared = 0d0
         
-        THR(worker){
+        thread(worker){
             FOR(i, 0d256){
             }
             shared = 0d1
         }
         
-        THR awaited = AWAIT(worker)
+        thread awaited = AWAIT(worker)
         
         ASSERT(EQ(awaited, worker))
         ASSERT(EQ(shared, 0d1))
-        REFUTE(BOOL(worker))
+        REFUTE(bool(worker))
 failing:
   - name: await-arity-two
     language: Prefix
     source: |
-        THR(worker){}
+        thread(worker){}
         AWAIT(worker, worker)
   - name: await-arity-zero
     language: Prefix
@@ -50,7 +50,7 @@ failing:
     source: AWAIT(0d1.0)
   - name: await-type-func
     language: Prefix
-    source: 'AWAIT(LAMBDA BOOL: (){})'
+    source: 'AWAIT(LAMBDA bool: (){})'
   - name: await-type-int
     language: Prefix
     source: AWAIT(0d1)

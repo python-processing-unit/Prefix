@@ -4,7 +4,7 @@ passing:
     source: |
         IMPORT("path")
         
-        STR p = path.TEMPFILE("prefix-writefile-ansi.txt")
+        str p = path.TEMPFILE("prefix-writefile-ansi.txt")
         
         ASSERT(WRITEFILE("Prefix", p, coding = "ANSI"))
         ASSERT(EQ(READFILE(p, coding = "ANSI"), "Prefix"))
@@ -14,7 +14,7 @@ passing:
     source: |
         IMPORT("path")
         
-        STR p = path.TEMPFILE("prefix-writefile-bin.bin")
+        str p = path.TEMPFILE("prefix-writefile-bin.bin")
         
         ASSERT(WRITEFILE("0100000101111010", p, coding = "bin"))
         ASSERT(EQ(READFILE(p, coding = "bin"), "0100000101111010"))
@@ -25,7 +25,7 @@ passing:
     source: |
         IMPORT("path")
         
-        STR p = path.TEMPFILE("prefix-writefile-binary.bin")
+        str p = path.TEMPFILE("prefix-writefile-binary.bin")
         
         ASSERT(WRITEFILE("0100000101111010", p, coding = "binary"))
         ASSERT(EQ(READFILE(p, coding = "binary"), "0100000101111010"))
@@ -36,7 +36,7 @@ passing:
     source: |
         IMPORT("path")
         
-        STR d = path.TEMPFILE("prefix-writefile-fail-dir")
+        str d = path.TEMPFILE("prefix-writefile-fail-dir")
         
         IF(EQ(OS(),"win")){
             ASSERT(EQ(CL(JOIN("powershell -NoProfile -NonInteractive -Command \"New-Item -ItemType Directory -Force -Path '", path.WINPATH(d), "'\"")), 0d0))
@@ -51,7 +51,7 @@ passing:
     source: |
         IMPORT("path")
         
-        STR p = path.TEMPFILE("prefix-writefile-hex.bin")
+        str p = path.TEMPFILE("prefix-writefile-hex.bin")
         
         ASSERT(WRITEFILE("507265666978", p, coding = "hex"))
         ASSERT(EQ(READFILE(p), "Prefix"))
@@ -62,7 +62,7 @@ passing:
     source: |
         IMPORT("path")
         
-        STR p = path.TEMPFILE("prefix-writefile-utf16-be.txt")
+        str p = path.TEMPFILE("prefix-writefile-utf16-be.txt")
         
         ASSERT(WRITEFILE("Prefix", p, coding = "UTF-16 BE"))
         ASSERT(EQ(READFILE(p, coding = "UTF-16 BE"), "Prefix"))
@@ -72,7 +72,7 @@ passing:
     source: |
         IMPORT("path")
         
-        STR p = path.TEMPFILE("prefix-writefile-utf16-le.txt")
+        str p = path.TEMPFILE("prefix-writefile-utf16-le.txt")
         
         ASSERT(WRITEFILE("Prefix", p, coding = "UTF-16 LE"))
         ASSERT(EQ(READFILE(p, coding = "UTF-16 LE"), "Prefix"))
@@ -82,7 +82,7 @@ passing:
     source: |
         IMPORT("path")
         
-        STR p = path.TEMPFILE("prefix-writefile-utf8-bom.txt")
+        str p = path.TEMPFILE("prefix-writefile-utf8-bom.txt")
         
         ASSERT(WRITEFILE("Prefix", p, coding = "UTF-8 BOM"))
         ASSERT(EQ(READFILE(p), "Prefix"))
@@ -93,7 +93,7 @@ passing:
     source: |
         IMPORT("path")
         
-        STR p = path.TEMPFILE("prefix-writefile-utf8.txt")
+        str p = path.TEMPFILE("prefix-writefile-utf8.txt")
         
         ASSERT(WRITEFILE("Prefix", p))
         ASSERT(EQ(READFILE(p), "Prefix"))
@@ -105,7 +105,7 @@ failing:
     source: |
         IMPORT("path")
         
-        STR p = path.TEMPFILE("prefix-writefile-bad-binary2.txt")
+        str p = path.TEMPFILE("prefix-writefile-bad-binary2.txt")
         
         WRITEFILE("010a0101", p, coding = "binary")
         
@@ -114,7 +114,7 @@ failing:
     source: |
         IMPORT("path")
         
-        STR p = path.TEMPFILE("prefix-writefile-bad-binary.txt")
+        str p = path.TEMPFILE("prefix-writefile-bad-binary.txt")
         
         WRITEFILE("101", p, coding = "binary")
         
@@ -123,7 +123,7 @@ failing:
     source: |
         IMPORT("path")
         
-        STR p = path.TEMPFILE("prefix-writefile-bad-hex.txt")
+        str p = path.TEMPFILE("prefix-writefile-bad-hex.txt")
         
         WRITEFILE("abc", p, coding = "hex")
         
@@ -132,7 +132,7 @@ failing:
     source: |
         IMPORT("path")
         
-        STR p = path.TEMPFILE("prefix-writefile-unsupported.txt")
+        str p = path.TEMPFILE("prefix-writefile-unsupported.txt")
         
         WRITEFILE("Prefix", p, coding = "UTF-7")
         

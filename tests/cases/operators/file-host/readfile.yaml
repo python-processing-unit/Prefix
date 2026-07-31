@@ -4,7 +4,7 @@ passing:
     source: |
         IMPORT("path")
         
-        STR p = JOIN(path.script_dir, "/plain.txt")
+        str p = JOIN(path.script_dir, "/plain.txt")
         
         ASSERT(EQ(READFILE(p, coding = "ANSI"), "Prefix"))
         
@@ -13,7 +13,7 @@ passing:
     source: |
         IMPORT("path")
         
-        STR p = JOIN(path.script_dir, "/plain.txt")
+        str p = JOIN(path.script_dir, "/plain.txt")
         
         ASSERT(EQ(READFILE(p, coding = "binary"), "010100000111001001100101011001100110100101111000"))
         ASSERT(EQ(READFILE(p, coding = "hex"), "507265666978"))
@@ -23,7 +23,7 @@ passing:
     source: |
         IMPORT("path")
         
-        STR p = JOIN(path.script_dir, "/plain.txt")
+        str p = JOIN(path.script_dir, "/plain.txt")
         
         ASSERT(EQ(READFILE(p), "Prefix"))
         ASSERT(EQ(READFILE(p, coding = "uTf-8"), "Prefix"))
@@ -33,7 +33,7 @@ passing:
     source: |
         IMPORT("path")
         
-        STR p = path.TEMPFILE("prefix-readfile-utf16-replacement.bin")
+        str p = path.TEMPFILE("prefix-readfile-utf16-replacement.bin")
         
         ASSERT(WRITEFILE("00D8", p, coding = "hex"))
         ASSERT(EQ(READFILE(p, coding = "UTF-16 LE"), "\uFFFD"))
@@ -44,7 +44,7 @@ failing:
     source: |
         IMPORT("path")
         
-        STR missing = path.TEMPFILE("prefix-readfile-missing.txt")
+        str missing = path.TEMPFILE("prefix-readfile-missing.txt")
         TRY{ DELETEFILE(missing) } CATCH { }
         READFILE(missing)
         
@@ -53,7 +53,7 @@ failing:
     source: |
         IMPORT("path")
         
-        STR p = JOIN(path.script_dir, "/plain.txt")
+        str p = JOIN(path.script_dir, "/plain.txt")
         
         READFILE(p, coding = "UTF-7")
         

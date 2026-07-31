@@ -1,32 +1,32 @@
 ! LCG-based pseudorandom number generator
 
-INT MASK32 = -( POW(0b10, 0b100000), 0b1 )  ! 2^32 - 1
+int MASK32 = -( POW(0b10, 0b100000), 0b1 )  ! 2^32 - 1
 
 ! LCG constants: state = (A * state + C) mod 2^32
-INT LCG_A = 0b000110010110011000001101          ! 1664525
-INT LCG_C = 0b00111100011011101111001101011111  ! 1013904223
-INT lcg_state = 0b1
+int LCG_A = 0b000110010110011000001101          ! 1664525
+int LCG_C = 0b00111100011011101111001101011111  ! 1013904223
+int lcg_state = 0b1
 
-FUNC INT SEED(INT seed){
+func int SEED(int seed){
     lcg_state = BAND(seed, MASK32)
     RETURN(lcg_state)
 }
 
-FUNC INT NEXT(){
+func int NEXT(){
     lcg_state = BAND( +( *(LCG_A, lcg_state), LCG_C ), MASK32 )
     RETURN(lcg_state)
 }
 
-FUNC INT RANGE(INT max){
+func int RANGE(int max){
     ASSERT( GT(max, 0b0) )
     RETURN( MOD(NEXT(), max) )
 }
 
-FUNC INT RANGE_MIN_MAX(INT min, INT max){
+func int RANGE_MIN_MAX(int min, int max){
     ASSERT( LTE(min, max) )
-    INT range = -(max, min)
+    int range = -(max, min)
     IF( EQ(range, 0b0) ){ RETURN(min) }
     ASSERT( GT(range, 0b0) )
-    INT offset = RANGE(range)
+    int offset = RANGE(range)
     RETURN( +(offset, min) )
 }

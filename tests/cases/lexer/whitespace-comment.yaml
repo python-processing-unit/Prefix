@@ -2,55 +2,55 @@ passing:
   - name: caret-before-comment
     language: Prefix
     source: |
-        BOOL ^! comment
+        bool ^! comment
         x = TRUE
         
   - name: comment
     language: Prefix
     source: |
-        BOOL x = TRUE ! foo
+        bool x = TRUE ! foo
         
   - name: statement-using-caret
     language: Prefix
     source: |
-        BOOL ^
+        bool ^
         x = TRUE
         
   - name: statements-semicolon-delimiter
     language: Prefix
     source: |
-        BOOL x = TRUE ; BOOL y = FALSE
+        bool x = TRUE ; bool y = FALSE
         
   - name: whitespace
     language: Prefix
     source: |
-        BOOL x = TRUE
-        BOOL x = TRUE
-        BOOL x = TRUE
-        BOOL x = TRUE
-        BOOL x= TRUE
-        BOOL x =TRUE
-        BOOL x=TRUE
+        bool x = TRUE
+        bool x = TRUE
+        bool x = TRUE
+        bool x = TRUE
+        bool x= TRUE
+        bool x =TRUE
+        bool x=TRUE
         
 failing:
   - name: statement-with-caret
     language: Prefix
     source: |
-        BOOL x ^ = TRUE
+        bool x ^ = TRUE
         
   - name: statement-with-delimiter
     language: Prefix
     source: |
-        BOOL 
+        bool 
          x = TRUE
         
   - name: statement-with-semicolon
     language: Prefix
     source: |
-        BOOL ; x = TRUE
+        bool ; x = TRUE
         
   - name: statements-no-delimiter
     language: Prefix
     source: |
-        BOOL x = TRUE BOOL y = FALSE
+        bool x = TRUE bool y = FALSE
         

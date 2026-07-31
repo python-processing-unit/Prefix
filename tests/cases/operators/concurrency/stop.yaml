@@ -2,61 +2,61 @@ passing:
   - name: stop-async-deferred-arg
     language: Prefix
     source: |
-        BOOL reached_end = FALSE
+        bool reached_end = FALSE
         
-        THR stopped = STOP(ASYNC{
+        thread stopped = STOP(ASYNC{
             FOR(i, 0d100000){}
             reached_end = TRUE
         })
         
-        ASSERT(EQ(TYPE(stopped), "THR"))
-        REFUTE(BOOL(stopped))
+        ASSERT(EQ(TYPE(stopped), "thread"))
+        REFUTE(bool(stopped))
         ASSERT(EQ(reached_end, FALSE))
         
   - name: stop-async-handle
     language: Prefix
     source: |
-        BOOL reached_end = FALSE
+        bool reached_end = FALSE
         
-        THR worker = ASYNC{
+        thread worker = ASYNC{
             FOR(i, 0d100000){}
             reached_end = TRUE
         }
         
-        ASSERT(BOOL(worker))
+        ASSERT(bool(worker))
         
-        THR stopped = STOP(worker)
+        thread stopped = STOP(worker)
         
-        ASSERT(EQ(TYPE(stopped), "THR"))
+        ASSERT(EQ(TYPE(stopped), "thread"))
         ASSERT(EQ(stopped, worker))
-        REFUTE(BOOL(worker))
-        REFUTE(BOOL(stopped))
+        REFUTE(bool(worker))
+        REFUTE(bool(stopped))
         ASSERT(EQ(reached_end, FALSE))
   - name: stop-thread-handle
     language: Prefix
     source: |
-        BOOL reached_end = FALSE
+        bool reached_end = FALSE
         
-        THR(worker){
+        thread(worker){
             FOR(i, 0d1000000){
             }
             reached_end = TRUE
         }
         
-        ASSERT(BOOL(worker))
+        ASSERT(bool(worker))
         
-        THR stopped = STOP(worker)
+        thread stopped = STOP(worker)
         
-        ASSERT(EQ(TYPE(stopped), "THR"))
+        ASSERT(EQ(TYPE(stopped), "thread"))
         ASSERT(EQ(stopped, worker))
-        REFUTE(BOOL(worker))
-        REFUTE(BOOL(stopped))
+        REFUTE(bool(worker))
+        REFUTE(bool(stopped))
         ASSERT(EQ(reached_end, FALSE))
 failing:
   - name: stop-arity-two
     language: Prefix
     source: |
-        THR(worker){}
+        thread(worker){}
         
         STOP(worker, worker)
   - name: stop-arity-zero
@@ -70,7 +70,7 @@ failing:
     source: STOP(0d1.0)
   - name: stop-type-func
     language: Prefix
-    source: 'STOP(LAMBDA BOOL: (){})'
+    source: 'STOP(LAMBDA bool: (){})'
   - name: stop-type-int
     language: Prefix
     source: STOP(0d1)

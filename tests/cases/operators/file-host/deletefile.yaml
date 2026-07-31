@@ -4,7 +4,7 @@ passing:
     source: |
         IMPORT("path")
         
-        STR p = path.TEMPFILE("temp.txt")
+        str p = path.TEMPFILE("temp.txt")
         WRITEFILE("Prefix", p)
         ASSERT(EXISTFILE(p))
         ASSERT(DELETEFILE(p))
@@ -15,7 +15,7 @@ failing:
     source: |
         IMPORT("path")
         
-        STR p = path.TEMPFILE("temp.txt")
+        str p = path.TEMPFILE("temp.txt")
         WRITEFILE("Prefix", p)
         ASSERT(EXISTFILE(p))
         ASSERT(DELETEFILE(p, "Prefix"))
@@ -30,7 +30,7 @@ failing:
     source: DELETEFILE(0d1.0)
   - name: deletefile-func
     language: Prefix
-    source: 'DELETEFILE(LAMBDA BOOL: (){})'
+    source: 'DELETEFILE(LAMBDA bool: (){})'
   - name: deletefile-int
     language: Prefix
     source: DELETEFILE(0d1)

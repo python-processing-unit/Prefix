@@ -2,7 +2,7 @@ passing:
   - name: while
     language: Prefix
     source: |
-        INT c = 0d0
+        int c = 0d0
         WHILE(LT(c, 0d10)){
             +(@c, 0d1)
         }

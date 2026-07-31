@@ -32,9 +32,9 @@ Expr *expr_int(int64_t value, int base, int line, int column) {
     return expr;
 }
 
-Expr *expr_flt(double value, int base, int base_is_nan, int line, int column) {
+Expr *expr_float(double value, int base, int base_is_nan, int line, int column) {
     Expr *expr = ast_alloc(sizeof(Expr));
-    expr->type = EXPR_FLT;
+    expr->type = EXPR_FLOAT;
     expr->line = line;
     expr->column = column;
     expr->as.flt_value.value = value;
@@ -91,9 +91,9 @@ Expr *expr_call(Expr *callee, int line, int column) {
     return expr;
 }
 
-Expr *expr_tns(int line, int column) {
+Expr *expr_tensor(int line, int column) {
     Expr *expr = ast_alloc(sizeof(Expr));
-    expr->type = EXPR_TNS;
+    expr->type = EXPR_TENSOR;
     expr->line = line;
     expr->column = column;
     expr->as.tns_items.items = NULL;
@@ -353,13 +353,13 @@ Stmt *stmt_continue(int line, int column) {
     return stmt;
 }
 
-Stmt *stmt_thr(char *name, Stmt *body, int line, int column) {
+Stmt *stmt_thread(char *name, Stmt *body, int line, int column) {
     Stmt *stmt = ast_alloc(sizeof(Stmt));
-    stmt->type = STMT_THR;
+    stmt->type = STMT_THREAD;
     stmt->line = line;
     stmt->column = column;
-    stmt->as.thr_stmt.name = name;
-    stmt->as.thr_stmt.body = body;
+    stmt->as.thread_stmt.name = name;
+    stmt->as.thread_stmt.body = body;
     return stmt;
 }
 
@@ -452,7 +452,7 @@ void free_expr(Expr *expr) {
     case EXPR_PTR:
         free(expr->as.ptr_name);
         break;
-    case EXPR_TNS:
+    case EXPR_TENSOR:
         free_expr_list(&expr->as.tns_items);
         break;
     case EXPR_MAP:
@@ -569,9 +569,9 @@ void free_stmt(Stmt *stmt) {
     case STMT_BREAK:
         free_expr(stmt->as.break_stmt.value);
         break;
-    case STMT_THR:
-        free(stmt->as.thr_stmt.name);
-        free_stmt(stmt->as.thr_stmt.body);
+    case STMT_THREAD:
+        free(stmt->as.thread_stmt.name);
+        free_stmt(stmt->as.thread_stmt.body);
         break;
     case STMT_TRY:
         free_stmt(stmt->as.try_stmt.try_block);

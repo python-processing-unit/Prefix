@@ -2,23 +2,23 @@ passing:
   - name: signature
     language: Prefix
     source: |
-        INT sample_value = 0d5
+        int sample_value = 0d5
         
-        FUNC INT plain(INT left, STR right = "def"){
+        func int plain(int left, str right = "def"){
             RETURN(left)
         }
         
-        FUNC INT coerced(~INT value, STR suffix = "x"){
+        func int coerced(~int value, str suffix = "x"){
             RETURN(value)
         }
         
-        FUNC STR local_signature(){
-            INT inner_value = 0d1
+        func str local_signature(){
+            int inner_value = 0d1
             RETURN(SIGNATURE(inner_value))
         }
         
-        ASSERT(EQ(SIGNATURE(sample_value), 'INT sample_value'))
-        ASSERT(EQ(SIGNATURE(plain), 'INT plain(INT left, STR right = "def")'))
-        ASSERT(EQ(SIGNATURE(coerced), 'INT coerced(~INT value, STR suffix = "x")'))
-        ASSERT(EQ(local_signature(), 'INT inner_value'))
+        ASSERT(EQ(SIGNATURE(sample_value), 'int sample_value'))
+        ASSERT(EQ(SIGNATURE(plain), 'int plain(int left, str right = "def")'))
+        ASSERT(EQ(SIGNATURE(coerced), 'int coerced(~int value, str suffix = "x")'))
+        ASSERT(EQ(local_signature(), 'int inner_value'))
         

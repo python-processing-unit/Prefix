@@ -2,36 +2,36 @@ passing:
   - name: fill-basic
     language: Prefix
     source: |
-        TNS src = [0d1, 0d2, 0d3]
+        tensor src = [0d1, 0d2, 0d3]
         
-        ASSERT(EQ(TYPE(FILL(src, 0d9)), "TNS"))
+        ASSERT(EQ(TYPE(FILL(src, 0d9)), "tensor"))
         ASSERT(EQ(FILL(src, 0d9), [0d9, 0d9, 0d9]))
   - name: fill-bool-elements
     language: Prefix
     source: |
-        TNS flags = [TRUE, FALSE, TRUE]
+        tensor flags = [TRUE, FALSE, TRUE]
         
         ASSERT(EQ(FILL(flags, FALSE), [FALSE, FALSE, FALSE]))
   - name: fill-rank2-shape
     language: Prefix
     source: |
-        TNS src = [[0d1, 0d2], [0d3, 0d4]]
-        TNS out = FILL(src, 0d0)
+        tensor src = [[0d1, 0d2], [0d3, 0d4]]
+        tensor out = FILL(src, 0d0)
         
         ASSERT(EQ(out, [[0d0, 0d0], [0d0, 0d0]]))
         ASSERT(EQ(SHAPE(out), [0d2, 0d2]))
   - name: fill-source-unchanged
     language: Prefix
     source: |
-        TNS src = [0d10, 0d20]
-        TNS out = FILL(src, 0d99)
+        tensor src = [0d10, 0d20]
+        tensor out = FILL(src, 0d99)
         
         ASSERT(EQ(src, [0d10, 0d20]))
         ASSERT(EQ(out, [0d99, 0d99]))
   - name: fill-string-elements
     language: Prefix
     source: |
-        TNS words = ["alpha", "beta", "gamma"]
+        tensor words = ["alpha", "beta", "gamma"]
         
         ASSERT(EQ(FILL(words, "z"), ["z", "z", "z"]))
 failing:
@@ -51,11 +51,11 @@ failing:
     language: Prefix
     source: |
         // FILL / TFLIP writeback expectations
-        TNS dst1 = [0d0, 0d0, 0d0]
+        tensor dst1 = [0d0, 0d0, 0d0]
         FILL(@dst1, 0d7)
         ASSERT(EQ(dst1, [0d7, 0d7, 0d7]))
         
-        TNS a1 = [[0d1, 0d2], [0d3, 0d4]]
+        tensor a1 = [[0d1, 0d2], [0d3, 0d4]]
         TFLIP(@a1)
         ASSERT(EQ(a1, [[0d1, 0d3], [0d2, 0d4]]))
         

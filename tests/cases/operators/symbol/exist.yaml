@@ -2,20 +2,20 @@ passing:
   - name: exist
     language: Prefix
     source: |
-        BOOL outer = TRUE
-        BOOL declared_only
-        STR outer_name = "outer"
+        bool outer = TRUE
+        bool declared_only
+        str outer_name = "outer"
         
-        FUNC BOOL outer_visible(){
+        func bool outer_visible(){
             RETURN(EXIST(outer_name))
         }
         
-        FUNC BOOL inner_visible(){
-            BOOL inner = TRUE
+        func bool inner_visible(){
+            bool inner = TRUE
             RETURN(EXIST("inner"))
         }
         
-        FUNC BOOL missing_visible(){
+        func bool missing_visible(){
             RETURN(EXIST("missing"))
         }
         
@@ -33,5 +33,5 @@ failing:
   - name: exist-raw-symbol-argument
     language: Prefix
     source: |
-        BOOL x = TRUE
+        bool x = TRUE
         EXIST(x)

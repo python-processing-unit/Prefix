@@ -2,8 +2,8 @@ passing:
   - name: append-any-element
     language: Prefix
     source: |
-        MAP m = <"k" = 0d1>
-        TNS nested = [0d5, 0d6]
+        map m = <"k" = 0d1>
+        tensor nested = [0d5, 0d6]
         
         ASSERT(EQ(APPEND(m, [0d1]), [0d1, m]))
         ASSERT(EQ(APPEND(nested, [0d1]), [0d1, nested]))
@@ -11,10 +11,10 @@ passing:
   - name: append-basic
     language: Prefix
     source: |
-        TNS base = [0d1, 0d2]
-        TNS out = APPEND(0d3, base)
+        tensor base = [0d1, 0d2]
+        tensor out = APPEND(0d3, base)
         
-        ASSERT(EQ(TYPE(out), "TNS"))
+        ASSERT(EQ(TYPE(out), "tensor"))
         ASSERT(EQ(out, [0d1, 0d2, 0d3]))
         
   - name: append-end-order
@@ -26,19 +26,19 @@ passing:
   - name: append-pointer-writeback
     language: Prefix
     source: |
-        TNS t1 = [0d1, 0d2]
+        tensor t1 = [0d1, 0d2]
         APPEND(0d3, @t1)
         ASSERT(EQ(t1, [0d1, 0d2, 0d3]))
         
-        TNS t2 = ["a", "b"]
+        tensor t2 = ["a", "b"]
         APPEND("c", @t2)
         ASSERT(EQ(t2, ["a", "b", "c"]))
         
   - name: append-source-unchanged
     language: Prefix
     source: |
-        TNS src = [0d10, 0d20]
-        TNS out = APPEND(0d30, src)
+        tensor src = [0d10, 0d20]
+        tensor out = APPEND(0d30, src)
         
         ASSERT(EQ(src, [0d10, 0d20]))
         ASSERT(EQ(out, [0d10, 0d20, 0d30]))
