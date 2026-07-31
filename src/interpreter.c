@@ -436,9 +436,51 @@ typedef struct {
     Value thread_val;
 } ThrStart;
 
+// Initialize the background-thread registry on an interpreter. The per-worker
+// interpreters spawned for async/thread are built with memset(0) rather than
+// interpreter_init(), so their registry mutex must be initialized explicitly
+// or any lock/unlock on it is undefined behavior.
+static void bg_threads_init(Interpreter *interp) {
+    if (!interp) {
+        return;
+    }
+    interp->bg_threads = NULL;
+    interp->bg_thread_count = 0;
+    interp->bg_thread_cap = 0;
+    mtx_init(&interp->bg_threads_lock, 0);
+}
+
+// Register a background thread on the interpreter that spawned it. The registry
+// is only used to detect, at teardown, whether workers might still be using
+// shared state (global_env/modules). We deliberately do NOT join such threads:
+// async/thread workers may be long-running or infinite by design, so blocking
+// on them at process exit would hang. Instead the interpreter skips freeing
+// shared state while any worker is live and lets the OS reclaim it on exit.
+static void bg_threads_register(Interpreter *interp, struct Thread *th) {
+    if (!interp || !th) {
+        return;
+    }
+    mtx_lock(&interp->bg_threads_lock);
+    if (interp->bg_thread_count + 1 > interp->bg_thread_cap) {
+        size_t newcap = interp->bg_thread_cap ? interp->bg_thread_cap * 2 : 8;
+        struct Thread **nb = realloc(interp->bg_threads, newcap * sizeof(*nb));
+        if (!nb) {
+            mtx_unlock(&interp->bg_threads_lock);
+            return;
+        }
+        interp->bg_threads = nb;
+        interp->bg_thread_cap = newcap;
+    }
+    interp->bg_threads[interp->bg_thread_count++] = th;
+    mtx_unlock(&interp->bg_threads_lock);
+}
+
 static int thread_worker(void *arg) {
     ThrStart *start = (ThrStart *)arg;
     LabelMap labels = {0};
+    // The worker's interpreter was zero-initialized, not via interpreter_init,
+    // so its background-thread registry mutex must be set up explicitly.
+    bg_threads_init(start->interp);
     start->interp->current_thread = start->thread_val.as.thread;
     ExecResult res = exec_stmt(start->interp, start->body, start->env, &labels);
 
@@ -461,6 +503,13 @@ static int thread_worker(void *arg) {
      * worker must not free it. Ownership remains with the parent
      * interpreter which will free the env when appropriate.
      */
+    // The worker's own registry (used if it spawned nested async/thread
+    // workers) is just bookkeeping; we do not join those threads here
+    // because they may be long-running or infinite. Free the array and
+    // destroy the lock now that exec_stmt has returned and no further
+    // registrations can occur on this interpreter.
+    free(start->interp->bg_threads);
+    mtx_destroy(&start->interp->bg_threads_lock);
     free(start->interp);
     free(start);
     return 0;
@@ -808,6 +857,9 @@ static int start_deferred_async_handle(Interpreter *interp, Value thread_val, in
     }
 
     value_thread_set_started(thread_val, 1);
+    if (interp) {
+        bg_threads_register(interp, thread_val.as.thread);
+    }
     return 0;
 }
 
@@ -2381,6 +2433,7 @@ Value eval_expr(Interpreter *interp, Expr *expr, Env *env) {
             value_free(thread_val);
             return value_null();
         }
+        bg_threads_register(interp, thread_for_worker.as.thread);
         return thread_val;
     }
     case EXPR_MAP: {
@@ -3787,6 +3840,7 @@ static ExecResult exec_stmt(Interpreter *interp, Stmt *stmt, Env *env, LabelMap 
             free(start);
             return make_error("Failed to start thread", stmt->line, stmt->column);
         }
+        bg_threads_register(interp, thread_for_worker.as.thread);
         return make_ok(value_null());
     }
 
@@ -3823,6 +3877,7 @@ static ExecResult exec_stmt(Interpreter *interp, Stmt *stmt, Env *env, LabelMap 
             free(start);
             return make_error("Failed to start async", stmt->line, stmt->column);
         }
+        bg_threads_register(interp, thread_for_worker.as.thread);
         return make_ok(value_null());
     }
 
@@ -3871,6 +3926,9 @@ static ExecResult exec_stmt(Interpreter *interp, Stmt *stmt, Env *env, LabelMap 
             if (interpreter_thr_should_stop(interp)) {
                 break;
             }
+            // A paused worker must not evaluate the loop condition or advance;
+            // freeze at the iteration boundary until it is resumed.
+            wait_if_paused(interp);
             if (++iteration_count > max_iterations) {
                 interp->loop_depth--;
                 return make_error("Infinite loop detected", stmt->line, stmt->column);
@@ -4013,6 +4071,9 @@ static ExecResult exec_stmt(Interpreter *interp, Stmt *stmt, Env *env, LabelMap 
             if (interpreter_thr_should_stop(interp)) {
                 break;
             }
+            // A paused worker must not evaluate the loop condition or advance;
+            // freeze at the iteration boundary until it is resumed.
+            wait_if_paused(interp);
             if (++iteration_count > max_iterations) {
                 /* cleanup alias/temp and restore previous local if needed */
                 env_delete(env, stmt->as.for_stmt.counter);
@@ -4404,6 +4465,7 @@ void interpreter_init(Interpreter *interp, const char *source_path, bool verbose
     interp->trace_next_step_index = 0;
     snprintf(interp->trace_last_state_id, sizeof(interp->trace_last_state_id), "seed");
     interp->trace_last_rule[0] = '\0';
+    bg_threads_init(interp);
 
     if (!interp->private_mode) {
         if (trace_push_frame(interp, "<top-level>", interp->global_env, 0, 0, 0) != 0) {
@@ -4432,22 +4494,38 @@ void interpreter_destroy(Interpreter *interp) {
         return;
     }
 
-    if (interp->global_env) {
-        env_free(interp->global_env);
-        interp->global_env = NULL;
-    }
+    // If background threads (async/thread) are still live, they execute
+    // against this interpreter's shared global_env and modules. Freeing those
+    // now would be a use-after-free if a worker touches them during teardown
+    // (observed intermittently under CI load). Such workers may be long-running
+    // or infinite by design, so we must not block waiting for them. Instead we
+    // deliberately leak the shared state; the OS reclaims it when the process
+    // exits and forcibly terminates the remaining threads.
+    int has_live_threads = (interp->bg_thread_count > 0);
 
-    ModuleEntry *me = interp->modules;
-    while (me) {
-        ModuleEntry *next = me->next;
-        free(me->name);
-        if (me->owns_env) {
-            env_free(me->env);
+    free(interp->bg_threads);
+    interp->bg_threads = NULL;
+    interp->bg_thread_cap = 0;
+    mtx_destroy(&interp->bg_threads_lock);
+
+    if (!has_live_threads) {
+        if (interp->global_env) {
+            env_free(interp->global_env);
+            interp->global_env = NULL;
         }
-        free(me);
-        me = next;
+
+        ModuleEntry *me = interp->modules;
+        while (me) {
+            ModuleEntry *next = me->next;
+            free(me->name);
+            if (me->owns_env) {
+                env_free(me->env);
+            }
+            free(me);
+            me = next;
+        }
+        interp->modules = NULL;
     }
-    interp->modules = NULL;
 
     if (interp->error) {
         free(interp->error);
@@ -4523,6 +4601,9 @@ int interpreter_restart_thread(Interpreter *interp, Value thread_val, int line, 
             interp->error = strdup("Failed to restart thread");
         }
         return -1;
+    }
+    if (interp) {
+        bg_threads_register(interp, th);
     }
     return 0;
 }
