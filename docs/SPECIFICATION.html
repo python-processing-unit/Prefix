@@ -64,9 +64,9 @@ The character `~` MUST be reserved for coerced function parameters and MUST NOT 
 
 Identifiers MUST be non-empty and case-sensitive. Variables and user-defined functions share a single flat namespace, so one name MUST NOT denote both a variable and a function. A user-defined function name MUST NOT conflict with any built-in operator or function name.
 
-Identifiers MUST NOT contain non-ASCII characters or any of the following characters: `{`, `}`, `[`, `]`, `(`, `)`, `=`, `,`, `!`, `~`, or `@`. The first character of an identifier MUST NOT be `0`, and the first two characters of an identifier MUST NOT be `-0`.
+Identifiers MUST NOT contain non-ASCII characters or any of the following characters: `{`, `}`, `[`, `]`, `(`, `)`, `=`, `,`, `!`, `~`, or `@`. The first character of an identifier MUST NOT be a decimal digit (`0`-`9`), and the first two characters of an identifier MUST NOT be `-0`.
 
-The first identifier character MAY be a letter `A-Z` or `a-z`, a decimal digit `1-9`, `*`, or one of `/`, `$`, `%`, `&`, `_`, `+`, `|`, `?`, or `-`. If the first identifier character is `-`, the second character MAY be any otherwise valid identifier character except `0`. Subsequent identifier characters MAY additionally include the digit `0`, `*`, and `-`. The exact spelling `-INF` is reserved by [4.3.2](#432-special-values). This permissive ASCII-only character set preserves an unambiguous distinction between identifiers and numeric literals, which MUST begin with a `0`-prefixed base marker.
+The first identifier character MAY be a letter `A-Z` or `a-z`, `*`, or one of `/`, `$`, `%`, `&`, `_`, `+`, `|`, `?`, or `-`. If the first identifier character is `-`, the second character MUST be valid as an opening character. Subsequent identifier characters MAY additionally include the decimal digits `0-9`, `*`, and `-`. The exact spelling `-INF` is reserved by [4.3.2](#432-special-values). This permissive ASCII-only character set preserves an unambiguous distinction between identifiers and numeric literals, which MUST begin with a decimal digit.
 
 ---
 
@@ -268,7 +268,9 @@ When a `str` is used in a boolean context, an empty string MUST be treated as `F
 
 #### 4.2.1 Integer literals
 
-`int` literals MUST include a base prefix. Valid prefixes are `0b`, `0o`, `0d`, `0x`, `0t`, `0c`, `0s`, and `0rNN` where `NN` is two decimal digits and `2 <= NN <= 64`.
+Non-decimal `int` literals MUST include a base prefix. Valid prefixes are `0b`, `0o`, `0d`, `0x`, `0t`, `0c`, `0s`, and `0rNN` where `NN` is two decimal digits and `2 <= NN <= 64`.
+
+An `int` literal that begins with a decimal digit (`0`-`9`) and does NOT include a base prefix MUST be evaluated as a decimal (base-10) literal. A numeric literal that begins with a decimal digit and includes a base prefix (that is, one or more digits precede the base prefix) MUST raise an error.
 
 `int` literals MUST support negative values via prefixing with a `-` before the base prefix, and positive values with no sign. `int` literals MUST NOT support a `+` prefix.
 
@@ -290,9 +292,11 @@ When an `int` is used in a boolean context, `0` MUST be treated as `FALSE`, and 
 
 #### 4.3.1 Floating-point literals
 
-`float` literals MUST include a base prefix using the same prefix forms as `int` literals.
+Non-decimal `float` literals MUST include a base prefix using the same prefix forms as `int` literals.
 
-`float` literals MUST consist of a prefixed integer part, a radix point (`.`), and a fractional part. The integer and fractional parts MUST each contain at least one digit in the selected base.
+A `float` literal that begins with a decimal digit (`0`-`9`) and does NOT include a base prefix MUST be evaluated as a decimal (base-10) literal. A `float` literal that begins with a decimal digit and includes a base prefix (that is, one or more digits precede the base prefix) MUST raise an error.
+
+`float` literals MUST consist of an integer part (preceded by the base prefix, if present), a radix point (`.`), and a fractional part. The integer and fractional parts MUST each contain at least one digit in the selected base.
 
 `float` literals MUST support negative values via prefixing with a `-` before the base prefix, and positive values with no sign. `float` literals MUST NOT support a `+` prefix.
 
