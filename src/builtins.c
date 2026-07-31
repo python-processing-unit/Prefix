@@ -9498,11 +9498,11 @@ static Value builtin_valuein(Interpreter *interp, Value *args, int argc, Expr **
 }
 
 static int validate_read_metadata(Map *tpl, int *typing, int *recurse, int *shape, int explicit_typing,
-                               int explicit_recurse, int explicit_shape);
+                                  int explicit_recurse, int explicit_shape);
 
 // Helper: recursive validate implementation
 static int validate_map_internal(Map *m, Map *tpl, int typing, int recurse, int shape, int explicit_typing,
-                              int explicit_recurse, int explicit_shape) {
+                                 int explicit_recurse, int explicit_shape) {
     if (!tpl) {
         return 1;
     }
@@ -9558,8 +9558,8 @@ static int validate_map_internal(Map *m, Map *tpl, int typing, int recurse, int 
         if (recurse && mval.type == VAL_MAP && tval.type == VAL_MAP) {
             Map *mm = mval.as.map;
             Map *tt = tval.as.map;
-            int ok =
-                validate_map_internal(mm, tt, typing, recurse, shape, explicit_typing, explicit_recurse, explicit_shape);
+            int ok = validate_map_internal(mm, tt, typing, recurse, shape, explicit_typing, explicit_recurse,
+                                           explicit_shape);
             value_free(mval);
             if (!ok) {
                 return 0;
@@ -9572,7 +9572,7 @@ static int validate_map_internal(Map *m, Map *tpl, int typing, int recurse, int 
 }
 
 static int validate_read_metadata(Map *tpl, int *typing, int *recurse, int *shape, int explicit_typing,
-                               int explicit_recurse, int explicit_shape) {
+                                  int explicit_recurse, int explicit_shape) {
     Value validate_key = value_str("validate");
     int found = 0;
     Value validate_value = value_map_get((Value){.type = VAL_MAP, .as.map = tpl}, validate_key, &found);
@@ -9621,7 +9621,8 @@ static int validate_read_metadata(Map *tpl, int *typing, int *recurse, int *shap
 }
 
 // VALIDATE(map, schema, typing=0, recurse=0, shape=0):int
-static Value builtin_validate(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
+static Value builtin_validate(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line,
+                              int col) {
     (void)arg_nodes;
     (void)env;
     (void)argc;

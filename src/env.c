@@ -796,8 +796,8 @@ int env_permafreeze(Env *env, const char *name) {
 /* ================================================================== */
 
 EnvEntry *env_get_entry(Env *env, const char *name) {
-    EnvEntry *snap = env_entry_snap_alloc();
     if (ns_buffer_active() && !ns_buffer_is_prepare_thread()) {
+        EnvEntry *snap = env_entry_snap_alloc();
         ns_buffer_read_lock(name);
         EnvEntry *entry = env_get_entry_raw(env, name);
         env_entry_snap_from_raw(snap, entry);
@@ -809,14 +809,7 @@ EnvEntry *env_get_entry(Env *env, const char *name) {
         return snap;
     }
 
-    EnvEntry *entry = env_get_entry_raw(env, name);
-    env_entry_snap_from_raw(snap, entry);
-    if (!entry) {
-        // Clear to a canonical empty state and return NULL for not-found.
-        env_entry_snap_clear(snap);
-        return NULL;
-    }
-    return snap;
+    return env_get_entry_raw(env, name);
 }
 
 bool env_get(Env *env, const char *name, Value *out_value, DeclType *out_type, int *out_base, bool *out_initialized) {
