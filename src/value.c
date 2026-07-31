@@ -1089,8 +1089,8 @@ static Value value_map_get_locked(Value mapval, Value key, int *found) {
     return value_copy(m->items[idx].value);
 }
 
-// Minimal match implementation for env-check path (defaults: typing=0, recurse=0, shape=0).
-// Supports "match" metadata override from the schema.
+// Minimal validate implementation for env-check path (defaults: typing=0, recurse=0, shape=0).
+// Supports "validate" metadata override from the schema.
 // Thread-safe: acquires locks on both maps during comparison.
 bool value_map_matches(Value map, Value templ) {
     if (map.type != VAL_MAP || templ.type != VAL_MAP) {
@@ -1113,7 +1113,7 @@ bool value_map_matches(Value map, Value templ) {
         Value tkey = t->items[i].key;
         Value tval = t->items[i].value;
         if (tkey.type == VAL_STR && tkey.as.s && tval.type == VAL_MAP && tval.as.map &&
-            strcmp(tkey.as.s, "match") == 0) {
+            strcmp(tkey.as.s, "validate") == 0) {
             continue;
         }
         int found = 0;

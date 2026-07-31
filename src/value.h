@@ -134,9 +134,9 @@ bool decl_type_accepts_value(DeclType expected, int expected_base, Value value);
 // Format a type name including base for int/float. Returns buf.
 const char *decl_type_name_base(DeclType type, int base, char *buf, size_t buf_size);
 
-// Match a map value against a map schema (same semantics as MATCH with defaults).
-// Returns true if all keys in `templ` exist in `map` and satisfy the match (typing=0, recurse=0, shape=0).
-// Supports "match" metadata override in the schema.
+// Validate a map value against a map schema (same semantics as VALIDATE with defaults).
+// Returns true if all keys in `templ` exist in `map` and satisfy the validate (typing=0, recurse=0, shape=0).
+// Supports "validate" metadata override in the schema.
 bool value_map_matches(Value map, Value templ);
 
 #endif // VALUE_H

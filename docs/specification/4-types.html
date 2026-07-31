@@ -21,7 +21,7 @@ Prefix MUST support eight types: `bool` (booleans), `str` (strings), `int` (inte
 
 `int` and `float` additionally support named-base variants written `int{base}` and `float{base}`, where `base` is a numeric base in the range `2` through `64` or `0` to denote the parent type. A named-base type and its parent are the same runtime type, but static type checking treats mismatched bases as incompatible. `int` and `float` (base `0`) accept any valid numeric base; `int{base}` and `float{base}` only accept values whose stored base equals the declared base.
 
-`map` additionally supports named-schema variants written `map{schema}`, where `schema` is any expression that evaluates to a `map`. A named-schema type and its parent are the same runtime type, but static type checking treats mismatched schemas as incompatible. `map` accepts any `map` value; `map{schema}` only accepts values whose entries satisfy the schema under the default key-presence rules of the `MATCH` operator. Named `map` types with different schemas are treated as distinct types.
+`map` additionally supports named-schema variants written `map{schema}`, where `schema` is any expression that evaluates to a `map`. A named-schema type and its parent are the same runtime type, but static type checking treats mismatched schemas as incompatible. `map` accepts any `map` value; `map{schema}` only accepts values whose entries satisfy the schema under the default key-presence rules of the `VALIDATE` operator. Named `map` types with different schemas are treated as distinct types.
 
 ---
 

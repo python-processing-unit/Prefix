@@ -9509,22 +9509,22 @@ static Value builtin_valuein(Interpreter *interp, Value *args, int argc, Expr **
     return value_bool(false);
 }
 
-static int match_read_metadata(Map *tpl, int *typing, int *recurse, int *shape, int explicit_typing,
+static int validate_read_metadata(Map *tpl, int *typing, int *recurse, int *shape, int explicit_typing,
                                int explicit_recurse, int explicit_shape);
 
-// Helper: recursive match implementation
-static int match_map_internal(Map *m, Map *tpl, int typing, int recurse, int shape, int explicit_typing,
+// Helper: recursive validate implementation
+static int validate_map_internal(Map *m, Map *tpl, int typing, int recurse, int shape, int explicit_typing,
                               int explicit_recurse, int explicit_shape) {
     if (!tpl) {
         return 1;
     }
-    if (!match_read_metadata(tpl, &typing, &recurse, &shape, explicit_typing, explicit_recurse, explicit_shape)) {
+    if (!validate_read_metadata(tpl, &typing, &recurse, &shape, explicit_typing, explicit_recurse, explicit_shape)) {
         return 0;
     }
     for (size_t i = 0; i < tpl->count; i++) {
         Value tkey = tpl->items[i].key;
         Value tval = tpl->items[i].value;
-        if (tkey.type == VAL_STR && tkey.as.s && strcmp(tkey.as.s, "match") == 0) {
+        if (tkey.type == VAL_STR && tkey.as.s && strcmp(tkey.as.s, "validate") == 0) {
             if (tval.type == VAL_MAP && tval.as.map) {
                 continue;
             }
@@ -9571,7 +9571,7 @@ static int match_map_internal(Map *m, Map *tpl, int typing, int recurse, int sha
             Map *mm = mval.as.map;
             Map *tt = tval.as.map;
             int ok =
-                match_map_internal(mm, tt, typing, recurse, shape, explicit_typing, explicit_recurse, explicit_shape);
+                validate_map_internal(mm, tt, typing, recurse, shape, explicit_typing, explicit_recurse, explicit_shape);
             value_free(mval);
             if (!ok) {
                 return 0;
@@ -9583,25 +9583,25 @@ static int match_map_internal(Map *m, Map *tpl, int typing, int recurse, int sha
     return 1;
 }
 
-static int match_read_metadata(Map *tpl, int *typing, int *recurse, int *shape, int explicit_typing,
+static int validate_read_metadata(Map *tpl, int *typing, int *recurse, int *shape, int explicit_typing,
                                int explicit_recurse, int explicit_shape) {
-    Value match_key = value_str("match");
+    Value validate_key = value_str("validate");
     int found = 0;
-    Value match_value = value_map_get((Value){.type = VAL_MAP, .as.map = tpl}, match_key, &found);
-    value_free(match_key);
+    Value validate_value = value_map_get((Value){.type = VAL_MAP, .as.map = tpl}, validate_key, &found);
+    value_free(validate_key);
     if (!found) {
         return 1;
     }
-    if (match_value.type != VAL_MAP) {
-        value_free(match_value);
+    if (validate_value.type != VAL_MAP) {
+        value_free(validate_value);
         return 1;
     }
-    if (!match_value.as.map) {
-        value_free(match_value);
+    if (!validate_value.as.map) {
+        value_free(validate_value);
         return 0;
     }
 
-    Map *metadata = match_value.as.map;
+    Map *metadata = validate_value.as.map;
     for (size_t i = 0; i < metadata->count; i++) {
         Value subkey = metadata->items[i].key;
         Value subval = metadata->items[i].value;
@@ -9617,28 +9617,28 @@ static int match_read_metadata(Map *tpl, int *typing, int *recurse, int *shape, 
             target = shape;
             explicit = explicit_shape;
         } else {
-            value_free(match_value);
+            value_free(validate_value);
             return 0;
         }
         if (subval.type != VAL_INT) {
-            value_free(match_value);
+            value_free(validate_value);
             return 0;
         }
         if (!explicit) {
             *target = subval.as.i ? 1 : 0;
         }
     }
-    value_free(match_value);
+    value_free(validate_value);
     return 1;
 }
 
-// MATCH(map, schema, typing=0, recurse=0, shape=0):int
-static Value builtin_match(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
+// VALIDATE(map, schema, typing=0, recurse=0, shape=0):int
+static Value builtin_validate(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
     (void)arg_nodes;
     (void)env;
     (void)argc;
     if (args[0].type != VAL_MAP || args[1].type != VAL_MAP) {
-        RUNTIME_ERROR(interp, "MATCH expects two map arguments", line, col);
+        RUNTIME_ERROR(interp, "VALIDATE expects two map arguments", line, col);
     }
     int typing = 0;
     int recurse = 0;
@@ -9647,23 +9647,23 @@ static Value builtin_match(Interpreter *interp, Value *args, int argc, Expr **ar
     int explicit_recurse = 0;
     int explicit_shape = 0;
     if (argc >= 3 && args[2].type != VAL_NULL) {
-        EXPECT_INT(args[2], "MATCH", interp, line, col);
+        EXPECT_INT(args[2], "VALIDATE", interp, line, col);
         typing = args[2].as.i ? 1 : 0;
         explicit_typing = 1;
     }
     if (argc >= 4 && args[3].type != VAL_NULL) {
-        EXPECT_INT(args[3], "MATCH", interp, line, col);
+        EXPECT_INT(args[3], "VALIDATE", interp, line, col);
         recurse = args[3].as.i ? 1 : 0;
         explicit_recurse = 1;
     }
     if (argc >= 5 && args[4].type != VAL_NULL) {
-        EXPECT_INT(args[4], "MATCH", interp, line, col);
+        EXPECT_INT(args[4], "VALIDATE", interp, line, col);
         shape = args[4].as.i ? 1 : 0;
         explicit_shape = 1;
     }
     Map *m = args[0].as.map;
     Map *tpl = args[1].as.map;
-    int ok = match_map_internal(m, tpl, typing, recurse, shape, explicit_typing, explicit_recurse, explicit_shape);
+    int ok = validate_map_internal(m, tpl, typing, recurse, shape, explicit_typing, explicit_recurse, explicit_shape);
     return value_bool(ok != 0);
 }
 
@@ -11693,7 +11693,7 @@ static Value builtin_parallel(Interpreter *interp, Value *args, int argc, Expr *
 static const char *builtin_params_round[] = {"x", "ndigits", "mode"};
 static const char *builtin_params_bytes[] = {"x", "endian"};
 static const char *builtin_params_split[] = {"s", "delimiter"};
-static const char *builtin_params_match[] = {"value", "schema", "typing", "recurse", "shape"};
+static const char *builtin_params_validate[] = {"value", "schema", "typing", "recurse", "shape"};
 static const char *builtin_params_readfile[] = {"path", "coding"};
 static const char *builtin_params_writefile[] = {"data", "path", "coding"};
 static const char *builtin_params_pause[] = {"thr", "seconds"};
@@ -11815,7 +11815,7 @@ static BuiltinFunction builtins_table[] = {
     {"VALUES", 1, 1, builtin_values},
     {"KEYIN", 2, 2, builtin_keyin},
     {"VALUEIN", 2, 2, builtin_valuein},
-    {"MATCH", 2, 5, builtin_match, builtin_params_match, 5},
+    {"VALIDATE", 2, 5, builtin_validate, builtin_params_validate, 5},
     {"ILEN", 1, 1, builtin_ilen},
     {"LEN", 0, -1, builtin_len},
 

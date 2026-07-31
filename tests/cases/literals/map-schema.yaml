@@ -12,7 +12,7 @@ passing:
         ! map{<"x" = 0d1>} with matching value
         map{<"x" = 0d1>} schema_var
         schema_var = <"x" = 0d42>
-        ASSERT(MATCH(schema_var, <"x" = 0d1>))
+        ASSERT(VALIDATE(schema_var, <"x" = 0d1>))
   - name: map-schema-empty-key
     language: Prefix
     source: |
@@ -42,74 +42,74 @@ passing:
   - name: map-schema-match-builtin
     language: Prefix
     source: |
-        ! MATCH() builtin with named map using "match" metadata subkey
-        ! The named map schema's "match" subkey is ignored by env validation
-        ! But MATCH() recognizes it for typing/shape/recurse control
-        map{<"val" = 0d1, "y" = 0d2, "match" = <"typing" = 0d1>>} var
+        ! VALIDATE() builtin with named map using "validate" metadata subkey
+        ! The named map schema's "validate" subkey is ignored by env validation
+        ! But VALIDATE() recognizes it for typing/shape/recurse control
+        map{<"val" = 0d1, "y" = 0d2, "validate" = <"typing" = 0d1>>} var
         var = <"val" = 0d42, "y" = 0d99>
         
-        ! MATCH with typing=1 should succeed (all value types match)
-        ASSERT(MATCH(var, <"match" = <"typing" = 0d1>, "val" = 0d99, "y" = 0d88>))
+        ! VALIDATE with typing=1 should succeed (all value types match)
+        ASSERT(VALIDATE(var, <"validate" = <"typing" = 0d1>, "val" = 0d99, "y" = 0d88>))
         
-        ! MATCH with typing=1 should fail (value types mismatch)
-        REFUTE(MATCH(var, <"match" = <"typing" = 0d1>, "val" = "str", "y" = 0d88>))
+        ! VALIDATE with typing=1 should fail (value types mismatch)
+        REFUTE(VALIDATE(var, <"validate" = <"typing" = 0d1>, "val" = "str", "y" = 0d88>))
         
-        ! Named map variable without "match" subkey, MATCH with typing=1
+        ! Named map variable without "validate" subkey, VALIDATE with typing=1
         map{<"a" = 0d1, "b" = "hi">} var2
         var2 = <"a" = 0d7, "b" = "world">
-        ASSERT(MATCH(var2, <"match" = <"typing" = 0d1>, "a" = 0d9, "b" = "x">))
-        REFUTE(MATCH(var2, <"match" = <"typing" = 0d1>, "a" = "wrong", "b" = "x">))
+        ASSERT(VALIDATE(var2, <"validate" = <"typing" = 0d1>, "a" = 0d9, "b" = "x">))
+        REFUTE(VALIDATE(var2, <"validate" = <"typing" = 0d1>, "a" = "wrong", "b" = "x">))
         
-        ! Named map with explicit MATCH recurse
+        ! Named map with explicit VALIDATE recurse
         map{<"outer" = <"inner" = 0d1>>} var3
         var3 = <"outer" = <"inner" = 0d42>>
-        ASSERT(MATCH(var3, <"match" = <"recurse" = 0d1, "typing" = 0d1>, "outer" = <"inner" = 0d1>>))
-        REFUTE(MATCH(var3, <"match" = <"recurse" = 0d1, "typing" = 0d1>, "outer" = <"inner" = "str">>))
+        ASSERT(VALIDATE(var3, <"validate" = <"recurse" = 0d1, "typing" = 0d1>, "outer" = <"inner" = 0d1>>))
+        REFUTE(VALIDATE(var3, <"validate" = <"recurse" = 0d1, "typing" = 0d1>, "outer" = <"inner" = "str">>))
         
-        ! Named map with MATCH shape check
+        ! Named map with VALIDATE shape check
         map{<"t" = [0d1, 0d2]>} var4
         var4 = <"t" = [0d5, 0d6]>
-        ASSERT(MATCH(var4, <"match" = <"shape" = 0d1>, "t" = [0d0, 0d0]>))
-        REFUTE(MATCH(var4, <"match" = <"shape" = 0d1>, "t" = [0d0]>))
+        ASSERT(VALIDATE(var4, <"validate" = <"shape" = 0d1>, "t" = [0d0, 0d0]>))
+        REFUTE(VALIDATE(var4, <"validate" = <"shape" = 0d1>, "t" = [0d0]>))
         
         ! Named map variable that has "match" as a regular key (not metadata)
         map{<"match" = "regular", "x" = 0d1>} var5
         var5 = <"match" = "regular", "x" = 0d99>
-        ASSERT(MATCH(var5, <"match" = "regular", "x" = 0d1>))
+        ASSERT(VALIDATE(var5, <"match" = "regular", "x" = 0d1>))
         
   - name: map-schema-match-invalid-metadata
     language: Prefix
     source: |
-        ! MATCH() with "match" subkey containing invalid metadata: unknown subkey
+        ! VALIDATE() with "validate" subkey containing invalid metadata: unknown subkey
         ! This should return false because "badkey" is unknown in match metadata
-        REFUTE(MATCH(<"x" = 0d1>, <"match" = <"badkey" = 0d1>>))
+        REFUTE(VALIDATE(<"x" = 0d1>, <"validate" = <"badkey" = 0d1>>))
         
   - name: map-schema-match-key-allowed
     language: Prefix
     source: |
-        ! Named map schema with "match" subkey is allowed (value_map_matches ignores it)
-        map{<"x" = 0d1, "match" = <"typing" = 0d1>>} has_match
+        ! Named map schema with "validate" subkey is allowed (value_map_matches ignores it)
+        map{<"x" = 0d1, "validate" = <"typing" = 0d1>>} has_match
         has_match = <"x" = 0d99>
         ASSERT(ismap(has_match))
         ASSERT(EQ(has_match<"x">, 0d99))
         
         ! Also verify with "shape" metadata subkey
-        map{<"a" = "hello", "match" = <"shape" = 0d1, "typing" = 0d1>>} has_shape
+        map{<"a" = "hello", "validate" = <"shape" = 0d1, "typing" = 0d1>>} has_shape
         has_shape = <"a" = "world">
         ASSERT(EQ(has_shape<"a">, "world"))
         
         ! Verify with "recurse" metadata subkey  
-        map{<"b" = 0d1, "match" = <"recurse" = 0d1, "typing" = 0d0>>} has_recurse
+        map{<"b" = 0d1, "validate" = <"recurse" = 0d1, "typing" = 0d0>>} has_recurse
         has_recurse = <"b" = 0d42>
         ASSERT(EQ(has_recurse<"b">, 0d42))
         
-        ! Verify empty "match" metadata
-        map{<"c" = 0d1, "match" = <>>} has_empty_match
+        ! Verify empty "validate" metadata
+        map{<"c" = 0d1, "validate" = <>>} has_empty_match
         has_empty_match = <"c" = 0d7>
         ASSERT(EQ(has_empty_match<"c">, 0d7))
         
-        ! Verify "match" key in nested schema
-        map{<"nested" = <"match" = <"typing" = 0d1>, "val" = 0d1>>} has_nested_match
+        ! Verify "validate" key in nested schema
+        map{<"nested" = <"validate" = <"typing" = 0d1>, "val" = 0d1>>} has_nested_match
         has_nested_match = <"nested" = <"val" = 0d5>>
         ASSERT(EQ(has_nested_match<"nested", "val">, 0d5))
         
@@ -120,7 +120,7 @@ passing:
         map proto = <"a" = 0d1, "b" = 0d2>
         map{proto} shaped
         shaped = <"a" = 0d10, "b" = 0d20>
-        ASSERT(MATCH(shaped, proto))
+        ASSERT(VALIDATE(shaped, proto))
   - name: map-schema-signature
     language: Prefix
     source: |
