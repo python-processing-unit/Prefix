@@ -22,7 +22,11 @@ jobs:
         run: .\tests\test.ps1
 
   build-and-test-ubuntu:
-    runs-on: ubuntu-22.04
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, ubuntu-22.04-arm64]
 
     steps:
       - name: Checkout code

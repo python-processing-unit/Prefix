@@ -41,6 +41,11 @@ if ($runningOnWindows) {
     $exeName = "prefix"
 }
 
+$marchArg = "-march=x86-64"
+if (-not $runningOnWindows) {
+    $marchArg = $null
+}
+
 $runtimeDllDest = Join-Path $script $runtimeDllName
 $runtimeLibDest = if ($runtimeLibName) { Join-Path $script $runtimeLibName } else { $null }
 $runtimePdbDest = if ($runtimePdbName) { Join-Path $script $runtimePdbName } else { $null }
@@ -76,7 +81,7 @@ if (-not $clangTarget) {
     exit 1
 }
 
-if ($clangTarget -notmatch '^x86_64-') {
+if ($runningOnWindows -and $clangTarget -notmatch '^x86_64-') {
     Write-Error "$clangCmd must target baseline x64. Found target '$clangTarget'."
     Remove-Item -Recurse -Force $buildDir -ErrorAction SilentlyContinue
     exit 1
@@ -115,7 +120,7 @@ try {
         # MSVC-compatible driver mode for Windows
         $clangArgs = @(
             "--driver-mode=cl",
-            "/clang:-march=x86-64",
+            "/clang:$marchArg",
             "/clang:-fuse-ld=lld",
             "/clang:-flto=full",
             "/clang:-ffunction-sections",
@@ -129,12 +134,14 @@ try {
     } else {
         # GCC-compatible flags for Linux/macOS
         $clangArgs = @(
-            "-march=x86-64",
             "-flto=full",
             "-ffunction-sections",
             "-fdata-sections",
             "-fPIC"
         )
+        if ($marchArg) {
+            $clangArgs = @($marchArg) + $clangArgs
+        }
         $releaseCompileArgs = @(
             "-std=c17", "-O2", "-Wall", "-Wextra", "-Werror",
             "-D_GNU_SOURCE"
