@@ -25,7 +25,7 @@ func int modinv(int a, int m){
         t0 = t1
         t1 = nt
     }
-    if(NEQ(r0, 0)){
+    if(NEQ(r0, 1)){
         THROW("modinv: arguments not coprime")
     }
     int inv = MOD(t0, m)
