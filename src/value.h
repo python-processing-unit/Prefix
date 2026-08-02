@@ -40,8 +40,8 @@ typedef struct Tensor {
 
 typedef struct Value {
     ValueType type;
-  int num_base;     // 2..64 for numeric values, default 2
-  int num_base_nan; // 1 when float has NaN base (INF/NaN literals), else 0
+    int num_base;     // 2..64 for numeric values, default 2
+    int num_base_nan; // 1 when float has NaN base (INF/NaN literals), else 0
     union {
         bool boolean;
         int64_t i;
