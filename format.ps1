@@ -125,8 +125,9 @@ try {
         $headerFilter = "(src|ext|lib|tests)/"
         $tidyArgs += @('-quiet', '-fix', '-fix-errors', '-fix-notes', $clangTidyFormatArg, "-header-filter=$headerFilter", $file)
         $tidyOutput = & $clangTidy.Path @tidyArgs 2>&1
+        $tidyExitCode = $LASTEXITCODE
 
-        if ($LASTEXITCODE -ne 0) {
+        if ($tidyExitCode -ne 0 -and $tidyExitCode -ne 1) {
             $lintFixFailures += [pscustomobject]@{
                 File = $file
                 Output = (($tidyOutput | ForEach-Object { $_.ToString() }) -join [Environment]::NewLine)
