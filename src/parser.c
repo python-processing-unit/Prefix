@@ -36,24 +36,19 @@ void parser_init(Parser *parser, Lexer *lexer) {
     parser->lookahead2_token = lexer_next_token(parser->lexer);
 }
 
-static void advance(Parser *parser) {
+static void shift_tokens(Parser *parser) {
     parser->previous_token = parser->current_token;
     parser->current_token = parser->next_token;
     parser->next_token = parser->lookahead2_token;
     parser->lookahead2_token = lexer_next_token(parser->lexer);
+}
 
-    /* If the lexer produced an error token, report it and advance until
-       we reach a non-error token. Use a loop instead of recursion so the
-       parser doesn't overflow the stack or hang when many consecutive
-       error tokens are emitted. */
+static void advance(Parser *parser) {
+    shift_tokens(parser);
     while (parser->current_token.type == TOKEN_ERROR) {
         report_error(parser, parser->current_token.literal);
         parser->panic_mode = false;
-
-        parser->previous_token = parser->current_token;
-        parser->current_token = parser->next_token;
-        parser->next_token = parser->lookahead2_token;
-        parser->lookahead2_token = lexer_next_token(parser->lexer);
+        shift_tokens(parser);
     }
 }
 
@@ -81,29 +76,17 @@ static void skip_newlines(Parser *parser) {
 }
 
 static DeclType parse_type_name(const char *name) {
-    if (strcmp(name, "bool") == 0) {
-        return TYPE_BOOL;
-    }
-    if (strcmp(name, "int") == 0) {
-        return TYPE_INT;
-    }
-    if (strcmp(name, "float") == 0) {
-        return TYPE_FLOAT;
-    }
-    if (strcmp(name, "str") == 0) {
-        return TYPE_STR;
-    }
-    if (strcmp(name, "map") == 0) {
-        return TYPE_MAP;
-    }
-    if (strcmp(name, "func") == 0) {
-        return TYPE_FUNC;
-    }
-    if (strcmp(name, "thread") == 0) {
-        return TYPE_THREAD;
-    }
-    if (strcmp(name, "tensor") == 0) {
-        return TYPE_TENSOR;
+    static const struct {
+        const char *name;
+        DeclType type;
+    } k_types[] = {
+        {"bool", TYPE_BOOL}, {"int", TYPE_INT},   {"float", TYPE_FLOAT},   {"str", TYPE_STR},
+        {"map", TYPE_MAP},   {"func", TYPE_FUNC}, {"thread", TYPE_THREAD}, {"tensor", TYPE_TENSOR},
+    };
+    for (size_t i = 0; i < sizeof k_types / sizeof k_types[0]; i++) {
+        if (strcmp(name, k_types[i].name) == 0) {
+            return k_types[i].type;
+        }
     }
     return TYPE_UNKNOWN;
 }
@@ -119,6 +102,9 @@ typedef struct {
     Expr *schema_expr; // NEW: map schema expression, NULL for non-map or bare map
     Token end_tok;     // last token of the annotation (type name, closing '}', or closing brace)
 } TypeAnnotation;
+
+static Expr *parse_index_suffix(Parser *parser, Expr *base);
+static Stmt *parse_simple_typed_declaration(Parser *parser, Token type_tok, TypeAnnotation ta);
 
 static TypeAnnotation parse_type_annotation(Parser *parser) {
     TypeAnnotation ta;
@@ -211,6 +197,60 @@ static size_t token_source_width(const Token *token) {
     }
 }
 
+static void advance_past_line_terminator(const char *src, size_t src_len, size_t *pos) {
+    if (*pos < src_len && src[*pos] == '\r') {
+        (*pos)++;
+        if (*pos < src_len && src[*pos] == '\n') {
+            (*pos)++;
+        }
+    } else if (*pos < src_len && src[*pos] == '\n') {
+        (*pos)++;
+    }
+}
+
+static bool scan_gap_characters(Parser *parser, const Lexer *lexer, size_t left_end_offset, size_t right_start_offset,
+                                const char *message) {
+    size_t pos = left_end_offset;
+    while (pos < right_start_offset) {
+        char ch = lexer->source[pos];
+        if (ch == ' ') {
+            pos++;
+            continue;
+        }
+        if (ch == '^') {
+            if (pos + 1 >= lexer->source_len) {
+                report_error(parser, message);
+                return false;
+            }
+            char next = lexer->source[pos + 1];
+            if (next == '\n') {
+                pos += 2;
+                continue;
+            }
+            if (next == '\r') {
+                pos += 2;
+                if (pos < lexer->source_len && lexer->source[pos] == '\n') {
+                    pos++;
+                }
+                continue;
+            }
+            if (next == '!') {
+                pos += 2;
+                while (pos < lexer->source_len && lexer->source[pos] != '\n' && lexer->source[pos] != '\r') {
+                    pos++;
+                }
+                advance_past_line_terminator(lexer->source, lexer->source_len, &pos);
+                continue;
+            }
+            report_error(parser, message);
+            return false;
+        }
+        report_error(parser, message);
+        return false;
+    }
+    return true;
+}
+
 static bool require_space_only_gap(Parser *parser, const Token *left, const Token *right, const char *message) {
     char *line_text;
     size_t line_len;
@@ -282,67 +322,9 @@ static bool require_space_only_gap(Parser *parser, const Token *left, const Toke
             return false;
         }
 
-        /* Walk the raw source between the two token offsets and accept only
-           spaces and valid caret-continuation sequences. */
-        size_t pos = left_end_offset;
-        while (pos < right_start_offset) {
-            char ch = lexer->source[pos];
-            if (ch == ' ') {
-                pos++;
-                continue;
-            }
-
-            if (ch == '^') {
-                /* Must match the same rules as the lexer: '^' followed by LF,
-                   CR (optionally CRLF), or '!' (a comment) is a valid
-                   continuation. Anything else is invalid here. */
-                if (pos + 1 >= lexer->source_len) {
-                    report_error(parser, message);
-                    return false;
-                }
-                char next = lexer->source[pos + 1];
-                if (next == '\n') {
-                    pos += 2;
-                    continue;
-                }
-                if (next == '\r') {
-                    pos += 2;
-                    if (pos < lexer->source_len && lexer->source[pos] == '\n') {
-                        pos++;
-                    }
-                    continue;
-                }
-                if (next == '!') {
-                    /* Skip '!' and the comment text until the line terminator. */
-                    pos += 2;
-                    while (pos < lexer->source_len && lexer->source[pos] != '\n' && lexer->source[pos] != '\r') {
-                        pos++;
-                    }
-                    if (pos < lexer->source_len) {
-                        if (lexer->source[pos] == '\r') {
-                            pos++;
-                            if (pos < lexer->source_len && lexer->source[pos] == '\n') {
-                                pos++;
-                            }
-                        } else if (lexer->source[pos] == '\n') {
-                            {
-                                pos++;
-                            }
-                        }
-                    }
-                    continue;
-                }
-
-                report_error(parser, message);
-                return false;
-            }
-
-            /* Any other character (including tabs or plain newlines) is invalid
-               as a gap between type and name. */
-            report_error(parser, message);
+        if (!scan_gap_characters(parser, lexer, left_end_offset, right_start_offset, message)) {
             return false;
         }
-
         return true;
     }
 
@@ -388,66 +370,37 @@ static int base_from_literal_prefix(const char *s, size_t *prefix_len) {
     if (!s || s[0] != '0') {
         return -1;
     }
+    static const struct {
+        char prefix;
+        int base;
+        size_t len;
+    } k_table[] = {
+        {'b', 2, 2}, {'o', 8, 2}, {'d', 10, 2}, {'x', 16, 2}, {'t', 32, 2}, {'c', 58, 2}, {'s', 64, 2},
+    };
     char p = s[1];
-    switch (p) {
-    case 'b':
-        if (prefix_len) {
-            *prefix_len = 2;
+    for (size_t i = 0; i < sizeof k_table / sizeof k_table[0]; i++) {
+        if (p == k_table[i].prefix) {
+            if (prefix_len) {
+                *prefix_len = k_table[i].len;
+            }
+            return k_table[i].base;
         }
-        return 2;
-    case 'o':
-        if (prefix_len) {
-            *prefix_len = 2;
-        }
-        return 8;
-    case 'd':
-        if (prefix_len) {
-            *prefix_len = 2;
-        }
-        return 10;
-    case 'x':
-        if (prefix_len) {
-            *prefix_len = 2;
-        }
-        return 16;
-    case 't':
-        if (prefix_len) {
-            *prefix_len = 2;
-        }
-        return 32;
-    case 'c':
-        if (prefix_len) {
-            *prefix_len = 2;
-        }
-        return 58;
-    case 's':
-        if (prefix_len) {
-            *prefix_len = 2;
-        }
-        return 64;
-    case 'r': {
-        if (!isdigit((unsigned char)s[2]) || !isdigit((unsigned char)s[3])) {
-            return -1;
-        }
+    }
+    if (p == 'r' && isdigit((unsigned char)s[2]) && isdigit((unsigned char)s[3])) {
         int b = ((s[2] - '0') * 10) + (s[3] - '0');
         if (prefix_len) {
             *prefix_len = 4;
         }
         return b;
     }
-    default:
-        return -1;
-    }
+    return -1;
 }
 
 static int digit_value_for_base(int base, char c) {
-    const char *digits64 = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz+_";
-    const char *digits58 = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+    static const char *digits64 = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz+_";
+    static const char *digits58 = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
     const char *alphabet = (base == 58) ? digits58 : digits64;
     int limit = (base == 58) ? 58 : base;
-    if (limit < 0) {
-        return -1;
-    }
     for (int i = 0; i < limit; i++) {
         if (alphabet[i] == c) {
             return i;
@@ -456,27 +409,41 @@ static int digit_value_for_base(int base, char c) {
     return -1;
 }
 
-static int parse_prefixed_int_literal(const char *lit, int64_t *out_value, int *out_base) {
-    if (!lit || !out_value || !out_base) {
-        return 0;
-    }
-    int neg = 0;
+typedef struct {
+    int base;
+    const char *digits;
+    int neg;
+} LiteralPrefix;
+
+static LiteralPrefix parse_literal_prefix(const char *lit) {
+    LiteralPrefix lp = {0};
     const char *s = lit;
     if (*s == '-') {
-        neg = 1;
+        lp.neg = 1;
         s++;
     }
-
     size_t prefix_len = 0;
     int base = base_from_literal_prefix(s, &prefix_len);
     if (base < 0 && isdigit((unsigned char)s[0])) {
         base = 10;
         prefix_len = 0;
     }
-    if (base < 2 || base > 64) {
+    if (base >= 2 && base <= 64) {
+        lp.base = base;
+        lp.digits = s + prefix_len;
+    }
+    return lp;
+}
+
+static int parse_prefixed_int_literal(const char *lit, int64_t *out_value, int *out_base) {
+    if (!lit || !out_value || !out_base) {
         return 0;
     }
-    const char *digits = s + prefix_len;
+    LiteralPrefix lp = parse_literal_prefix(lit);
+    if (lp.base == 0) {
+        return 0;
+    }
+    const char *digits = lp.digits;
     if (*digits == '\0') {
         return 0;
     }
@@ -486,18 +453,18 @@ static int parse_prefixed_int_literal(const char *lit, int64_t *out_value, int *
 
     int64_t acc = 0;
     for (const char *p = digits; *p; p++) {
-        int dv = digit_value_for_base(base, *p);
-        if (dv < 0 || dv >= base) {
+        int dv = digit_value_for_base(lp.base, *p);
+        if (dv < 0 || dv >= lp.base) {
             return 0;
         }
-        if (acc > (INT64_MAX - dv) / base) {
+        if (acc > (INT64_MAX - dv) / lp.base) {
             return 0;
         }
-        acc = (acc * base) + dv;
+        acc = (acc * lp.base) + dv;
     }
 
-    *out_value = neg ? -acc : acc;
-    *out_base = base;
+    *out_value = lp.neg ? -acc : acc;
+    *out_base = lp.base;
     return 1;
 }
 
@@ -505,23 +472,11 @@ static int parse_prefixed_float_literal(const char *lit, double *out_value, int 
     if (!lit || !out_value || !out_base) {
         return 0;
     }
-    int neg = 0;
-    const char *s = lit;
-    if (*s == '-') {
-        neg = 1;
-        s++;
-    }
-
-    size_t prefix_len = 0;
-    int base = base_from_literal_prefix(s, &prefix_len);
-    if (base < 0 && isdigit((unsigned char)s[0])) {
-        base = 10;
-        prefix_len = 0;
-    }
-    if (base < 2 || base > 64) {
+    LiteralPrefix lp = parse_literal_prefix(lit);
+    if (lp.base == 0) {
         return 0;
     }
-    const char *digits = s + prefix_len;
+    const char *digits = lp.digits;
     const char *dot = strchr(digits, '.');
     if (!dot) {
         return 0;
@@ -532,27 +487,27 @@ static int parse_prefixed_float_literal(const char *lit, double *out_value, int 
 
     double int_part = 0.0;
     for (const char *p = digits; p < dot; p++) {
-        int dv = digit_value_for_base(base, *p);
-        if (dv < 0 || dv >= base) {
+        int dv = digit_value_for_base(lp.base, *p);
+        if (dv < 0 || dv >= lp.base) {
             return 0;
         }
-        int_part = (int_part * (double)base) + (double)dv;
+        int_part = (int_part * (double)lp.base) + (double)dv;
     }
 
     double frac_part = 0.0;
-    double weight = 1.0 / (double)base;
+    double weight = 1.0 / (double)lp.base;
     for (const char *p = dot + 1; *p; p++) {
-        int dv = digit_value_for_base(base, *p);
-        if (dv < 0 || dv >= base) {
+        int dv = digit_value_for_base(lp.base, *p);
+        if (dv < 0 || dv >= lp.base) {
             return 0;
         }
         frac_part += (double)dv * weight;
-        weight /= (double)base;
+        weight /= (double)lp.base;
     }
 
     double v = int_part + frac_part;
-    *out_value = neg ? -v : v;
-    *out_base = base;
+    *out_value = lp.neg ? -v : v;
+    *out_base = lp.base;
     return 1;
 }
 
@@ -578,9 +533,7 @@ static void append_parse_error_throw_stmt(Parser *parser, Stmt *block) {
     parser->panic_mode = false;
 }
 
-static bool is_type_token(PTokenType type) {
-    return (type == TOKEN_IDENT || type == TOKEN_FUNC || type == TOKEN_THREAD) != 0;
-}
+static bool is_type_token(PTokenType type) { return type == TOKEN_IDENT || type == TOKEN_FUNC || type == TOKEN_THREAD; }
 
 static bool starts_named_type_annotation(Parser *parser) {
     if (!is_type_token(parser->current_token.type)) {
@@ -618,43 +571,50 @@ static bool looks_like_func_definition(Parser *parser) {
     return false;
 }
 
+static bool parse_one_param(Parser *parser, Param *out_param) {
+    bool coerced = false;
+    if (match(parser, TOKEN_TILDE)) {
+        coerced = true;
+    }
+    if (!is_type_token(parser->current_token.type)) {
+        if (coerced) {
+            report_error(parser, "Expected parameter type after '~'");
+        } else {
+            report_error(parser, "Expected parameter type");
+        }
+        return false;
+    }
+    TypeAnnotation ptype = parse_type_annotation(parser);
+    if (ptype.type == TYPE_UNKNOWN) {
+        return false;
+    }
+    if (!require_space_only_gap(parser, &ptype.end_tok, &parser->current_token, k_type_name_gap_error)) {
+        return false;
+    }
+    out_param->type = ptype.type;
+    out_param->num_base = ptype.base;
+    out_param->name = parser->current_token.literal;
+    out_param->coerced = coerced;
+    out_param->default_value = NULL;
+    out_param->schema_expr = ptype.schema_expr;
+    advance(parser);
+    if (match(parser, TOKEN_EQUALS)) {
+        out_param->default_value = parse_expression(parser);
+        if (!out_param->default_value) {
+            return false;
+        }
+    }
+    return true;
+}
+
 static bool parse_param_list(Parser *parser, ParamList *params) {
     if (parser->current_token.type == TOKEN_RPAREN) {
         return true;
     }
     do {
-        bool coerced = false;
-        if (match(parser, TOKEN_TILDE)) {
-            coerced = true;
-        }
-        if (!is_type_token(parser->current_token.type)) {
-            if (coerced) {
-                report_error(parser, "Expected parameter type after '~'");
-            } else {
-                report_error(parser, "Expected parameter type");
-            }
-            return false;
-        }
-        TypeAnnotation ptype = parse_type_annotation(parser);
-        if (ptype.type == TYPE_UNKNOWN) {
-            return false;
-        }
-        if (!require_space_only_gap(parser, &ptype.end_tok, &parser->current_token, k_type_name_gap_error)) {
-            return false;
-        }
         Param param;
-        param.type = ptype.type;
-        param.num_base = ptype.base;
-        param.name = parser->current_token.literal;
-        param.coerced = coerced;
-        param.default_value = NULL;
-        param.schema_expr = ptype.schema_expr;
-        advance(parser);
-        if (match(parser, TOKEN_EQUALS)) {
-            param.default_value = parse_expression(parser);
-            if (!param.default_value) {
-                return false;
-            }
+        if (!parse_one_param(parser, &param)) {
+            return false;
         }
         param_list_add(params, param);
     } while (match(parser, TOKEN_COMMA));
@@ -673,6 +633,42 @@ static Expr *parse_typed_ident_expr(Parser *parser) {
     char *name = parser->current_token.literal;
     advance(parser);
     return expr_typed_ident(ta.type, ta.base, name, ta.schema_expr, type_tok.line, type_tok.column);
+}
+
+static char *build_dotted_ident(Parser *parser, Token first) {
+    char *name = NULL;
+    size_t len0 = first.literal ? strlen(first.literal) : 0;
+    name = malloc(len0 + 1);
+    if (!name) {
+        fprintf(stderr, "Out of memory\n");
+        exit(1);
+    }
+    if (len0) {
+        memcpy(name, first.literal, len0 + 1);
+    } else {
+        name[0] = '\0';
+    }
+    while (parser->current_token.type == TOKEN_DOT && parser->next_token.type == TOKEN_IDENT) {
+        advance(parser); // consume DOT
+        const char *part = parser->current_token.literal ? parser->current_token.literal : "";
+        size_t part_len = strlen(part);
+        size_t cur_len = strlen(name);
+        size_t newlen = cur_len + 1 + part_len + 1;
+        char *tmp = realloc(name, newlen);
+        if (!tmp) {
+            free(name);
+            fprintf(stderr, "Out of memory\n");
+            exit(1);
+        }
+        name = tmp;
+        name[cur_len] = '.';
+        if (part_len) {
+            memcpy(name + cur_len + 1, part, part_len);
+        }
+        name[cur_len + 1 + part_len] = '\0';
+        advance(parser); // consume IDENT
+    }
+    return name;
 }
 
 static Expr *parse_primary(Parser *parser) {
@@ -808,40 +804,8 @@ static Expr *parse_primary(Parser *parser) {
     }
     if (parser->current_token.type == TOKEN_IDENT) {
         Token idtok = parser->current_token;
-        // Build possibly-dotted identifier by concatenating IDENT (DOT IDENT)*
-        size_t len0 = idtok.literal ? strlen(idtok.literal) : 0;
-        char *name = malloc(len0 + 1);
-        if (!name) {
-            fprintf(stderr, "Out of memory\n");
-            exit(1);
-        }
-        if (len0) {
-            memcpy(name, idtok.literal, len0 + 1);
-        } else {
-            name[0] = '\0';
-        }
         advance(parser); // consume first IDENT
-        while (parser->current_token.type == TOKEN_DOT && parser->next_token.type == TOKEN_IDENT) {
-            advance(parser); // consume DOT
-            // append '.' + next ident
-            const char *part = parser->current_token.literal ? parser->current_token.literal : "";
-            size_t part_len = strlen(part);
-            size_t cur_len = strlen(name);
-            size_t newlen = cur_len + 1 + part_len + 1;
-            char *tmp = realloc(name, newlen);
-            if (!tmp) {
-                free(name);
-                fprintf(stderr, "Out of memory\n");
-                exit(1);
-            }
-            name = tmp;
-            name[cur_len] = '.';
-            if (part_len) {
-                memcpy(name + cur_len + 1, part, part_len);
-            }
-            name[cur_len + 1 + part_len] = '\0';
-            advance(parser); // consume IDENT
-        }
+        char *name = build_dotted_ident(parser, idtok);
         return expr_ident(name, idtok.line, idtok.column);
     }
     if (match(parser, TOKEN_LPAREN)) {
@@ -955,28 +919,36 @@ static Expr *parse_call(Parser *parser) {
             continue;
         }
 
-        // Handle indexing: '['
+        expr = parse_index_suffix(parser, expr);
+        if (!expr) {
+            return NULL;
+        }
+    }
+    return expr;
+}
+
+static Expr *parse_expression(Parser *parser) { return parse_call(parser); }
+
+static Expr *parse_index_suffix(Parser *parser, Expr *base) {
+    while (parser->current_token.type == TOKEN_LBRACKET || parser->current_token.type == TOKEN_LANGLE) {
         if (parser->current_token.type == TOKEN_LBRACKET) {
             int line = parser->current_token.line;
             int column = parser->current_token.column;
             advance(parser); // consume '['
-            Expr *idx = expr_index(expr, line, column, false);
+            Expr *idx = expr_index(base, line, column, false);
             if (parser->current_token.type == TOKEN_RBRACKET) {
                 report_error(parser, "Empty index list");
                 return NULL;
             }
             while (parser->current_token.type != TOKEN_RBRACKET && parser->current_token.type != TOKEN_EOF) {
-                // wildcard
                 if (match(parser, TOKEN_HASH)) {
                     Expr *wc = expr_wildcard(parser->previous_token.line, parser->previous_token.column);
                     expr_list_add(&idx->as.index.indices, wc);
                 } else {
-                    // parse an expression for index or possibly a range
                     Expr *start = parse_expression(parser);
                     if (!start) {
                         return NULL;
                     }
-                    // Range separator is ':' inside index expressions
                     if (parser->current_token.type == TOKEN_COLON) {
                         advance(parser); // consume ':'
                         Expr *end = parse_expression(parser);
@@ -989,7 +961,6 @@ static Expr *parse_call(Parser *parser) {
                         expr_list_add(&idx->as.index.indices, start);
                     }
                 }
-
                 if (parser->current_token.type == TOKEN_COMMA) {
                     advance(parser);
                     continue;
@@ -997,42 +968,35 @@ static Expr *parse_call(Parser *parser) {
                 break;
             }
             consume(parser, TOKEN_RBRACKET, "Expected ']' after index list");
-            expr = idx;
+            base = idx;
             continue;
         }
 
-        // Handle angle-bracket indexing for maps: '<' ... '>'
-        if (parser->current_token.type == TOKEN_LANGLE) {
-            int line = parser->current_token.line;
-            int column = parser->current_token.column;
-            advance(parser); // consume '<'
-            Expr *idx = expr_index(expr, line, column, true);
-            if (parser->current_token.type == TOKEN_RANGLE) {
-                report_error(parser, "Empty index list");
+        int line = parser->current_token.line;
+        int column = parser->current_token.column;
+        advance(parser); // consume '<'
+        Expr *idx = expr_index(base, line, column, true);
+        if (parser->current_token.type == TOKEN_RANGLE) {
+            report_error(parser, "Empty index list");
+            return NULL;
+        }
+        while (parser->current_token.type != TOKEN_RANGLE && parser->current_token.type != TOKEN_EOF) {
+            Expr *key = parse_expression(parser);
+            if (!key) {
                 return NULL;
             }
-            while (parser->current_token.type != TOKEN_RANGLE && parser->current_token.type != TOKEN_EOF) {
-                Expr *start = parse_expression(parser);
-                if (!start) {
-                    return NULL;
-                }
-                expr_list_add(&idx->as.index.indices, start);
-
-                if (parser->current_token.type == TOKEN_COMMA) {
-                    advance(parser);
-                    continue;
-                }
-                break;
+            expr_list_add(&idx->as.index.indices, key);
+            if (parser->current_token.type == TOKEN_COMMA) {
+                advance(parser);
+                continue;
             }
-            consume(parser, TOKEN_RANGLE, "Expected '>' after index list");
-            expr = idx;
-            continue;
+            break;
         }
+        consume(parser, TOKEN_RANGLE, "Expected '>' after index list");
+        base = idx;
     }
-    return expr;
+    return base;
 }
-
-static Expr *parse_expression(Parser *parser) { return parse_call(parser); }
 
 static Stmt *parse_block(Parser *parser) {
     Token brace = parser->current_token;
@@ -1208,6 +1172,35 @@ static Stmt *parse_func(Parser *parser) {
     return stmt;
 }
 
+static Stmt *parse_simple_typed_declaration(Parser *parser, Token type_tok, TypeAnnotation ta) {
+    if (!require_space_only_gap(parser, &ta.end_tok, &parser->current_token, k_type_name_gap_error)) {
+        return NULL;
+    }
+    char *name = parser->current_token.literal;
+    advance(parser);
+    if (match(parser, TOKEN_EQUALS)) {
+        Expr *expr = parse_expression(parser);
+        if (!expr) {
+            return NULL;
+        }
+        return stmt_assign(true, ta.type, ta.base, name, NULL, expr, ta.schema_expr, type_tok.line, type_tok.column);
+    }
+    return stmt_decl(ta.type, ta.base, name, ta.schema_expr, type_tok.line, type_tok.column);
+}
+
+static Stmt *parse_paren_expr_stmt(Parser *parser, Stmt *(*builder)(Expr *, int, int), const char *open_msg,
+                                   const char *close_msg) {
+    Token tok = parser->current_token;
+    advance(parser);
+    consume(parser, TOKEN_LPAREN, open_msg);
+    Expr *expr = parse_expression(parser);
+    if (!expr) {
+        return NULL;
+    }
+    consume(parser, TOKEN_RPAREN, close_msg);
+    return builder(expr, tok.line, tok.column);
+}
+
 static Stmt *parse_statement(Parser *parser) {
     skip_newlines(parser);
     if (looks_like_func_definition(parser)) {
@@ -1228,79 +1221,11 @@ static Stmt *parse_statement(Parser *parser) {
         advance(parser);
         // Support typed declaration with indexed-assignment target, e.g. `tensor: t[1-10] = ...`
         if (parser->current_token.type == TOKEN_LBRACKET || parser->current_token.type == TOKEN_LANGLE) {
-            // construct base identifier expr and parse trailing indexers
             Expr *base = expr_ident(name, type_tok.line, type_tok.column);
-            while (parser->current_token.type == TOKEN_LBRACKET || parser->current_token.type == TOKEN_LANGLE) {
-                if (parser->current_token.type == TOKEN_LBRACKET) {
-                    int line = parser->current_token.line;
-                    int column = parser->current_token.column;
-                    advance(parser); // consume '['
-                    Expr *idx = expr_index(base, line, column, false);
-                    if (parser->current_token.type == TOKEN_RBRACKET) {
-                        report_error(parser, "Empty index list");
-                        return NULL;
-                    }
-                    while (parser->current_token.type != TOKEN_RBRACKET && parser->current_token.type != TOKEN_EOF) {
-                        if (match(parser, TOKEN_HASH)) {
-                            Expr *wc = expr_wildcard(parser->previous_token.line, parser->previous_token.column);
-                            expr_list_add(&idx->as.index.indices, wc);
-                        } else {
-                            Expr *start = parse_expression(parser);
-                            if (!start) {
-                                return NULL;
-                            }
-                            if (parser->current_token.type == TOKEN_COLON) {
-                                advance(parser); // consume ':'
-                                Expr *end = parse_expression(parser);
-                                if (!end) {
-                                    return NULL;
-                                }
-                                Expr *range = expr_range(start, end, start->line, start->column);
-                                expr_list_add(&idx->as.index.indices, range);
-                            } else {
-                                expr_list_add(&idx->as.index.indices, start);
-                            }
-                        }
-
-                        if (parser->current_token.type == TOKEN_COMMA) {
-                            advance(parser);
-                            continue;
-                        }
-                        break;
-                    }
-                    consume(parser, TOKEN_RBRACKET, "Expected ']' after index list");
-                    base = idx;
-                    continue;
-                }
-
-                // angle-bracket indexing for maps
-                if (parser->current_token.type == TOKEN_LANGLE) {
-                    int line = parser->current_token.line;
-                    int column = parser->current_token.column;
-                    advance(parser); // consume '<'
-                    Expr *idx = expr_index(base, line, column, true);
-                    if (parser->current_token.type == TOKEN_RANGLE) {
-                        report_error(parser, "Empty index list");
-                        return NULL;
-                    }
-                    while (parser->current_token.type != TOKEN_RANGLE && parser->current_token.type != TOKEN_EOF) {
-                        Expr *key = parse_expression(parser);
-                        if (!key) {
-                            return NULL;
-                        }
-                        expr_list_add(&idx->as.index.indices, key);
-                        if (parser->current_token.type == TOKEN_COMMA) {
-                            advance(parser);
-                            continue;
-                        }
-                        break;
-                    }
-                    consume(parser, TOKEN_RANGLE, "Expected '>' after index list");
-                    base = idx;
-                    continue;
-                }
+            base = parse_index_suffix(parser, base);
+            if (!base) {
+                return NULL;
             }
-
             if (match(parser, TOKEN_EQUALS)) {
                 Expr *expr = parse_expression(parser);
                 if (!expr) {
@@ -1336,39 +1261,13 @@ static Stmt *parse_statement(Parser *parser) {
         return parse_try(parser);
     case TOKEN_FUNC:
         return parse_func(parser);
-    case TOKEN_RETURN: {
-        Token tok = parser->current_token;
-        advance(parser);
-        consume(parser, TOKEN_LPAREN, "Expected '(' after return");
-        Expr *expr = parse_expression(parser);
-        if (!expr) {
-            return NULL;
-        }
-        consume(parser, TOKEN_RPAREN, "Expected ')' after return value");
-        return stmt_return(expr, tok.line, tok.column);
-    }
-    case TOKEN_POP: {
-        Token tok = parser->current_token;
-        advance(parser);
-        consume(parser, TOKEN_LPAREN, "Expected '(' after pop");
-        Expr *expr = parse_expression(parser);
-        if (!expr) {
-            return NULL;
-        }
-        consume(parser, TOKEN_RPAREN, "Expected ')' after pop expression");
-        return stmt_pop(expr, tok.line, tok.column);
-    }
-    case TOKEN_BREAK: {
-        Token tok = parser->current_token;
-        advance(parser);
-        consume(parser, TOKEN_LPAREN, "Expected '(' after break");
-        Expr *expr = parse_expression(parser);
-        if (!expr) {
-            return NULL;
-        }
-        consume(parser, TOKEN_RPAREN, "Expected ')' after break value");
-        return stmt_break(expr, tok.line, tok.column);
-    }
+    case TOKEN_RETURN:
+        return parse_paren_expr_stmt(parser, stmt_return, "Expected '(' after return",
+                                     "Expected ')' after return value");
+    case TOKEN_POP:
+        return parse_paren_expr_stmt(parser, stmt_pop, "Expected '(' after pop", "Expected ')' after pop expression");
+    case TOKEN_BREAK:
+        return parse_paren_expr_stmt(parser, stmt_break, "Expected '(' after break", "Expected ')' after break value");
     case TOKEN_THREAD: {
         Token tok = parser->current_token;
         advance(parser);
@@ -1405,7 +1304,7 @@ static Stmt *parse_statement(Parser *parser) {
         PTokenType t = parser->current_token.type;
         bool looks_like_expr = (t == TOKEN_NUMBER || t == TOKEN_FLOAT || t == TOKEN_STRING || t == TOKEN_IDENT ||
                                 t == TOKEN_AT || t == TOKEN_LPAREN || t == TOKEN_LBRACKET || t == TOKEN_LANGLE ||
-                                t == TOKEN_ASYNC || t == TOKEN_LAMBDA || t == TOKEN_DASH) != 0;
+                                t == TOKEN_ASYNC || t == TOKEN_LAMBDA || t == TOKEN_DASH);
 
         if (looks_like_expr) {
             report_error(parser, "continue does not accept arguments");
@@ -1420,28 +1319,11 @@ static Stmt *parse_statement(Parser *parser) {
         consume(parser, TOKEN_RPAREN, "Expected ')' after continue");
         return stmt_continue(tok.line, tok.column);
     }
-    case TOKEN_GOTO: {
-        Token tok = parser->current_token;
-        advance(parser);
-        consume(parser, TOKEN_LPAREN, "Expected '(' after goto");
-        Expr *expr = parse_expression(parser);
-        if (!expr) {
-            return NULL;
-        }
-        consume(parser, TOKEN_RPAREN, "Expected ')' after goto");
-        return stmt_goto(expr, tok.line, tok.column);
-    }
-    case TOKEN_GOTOPOINT: {
-        Token tok = parser->current_token;
-        advance(parser);
-        consume(parser, TOKEN_LPAREN, "Expected '(' after gotopoint");
-        Expr *expr = parse_expression(parser);
-        if (!expr) {
-            return NULL;
-        }
-        consume(parser, TOKEN_RPAREN, "Expected ')' after gotopoint target");
-        return stmt_gotopoint(expr, tok.line, tok.column);
-    }
+    case TOKEN_GOTO:
+        return parse_paren_expr_stmt(parser, stmt_goto, "Expected '(' after goto", "Expected ')' after goto");
+    case TOKEN_GOTOPOINT:
+        return parse_paren_expr_stmt(parser, stmt_gotopoint, "Expected '(' after gotopoint",
+                                     "Expected ')' after gotopoint target");
     default:
         break;
     }
@@ -1452,20 +1334,7 @@ static Stmt *parse_statement(Parser *parser) {
         if (ta.type == TYPE_UNKNOWN) {
             return NULL;
         }
-        if (!require_space_only_gap(parser, &ta.end_tok, &parser->current_token, k_type_name_gap_error)) {
-            return NULL;
-        }
-        char *name = parser->current_token.literal;
-        advance(parser);
-        if (match(parser, TOKEN_EQUALS)) {
-            Expr *expr = parse_expression(parser);
-            if (!expr) {
-                return NULL;
-            }
-            return stmt_assign(true, ta.type, ta.base, name, NULL, expr, ta.schema_expr, type_tok.line,
-                               type_tok.column);
-        }
-        return stmt_decl(ta.type, ta.base, name, ta.schema_expr, type_tok.line, type_tok.column);
+        return parse_simple_typed_declaration(parser, type_tok, ta);
     }
 
     if (parser->current_token.type == TOKEN_IDENT && parser->next_token.type == TOKEN_EQUALS) {
