@@ -5,6 +5,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+static void init_digit_tables(void);
+
 static void report_error(Parser *parser, const char *message) {
     if (parser->panic_mode) {
         return;
@@ -25,6 +27,7 @@ static void report_error(Parser *parser, const char *message) {
 }
 
 void parser_init(Parser *parser, Lexer *lexer) {
+    init_digit_tables();
     parser->lexer = lexer;
     parser->panic_mode = false;
     parser->had_error = false;
@@ -396,17 +399,157 @@ static int base_from_literal_prefix(const char *s, size_t *prefix_len) {
     return -1;
 }
 
-static int digit_value_for_base(int base, char c) {
-    static const char *digits64 = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz+_";
-    static const char *digits58 = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
-    const char *alphabet = (base == 58) ? digits58 : digits64;
-    int limit = (base == 58) ? 58 : base;
-    for (int i = 0; i < limit; i++) {
-        if (alphabet[i] == c) {
-            return i;
-        }
+static uint8_t k_digit64_tbl[256];
+static uint8_t k_digit58_tbl[256];
+
+static void init_digit_tables(void) {
+    static bool initialized = false;
+    if (initialized) {
+        return;
     }
-    return -1;
+    for (int i = 0; i < 256; i++) {
+        k_digit64_tbl[i] = 0xFF;
+        k_digit58_tbl[i] = 0xFF;
+    }
+    k_digit64_tbl['0'] = 0;
+    k_digit64_tbl['1'] = 1;
+    k_digit64_tbl['2'] = 2;
+    k_digit64_tbl['3'] = 3;
+    k_digit64_tbl['4'] = 4;
+    k_digit64_tbl['5'] = 5;
+    k_digit64_tbl['6'] = 6;
+    k_digit64_tbl['7'] = 7;
+    k_digit64_tbl['8'] = 8;
+    k_digit64_tbl['9'] = 9;
+    k_digit64_tbl['A'] = 10;
+    k_digit64_tbl['B'] = 11;
+    k_digit64_tbl['C'] = 12;
+    k_digit64_tbl['D'] = 13;
+    k_digit64_tbl['E'] = 14;
+    k_digit64_tbl['F'] = 15;
+    k_digit64_tbl['G'] = 16;
+    k_digit64_tbl['H'] = 17;
+    k_digit64_tbl['I'] = 18;
+    k_digit64_tbl['J'] = 19;
+    k_digit64_tbl['K'] = 20;
+    k_digit64_tbl['L'] = 21;
+    k_digit64_tbl['M'] = 22;
+    k_digit64_tbl['N'] = 23;
+    k_digit64_tbl['O'] = 24;
+    k_digit64_tbl['P'] = 25;
+    k_digit64_tbl['Q'] = 26;
+    k_digit64_tbl['R'] = 27;
+    k_digit64_tbl['S'] = 28;
+    k_digit64_tbl['T'] = 29;
+    k_digit64_tbl['U'] = 30;
+    k_digit64_tbl['V'] = 31;
+    k_digit64_tbl['W'] = 32;
+    k_digit64_tbl['X'] = 33;
+    k_digit64_tbl['Y'] = 34;
+    k_digit64_tbl['Z'] = 35;
+    k_digit64_tbl['a'] = 36;
+    k_digit64_tbl['b'] = 37;
+    k_digit64_tbl['c'] = 38;
+    k_digit64_tbl['d'] = 39;
+    k_digit64_tbl['e'] = 40;
+    k_digit64_tbl['f'] = 41;
+    k_digit64_tbl['g'] = 42;
+    k_digit64_tbl['h'] = 43;
+    k_digit64_tbl['i'] = 44;
+    k_digit64_tbl['j'] = 45;
+    k_digit64_tbl['k'] = 46;
+    k_digit64_tbl['l'] = 47;
+    k_digit64_tbl['m'] = 48;
+    k_digit64_tbl['n'] = 49;
+    k_digit64_tbl['o'] = 50;
+    k_digit64_tbl['p'] = 51;
+    k_digit64_tbl['q'] = 52;
+    k_digit64_tbl['r'] = 53;
+    k_digit64_tbl['s'] = 54;
+    k_digit64_tbl['t'] = 55;
+    k_digit64_tbl['u'] = 56;
+    k_digit64_tbl['v'] = 57;
+    k_digit64_tbl['w'] = 58;
+    k_digit64_tbl['x'] = 59;
+    k_digit64_tbl['y'] = 60;
+    k_digit64_tbl['z'] = 61;
+    k_digit64_tbl['+'] = 62;
+    k_digit64_tbl['_'] = 63;
+
+    k_digit58_tbl['1'] = 0;
+    k_digit58_tbl['2'] = 1;
+    k_digit58_tbl['3'] = 2;
+    k_digit58_tbl['4'] = 3;
+    k_digit58_tbl['5'] = 4;
+    k_digit58_tbl['6'] = 5;
+    k_digit58_tbl['7'] = 6;
+    k_digit58_tbl['8'] = 7;
+    k_digit58_tbl['9'] = 8;
+    k_digit58_tbl['A'] = 9;
+    k_digit58_tbl['B'] = 10;
+    k_digit58_tbl['C'] = 11;
+    k_digit58_tbl['D'] = 12;
+    k_digit58_tbl['E'] = 13;
+    k_digit58_tbl['F'] = 14;
+    k_digit58_tbl['G'] = 15;
+    k_digit58_tbl['H'] = 16;
+    k_digit58_tbl['J'] = 17;
+    k_digit58_tbl['K'] = 18;
+    k_digit58_tbl['L'] = 19;
+    k_digit58_tbl['M'] = 20;
+    k_digit58_tbl['N'] = 21;
+    k_digit58_tbl['P'] = 22;
+    k_digit58_tbl['Q'] = 23;
+    k_digit58_tbl['R'] = 24;
+    k_digit58_tbl['S'] = 25;
+    k_digit58_tbl['T'] = 26;
+    k_digit58_tbl['U'] = 27;
+    k_digit58_tbl['V'] = 28;
+    k_digit58_tbl['W'] = 29;
+    k_digit58_tbl['X'] = 30;
+    k_digit58_tbl['Y'] = 31;
+    k_digit58_tbl['Z'] = 32;
+    k_digit58_tbl['a'] = 33;
+    k_digit58_tbl['b'] = 34;
+    k_digit58_tbl['c'] = 35;
+    k_digit58_tbl['d'] = 36;
+    k_digit58_tbl['e'] = 37;
+    k_digit58_tbl['f'] = 38;
+    k_digit58_tbl['g'] = 39;
+    k_digit58_tbl['h'] = 40;
+    k_digit58_tbl['i'] = 41;
+    k_digit58_tbl['j'] = 42;
+    k_digit58_tbl['k'] = 43;
+    k_digit58_tbl['m'] = 44;
+    k_digit58_tbl['n'] = 45;
+    k_digit58_tbl['o'] = 46;
+    k_digit58_tbl['p'] = 47;
+    k_digit58_tbl['q'] = 48;
+    k_digit58_tbl['r'] = 49;
+    k_digit58_tbl['s'] = 50;
+    k_digit58_tbl['t'] = 51;
+    k_digit58_tbl['u'] = 52;
+    k_digit58_tbl['v'] = 53;
+    k_digit58_tbl['w'] = 54;
+    k_digit58_tbl['x'] = 55;
+    k_digit58_tbl['y'] = 56;
+    k_digit58_tbl['z'] = 57;
+    initialized = true;
+}
+
+int digit_value_for_base(int base, char c) {
+    if (base == 58) {
+        uint8_t v = k_digit58_tbl[(unsigned char)c];
+        if (v == 0xFF) {
+            return -1;
+        }
+        return v;
+    }
+    uint8_t v = k_digit64_tbl[(unsigned char)c];
+    if (v == 0xFF) {
+        return -1;
+    }
+    return v;
 }
 
 typedef struct {
