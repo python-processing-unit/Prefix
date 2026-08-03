@@ -59,11 +59,16 @@ typedef enum {
 
 } PTokenType;
 
+typedef enum { TOKEN_LITERAL_NULL = 0, TOKEN_LITERAL_STATIC, TOKEN_LITERAL_HEAP } TokenLiteralKind;
+
 typedef struct {
     PTokenType type;
-    char *literal; // For IDENT, NUMBER, FLOAT, STRING, etc.
+    char *literal;
+    TokenLiteralKind literal_kind;
     int line;
     int column;
 } Token;
+
+void token_free(Token *token);
 
 #endif // TOKEN_H
