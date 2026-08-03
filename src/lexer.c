@@ -90,6 +90,7 @@ void lexer_init(Lexer *lexer, const char *source, const char *filename) {
     lexer->column = 1;
     lexer->pending_token.type = TOKEN_EOF;
     lexer->pending_token.literal = NULL;
+    lexer->pending_token.literal_kind = TOKEN_LITERAL_NULL;
     lexer->pending_token.line = 0;
     lexer->pending_token.column = 0;
     lexer->has_pending = false;
@@ -175,15 +176,31 @@ static Token make_token(Lexer *lexer, PTokenType type, const char *start, size_t
     Token token;
     token.type = type;
     token.line = lexer->line;
-    token.column = lexer->column - (int)length; // Approximate start column
+    token.column = lexer->column - (int)length;
     if (length == 0 && start != NULL) {
         token.literal = safe_strdup(start);
+        token.literal_kind = TOKEN_LITERAL_HEAP;
+    } else if (length == 1 && start != NULL) {
+        static char pool[256][2];
+        static bool pool_ready = false;
+        if (!pool_ready) {
+            for (int i = 0; i < 256; i++) {
+                pool[i][0] = (char)i;
+                pool[i][1] = '\0';
+            }
+            pool_ready = true;
+        }
+        unsigned char uc = (unsigned char)start[0];
+        token.literal = pool[uc];
+        token.literal_kind = TOKEN_LITERAL_STATIC;
     } else if (start != NULL) {
         token.literal = (char *)safe_malloc(length + 1);
         memcpy(token.literal, start, length);
         token.literal[length] = '\0';
+        token.literal_kind = TOKEN_LITERAL_HEAP;
     } else {
         token.literal = NULL;
+        token.literal_kind = TOKEN_LITERAL_NULL;
     }
     return token;
 }
@@ -194,6 +211,7 @@ static Token error_token(Lexer *lexer, const char *message) {
     token.line = lexer->line;
     token.column = lexer->column;
     token.literal = safe_strdup(message);
+    token.literal_kind = TOKEN_LITERAL_HEAP;
     return token;
 }
 
@@ -246,6 +264,7 @@ static Token flush_fmt_buffer(Lexer *lexer) {
     t.line = lexer->line;
     t.column = lexer->column - (int)lexer->fmt_buffer_len;
     t.literal = safe_strdup(lexer->fmt_buffer ? lexer->fmt_buffer : "");
+    t.literal_kind = TOKEN_LITERAL_HEAP;
     lexer->fmt_buffer_len = 0;
     if (lexer->fmt_buffer) {
         lexer->fmt_buffer[0] = '\0';
@@ -433,7 +452,8 @@ static Token scan_fmt_string_text(Lexer *lexer, char quote_char) {
             lexer->pending_token.type = TOKEN_FMT_OPEN;
             lexer->pending_token.line = lexer->line;
             lexer->pending_token.column = lexer->column;
-            lexer->pending_token.literal = safe_strdup("{");
+            lexer->pending_token.literal = "{";
+            lexer->pending_token.literal_kind = TOKEN_LITERAL_STATIC;
             return t;
         }
 
@@ -529,12 +549,12 @@ Token lexer_next_token(Lexer *lexer) {
         }
         if (c == '\n') {
             advance(lexer);
-            Token t = {TOKEN_NEWLINE, safe_strdup("\n"), lexer->line - 1, lexer->column};
+            Token t = {TOKEN_NEWLINE, "\n", TOKEN_LITERAL_STATIC, lexer->line - 1, lexer->column};
             return t;
         }
         if (c == ';') {
             advance(lexer);
-            Token t = {TOKEN_NEWLINE, safe_strdup("\n"), lexer->line, lexer->column};
+            Token t = {TOKEN_NEWLINE, "\n", TOKEN_LITERAL_STATIC, lexer->line, lexer->column};
             return t;
         }
         if (c == '!') {
@@ -674,7 +694,7 @@ Token lexer_next_token(Lexer *lexer) {
         return error_token(lexer, err_msg);
     }
 
-    Token t = {TOKEN_EOF, NULL, lexer->line, lexer->column};
+    Token t = {TOKEN_EOF, NULL, TOKEN_LITERAL_NULL, lexer->line, lexer->column};
     return t;
 }
 
@@ -736,6 +756,7 @@ static Token identifier_token(Lexer *lexer) {
     Token t;
     t.type = type;
     t.literal = value;
+    t.literal_kind = TOKEN_LITERAL_HEAP;
     t.line = start_line;
     t.column = start_col;
     return t;
@@ -861,6 +882,17 @@ static Token number_token(Lexer *lexer, bool is_negative_start) {
     }
 
     value[len_val] = '\0';
-    Token t = {(int)has_dot ? TOKEN_FLOAT : TOKEN_NUMBER, value, start_line, start_col};
+    Token t = {(int)has_dot ? TOKEN_FLOAT : TOKEN_NUMBER, value, TOKEN_LITERAL_HEAP, start_line, start_col};
     return t;
+}
+
+void token_free(Token *token) {
+    if (!token) {
+        return;
+    }
+    if (token->literal_kind == TOKEN_LITERAL_HEAP && token->literal != NULL) {
+        free(token->literal);
+    }
+    token->literal = NULL;
+    token->literal_kind = TOKEN_LITERAL_NULL;
 }
