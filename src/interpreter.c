@@ -3078,32 +3078,40 @@ ExecResult assign_index_chain(Interpreter *interp, Env *env, Expr *idx_expr, Val
                 goto cleanup;
             }
 
+            int *out_to_orig = malloc(sizeof(int) * new_ndim);
+            if (!out_to_orig) {
+                free(starts);
+                free(ends);
+                free(orig_to_out);
+                free(out_shape);
+                out = make_error("Out of memory", stmt_line, stmt_col);
+                goto cleanup;
+            }
+            for (size_t i = 0; i < t->ndim; i++) {
+                if (orig_to_out[i] >= 0) {
+                    out_to_orig[orig_to_out[i]] = (int)i;
+                }
+            }
+
+            size_t fixed_dim_offset = 0;
+            for (size_t k = 0; k < t->ndim; k++) {
+                if (orig_to_out[k] == -1) {
+                    size_t pos = (ends[k] >= starts[k]) ? (size_t)(starts[k] - 1) : 0;
+                    fixed_dim_offset += pos * t->strides[k];
+                }
+            }
+
             // Write RHS elements into target tensor region
             // Iterate over output positions and compute corresponding source offset
             for (size_t out_idx = 0; out_idx < rt->length; out_idx++) {
-                // compute multi-index for out
                 size_t rem = out_idx;
-                size_t src_offset = 0;
+                size_t src_offset = fixed_dim_offset;
                 for (size_t d = 0; d < new_ndim; d++) {
                     size_t pos = rem / rt->strides[d];
                     rem = rem % rt->strides[d];
-                    // find orig dim for this d
-                    size_t orig = 0;
-                    for (size_t k = 0; k < t->ndim; k++) {
-                        if (orig_to_out[k] == (int)d) {
-                            orig = k;
-                            break;
-                        }
-                    }
+                    size_t orig = (size_t)out_to_orig[d];
                     size_t src_pos = pos + (size_t)(starts[orig] - 1);
                     src_offset += src_pos * t->strides[orig];
-                }
-                // add fixed-dimension offsets
-                for (size_t k = 0; k < t->ndim; k++) {
-                    if (orig_to_out[k] == -1) {
-                        size_t pos = (ends[k] >= starts[k]) ? (size_t)(starts[k] - 1) : 0;
-                        src_offset += pos * t->strides[k];
-                    }
                 }
 
                 // assign element
@@ -3117,6 +3125,7 @@ ExecResult assign_index_chain(Interpreter *interp, Env *env, Expr *idx_expr, Val
             free(starts);
             free(ends);
             free(orig_to_out);
+            free(out_to_orig);
             // After slice assignment, set cur to base (no further chaining into this node)
             cur = &base_val;
             rhs_applied_directly = true;

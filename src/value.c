@@ -371,35 +371,42 @@ Value value_tensor_slice(Value v, const int64_t *starts, const int64_t *ends, si
         }
     }
 
+    int *out_to_orig = malloc(sizeof(int) * new_ndim);
+    if (!out_to_orig) {
+        free(new_shape);
+        free(nstarts);
+        free(nends);
+        free(orig_to_out);
+        fprintf(stderr, "Out of memory\n");
+        exit(1);
+    }
+    for (size_t i = 0; i < t->ndim; i++) {
+        if (orig_to_out[i] >= 0) {
+            out_to_orig[orig_to_out[i]] = (int)i;
+        }
+    }
+
+    size_t fixed_dim_offset = 0;
+    for (size_t k = 0; k < t->ndim; k++) {
+        if (orig_to_out[k] == -1) {
+            size_t pos = (nends[k] >= nstarts[k]) ? (size_t)(nstarts[k] - 1) : 0;
+            fixed_dim_offset += pos * t->strides[k];
+        }
+    }
+
     Value out = value_tensor_new(t->elem_type, new_ndim, new_shape);
     Tensor *ot = out.as.tensor;
 
     // iterate over output positions and copy corresponding element
     for (size_t out_idx = 0; out_idx < ot->length; out_idx++) {
-        // compute multi-index for out
         size_t rem = out_idx;
-        size_t src_offset = 0;
+        size_t src_offset = fixed_dim_offset;
         for (size_t d = 0; d < new_ndim; d++) {
             size_t pos = rem / ot->strides[d];
             rem = rem % ot->strides[d];
-            // find corresponding original dimension
-            // scan orig_to_out to find index with value == d
-            size_t orig = 0;
-            for (size_t k = 0; k < t->ndim; k++) {
-                if (orig_to_out[k] == (int)d) {
-                    orig = k;
-                    break;
-                }
-            }
+            size_t orig = (size_t)out_to_orig[d];
             size_t src_pos = pos + (size_t)(nstarts[orig] - 1);
             src_offset += src_pos * t->strides[orig];
-        }
-        // add fixed-dimension offsets
-        for (size_t k = 0; k < t->ndim; k++) {
-            if (orig_to_out[k] == -1) {
-                size_t pos = (nends[k] >= nstarts[k]) ? (size_t)(nstarts[k] - 1) : 0;
-                src_offset += pos * t->strides[k];
-            }
         }
         ot->data[out_idx] = value_copy(t->data[src_offset]);
     }
@@ -408,6 +415,7 @@ Value value_tensor_slice(Value v, const int64_t *starts, const int64_t *ends, si
     free(nstarts);
     free(nends);
     free(orig_to_out);
+    free(out_to_orig);
     return out;
 }
 
