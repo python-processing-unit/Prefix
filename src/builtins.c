@@ -677,17 +677,6 @@ static const char *k_digits58 = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmno
 
 static int is_valid_numeric_base(int base) { return base >= 2 && base <= 64; }
 
-static int digit_value_for_base(int base, char c) {
-    const char *alphabet = (base == 58) ? k_digits58 : k_digits64;
-    int limit = (base == 58) ? 58 : base;
-    for (int i = 0; i < limit; i++) {
-        if (alphabet[i] == c) {
-            return i;
-        }
-    }
-    return -1;
-}
-
 static const char *base_prefix_str(int base, char *buf, size_t buflen) {
     switch (base) {
     case 2:

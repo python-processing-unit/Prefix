@@ -20,5 +20,6 @@ typedef struct {
 
 void parser_init(Parser *parser, Lexer *lexer);
 Stmt *parser_parse(Parser *parser);
+int digit_value_for_base(int base, char c);
 
 #endif // PARSER_H
