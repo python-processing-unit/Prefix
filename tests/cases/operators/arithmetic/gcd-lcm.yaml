@@ -8,16 +8,16 @@ passing:
         float co_prime_left_oct = 0o17.0
         float co_prime_right_dec = 0d13.0
         
-        ASSERT(EQ(GCD(left_dec, right_hex), 0x6.0))
-        ASSERT(EQ(GCD(right_hex, left_dec), 0x6.0))
-        ASSERT(isfloat(GCD(left_dec, right_hex)))
-        ASSERT(EQ(BASE(GCD(left_dec, right_hex)), 0d16))
+        assert(eq(gcd(left_dec, right_hex), 0x6.0))
+        assert(eq(gcd(right_hex, left_dec), 0x6.0))
+        assert(isfloat(gcd(left_dec, right_hex)))
+        assert(eq(BASE(gcd(left_dec, right_hex)), 0d16))
         
-        ASSERT(EQ(GCD(zero_oct, right_hex), 0x18.0))
-        ASSERT(EQ(BASE(GCD(zero_oct, right_hex)), 0d16))
+        assert(eq(gcd(zero_oct, right_hex), 0x18.0))
+        assert(eq(BASE(gcd(zero_oct, right_hex)), 0d16))
         
-        ASSERT(EQ(GCD(co_prime_left_oct, co_prime_right_dec), 0d1.0))
-        ASSERT(EQ(BASE(GCD(co_prime_left_oct, co_prime_right_dec)), 0d10))
+        assert(eq(gcd(co_prime_left_oct, co_prime_right_dec), 0d1.0))
+        assert(eq(BASE(gcd(co_prime_left_oct, co_prime_right_dec)), 0d10))
         
   - name: gcd-int
     language: Prefix
@@ -28,16 +28,16 @@ passing:
         int co_prime_left_oct = 0o17
         int co_prime_right_dec = 0d13
         
-        ASSERT(EQ(GCD(left_dec, right_hex), 0x6))
-        ASSERT(EQ(GCD(right_hex, left_dec), 0x6))
-        ASSERT(isint(GCD(left_dec, right_hex)))
-        ASSERT(EQ(BASE(GCD(left_dec, right_hex)), 0d16))
+        assert(eq(gcd(left_dec, right_hex), 0x6))
+        assert(eq(gcd(right_hex, left_dec), 0x6))
+        assert(isint(gcd(left_dec, right_hex)))
+        assert(eq(BASE(gcd(left_dec, right_hex)), 0d16))
         
-        ASSERT(EQ(GCD(zero_bin, right_hex), 0x18))
-        ASSERT(EQ(BASE(GCD(zero_bin, right_hex)), 0d16))
+        assert(eq(gcd(zero_bin, right_hex), 0x18))
+        assert(eq(BASE(gcd(zero_bin, right_hex)), 0d16))
         
-        ASSERT(EQ(GCD(co_prime_left_oct, co_prime_right_dec), 0d1))
-        ASSERT(EQ(BASE(GCD(co_prime_left_oct, co_prime_right_dec)), 0d10))
+        assert(eq(gcd(co_prime_left_oct, co_prime_right_dec), 0d1))
+        assert(eq(BASE(gcd(co_prime_left_oct, co_prime_right_dec)), 0d10))
         
   - name: lcm-flt
     language: Prefix
@@ -48,16 +48,16 @@ passing:
         float co_prime_left_oct = 0o10.0
         float co_prime_right_dec = 0d9.0
         
-        ASSERT(EQ(LCM(left_oct, right_hex), 0x2A.0))
-        ASSERT(EQ(LCM(right_hex, left_oct), 0x2A.0))
-        ASSERT(isfloat(LCM(left_oct, right_hex)))
-        ASSERT(EQ(BASE(LCM(left_oct, right_hex)), 0d16))
+        assert(eq(lcm(left_oct, right_hex), 0x2A.0))
+        assert(eq(lcm(right_hex, left_oct), 0x2A.0))
+        assert(isfloat(lcm(left_oct, right_hex)))
+        assert(eq(BASE(lcm(left_oct, right_hex)), 0d16))
         
-        ASSERT(EQ(LCM(zero_bin, right_hex), 0x0.0))
-        ASSERT(EQ(BASE(LCM(zero_bin, right_hex)), 0d16))
+        assert(eq(lcm(zero_bin, right_hex), 0x0.0))
+        assert(eq(BASE(lcm(zero_bin, right_hex)), 0d16))
         
-        ASSERT(EQ(LCM(co_prime_left_oct, co_prime_right_dec), 0d72.0))
-        ASSERT(EQ(BASE(LCM(co_prime_left_oct, co_prime_right_dec)), 0d10))
+        assert(eq(lcm(co_prime_left_oct, co_prime_right_dec), 0d72.0))
+        assert(eq(BASE(lcm(co_prime_left_oct, co_prime_right_dec)), 0d10))
         
   - name: lcm-int
     language: Prefix
@@ -68,75 +68,75 @@ passing:
         int co_prime_left_oct = 0o10
         int co_prime_right_dec = 0d9
         
-        ASSERT(EQ(LCM(left_oct, right_hex), 0x2A))
-        ASSERT(EQ(LCM(right_hex, left_oct), 0x2A))
-        ASSERT(isint(LCM(left_oct, right_hex)))
-        ASSERT(EQ(BASE(LCM(left_oct, right_hex)), 0d16))
+        assert(eq(lcm(left_oct, right_hex), 0x2A))
+        assert(eq(lcm(right_hex, left_oct), 0x2A))
+        assert(isint(lcm(left_oct, right_hex)))
+        assert(eq(BASE(lcm(left_oct, right_hex)), 0d16))
         
-        ASSERT(EQ(LCM(zero_bin, right_hex), 0x0))
-        ASSERT(EQ(BASE(LCM(zero_bin, right_hex)), 0d16))
+        assert(eq(lcm(zero_bin, right_hex), 0x0))
+        assert(eq(BASE(lcm(zero_bin, right_hex)), 0d16))
         
-        ASSERT(EQ(LCM(co_prime_left_oct, co_prime_right_dec), 0d72))
-        ASSERT(EQ(BASE(LCM(co_prime_left_oct, co_prime_right_dec)), 0d10))
+        assert(eq(lcm(co_prime_left_oct, co_prime_right_dec), 0d72))
+        assert(eq(BASE(lcm(co_prime_left_oct, co_prime_right_dec)), 0d10))
         
 failing:
   - name: gcd-arity-one
     language: Prefix
     source: |
-        GCD(0d12)
+        gcd(0d12)
         
   - name: gcd-arity-three
     language: Prefix
     source: |
-        GCD(0d12, 0d6, 0d3)
+        gcd(0d12, 0d6, 0d3)
         
   - name: gcd-mixed-types-reversed
     language: Prefix
     source: |
-        GCD(0d12.0, 0d6)
+        gcd(0d12.0, 0d6)
         
   - name: gcd-mixed-types
     language: Prefix
     source: |
-        GCD(0d12, 0d6.0)
+        gcd(0d12, 0d6.0)
         
   - name: gcd-type-bool
     language: Prefix
     source: |
-        GCD(true, false)
+        gcd(true, false)
         
   - name: gcd-type-str
     language: Prefix
     source: |
-        GCD("12", "6")
+        gcd("12", "6")
         
   - name: lcm-arity-one
     language: Prefix
     source: |
-        LCM(0d12)
+        lcm(0d12)
         
   - name: lcm-arity-three
     language: Prefix
     source: |
-        LCM(0d12, 0d6, 0d3)
+        lcm(0d12, 0d6, 0d3)
         
   - name: lcm-mixed-types-reversed
     language: Prefix
     source: |
-        LCM(0d12.0, 0d6)
+        lcm(0d12.0, 0d6)
         
   - name: lcm-mixed-types
     language: Prefix
     source: |
-        LCM(0d12, 0d6.0)
+        lcm(0d12, 0d6.0)
         
   - name: lcm-type-bool
     language: Prefix
     source: |
-        LCM(true, false)
+        lcm(true, false)
         
   - name: lcm-type-str
     language: Prefix
     source: |
-        LCM("12", "6")
+        lcm("12", "6")
         

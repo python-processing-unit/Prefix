@@ -1,1 +1,1 @@
-bool extend_result = EXTEND("extend_package")
+bool extend_result = extend("extend_package")

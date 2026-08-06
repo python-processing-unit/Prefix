@@ -2,55 +2,55 @@ passing:
   - name: split-consecutive-and-trailing
     language: Prefix
     source: |
-        ASSERT(EQ(SPLIT("a,,b,,,c", ","), ["a", "", "b", "", "", "c"]))
-        ASSERT(EQ(SPLIT("tail,,", ","), ["tail", "", ""]))
+        assert(eq(split("a,,b,,,c", ","), ["a", "", "b", "", "", "c"]))
+        assert(eq(split("tail,,", ","), ["tail", "", ""]))
         
   - name: split-custom-delimiter
     language: Prefix
     source: |
-        ASSERT(EQ(SPLIT("ab--cd--ef", "--"), ["ab", "cd", "ef"]))
-        ASSERT(EQ(SPLIT("no delimiter here", "--"), ["no delimiter here"]))
+        assert(eq(split("ab--cd--ef", "--"), ["ab", "cd", "ef"]))
+        assert(eq(split("no delimiter here", "--"), ["no delimiter here"]))
         
   - name: split-default-delimiter
     language: Prefix
     source: |
-        tensor words = SPLIT("foo bar baz")
+        tensor words = split("foo bar baz")
         
-        ASSERT(EQ(TYPE(words), "tensor"))
-        ASSERT(EQ(words, ["foo", "bar", "baz"]))
-        ASSERT(EQ(TLEN(words, 0d1), 0d3))
+        assert(eq(type(words), "tensor"))
+        assert(eq(words, ["foo", "bar", "baz"]))
+        assert(eq(len_dim(words, 0d1), 0d3))
         
   - name: split-return-element-type
     language: Prefix
     source: |
-        tensor parts = SPLIT("left|right", "|")
+        tensor parts = split("left|right", "|")
         
-        ASSERT(EQ(TYPE(parts[0d1]), "str"))
-        ASSERT(EQ(TYPE(parts[0d2]), "str"))
+        assert(eq(type(parts[0d1]), "str"))
+        assert(eq(type(parts[0d2]), "str"))
         
 failing:
   - name: split-arity-three
     language: Prefix
     source: |
-        SPLIT("a,b", ",", ",")
+        split("a,b", ",", ",")
         
   - name: split-arity-zero
     language: Prefix
     source: |
-        SPLIT()
+        split()
         
   - name: split-empty-delimiter
     language: Prefix
     source: |
-        SPLIT("a,b", "")
+        split("a,b", "")
         
   - name: split-first-non-str
     language: Prefix
     source: |
-        SPLIT(0d1, ",")
+        split(0d1, ",")
         
   - name: split-second-non-str
     language: Prefix
     source: |
-        SPLIT("a,b", 0d1)
+        split("a,b", 0d1)
         

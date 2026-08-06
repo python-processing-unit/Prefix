@@ -31,17 +31,17 @@ The core statement forms of the language MUST include typed declarations, assign
 
 ### 3.2 Declarations and assignment
 
-A symbol MAY be declared without a value using `TYPE name`. Such a declaration records the symbol's static type but does not create a readable runtime binding until an assignment occurs. The type and name MUST be separated by one or more space characters, and no other character MAY appear between them.
+A symbol MAY be declared without a value using `type name`. Such a declaration records the symbol's static type but does not create a readable runtime binding until an assignment occurs. The type and name MUST be separated by one or more space characters, and no other character MAY appear between them.
 
-For `int` and `float` types, a declaration MAY name a specific numeric base by writing `TYPE{base} name`, where `base` is an `int` literal in the range `2` through `64`. A named-base type is a subtype of its parent numeric type: `int{base}` values are `int`s and `float{base}` values are `float`s, but an assignment to a named-base binding requires the value's base to match the declared base. The parent types `int` and `float` (equivalent to `int{0}` and `float{0}`) accept values of any valid numeric base.
+For `int` and `float` types, a declaration MAY name a specific numeric base by writing `type{base} name`, where `base` is an `int` literal in the range `2` through `64`. A named-base type is a subtype of its parent numeric type: `int{base}` values are `int`s and `float{base}` values are `float`s, but an assignment to a named-base binding requires the value's base to match the declared base. The parent types `int` and `float` (equivalent to `int{0}` and `float{0}`) accept values of any valid numeric base.
 
-For `map` types, a declaration MAY specify a schema `map` by writing `map{schema} name`, where `schema` is any expression that evaluates to a `map`. A named-`map` type is a subtype of its parent `map` type: `map{schema}` values are `map`s, but an assignment to a named-`map` binding requires the assigned value to match the schema according to the default key-presence rules of the `VALIDATE` operator. The parent type `map` accepts any `map` value.
+For `map` types, a declaration MAY specify a schema `map` by writing `map{schema} name`, where `schema` is any expression that evaluates to a `map`. A named-`map` type is a subtype of its parent `map` type: `map{schema}` values are `map`s, but an assignment to a named-`map` binding requires the assigned value to match the schema according to the default key-presence rules of the `validate` operator. The parent type `map` accepts any `map` value.
 
-The first assignment to a symbol MUST use a typed form such as `TYPE name = expression`, `TYPE{base} name = expression`, or `map{schema} name = expression`, with one or more spaces between the type annotation and the name and optional spaces around `=`. Subsequent assignments MAY omit the type annotation, but the symbol's type MUST remain unchanged for the lifetime of that name, including after deletion and re-assignment.
+The first assignment to a symbol MUST use a typed form such as `type name = expression`, `type{base} name = expression`, or `map{schema} name = expression`, with one or more spaces between the type annotation and the name and optional spaces around `=`. Subsequent assignments MAY omit the type annotation, but the symbol's type MUST remain unchanged for the lifetime of that name, including after deletion and re-assignment.
 
-Assignments to undeclared identifiers without a type annotation MUST raise a runtime error. A binding MUST remain allocated until it is deleted with `DEL("name")`.
+Assignments to undeclared identifiers without a type annotation MUST raise a runtime error. A binding MUST remain allocated until it is deleted with `del("name")`.
 
-The built-in `ASSIGN(target, expression)` MUST provide expression-position assignment. The `target` MAY be a plain identifier or an indexed target. If the identifier does not yet exist, the typed form `ASSIGN(TYPE name, expression)` MUST be used, and that typed form is valid only for plain identifiers.
+The built-in `assign(target, expression)` MUST provide expression-position assignment. The `target` MAY be a plain identifier or an indexed target. If the identifier does not yet exist, the typed form `assign(type name, expression)` MUST be used, and that typed form is valid only for plain identifiers.
 
 Indexed assignment to a tensor MUST use the form `tensor[i1, i2, ..., iN] = expression`. The base symbol MUST already be a `tensor`, the index count MUST match the tensor rank, indices MUST follow the language's one-based and negative-index rules, and the assignment MUST preserve the static element type at the selected position.
 
@@ -69,7 +69,7 @@ If the `try` block completes without a runtime error, the `catch` block MUST be 
 
 In the parameterized form, `catch(SYMBOL name)` MUST create a temporary `str` binding named `name` in the handler's lexical environment containing the triggering error message. That temporary binding MUST shadow any existing binding of the same name only for the duration of the `catch` block.
 
-`try` and `catch` MUST intercept interpreter-level errors. Errors raised inside `async` or other background execution contexts MUST be reported through the runtime's error-reporting mechanisms and MUST NOT synchronously transfer control to a surrounding `catch` block in another thread.
+`try` and `catch` MUST intercept interpreter-level errors. Errors raised inside `async` or other background execution contexts MUST be reported through the runtime's error-reporting mechanisms and MUST not synchronously transfer control to a surrounding `catch` block in another thread.
 
 ---
 
@@ -77,7 +77,7 @@ In the parameterized form, `catch(SYMBOL name)` MUST create a temporary `str` bi
 
 `while(condition){ ... }` MUST repeatedly evaluate its condition before each iteration and MUST terminate when the condition becomes false.
 
-`for(counter, target){ ... }` MUST evaluate `target` exactly once at loop entry, require that value to be an `int`, initialize `counter` to `1`, and execute the body once for each value through `target`, inclusive. The loop counter MUST be loop-local and MUST NOT persist after the loop finishes, though other symbols declared in the body remain bound in the enclosing environment.
+`for(counter, target){ ... }` MUST evaluate `target` exactly once at loop entry, require that value to be an `int`, initialize `counter` to `1`, and execute the body once for each value through `target`, inclusive. The loop counter MUST be loop-local and MUST not persist after the loop finishes, though other symbols declared in the body remain bound in the enclosing environment.
 
 `parfor(counter, target){ ... }` MUST evaluate `target` once, require an `int`, then execute the iterations `1..target` concurrently. The interpreter MUST wait for all iterations to finish before continuing. The loop counter is iteration-local and does not persist afterward, while other symbols declared in iteration bodies are merged back into the enclosing environment. Concurrent writes to shared identifiers are therefore race-prone, and the resulting value is implementation-defined.
 
@@ -93,7 +93,7 @@ When `async{ ... }` appears in statement position, its resulting `thread` handle
 
 The statement form `thread(symbol){ ... }` MUST create a background task and bind its handle to `symbol` with static type `thread` in the current environment.
 
-Runtime errors raised inside asynchronous execution MUST be recorded by the interpreter's error-reporting and state-logging mechanisms and MUST NOT synchronously abort the main thread.
+Runtime errors raised inside asynchronous execution MUST be recorded by the interpreter's error-reporting and state-logging mechanisms and MUST not synchronously abort the main thread.
 
 ---
 

@@ -5,31 +5,31 @@ passing:
         func int{0d2} add(~int{0d2} a, ~int{0d2} b) {
             return(+(a, b))
         }
-        ASSERT(EQ(add(0d5, 0d6), 0b1011))
-        ASSERT(EQ(add(0xA, 0xB), 0b10101))
-        ASSERT(EQ(add(0o3, 0o4), 0b111))
-        ASSERT(EQ(BASE(add(0d1, 0d1)), 0d2))
+        assert(eq(add(0d5, 0d6), 0b1011))
+        assert(eq(add(0xA, 0xB), 0b10101))
+        assert(eq(add(0o3, 0o4), 0b111))
+        assert(eq(BASE(add(0d1, 0d1)), 0d2))
         
         func float{0d16} scale(~float{0d16} x) {
             return(*(x, 0x2.0))
         }
-        ASSERT(EQ(scale(0d3.0), 0x6.0))
-        ASSERT(EQ(BASE(scale(0d1.0)), 0d16))
+        assert(eq(scale(0d3.0), 0x6.0))
+        assert(eq(BASE(scale(0d1.0)), 0d16))
         
   - name: typed-base-func-return
     language: Prefix
     source: |
         func int{0d2} make_binary(int x) {
-            return(CONVERT(x, 0d2))
+            return(switch_base(x, 0d2))
         }
-        ASSERT(EQ(make_binary(0d5), 0b101))
-        ASSERT(EQ(BASE(make_binary(0d5)), 0d2))
+        assert(eq(make_binary(0d5), 0b101))
+        assert(eq(BASE(make_binary(0d5)), 0d2))
         
         func float{0d16} make_hex(float x) {
-            return(CONVERT(x, 0d16))
+            return(switch_base(x, 0d16))
         }
-        ASSERT(EQ(make_hex(0d3.0), 0x3.0))
-        ASSERT(EQ(BASE(make_hex(0d3.0)), 0d16))
+        assert(eq(make_hex(0d3.0), 0x3.0))
+        assert(eq(BASE(make_hex(0d3.0)), 0d16))
         
   - name: typed-base-lambda
     language: Prefix
@@ -37,14 +37,14 @@ passing:
         func add_binary = LAMBDA int{0d2} (int{0d2} a, int{0d2} b) {
             return(+(a, b))
         }
-        ASSERT(EQ(add_binary(0b101, 0b110), 0b1011))
-        ASSERT(EQ(SIGNATURE(add_binary), "int{0d2} add_binary(int{0d2} a, int{0d2} b)"))
+        assert(eq(add_binary(0b101, 0b110), 0b1011))
+        assert(eq(signature(add_binary), "int{0d2} add_binary(int{0d2} a, int{0d2} b)"))
         
         func scale_hex = LAMBDA float{0d16} (~float{0d16} x) {
             return(*(x, 0x2.0))
         }
-        ASSERT(EQ(scale_hex(0d2.5), 0x5.0))
-        ASSERT(EQ(BASE(scale_hex(0d2.5)), 0d16))
+        assert(eq(scale_hex(0d2.5), 0x5.0))
+        assert(eq(BASE(scale_hex(0d2.5)), 0d16))
         
   - name: typed-base-signature
     language: Prefix
@@ -52,86 +52,86 @@ passing:
         func int{0d2} add(int{0d2} a, int{0d2} b) {
             return(+(a, b))
         }
-        ASSERT(EQ(SIGNATURE(add), "int{0d2} add(int{0d2} a, int{0d2} b)"))
+        assert(eq(signature(add), "int{0d2} add(int{0d2} a, int{0d2} b)"))
         
         func float{0d16} scale(float{0d16} x) {
             return(*(x, 0x2.0))
         }
-        ASSERT(EQ(SIGNATURE(scale), "float{0d16} scale(float{0d16} x)"))
+        assert(eq(signature(scale), "float{0d16} scale(float{0d16} x)"))
         
         int{0d8} octal = 0o77
-        ASSERT(EQ(SIGNATURE(octal), "int{0d8} octal"))
+        assert(eq(signature(octal), "int{0d8} octal"))
         
         float{0d32} flt_named = 0t1.5
-        ASSERT(EQ(SIGNATURE(flt_named), "float{0d32} flt_named"))
+        assert(eq(signature(flt_named), "float{0d32} flt_named"))
         
   - name: typed-flt-base-parent
     language: Prefix
     source: |
         float a = 0b10.1
-        ASSERT(EQ(a, 0b10.1))
-        ASSERT(EQ(BASE(a), 0d2))
+        assert(eq(a, 0b10.1))
+        assert(eq(BASE(a), 0d2))
         
         a = 0x1.A
-        ASSERT(EQ(a, 0x1.A))
-        ASSERT(EQ(BASE(a), 0d16))
+        assert(eq(a, 0x1.A))
+        assert(eq(BASE(a), 0d16))
         
         a = 0d3.14
-        ASSERT(EQ(a, 0d3.14))
-        ASSERT(EQ(BASE(a), 0d10))
+        assert(eq(a, 0d3.14))
+        assert(eq(BASE(a), 0d10))
         
   - name: typed-flt-base
     language: Prefix
     source: |
         float{0d2} a = 0b10.1
-        ASSERT(EQ(a, 0b10.1))
-        ASSERT(EQ(BASE(a), 0d2))
+        assert(eq(a, 0b10.1))
+        assert(eq(BASE(a), 0d2))
         
         float{0d16} b = 0x1.A
-        ASSERT(EQ(b, 0x1.A))
-        ASSERT(EQ(BASE(b), 0d16))
+        assert(eq(b, 0x1.A))
+        assert(eq(BASE(b), 0d16))
         
         float{0d10} c = 0d3.14
-        ASSERT(EQ(c, 0d3.14))
-        ASSERT(EQ(BASE(c), 0d10))
+        assert(eq(c, 0d3.14))
+        assert(eq(BASE(c), 0d10))
         
         float{0d64} d = 0s0.5
-        ASSERT(EQ(d, 0s0.5))
-        ASSERT(EQ(BASE(d), 0d64))
+        assert(eq(d, 0s0.5))
+        assert(eq(BASE(d), 0d64))
         
   - name: typed-int-base-parent
     language: Prefix
     source: |
         int a = 0b1010
-        ASSERT(EQ(a, 0b1010))
-        ASSERT(EQ(BASE(a), 0d2))
+        assert(eq(a, 0b1010))
+        assert(eq(BASE(a), 0d2))
         
         a = 0x2A
-        ASSERT(EQ(a, 0x2A))
-        ASSERT(EQ(BASE(a), 0d16))
+        assert(eq(a, 0x2A))
+        assert(eq(BASE(a), 0d16))
         
         a = 0d42
-        ASSERT(EQ(a, 0d42))
-        ASSERT(EQ(BASE(a), 0d10))
+        assert(eq(a, 0d42))
+        assert(eq(BASE(a), 0d10))
         
   - name: typed-int-base
     language: Prefix
     source: |
         int{0d2} a = 0b1010
-        ASSERT(EQ(a, 0b1010))
-        ASSERT(EQ(BASE(a), 0d2))
+        assert(eq(a, 0b1010))
+        assert(eq(BASE(a), 0d2))
         
         int{0d16} b = 0x2A
-        ASSERT(EQ(b, 0x2A))
-        ASSERT(EQ(BASE(b), 0d16))
+        assert(eq(b, 0x2A))
+        assert(eq(BASE(b), 0d16))
         
         int{0d10} c = 0d42
-        ASSERT(EQ(c, 0d42))
-        ASSERT(EQ(BASE(c), 0d10))
+        assert(eq(c, 0d42))
+        assert(eq(BASE(c), 0d10))
         
         int{0d64} d = 0s6
-        ASSERT(EQ(d, 0s6))
-        ASSERT(EQ(BASE(d), 0d64))
+        assert(eq(d, 0s6))
+        assert(eq(BASE(d), 0d64))
         
 failing:
   - name: typed-base-param-mismatch

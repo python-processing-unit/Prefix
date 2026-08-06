@@ -2,33 +2,33 @@ passing:
   - name: lower
     language: Prefix
     source: |
-        ASSERT(EQ(TYPE(LOWER("PREFIX")), "str"))
-        ASSERT(EQ(LOWER("PREFIX"), "prefix"))
-        ASSERT(EQ(LOWER("Prefix 123!"), "prefix 123!"))
-        ASSERT(EQ(LOWER(""), ""))
+        assert(eq(type(lowercase("PREFIX")), "str"))
+        assert(eq(lowercase("PREFIX"), "prefix"))
+        assert(eq(lowercase("Prefix 123!"), "prefix 123!"))
+        assert(eq(lowercase(""), ""))
   - name: upper
     language: Prefix
     source: |
-        ASSERT(EQ(TYPE(UPPER("prefix")), "str"))
-        ASSERT(EQ(UPPER("prefix"), "PREFIX"))
-        ASSERT(EQ(UPPER("Prefix 123!"), "PREFIX 123!"))
-        ASSERT(EQ(UPPER(""), ""))
+        assert(eq(type(uppercase("prefix")), "str"))
+        assert(eq(uppercase("prefix"), "PREFIX"))
+        assert(eq(uppercase("Prefix 123!"), "PREFIX 123!"))
+        assert(eq(uppercase(""), ""))
 failing:
   - name: lower-arity-two
     language: Prefix
-    source: 'LOWER("a", "b")'
+    source: 'lowercase("a", "b")'
   - name: lower-arity-zero
     language: Prefix
-    source: LOWER()
+    source: lowercase()
   - name: lower-non-str
     language: Prefix
-    source: LOWER(0d1)
+    source: lowercase(0d1)
   - name: upper-arity-two
     language: Prefix
-    source: 'UPPER("a", "b")'
+    source: 'uppercase("a", "b")'
   - name: upper-arity-zero
     language: Prefix
-    source: UPPER()
+    source: uppercase()
   - name: upper-non-str
     language: Prefix
-    source: UPPER(0d1)
+    source: uppercase(0d1)

@@ -3,11 +3,11 @@ passing:
     language: Prefix
     source: |
         func bool contains(str haystack, str needle){
-            return(GT(TLEN(SPLIT(haystack, needle), 0d1), 0d1))
+            return(gt(len_dim(split(haystack, needle), 0d1), 0d1))
         }
         
         func int occurrences(str haystack, str needle){
-            return(-(TLEN(SPLIT(haystack, needle), 0d1), 0d1))
+            return(-(len_dim(split(haystack, needle), 0d1), 0d1))
         }
         
         func int identity(int value){
@@ -15,21 +15,21 @@ passing:
         }
         
         map shared = <"first" = identity, "second" = identity>
-        str json = SER(shared)
+        str json = serialize(shared)
         
-        ASSERT(contains(json, '\R"t":"func"'))
-        ASSERT(contains(json, '\R"name":"identity"'))
-        ASSERT(GT(occurrences(json, '\R"def":{'), 0d0))
-        ASSERT(contains(json, '\R"ref":true'))
+        assert(contains(json, '\R"t":"func"'))
+        assert(contains(json, '\R"name":"identity"'))
+        assert(gt(occurrences(json, '\R"def":{'), 0d0))
+        assert(contains(json, '\R"ref":true'))
         
-        map roundtrip = UNSER(SER(shared))
-        ASSERT(EQ(roundtrip<"first">(0d4), 0d4))
-        ASSERT(EQ(roundtrip<"second">(0d5), 0d5))
+        map roundtrip = unserialize(serialize(shared))
+        assert(eq(roundtrip<"first">(0d4), 0d4))
+        assert(eq(roundtrip<"second">(0d5), 0d5))
   - name: ser-func
     language: Prefix
     source: |
         func bool contains(str haystack, str needle){
-            return(GT(TLEN(SPLIT(haystack, needle), 0d1), 0d1))
+            return(gt(len_dim(split(haystack, needle), 0d1), 0d1))
         }
         
         int seed = 0d9
@@ -39,97 +39,97 @@ passing:
             return(+(alias, +(count, step)))
         }
         
-        str json = SER(add_seed)
+        str json = serialize(add_seed)
         
-        ASSERT(contains(json, '\R"t":"func"'))
-        ASSERT(contains(json, '\R"name":"add_seed"'))
-        ASSERT(contains(json, '\R"return":"int"'))
-        ASSERT(contains(json, '\R"coerced":true'))
-        ASSERT(contains(json, '\R"default":{"n":"Literal"'))
-        ASSERT(contains(json, '\R"closure":{"t":"ENV"'))
-        ASSERT(contains(json, '\R"t":"PTR"'))
-        ASSERT(contains(json, '\R"name":"seed"'))
-        ASSERT(contains(json, '\R"value_type":"int"'))
-        ASSERT(contains(json, '\R"n":"ReturnStatement"'))
-        ASSERT(contains(json, '\R"n":"CallExpression"'))
+        assert(contains(json, '\R"t":"func"'))
+        assert(contains(json, '\R"name":"add_seed"'))
+        assert(contains(json, '\R"return":"int"'))
+        assert(contains(json, '\R"coerced":true'))
+        assert(contains(json, '\R"default":{"n":"Literal"'))
+        assert(contains(json, '\R"closure":{"t":"ENV"'))
+        assert(contains(json, '\R"t":"PTR"'))
+        assert(contains(json, '\R"name":"seed"'))
+        assert(contains(json, '\R"value_type":"int"'))
+        assert(contains(json, '\R"n":"ReturnStatement"'))
+        assert(contains(json, '\R"n":"CallExpression"'))
   - name: ser-map
     language: Prefix
     source: |
         map ordered = <"alpha" = 0d1, 0d2 = "two", 0d3.5 = true>
         
-        ASSERT(EQ(SER(ordered), '\R{"t":"map","v":[{"k":{"t":"str","v":"alpha"},"v":{"t":"int","v":"0d1"}},{"k":{"t":"int","v":"0d2"},"v":{"t":"str","v":"two"}},{"k":{"t":"float","v":"0d3.5"},"v":{"t":"bool","v":true}}]}'))
+        assert(eq(serialize(ordered), '\R{"t":"map","v":[{"k":{"t":"str","v":"alpha"},"v":{"t":"int","v":"0d1"}},{"k":{"t":"int","v":"0d2"},"v":{"t":"str","v":"two"}},{"k":{"t":"float","v":"0d3.5"},"v":{"t":"bool","v":true}}]}'))
         
         map nested = <"outer" = <"inner" = [0d1, 0d2]>>
-        ASSERT(EQ(UNSER(SER(nested)), nested))
-        ASSERT(EQ(KEYS(UNSER(SER(ordered))), ["alpha", 0d2, 0d3.5]))
+        assert(eq(unserialize(serialize(nested)), nested))
+        assert(eq(keys(unserialize(serialize(ordered))), ["alpha", 0d2, 0d3.5]))
   - name: ser-scalars
     language: Prefix
     source: |
-        ASSERT(EQ(SER(true), '{"t":"bool","v":true}'))
-        ASSERT(EQ(SER(false), '{"t":"bool","v":false}'))
+        assert(eq(serialize(true), '{"t":"bool","v":true}'))
+        assert(eq(serialize(false), '{"t":"bool","v":false}'))
         
-        ASSERT(EQ(SER(0d42), '{"t":"int","v":"0d42"}'))
-        ASSERT(EQ(SER(-0xA), '{"t":"int","v":"-0xA"}'))
+        assert(eq(serialize(0d42), '{"t":"int","v":"0d42"}'))
+        assert(eq(serialize(-0xA), '{"t":"int","v":"-0xA"}'))
         
-        ASSERT(EQ(SER(0d3.5), '{"t":"float","v":"0d3.5"}'))
-        ASSERT(EQ(SER(-INF), '{"t":"float","v":"-INF"}'))
-        ASSERT(EQ(SER(NaN), '{"t":"float","v":"NaN"}'))
+        assert(eq(serialize(0d3.5), '{"t":"float","v":"0d3.5"}'))
+        assert(eq(serialize(-INF), '{"t":"float","v":"-INF"}'))
+        assert(eq(serialize(NaN), '{"t":"float","v":"NaN"}'))
         
-        ASSERT(EQ(UNSER(SER(0x2A)), 0x2A))
-        ASSERT(EQ(str(UNSER(SER(NaN))), "NaN"))
+        assert(eq(unserialize(serialize(0x2A)), 0x2A))
+        assert(eq(str(unserialize(serialize(NaN))), "NaN"))
   - name: ser-strings
     language: Prefix
     source: |
-        ASSERT(EQ(SER("Prefix"), '{"t":"str","v":"Prefix"}'))
+        assert(eq(serialize("Prefix"), '{"t":"str","v":"Prefix"}'))
         
         str escaped = "\"\\\b\f\n\r\t"
-        ASSERT(EQ(SER(escaped), '\R{"t":"str","v":"\"\\\b\f\n\r\t"}'))
+        assert(eq(serialize(escaped), '\R{"t":"str","v":"\"\\\b\f\n\r\t"}'))
         
-        ASSERT(EQ(SER("\x01"), '\R{"t":"str","v":"\u0001"}'))
+        assert(eq(serialize("\x01"), '\R{"t":"str","v":"\u0001"}'))
         
-        str unicode_json = SER("\u00E9")
-        ASSERT(OR(EQ(unicode_json, '\R{"t":"str","v":"\u00E9"}'), EQ(unicode_json, '\R{"t":"str","v":"\u00e9"}')))
-        ASSERT(EQ(UNSER(unicode_json), "\u00E9"))
+        str unicode_json = serialize("\u00E9")
+        assert(or(eq(unicode_json, '\R{"t":"str","v":"\u00E9"}'), eq(unicode_json, '\R{"t":"str","v":"\u00e9"}')))
+        assert(eq(unserialize(unicode_json), "\u00E9"))
   - name: ser-tensor
     language: Prefix
     source: |
-        ASSERT(EQ(SER([0d1, 0d2]), '\R{"t":"tensor","shape":[2],"v":[{"t":"int","v":"0d1"},{"t":"int","v":"0d2"}]}'))
+        assert(eq(serialize([0d1, 0d2]), '\R{"t":"tensor","shape":[2],"v":[{"t":"int","v":"0d1"},{"t":"int","v":"0d2"}]}'))
         
         tensor square = [[0d1, 0d2], [0d3, 0d4]]
-        ASSERT(EQ(SER(square), '\R{"t":"tensor","shape":[2,2],"v":[{"t":"int","v":"0d1"},{"t":"int","v":"0d2"},{"t":"int","v":"0d3"},{"t":"int","v":"0d4"}]}'))
-        ASSERT(EQ(UNSER(SER(square)), square))
+        assert(eq(serialize(square), '\R{"t":"tensor","shape":[2,2],"v":[{"t":"int","v":"0d1"},{"t":"int","v":"0d2"},{"t":"int","v":"0d3"},{"t":"int","v":"0d4"}]}'))
+        assert(eq(unserialize(serialize(square)), square))
   - name: ser-thr
     language: Prefix
     source: |
         func bool contains(str haystack, str needle){
-            return(GT(TLEN(SPLIT(haystack, needle), 0d1), 0d1))
+            return(gt(len_dim(split(haystack, needle), 0d1), 0d1))
         }
         
         func int occurrences(str haystack, str needle){
-            return(-(TLEN(SPLIT(haystack, needle), 0d1), 0d1))
+            return(-(len_dim(split(haystack, needle), 0d1), 0d1))
         }
         
         thread(worker){}
-        AWAIT(worker)
+        await(worker)
         
-        str json = SER(worker)
+        str json = serialize(worker)
         
-        ASSERT(contains(json, '\R"t":"thread"'))
-        ASSERT(contains(json, '\R"id":"t1"'))
-        ASSERT(contains(json, '\R"state":"finished"'))
-        ASSERT(contains(json, '\R"paused":false'))
-        ASSERT(contains(json, '\R"finished":true'))
-        ASSERT(contains(json, '\R"stop":false'))
-        ASSERT(contains(json, '\R"env":'))
-        ASSERT(contains(json, '\R"block":{"n":"Block"'))
+        assert(contains(json, '\R"t":"thread"'))
+        assert(contains(json, '\R"id":"t1"'))
+        assert(contains(json, '\R"state":"finished"'))
+        assert(contains(json, '\R"paused":false'))
+        assert(contains(json, '\R"finished":true'))
+        assert(contains(json, '\R"stop":false'))
+        assert(contains(json, '\R"env":'))
+        assert(contains(json, '\R"block":{"n":"Block"'))
         
         map shared = <"first" = worker, "second" = worker>
-        str shared_json = SER(shared)
-        ASSERT(EQ(occurrences(shared_json, '\R"id":"t1"'), 0d2))
+        str shared_json = serialize(shared)
+        assert(eq(occurrences(shared_json, '\R"id":"t1"'), 0d2))
 failing:
   - name: ser-arity-two
     language: Prefix
-    source: 'SER(true, false)'
+    source: 'serialize(true, false)'
   - name: ser-arity-zero
     language: Prefix
-    source: SER()
+    source: serialize()

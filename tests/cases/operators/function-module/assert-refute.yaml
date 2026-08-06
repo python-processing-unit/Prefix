@@ -2,24 +2,24 @@ passing:
   - name: assert
     language: Prefix
     source: |
-        ASSERT(true)
+        assert(true)
         
   - name: refute
     language: Prefix
     source: |
-        REFUTE(false)
-        REFUTE(0d0)
-        REFUTE(0d0.0)
-        REFUTE("")
+        refute(false)
+        refute(0d0)
+        refute(0d0.0)
+        refute("")
         
 failing:
   - name: assert-false
     language: Prefix
     source: |
-        ASSERT(false)
+        assert(false)
         
   - name: refute-true
     language: Prefix
     source: |
-        REFUTE(true)
+        refute(true)
         

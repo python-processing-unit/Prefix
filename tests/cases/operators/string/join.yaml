@@ -2,65 +2,65 @@ passing:
   - name: join-int
     language: Prefix
     source: |
-        ASSERT(EQ(JOIN(0b1), 0b1))
-        ASSERT(EQ(JOIN(0b1, 0b0), 0b10))
-        ASSERT(EQ(JOIN(0b1, 0b10, 0b11), 0b11011))
+        assert(eq(join(0b1), 0b1))
+        assert(eq(join(0b1, 0b0), 0b10))
+        assert(eq(join(0b1, 0b10, 0b11), 0b11011))
         
   - name: join-pointer-writeback
     language: Prefix
     source: |
         str s1 = "foo"
         str s2 = "bar"
-        JOIN(@s1, s2)
-        ASSERT(EQ(s1, "foobar"))
-        ASSERT(EQ(s2, "bar"))
+        join(@s1, s2)
+        assert(eq(s1, "foobar"))
+        assert(eq(s2, "bar"))
         
         str s1 = "foo"
         str s2 = "bar"
-        JOIN(s1, @s2)
-        ASSERT(EQ(s1, "foo"))
-        ASSERT(EQ(s2, "foobar"))
+        join(s1, @s2)
+        assert(eq(s1, "foo"))
+        assert(eq(s2, "foobar"))
         
         str s1 = "foo"
         str s2 = "bar"
-        JOIN(@s1, @s2)
-        ASSERT(EQ(s1, "foobar"))
-        ASSERT(EQ(s2, "foobar"))
+        join(@s1, @s2)
+        assert(eq(s1, "foobar"))
+        assert(eq(s2, "foobar"))
         
         ! integer join mode (joins integer binary spellings)
         int i1 = 0b1010
         int i2 = 0b101
-        JOIN(@i1, i2)
-        ASSERT(EQ(i1, 0b1010101))
-        ASSERT(EQ(i2, 0b101))
+        join(@i1, i2)
+        assert(eq(i1, 0b1010101))
+        assert(eq(i2, 0b101))
         
         int i1 = 0b1010
         int i2 = 0b101
-        JOIN(i1, @i2)
-        ASSERT(EQ(i1, 0b1010))
-        ASSERT(EQ(i2, 0b1010101))
+        join(i1, @i2)
+        assert(eq(i1, 0b1010))
+        assert(eq(i2, 0b1010101))
         
         int i1 = 0b1010
         int i2 = 0b101
-        JOIN(@i1, @i2)
-        ASSERT(EQ(i1, 0b1010101))
-        ASSERT(EQ(i2, 0b1010101))
+        join(@i1, @i2)
+        assert(eq(i1, 0b1010101))
+        assert(eq(i2, 0b1010101))
         
   - name: join-str
     language: Prefix
     source: |
-        ASSERT(EQ(JOIN("prefix"), "prefix"))
-        ASSERT(EQ(JOIN("pre", " ", "fix"), "pre fix"))
-        ASSERT(EQ(JOIN("", "a", "", "b"), "ab"))
+        assert(eq(join("prefix"), "prefix"))
+        assert(eq(join("pre", " ", "fix"), "pre fix"))
+        assert(eq(join("", "a", "", "b"), "ab"))
         
 failing:
   - name: join-mixed-sign
     language: Prefix
     source: |
-        JOIN(-0b1, 0b1)
+        join(-0b1, 0b1)
         
   - name: join-mixed-types
     language: Prefix
     source: |
-        JOIN("1", 0b1)
+        join("1", 0b1)
         

@@ -10,13 +10,13 @@ Prefix is a programming language focused on explicit, readable code.
 
 ! ---------- modular inverse via the extended Euclidean algorithm ----------
 func int modinv(int a, int m){
-    a = MOD(a, m)
-    if(LT(a, 0)){ a = +(a, m) }
+    a = mod(a, m)
+    if(lt(a, 0)){ a = +(a, m) }
     int r0 = m
     int r1 = a
     int t0 = 0
     int t1 = 1
-    while(NEQ(r1, 0)){
+    while(neq(r1, 0)){
         int q = /(r0, r1)
         int nr = -(r0, *(q, r1))
         int nt = -(t0, *(q, t1))
@@ -25,11 +25,11 @@ func int modinv(int a, int m){
         t0 = t1
         t1 = nt
     }
-    if(NEQ(r0, 1)){
-        THROW("modinv: arguments not coprime")
+    if(neq(r0, 1)){
+        throw("modinv: arguments not coprime")
     }
-    int inv = MOD(t0, m)
-    if(LT(inv, 0)){ inv = +(inv, m) }
+    int inv = mod(t0, m)
+    if(lt(inv, 0)){ inv = +(inv, m) }
     return(inv)
 }
 
@@ -43,7 +43,7 @@ int c = 12345
 int seed = 48271
 
 func int step(int s){
-    return(MOD(+( *(a, s), c), m))
+    return(mod(+( *(a, s), c), m))
 }
 
 ! ---------- collect observed outputs (all the attacker sees) ----------
@@ -53,12 +53,12 @@ for(i, 8){
     obs<i> = s
     s = step(s)
 }
-DEL("seed")
-DEL("s")
+del("seed")
+del("s")
 
 ! ---------- recover the modulus m ----------
 ! t_i = x_{i+1} - x_i  follows  t_{i+1} = a * t_i (mod m), so each
-! u_k = t_{k+1} * t_{k-1} - t_k^2 is a multiple of m.  GCD of several
+! u_k = t_{k+1} * t_{k-1} - t_k^2 is a multiple of m.  gcd of several
 ! |u_k| yields m.
 map d
 for(i, 7){
@@ -67,15 +67,15 @@ for(i, 7){
 
 int mrec = 0
 int k = 2
-while(LTE(k, 6)){
+while(lte(k, 6)){
     int lo = -(k, 1)
     int hi = +(k, 1)
     int tk = d<k>
-    mrec = GCD(mrec, ABS(-( *(d<hi>, d<lo>), *(tk, tk) )))
+    mrec = gcd(mrec, abs(-( *(d<hi>, d<lo>), *(tk, tk) )))
     k = +(k, 1)
 }
-DEL("d")
-DEL("k")
+del("d")
+del("k")
 
 ! ---------- recover a and c ----------
 ! a = (x2 - x1) * (x1 - x0)^{-1}  (mod m)
@@ -83,52 +83,52 @@ DEL("k")
 int x0 = obs<0d1>
 int x1 = obs<0d2>
 int x2 = obs<0d3>
-int arec = MOD(*( -(x2, x1), modinv(-(x1, x0), mrec) ), mrec)
-int crec = MOD(-(x1, *(arec, x0)), mrec)
-if(LT(arec, 0d0)){ arec = +(arec, mrec) }
-if(LT(crec, 0d0)){ crec = +(crec, mrec) }
-DEL("r0")
-DEL("r1")
-DEL("t0")
-DEL("t1")
-DEL("q")
-DEL("nr")
-DEL("nt")
-DEL("inv")
-DEL("x2")
-DEL("x1")
-DEL("modinv")
+int arec = mod(*( -(x2, x1), modinv(-(x1, x0), mrec) ), mrec)
+int crec = mod(-(x1, *(arec, x0)), mrec)
+if(lt(arec, 0d0)){ arec = +(arec, mrec) }
+if(lt(crec, 0d0)){ crec = +(crec, mrec) }
+del("r0")
+del("r1")
+del("t0")
+del("t1")
+del("q")
+del("nr")
+del("nt")
+del("inv")
+del("x2")
+del("x1")
+del("modinv")
 
 ! ---------- verify by regenerating the whole sequence ----------
 int ok = 1
 int v = x0
 for(i, 8){
-    if(NEQ(v, obs<i>)){
+    if(neq(v, obs<i>)){
         ok = 0
     }
-    v = MOD(+( *(arec, v), crec), mrec)
+    v = mod(+( *(arec, v), crec), mrec)
 }
-DEL("x0")
-DEL("v")
+del("x0")
+del("v")
 
 ! ---------- report ----------
-PRINT("hidden : m=", m, " a=", a, " c=", c)
-PRINT("cracked: m=", mrec, " a=", arec, " c=", crec)
-PRINT("sequence reproduced: ", ok)
+print("hidden : m=", m, " a=", a, " c=", c)
+print("cracked: m=", mrec, " a=", arec, " c=", crec)
+print("sequence reproduced: ", ok)
 
 ! ---------- predict the next output ----------
-int next_pred = MOD(+( *(arec, obs<0d8>), crec), mrec)
+int next_pred = mod(+( *(arec, obs<0d8>), crec), mrec)
 int next_true = step(obs<0d8>)
-DEL("obs")
-DEL("step")
-PRINT("next output predicted: ", next_pred)
-PRINT("next output actual  : ", next_true)
+del("obs")
+del("step")
+print("next output predicted: ", next_pred)
+print("next output actual  : ", next_true)
 
-ASSERT(EQ(ok, 1))
-ASSERT(EQ(mrec, m))
-ASSERT(EQ(arec, a))
-ASSERT(EQ(crec, c))
-ASSERT(EQ(next_pred, next_true))
+assert(eq(ok, 1))
+assert(eq(mrec, m))
+assert(eq(arec, a))
+assert(eq(crec, c))
+assert(eq(next_pred, next_true))
 ```
 
 Overview

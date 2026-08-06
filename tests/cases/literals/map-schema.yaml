@@ -2,24 +2,24 @@ passing:
   - name: map-schema-assign-typed
     language: Prefix
     source: |
-        ! ASSIGN with typed ident + schema
-        ASSIGN(map{<"count" = 0d0>} cnt, <"count" = 0d99>)
-        ASSERT(ismap(cnt))
-        ASSERT(EQ(cnt<"count">, 0d99))
+        ! assign with typed ident + schema
+        assign(map{<"count" = 0d0>} cnt, <"count" = 0d99>)
+        assert(ismap(cnt))
+        assert(eq(cnt<"count">, 0d99))
   - name: map-schema-basic
     language: Prefix
     source: |
         ! map{<"x" = 0d1>} with matching value
         map{<"x" = 0d1>} schema_var
         schema_var = <"x" = 0d42>
-        ASSERT(VALIDATE(schema_var, <"x" = 0d1>))
+        assert(validate(schema_var, <"x" = 0d1>))
   - name: map-schema-empty-key
     language: Prefix
     source: |
         ! map with a schema having no keys
         map{<>} schema_var
         schema_var = <"anything" = 0d1>
-        ASSERT(ismap(schema_var))
+        assert(ismap(schema_var))
   - name: map-schema-func-param
     language: Prefix
     source: |
@@ -29,7 +29,7 @@ passing:
         }
         map candidate = <"x" = 0d5>
         map result = test(candidate)
-        ASSERT(EQ(result<"x">, 0d5))
+        assert(eq(result<"x">, 0d5))
   - name: map-schema-func-return
     language: Prefix
     source: |
@@ -38,51 +38,51 @@ passing:
             return(<"ok" = true>)
         }
         map result = make_ok()
-        ASSERT(result<"ok">)
+        assert(result<"ok">)
   - name: map-schema-match-builtin
     language: Prefix
     source: |
-        ! VALIDATE() builtin with named map using "validate" metadata subkey
+        ! validate() builtin with named map using "validate" metadata subkey
         ! The named map schema's "validate" subkey is ignored by env validation
-        ! But VALIDATE() recognizes it for typing/shape/recurse control
+        ! But validate() recognizes it for typing/shape/recurse control
         map{<"val" = 0d1, "y" = 0d2, "validate" = <"typing" = 0d1>>} var
         var = <"val" = 0d42, "y" = 0d99>
         
-        ! VALIDATE with typing=1 should succeed (all value types match)
-        ASSERT(VALIDATE(var, <"validate" = <"typing" = 0d1>, "val" = 0d99, "y" = 0d88>))
+        ! validate with typing=1 should succeed (all value types match)
+        assert(validate(var, <"validate" = <"typing" = 0d1>, "val" = 0d99, "y" = 0d88>))
         
-        ! VALIDATE with typing=1 should fail (value types mismatch)
-        REFUTE(VALIDATE(var, <"validate" = <"typing" = 0d1>, "val" = "str", "y" = 0d88>))
+        ! validate with typing=1 should fail (value types mismatch)
+        refute(validate(var, <"validate" = <"typing" = 0d1>, "val" = "str", "y" = 0d88>))
         
-        ! Named map variable without "validate" subkey, VALIDATE with typing=1
+        ! Named map variable without "validate" subkey, validate with typing=1
         map{<"a" = 0d1, "b" = "hi">} var2
         var2 = <"a" = 0d7, "b" = "world">
-        ASSERT(VALIDATE(var2, <"validate" = <"typing" = 0d1>, "a" = 0d9, "b" = "x">))
-        REFUTE(VALIDATE(var2, <"validate" = <"typing" = 0d1>, "a" = "wrong", "b" = "x">))
+        assert(validate(var2, <"validate" = <"typing" = 0d1>, "a" = 0d9, "b" = "x">))
+        refute(validate(var2, <"validate" = <"typing" = 0d1>, "a" = "wrong", "b" = "x">))
         
-        ! Named map with explicit VALIDATE recurse
+        ! Named map with explicit validate recurse
         map{<"outer" = <"inner" = 0d1>>} var3
         var3 = <"outer" = <"inner" = 0d42>>
-        ASSERT(VALIDATE(var3, <"validate" = <"recurse" = 0d1, "typing" = 0d1>, "outer" = <"inner" = 0d1>>))
-        REFUTE(VALIDATE(var3, <"validate" = <"recurse" = 0d1, "typing" = 0d1>, "outer" = <"inner" = "str">>))
+        assert(validate(var3, <"validate" = <"recurse" = 0d1, "typing" = 0d1>, "outer" = <"inner" = 0d1>>))
+        refute(validate(var3, <"validate" = <"recurse" = 0d1, "typing" = 0d1>, "outer" = <"inner" = "str">>))
         
-        ! Named map with VALIDATE shape check
+        ! Named map with validate shape check
         map{<"t" = [0d1, 0d2]>} var4
         var4 = <"t" = [0d5, 0d6]>
-        ASSERT(VALIDATE(var4, <"validate" = <"shape" = 0d1>, "t" = [0d0, 0d0]>))
-        REFUTE(VALIDATE(var4, <"validate" = <"shape" = 0d1>, "t" = [0d0]>))
+        assert(validate(var4, <"validate" = <"shape" = 0d1>, "t" = [0d0, 0d0]>))
+        refute(validate(var4, <"validate" = <"shape" = 0d1>, "t" = [0d0]>))
         
         ! Named map variable that has "match" as a regular key (not metadata)
         map{<"match" = "regular", "x" = 0d1>} var5
         var5 = <"match" = "regular", "x" = 0d99>
-        ASSERT(VALIDATE(var5, <"match" = "regular", "x" = 0d1>))
+        assert(validate(var5, <"match" = "regular", "x" = 0d1>))
         
   - name: map-schema-match-invalid-metadata
     language: Prefix
     source: |
-        ! VALIDATE() with "validate" subkey containing invalid metadata: unknown subkey
+        ! validate() with "validate" subkey containing invalid metadata: unknown subkey
         ! This should return false because "badkey" is unknown in match metadata
-        REFUTE(VALIDATE(<"x" = 0d1>, <"validate" = <"badkey" = 0d1>>))
+        refute(validate(<"x" = 0d1>, <"validate" = <"badkey" = 0d1>>))
         
   - name: map-schema-match-key-allowed
     language: Prefix
@@ -90,28 +90,28 @@ passing:
         ! Named map schema with "validate" subkey is allowed (value_map_matches ignores it)
         map{<"x" = 0d1, "validate" = <"typing" = 0d1>>} has_match
         has_match = <"x" = 0d99>
-        ASSERT(ismap(has_match))
-        ASSERT(EQ(has_match<"x">, 0d99))
+        assert(ismap(has_match))
+        assert(eq(has_match<"x">, 0d99))
         
         ! Also verify with "shape" metadata subkey
         map{<"a" = "hello", "validate" = <"shape" = 0d1, "typing" = 0d1>>} has_shape
         has_shape = <"a" = "world">
-        ASSERT(EQ(has_shape<"a">, "world"))
+        assert(eq(has_shape<"a">, "world"))
         
         ! Verify with "recurse" metadata subkey  
         map{<"b" = 0d1, "validate" = <"recurse" = 0d1, "typing" = 0d0>>} has_recurse
         has_recurse = <"b" = 0d42>
-        ASSERT(EQ(has_recurse<"b">, 0d42))
+        assert(eq(has_recurse<"b">, 0d42))
         
         ! Verify empty "validate" metadata
         map{<"c" = 0d1, "validate" = <>>} has_empty_match
         has_empty_match = <"c" = 0d7>
-        ASSERT(EQ(has_empty_match<"c">, 0d7))
+        assert(eq(has_empty_match<"c">, 0d7))
         
         ! Verify "validate" key in nested schema
         map{<"nested" = <"validate" = <"typing" = 0d1>, "val" = 0d1>>} has_nested_match
         has_nested_match = <"nested" = <"val" = 0d5>>
-        ASSERT(EQ(has_nested_match<"nested", "val">, 0d5))
+        assert(eq(has_nested_match<"nested", "val">, 0d5))
         
   - name: map-schema-runtime-expr
     language: Prefix
@@ -120,45 +120,45 @@ passing:
         map proto = <"a" = 0d1, "b" = 0d2>
         map{proto} shaped
         shaped = <"a" = 0d10, "b" = 0d20>
-        ASSERT(VALIDATE(shaped, proto))
+        assert(validate(shaped, proto))
   - name: map-schema-signature
     language: Prefix
     source: |
-        ! SIGNATURE of named map variable
+        ! signature of named map variable
         map{<"x" = 0d1>} var = <"x" = 0d42>
-        ASSERT(EQ(SIGNATURE(var), "map{<\"x\" = 0d1>} var"))
+        assert(eq(signature(var), "map{<\"x\" = 0d1>} var"))
         
-        ! SIGNATURE of plain map variable (no schema)
+        ! signature of plain map variable (no schema)
         map plain = <"y" = 0d1>
-        ASSERT(EQ(SIGNATURE(plain), "map plain"))
+        assert(eq(signature(plain), "map plain"))
         
-        ! SIGNATURE of empty-schema map variable
+        ! signature of empty-schema map variable
         map{<>} empty_s = <"anything" = 0d1>
-        ASSERT(EQ(SIGNATURE(empty_s), "map{<>} empty_s"))
+        assert(eq(signature(empty_s), "map{<>} empty_s"))
         
-        ! SIGNATURE of function with map return schema
+        ! signature of function with map return schema
         func map{<"ok" = true>} fn_ret_s() {
             return(<"ok" = true>)
         }
-        ASSERT(EQ(SIGNATURE(fn_ret_s), "map{<\"ok\" = true>} fn_ret_s()"))
+        assert(eq(signature(fn_ret_s), "map{<\"ok\" = true>} fn_ret_s()"))
         
-        ! SIGNATURE of function with map param schema
+        ! signature of function with map param schema
         func map process(map{<"a" = 0d1>} input) {
             return(input)
         }
-        ASSERT(EQ(SIGNATURE(process), "map process(map{<\"a\" = 0d1>} input)"))
+        assert(eq(signature(process), "map process(map{<\"a\" = 0d1>} input)"))
         
-        ! SIGNATURE of function with both return and param schemas
+        ! signature of function with both return and param schemas
         func map{<"result" = 0d1>} full_s(map{<"key" = "val">} m) {
             return(<"result" = 0d1>)
         }
-        ASSERT(EQ(SIGNATURE(full_s), "map{<\"result\" = 0d1>} full_s(map{<\"key\" = \"val\">} m)"))
+        assert(eq(signature(full_s), "map{<\"result\" = 0d1>} full_s(map{<\"key\" = \"val\">} m)"))
         
-        ! SIGNATURE of function with coerced param and schema
+        ! signature of function with coerced param and schema
         func map full_coerce(~map{<"in" = 0d1>} m) {
             return(m)
         }
-        ASSERT(EQ(SIGNATURE(full_coerce), "map full_coerce(~map{<\"in\" = 0d1>} m)"))
+        assert(eq(signature(full_coerce), "map full_coerce(~map{<\"in\" = 0d1>} m)"))
         
 failing:
   - name: map-schema-arg-mismatch
@@ -179,8 +179,8 @@ failing:
         map{<"x" = 0d1, "match" = "literal">} has_literal_match
         ! This should pass: "match" = "literal" is a regular required key
         has_literal_match = <"x" = 0d42, "match" = "literal">
-        ASSERT(EQ(has_literal_match<"x">, 0d42))
-        ASSERT(EQ(has_literal_match<"match">, "literal"))
+        assert(eq(has_literal_match<"x">, 0d42))
+        assert(eq(has_literal_match<"match">, "literal"))
         
         ! Assignment missing the "match" literal key should fail
         map{<"y" = 0d1, "match" = "needed">} needs_match

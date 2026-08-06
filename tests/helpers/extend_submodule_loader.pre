@@ -1,1 +1,1 @@
-bool extend_result = EXTEND("extpackage..submod")
+bool extend_result = extend("extpackage..submod")

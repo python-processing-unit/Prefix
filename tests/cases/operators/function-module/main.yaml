@@ -19,16 +19,16 @@ passing:
         
           Set-Content -Path $modulePath -Encoding Ascii -Value @'
         func bool imported_main(){
-            return(MAIN())
+            return(is_main())
         }
         '@
         
           $moduleLiteral = $modulePath.Replace('\', '\\')
         
           Set-Content -Path $programPath -Encoding Ascii -Value @"
-        IMPORT_PATH("$moduleLiteral", "helper")
+        import_path("$moduleLiteral", "helper")
         
-        ASSERT(NOT(helper.imported_main()))
+        assert(not(helper.imported_main()))
         "@
         
           $output = & $exePath $programPath 2>&1
@@ -59,7 +59,7 @@ passing:
           $programPath = Join-Path $tempDir 'program.pre'
         
           Set-Content -Path $modulePath -Encoding Ascii -Value @'
-        bool top_result = MAIN()
+        bool top_result = is_main()
         
         func bool read_top_result(){
             return(top_result)
@@ -69,10 +69,10 @@ passing:
           $moduleLiteral = $modulePath.Replace('\', '\\')
         
           Set-Content -Path $programPath -Encoding Ascii -Value @"
-        IMPORT_PATH("$moduleLiteral", "helper")
+        import_path("$moduleLiteral", "helper")
         
-        ASSERT(NOT(helper.read_top_result()))
-        ASSERT(EQ(TYPE(helper.read_top_result()), "bool"))
+        assert(not(helper.read_top_result()))
+        assert(eq(type(helper.read_top_result()), "bool"))
         "@
         
           $output = & $exePath $programPath 2>&1
@@ -89,24 +89,24 @@ passing:
     source: |
         bool branch_taken = false
         
-        if(MAIN()){
+        if(is_main()){
             branch_taken = true
         } else {
-            ASSERT(false)
+            assert(false)
         }
         
-        ASSERT(branch_taken)
+        assert(branch_taken)
   - name: main-primary-function
     language: Prefix
     source: |
         func bool from_primary_function(){
-            return(MAIN())
+            return(is_main())
         }
         
-        ASSERT(from_primary_function())
+        assert(from_primary_function())
   - name: main-return-type
     language: Prefix
-    source: 'ASSERT(EQ(TYPE(MAIN()), "bool"))'
+    source: 'assert(eq(type(is_main()), "bool"))'
   - name: main-source-location
     language: PowerShell
     source: |
@@ -127,7 +127,7 @@ passing:
         
           Set-Content -Path $modulePath -Encoding Ascii -Value @'
         func bool imported_main(){
-            return(MAIN())
+            return(is_main())
         }
         
         func bool call_callback(func callback){
@@ -142,14 +142,14 @@ passing:
           $moduleLiteral = $modulePath.Replace('\', '\\')
         
           Set-Content -Path $programPath -Encoding Ascii -Value @"
-        IMPORT_PATH("$moduleLiteral", "helper")
+        import_path("$moduleLiteral", "helper")
         
         func bool local_main(){
-            return(MAIN())
+            return(is_main())
         }
         
-        ASSERT(helper.call_callback(local_main))
-        ASSERT(NOT(helper.call_imported_main()))
+        assert(helper.call_callback(local_main))
+        assert(not(helper.call_imported_main()))
         "@
         
           $output = & $exePath $programPath 2>&1
@@ -163,8 +163,8 @@ passing:
         }
   - name: main-top-level
     language: Prefix
-    source: ASSERT(MAIN())
+    source: assert(is_main())
 failing:
   - name: main-arity-one
     language: Prefix
-    source: MAIN(0d1)
+    source: is_main(0d1)

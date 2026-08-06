@@ -48,7 +48,7 @@ bool env_exists(Env *env, const char *name);
 // Return a per-thread snapshot of the EnvEntry for the given name, searching parents.
 // The snapshot is safe to read after the function returns even when the
 // namespace buffer is active (it does not point into Env storage).
-// Caller must NOT free the returned pointer.
+// Caller must not free the returned pointer.
 // Returns NULL if not found.
 EnvEntry *env_get_entry(Env *env, const char *name);
 
@@ -83,7 +83,7 @@ int env_frozen_state(Env *env, const char *name);
 int env_permafrozen(Env *env, const char *name);
 
 // ---- Direct (unbuffered) entry points used by the namespace buffer ----
-// These perform the actual work and must NOT be called from outside
+// These perform the actual work and must not be called from outside
 // env.c / ns_buffer.c.  Public callers should use the non-_direct
 // versions above, which route through the write buffer when active.
 

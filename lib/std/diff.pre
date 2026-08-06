@@ -1,34 +1,34 @@
 ! diff utilities for Prefix
 
 func str _append_line(str acc, str line){
-    if( EQ(acc, "") ){ return(line) } else { return( JOIN(acc, "\n", line) ) }
+    if( eq(acc, "") ){ return(line) } else { return( join(acc, "\n", line) ) }
 }
 
 func str UNIFIED(str mod, str src){
-    tensor a = SPLIT(mod, "\n")
-    tensor b = SPLIT(src, "\n")
-    int la = TLEN(a, 0d1)
-    int lb = TLEN(b, 0d1)
-    int n = MAX(la, lb)
+    tensor a = split(mod, "\n")
+    tensor b = split(src, "\n")
+    int la = len_dim(a, 0d1)
+    int lb = len_dim(b, 0d1)
+    int n = max(la, lb)
     str out = ""
     int i = 0d1
-    while( LTE(i, n) ){
+    while( lte(i, n) ){
         str left = ""
-        if( LTE(i, la) ){ left = a[i] }
+        if( lte(i, la) ){ left = a[i] }
         str right = ""
-        if( LTE(i, lb) ){ right = b[i] }
+        if( lte(i, lb) ){ right = b[i] }
 
-        if( EQ(left, right) ){
-            if( NEQ(left, "")){
-                str line = JOIN(" ", left)
+        if( eq(left, right) ){
+            if( neq(left, "")){
+                str line = join(" ", left)
                 out = _append_line(out, line)
             }
         } else {
-            if( NEQ(left, "")) {
-                out = _append_line(out, JOIN("-", left))
+            if( neq(left, "")) {
+                out = _append_line(out, join("-", left))
             }
-            if( NEQ(right, "")) {
-                out = _append_line(out, JOIN("+", right))
+            if( neq(right, "")) {
+                out = _append_line(out, join("+", right))
             }
         }
         i = +(i, 0d1)
@@ -39,27 +39,27 @@ func str UNIFIED(str mod, str src){
 func str CONTEXT(str mod, str src){
     ! For simplicity, use the same output as UNIFIED but with a ' ' prefix
     str u = UNIFIED(mod, src)
-    if( EQ(u, "") ){ return("") }
+    if( eq(u, "") ){ return("") }
     ! Prepend a simple header to resemble context diff
-    return( JOIN("*** a", "\n", u) )
+    return( join("*** a", "\n", u) )
 }
 
 func str SIDE_BY_SIDE(str mod, str src){
-    tensor a = SPLIT(mod, "\n")
-    tensor b = SPLIT(src, "\n")
-    int la = TLEN(a, 0d1)
-    int lb = TLEN(b, 0d1)
-    int n = MAX(la, lb)
+    tensor a = split(mod, "\n")
+    tensor b = split(src, "\n")
+    int la = len_dim(a, 0d1)
+    int lb = len_dim(b, 0d1)
+    int n = max(la, lb)
     str out = ""
     int i = 0d1
-    while( LTE(i, n) ){
+    while( lte(i, n) ){
         str left = ""
-        if( LTE(i, la) ){ left = a[i] }
+        if( lte(i, la) ){ left = a[i] }
         str right = ""
-        if( LTE(i, lb) ){ right = b[i] }
+        if( lte(i, lb) ){ right = b[i] }
         str marker = " "
-        if( NEQ(left, right)){ marker = "|" }
-        str line = JOIN(left, " ", marker, " ", right)
+        if( neq(left, right)){ marker = "|" }
+        str line = join(left, " ", marker, " ", right)
         out = _append_line(out, line)
         i = +(i, 0d1)
     }

@@ -2,49 +2,49 @@ passing:
   - name: op-gt
     language: Prefix
     source: |
-        ASSERT(isbool(GT(0d2, 0d1)))
-        ASSERT(GT(0d2, 0d1))
-        REFUTE(GT(0d1, 0d1))
-        ASSERT(GT(0d1.5, 0d1.4))
-        REFUTE(GT(0d1.4, 0d1.5))
+        assert(isbool(gt(0d2, 0d1)))
+        assert(gt(0d2, 0d1))
+        refute(gt(0d1, 0d1))
+        assert(gt(0d1.5, 0d1.4))
+        refute(gt(0d1.4, 0d1.5))
   - name: op-gte
     language: Prefix
     source: |
-        ASSERT(isbool(GTE(0d2, 0d1)))
-        ASSERT(GTE(0d2, 0d1))
-        ASSERT(GTE(0d1, 0d1))
-        REFUTE(GTE(0d1, 0d2))
-        ASSERT(GTE(0d1.5, 0d1.4))
-        ASSERT(GTE(0d1.4, 0d1.4))
-        REFUTE(GTE(0d1.4, 0d1.5))
+        assert(isbool(gte(0d2, 0d1)))
+        assert(gte(0d2, 0d1))
+        assert(gte(0d1, 0d1))
+        refute(gte(0d1, 0d2))
+        assert(gte(0d1.5, 0d1.4))
+        assert(gte(0d1.4, 0d1.4))
+        refute(gte(0d1.4, 0d1.5))
   - name: op-lt
     language: Prefix
     source: |
-        ASSERT(isbool(LT(0d1, 0d2)))
-        ASSERT(LT(0d1, 0d2))
-        REFUTE(LT(0d1, 0d1))
-        ASSERT(LT(0d1.4, 0d1.5))
-        REFUTE(LT(0d1.5, 0d1.4))
+        assert(isbool(lt(0d1, 0d2)))
+        assert(lt(0d1, 0d2))
+        refute(lt(0d1, 0d1))
+        assert(lt(0d1.4, 0d1.5))
+        refute(lt(0d1.5, 0d1.4))
   - name: op-lte
     language: Prefix
     source: |
-        ASSERT(isbool(LTE(0d1, 0d2)))
-        ASSERT(LTE(0d1, 0d2))
-        ASSERT(LTE(0d1, 0d1))
-        REFUTE(LTE(0d2, 0d1))
-        ASSERT(LTE(0d1.4, 0d1.5))
-        ASSERT(LTE(0d1.4, 0d1.4))
-        REFUTE(LTE(0d1.5, 0d1.4))
+        assert(isbool(lte(0d1, 0d2)))
+        assert(lte(0d1, 0d2))
+        assert(lte(0d1, 0d1))
+        refute(lte(0d2, 0d1))
+        assert(lte(0d1.4, 0d1.5))
+        assert(lte(0d1.4, 0d1.4))
+        refute(lte(0d1.5, 0d1.4))
 failing:
   - name: op-gt-mixed-type
     language: Prefix
-    source: 'GT(0d2, 0d1.0)'
+    source: 'gt(0d2, 0d1.0)'
   - name: op-gte-mixed-type
     language: Prefix
-    source: 'GTE(0d2, 0d1.0)'
+    source: 'gte(0d2, 0d1.0)'
   - name: op-lt-mixed-type
     language: Prefix
-    source: 'LT(0d1.0, 0d2)'
+    source: 'lt(0d1.0, 0d2)'
   - name: op-lte-mixed-type
     language: Prefix
-    source: 'LTE(0d1.0, 0d2)'
+    source: 'lte(0d1.0, 0d2)'

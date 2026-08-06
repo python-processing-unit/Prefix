@@ -27,10 +27,10 @@ typedef struct NsOp {
     NsOpType op;
     struct Env *env;
     char *name;              // symbol name (owned copy)
-    Value value;             // for ASSIGN
-    DeclType decl_type;      // for DEFINE / ASSIGN / ALIAS
-    int decl_base;           // for DEFINE / ASSIGN / ALIAS (named int/float base)
-    bool declare_if_missing; // for ASSIGN / ALIAS
+    Value value;             // for assign
+    DeclType decl_type;      // for DEFINE / assign / ALIAS
+    int decl_base;           // for DEFINE / assign / ALIAS (named int/float base)
+    bool declare_if_missing; // for assign / ALIAS
     char *target_name;       // for ALIAS  (owned copy)
     struct Interpreter *interp;
     Expr *index_expr;

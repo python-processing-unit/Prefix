@@ -4,66 +4,66 @@ passing:
     source: |
         tensor v = [0d1, 0d2, 0d3, 0d4]
         
-        ASSERT(EQ(TYPE(TFLIP(v, 0d1)), "tensor"))
-        ASSERT(EQ(TFLIP(v, 0d1), [0d4, 0d3, 0d2, 0d1]))
-        ASSERT(EQ(v, [0d1, 0d2, 0d3, 0d4]))
+        assert(eq(type(flip_dim(v, 0d1)), "tensor"))
+        assert(eq(flip_dim(v, 0d1), [0d4, 0d3, 0d2, 0d1]))
+        assert(eq(v, [0d1, 0d2, 0d3, 0d4]))
         
   - name: tflip-rank2-dim1
     language: Prefix
     source: |
         tensor m = [[0d1, 0d2, 0d3], [0d4, 0d5, 0d6]]
-        tensor flipped = TFLIP(m, 0d1)
+        tensor flipped = flip_dim(m, 0d1)
         
-        ASSERT(EQ(flipped, [[0d4, 0d5, 0d6], [0d1, 0d2, 0d3]]))
-        ASSERT(EQ(SHAPE(flipped), [0d2, 0d3]))
+        assert(eq(flipped, [[0d4, 0d5, 0d6], [0d1, 0d2, 0d3]]))
+        assert(eq(shape(flipped), [0d2, 0d3]))
         
   - name: tflip-rank2-dim2
     language: Prefix
     source: |
         tensor m = [[0d1, 0d2, 0d3], [0d4, 0d5, 0d6]]
         
-        ASSERT(EQ(TFLIP(m, 0d2), [[0d3, 0d2, 0d1], [0d6, 0d5, 0d4]]))
+        assert(eq(flip_dim(m, 0d2), [[0d3, 0d2, 0d1], [0d6, 0d5, 0d4]]))
         
   - name: tflip-rank3-dim3
     language: Prefix
     source: |
         tensor cube = [[[0d1, 0d2], [0d3, 0d4]], [[0d5, 0d6], [0d7, 0d8]]]
         
-        ASSERT(EQ(TFLIP(cube, 0d3), [[[0d2, 0d1], [0d4, 0d3]], [[0d6, 0d5], [0d8, 0d7]]]))
+        assert(eq(flip_dim(cube, 0d3), [[[0d2, 0d1], [0d4, 0d3]], [[0d6, 0d5], [0d8, 0d7]]]))
         
 failing:
   - name: tflip-arity-one
     language: Prefix
     source: |
-        TFLIP([0d1])
+        flip_dim([0d1])
         
   - name: tflip-arity-three
     language: Prefix
     source: |
-        TFLIP([0d1], 0d1, 0d2)
+        flip_dim([0d1], 0d1, 0d2)
         
   - name: tflip-arity-zero
     language: Prefix
     source: |
-        TFLIP()
+        flip_dim()
         
   - name: tflip-dim-too-large
     language: Prefix
     source: |
-        TFLIP([[0d1, 0d2], [0d3, 0d4]], 0d3)
+        flip_dim([[0d1, 0d2], [0d3, 0d4]], 0d3)
         
   - name: tflip-dim-zero
     language: Prefix
     source: |
-        TFLIP([[0d1, 0d2], [0d3, 0d4]], 0d0)
+        flip_dim([[0d1, 0d2], [0d3, 0d4]], 0d0)
         
   - name: tflip-first-non-tns
     language: Prefix
     source: |
-        TFLIP(0d1, 0d1)
+        flip_dim(0d1, 0d1)
         
   - name: tflip-second-non-int
     language: Prefix
     source: |
-        TFLIP([0d1, 0d2], "1")
+        flip_dim([0d1, 0d2], "1")
         

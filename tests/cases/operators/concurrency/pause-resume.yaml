@@ -4,20 +4,20 @@ passing:
     source: |
         bool released = false
         
-        thread paused = PAUSE(async{
-            while(NOT(released)){}
+        thread paused = pause(async{
+            while(not(released)){}
         }, seconds = 0d0.05)
         
-        ASSERT(EQ(TYPE(paused), "thread"))
-        ASSERT(bool(paused))
-        ASSERT(PAUSED(paused))
+        assert(eq(type(paused), "thread"))
+        assert(bool(paused))
+        assert(paused(paused))
         
         released = true
         
-        AWAIT(paused)
+        await(paused)
         
-        REFUTE(bool(paused))
-        REFUTE(PAUSED(paused))
+        refute(bool(paused))
+        refute(paused(paused))
         
   - name: pause-async-handle-autoresume
     language: Prefix
@@ -25,49 +25,49 @@ passing:
         bool released = false
         
         thread worker = async{
-            while(NOT(released)){}
+            while(not(released)){}
         }
         
-        thread paused = PAUSE(worker, seconds = 0d0.05)
+        thread paused = pause(worker, seconds = 0d0.05)
         
-        ASSERT(EQ(TYPE(paused), "thread"))
-        ASSERT(EQ(paused, worker))
-        ASSERT(bool(worker))
-        ASSERT(PAUSED(worker))
+        assert(eq(type(paused), "thread"))
+        assert(eq(paused, worker))
+        assert(bool(worker))
+        assert(paused(worker))
         
         released = true
         
-        AWAIT(worker)
+        await(worker)
         
-        REFUTE(bool(worker))
-        REFUTE(PAUSED(worker))
+        refute(bool(worker))
+        refute(paused(worker))
   - name: pause-explicit-negative-duration
     language: Prefix
     source: |
         bool released = false
         
         thread(worker){
-            while(NOT(released)){}
+            while(not(released)){}
         }
         
-        thread paused = PAUSE(worker, seconds = -0d1.0)
+        thread paused = pause(worker, seconds = -0d1.0)
         
-        ASSERT(EQ(paused, worker))
-        ASSERT(PAUSED(worker))
+        assert(eq(paused, worker))
+        assert(paused(worker))
         
         released = true
         
-        ASSERT(PAUSED(worker))
+        assert(paused(worker))
         
-        AWAIT(RESUME(worker))
+        await(resume(worker))
         
-        REFUTE(bool(worker))
-        REFUTE(PAUSED(worker))
+        refute(bool(worker))
+        refute(paused(worker))
   - name: pause-second-positional
     language: Prefix
     source: |
         thread(worker){}
-        PAUSE(worker, 0d0.0)
+        pause(worker, 0d0.0)
         
   - name: pause-thread-handle
     language: Prefix
@@ -75,26 +75,26 @@ passing:
         bool released = false
         
         thread(worker){
-            while(NOT(released)){}
+            while(not(released)){}
         }
         
-        ASSERT(bool(worker))
+        assert(bool(worker))
         
-        thread paused = PAUSE(worker)
+        thread paused = pause(worker)
         
-        ASSERT(EQ(TYPE(paused), "thread"))
-        ASSERT(EQ(paused, worker))
-        ASSERT(bool(worker))
-        ASSERT(PAUSED(worker))
+        assert(eq(type(paused), "thread"))
+        assert(eq(paused, worker))
+        assert(bool(worker))
+        assert(paused(worker))
         
         released = true
         
-        ASSERT(PAUSED(worker))
+        assert(paused(worker))
         
-        AWAIT(RESUME(worker))
+        await(resume(worker))
         
-        REFUTE(bool(worker))
-        REFUTE(PAUSED(worker))
+        refute(bool(worker))
+        refute(paused(worker))
 failing:
   - name: pause-already-paused
     language: Prefix
@@ -103,74 +103,74 @@ failing:
             while(true){}
         }
         
-        PAUSE(worker)
-        PAUSE(worker)
-        STOP(worker)
+        pause(worker)
+        pause(worker)
+        stop(worker)
   - name: pause-arity-three
     language: Prefix
     source: |
         thread(worker){}
-        PAUSE(worker, 0d0.0, 0d0.0)
+        pause(worker, 0d0.0, 0d0.0)
   - name: pause-arity-zero
     language: Prefix
-    source: PAUSE()
+    source: pause()
   - name: pause-second-bool
     language: Prefix
     source: |
         thread(worker){}
-        PAUSE(worker, seconds = true)
+        pause(worker, seconds = true)
   - name: pause-second-func
     language: Prefix
     source: |
         thread(worker){}
-        PAUSE(worker, seconds = LAMBDA bool: (){})
+        pause(worker, seconds = LAMBDA bool: (){})
   - name: pause-second-int
     language: Prefix
     source: |
         thread(worker){}
-        PAUSE(worker, seconds = 0d1)
+        pause(worker, seconds = 0d1)
   - name: pause-second-map
     language: Prefix
     source: |
         thread(worker){}
-        PAUSE(worker, seconds = <>)
+        pause(worker, seconds = <>)
   - name: pause-second-str
     language: Prefix
     source: |
         thread(worker){}
-        PAUSE(worker, seconds = "seconds")
+        pause(worker, seconds = "seconds")
   - name: pause-second-thr
     language: Prefix
     source: |
         thread(worker){}
         thread(delay){}
-        PAUSE(worker, seconds = delay)
+        pause(worker, seconds = delay)
   - name: pause-second-tns
     language: Prefix
     source: |
         thread(worker){}
-        PAUSE(worker, seconds = [0d1])
+        pause(worker, seconds = [0d1])
   - name: pause-type-bool
     language: Prefix
-    source: PAUSE(true)
+    source: pause(true)
   - name: pause-type-flt
     language: Prefix
-    source: PAUSE(0d1.0)
+    source: pause(0d1.0)
   - name: pause-type-func
     language: Prefix
-    source: 'PAUSE(LAMBDA bool: (){})'
+    source: 'pause(LAMBDA bool: (){})'
   - name: pause-type-int
     language: Prefix
-    source: PAUSE(0d1)
+    source: pause(0d1)
   - name: pause-type-map
     language: Prefix
-    source: PAUSE(<>)
+    source: pause(<>)
   - name: pause-type-str
     language: Prefix
-    source: PAUSE("thread")
+    source: pause("thread")
   - name: pause-type-tns
     language: Prefix
-    source: PAUSE([0d1])
+    source: pause([0d1])
   - name: resume-not-paused
     language: Prefix
     source: |
@@ -178,5 +178,5 @@ failing:
             for(i, 0d100000){}
         }
         
-        RESUME(worker)
+        resume(worker)
         

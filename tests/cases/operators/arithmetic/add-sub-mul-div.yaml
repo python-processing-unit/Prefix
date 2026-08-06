@@ -5,34 +5,34 @@ passing:
         int a1 = 0d2
         int b1 = 0d3
         +(@a1, b1)
-        ASSERT(EQ(a1, 0d5))
+        assert(eq(a1, 0d5))
         
         int a2 = 0d2
         int b2 = 0d3
         +(a2, @b2)
-        ASSERT(EQ(b2, 0d5))
+        assert(eq(b2, 0d5))
         
         int a3 = 0d2
         int b3 = 0d3
         +(@a3, @b3)
-        ASSERT(EQ(a3, 0d5))
-        ASSERT(EQ(b3, 0d5))
+        assert(eq(a3, 0d5))
+        assert(eq(b3, 0d5))
         
         float f1 = 0d1.5
         float g1 = 0d2.25
         +(@f1, g1)
-        ASSERT(EQ(f1, 0d3.75))
+        assert(eq(f1, 0d3.75))
         
         float f2 = 0d1.5
         float g2 = 0d2.25
         +(f2, @g2)
-        ASSERT(EQ(g2, 0d3.75))
+        assert(eq(g2, 0d3.75))
         
         float f3 = 0d1.5
         float g3 = 0d2.25
         +(@f3, @g3)
-        ASSERT(EQ(f3, 0d3.75))
-        ASSERT(EQ(g3, 0d3.75))
+        assert(eq(f3, 0d3.75))
+        assert(eq(g3, 0d3.75))
         
   - name: div-flt
     language: Prefix
@@ -41,34 +41,34 @@ passing:
         float right_hex = 0x0.8
         float left_oct_one = 0o1.0
         
-        ASSERT(EQ(/(left_oct, right_hex), 0x3.0))
-        ASSERT(EQ(BASE(/(left_oct, right_hex)), 0d16))
+        assert(eq(/(left_oct, right_hex), 0x3.0))
+        assert(eq(BASE(/(left_oct, right_hex)), 0d16))
         
-        ASSERT(EQ(/(left_oct_one, right_hex), 0x2.0))
-        ASSERT(EQ(BASE(/(left_oct_one, right_hex)), 0d16))
+        assert(eq(/(left_oct_one, right_hex), 0x2.0))
+        assert(eq(BASE(/(left_oct_one, right_hex)), 0d16))
   - name: div-int
     language: Prefix
     source: |
         int left_dec = 0d2
         int wide_hex = 0x10
         
-        ASSERT(EQ(/(0d6, left_dec), 0d3))
-        ASSERT(EQ(BASE(/(0d6, left_dec)), 0d10))
+        assert(eq(/(0d6, left_dec), 0d3))
+        assert(eq(BASE(/(0d6, left_dec)), 0d10))
         
-        ASSERT(EQ(/(wide_hex, left_dec), 0d8))
-        ASSERT(EQ(BASE(/(wide_hex, left_dec)), 0d16))
+        assert(eq(/(wide_hex, left_dec), 0d8))
+        assert(eq(BASE(/(wide_hex, left_dec)), 0d16))
   - name: div-pointer-writeback
     language: Prefix
     source: |
         int a1 = 0d6
         int b1 = 0d3
         /(@a1, b1)
-        ASSERT(EQ(a1, 0d2))
+        assert(eq(a1, 0d2))
         
         float f1 = 0d3.0
         float g1 = 0d1.5
         /(@f1, g1)
-        ASSERT(EQ(f1, 0d2.0))
+        assert(eq(f1, 0d2.0))
         
   - name: mul-flt
     language: Prefix
@@ -77,11 +77,11 @@ passing:
         float right_hex = 0x0.8
         float left_oct_one = 0o1.0
         
-        ASSERT(EQ(*(left_oct, right_hex), 0x0.C))
-        ASSERT(EQ(BASE(*(left_oct, right_hex)), 0d16))
+        assert(eq(*(left_oct, right_hex), 0x0.C))
+        assert(eq(BASE(*(left_oct, right_hex)), 0d16))
         
-        ASSERT(EQ(*(left_oct_one, right_hex), 0x0.8))
-        ASSERT(EQ(BASE(*(left_oct_one, right_hex)), 0d16))
+        assert(eq(*(left_oct_one, right_hex), 0x0.8))
+        assert(eq(BASE(*(left_oct_one, right_hex)), 0d16))
   - name: mul-int
     language: Prefix
     source: |
@@ -89,45 +89,45 @@ passing:
         int right_bin = 0b11
         int wide_hex = 0x10
         
-        ASSERT(EQ(*(left_dec, right_bin), 0d6))
-        ASSERT(EQ(BASE(*(left_dec, right_bin)), 0d10))
+        assert(eq(*(left_dec, right_bin), 0d6))
+        assert(eq(BASE(*(left_dec, right_bin)), 0d10))
         
-        ASSERT(EQ(*(wide_hex, left_dec), 0d32))
-        ASSERT(EQ(BASE(*(wide_hex, left_dec)), 0d16))
+        assert(eq(*(wide_hex, left_dec), 0d32))
+        assert(eq(BASE(*(wide_hex, left_dec)), 0d16))
   - name: mul-pointer-writeback
     language: Prefix
     source: |
         int a1 = 0d2
         int b1 = 0d3
         *(@a1, b1)
-        ASSERT(EQ(a1, 0d6))
+        assert(eq(a1, 0d6))
         
         int a2 = 0d2
         int b2 = 0d3
         *(a2, @b2)
-        ASSERT(EQ(b2, 0d6))
+        assert(eq(b2, 0d6))
         
         int a3 = 0d2
         int b3 = 0d3
         *(@a3, @b3)
-        ASSERT(EQ(a3, 0d6))
-        ASSERT(EQ(b3, 0d6))
+        assert(eq(a3, 0d6))
+        assert(eq(b3, 0d6))
         
         float f1 = 0d1.5
         float g1 = 0d2.0
         *(@f1, g1)
-        ASSERT(EQ(f1, 0d3.0))
+        assert(eq(f1, 0d3.0))
         
         float f2 = 0d1.5
         float g2 = 0d2.0
         *(f2, @g2)
-        ASSERT(EQ(g2, 0d3.0))
+        assert(eq(g2, 0d3.0))
         
         float f3 = 0d1.5
         float g3 = 0d2.0
         *(@f3, @g3)
-        ASSERT(EQ(f3, 0d3.0))
-        ASSERT(EQ(g3, 0d3.0))
+        assert(eq(f3, 0d3.0))
+        assert(eq(g3, 0d3.0))
         
   - name: sub-flt
     language: Prefix
@@ -136,11 +136,11 @@ passing:
         float right_hex = 0x0.8
         float left_oct_one = 0o1.0
         
-        ASSERT(EQ(-(left_oct_one, right_hex), 0x0.8))
-        ASSERT(EQ(BASE(-(left_oct_one, right_hex)), 0d16))
+        assert(eq(-(left_oct_one, right_hex), 0x0.8))
+        assert(eq(BASE(-(left_oct_one, right_hex)), 0d16))
         
-        ASSERT(EQ(-(left_oct, right_hex), 0x1.0))
-        ASSERT(EQ(BASE(-(left_oct, right_hex)), 0d16))
+        assert(eq(-(left_oct, right_hex), 0x1.0))
+        assert(eq(BASE(-(left_oct, right_hex)), 0d16))
   - name: sub-int
     language: Prefix
     source: |
@@ -148,26 +148,26 @@ passing:
         int right_bin = 0b11
         int wide_hex = 0x10
         
-        ASSERT(EQ(-(right_bin, left_dec), 0d1))
-        ASSERT(EQ(BASE(-(right_bin, left_dec)), 0d10))
+        assert(eq(-(right_bin, left_dec), 0d1))
+        assert(eq(BASE(-(right_bin, left_dec)), 0d10))
         
-        ASSERT(EQ(-(left_dec, right_bin), -0d1))
-        ASSERT(EQ(BASE(-(left_dec, right_bin)), 0d10))
+        assert(eq(-(left_dec, right_bin), -0d1))
+        assert(eq(BASE(-(left_dec, right_bin)), 0d10))
         
-        ASSERT(EQ(-(wide_hex, left_dec), 0d14))
-        ASSERT(EQ(BASE(-(wide_hex, left_dec)), 0d16))
+        assert(eq(-(wide_hex, left_dec), 0d14))
+        assert(eq(BASE(-(wide_hex, left_dec)), 0d16))
   - name: sub-pointer-writeback
     language: Prefix
     source: |
         int a1 = 0d5
         int b1 = 0d3
         -(@a1, b1)
-        ASSERT(EQ(a1, 0d2))
+        assert(eq(a1, 0d2))
         
         float f1 = 0d5.5
         float g1 = 0d1.25
         -(@f1, g1)
-        ASSERT(EQ(f1, 0d4.25))
+        assert(eq(f1, 0d4.25))
         
 failing:
   - name: add-mixed-types

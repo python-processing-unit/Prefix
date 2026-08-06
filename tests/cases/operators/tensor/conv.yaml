@@ -4,115 +4,115 @@ passing:
     source: |
         tensor x = [[[0d1], [0d2], [0d3]], [[0d4], [0d5], [0d6]]]
         tensor kernel = [[[[0d1, 0d2]]]]
-        tensor out = CONV(x, kernel, stride_w = 0d1)
+        tensor out = convolve(x, kernel, stride_w = 0d1)
         
-        ASSERT(EQ(SHAPE(out), [0d2, 0d3, 0d2]))
-        ASSERT(EQ(out, [[[0d1, 0d2], [0d2, 0d4], [0d3, 0d6]], [[0d4, 0d8], [0d5, 0d10], [0d6, 0d12]]]))
+        assert(eq(shape(out), [0d2, 0d3, 0d2]))
+        assert(eq(out, [[[0d1, 0d2], [0d2, 0d4], [0d3, 0d6]], [[0d4, 0d8], [0d5, 0d10], [0d6, 0d12]]]))
   - name: conv-extended-bias
     language: Prefix
     source: |
         tensor x = [[[0d3]]]
         tensor kernel = [[[[0d2, 0d3]]]]
-        tensor out = CONV(x, kernel, bias = [0d10, 0d20])
+        tensor out = convolve(x, kernel, bias = [0d10, 0d20])
         
-        ASSERT(EQ(SHAPE(out), [0d1, 0d1, 0d2]))
-        ASSERT(EQ(out, [[[0d16, 0d29]]]))
+        assert(eq(shape(out), [0d1, 0d1, 0d2]))
+        assert(eq(out, [[[0d16, 0d29]]]))
   - name: conv-extended-flt-output-type
     language: Prefix
     source: |
         tensor x = [[[0d2.0]]]
         tensor kernel = [[[[0d1.5]]]]
-        tensor out = CONV(x, kernel, stride_w = 0d1)
+        tensor out = convolve(x, kernel, stride_w = 0d1)
         
-        ASSERT(EQ(out, [[[0d3.0]]]))
-        ASSERT(EQ(TYPE(out[0d1, 0d1, 0d1]), "float"))
+        assert(eq(out, [[[0d3.0]]]))
+        assert(eq(type(out[0d1, 0d1, 0d1]), "float"))
   - name: conv-legacy-1d-clamp
     language: Prefix
     source: |
         tensor x = [0d1, 0d2, 0d3]
         tensor k = [0d1, 0d1, 0d1]
-        tensor out = CONV(x, k)
+        tensor out = convolve(x, k)
         
-        ASSERT(EQ(TYPE(out), "tensor"))
-        ASSERT(EQ(SHAPE(out), [0d3]))
-        ASSERT(EQ(out, [0d4, 0d6, 0d8]))
+        assert(eq(type(out), "tensor"))
+        assert(eq(shape(out), [0d3]))
+        assert(eq(out, [0d4, 0d6, 0d8]))
   - name: conv-legacy-flt-output-type
     language: Prefix
     source: |
-        tensor out = CONV([0d2.0], [0d1.0])
+        tensor out = convolve([0d2.0], [0d1.0])
         
-        ASSERT(EQ(out, [0d2.0]))
-        ASSERT(EQ(TYPE(out[0d1]), "float"))
+        assert(eq(out, [0d2.0]))
+        assert(eq(type(out[0d1]), "float"))
   - name: conv-legacy-int-output-type
     language: Prefix
     source: |
-        tensor out = CONV([0d7], [0d1])
+        tensor out = convolve([0d7], [0d1])
         
-        ASSERT(EQ(out, [0d7]))
-        ASSERT(EQ(TYPE(out[0d1]), "int"))
+        assert(eq(out, [0d7]))
+        assert(eq(type(out[0d1]), "int"))
   - name: conv-legacy-rank2-shape
     language: Prefix
     source: |
         tensor x = [[0d1, 0d2], [0d3, 0d4]]
         tensor k = [[0d0, 0d0, 0d0], [0d0, 0d1, 0d0], [0d0, 0d0, 0d0]]
-        tensor out = CONV(x, k)
+        tensor out = convolve(x, k)
         
-        ASSERT(EQ(SHAPE(out), [0d2, 0d2]))
-        ASSERT(EQ(out, x))
+        assert(eq(shape(out), [0d2, 0d2]))
+        assert(eq(out, x))
 failing:
   - name: conv-arity-eight
     language: Prefix
-    source: 'CONV([0d1], [0d1], 0d1, 0d1, 0d0, 0d0, [], 0d9)'
+    source: 'convolve([0d1], [0d1], 0d1, 0d1, 0d0, 0d0, [], 0d9)'
   - name: conv-arity-one
     language: Prefix
-    source: CONV([0d1])
+    source: convolve([0d1])
   - name: conv-arity-zero
     language: Prefix
-    source: CONV()
+    source: convolve()
   - name: conv-extended-bias-not-tns
     language: Prefix
-    source: 'CONV([[[0d1]]], [[[[0d1]]]], bias = 0d1)'
+    source: 'convolve([[[0d1]]], [[[[0d1]]]], bias = 0d1)'
   - name: conv-extended-bias-size-mismatch
     language: Prefix
-    source: 'CONV([[[0d1]]], [[[[0d1, 0d1]]]], bias = [0d5])'
+    source: 'convolve([[[0d1]]], [[[[0d1, 0d1]]]], bias = [0d5])'
   - name: conv-extended-kernel-not-rank4
     language: Prefix
-    source: 'CONV([[[0d1]]], [[[0d1]]], stride_w = 0d1)'
+    source: 'convolve([[[0d1]]], [[[0d1]]], stride_w = 0d1)'
   - name: conv-extended-stride-w-non-int
     language: Prefix
-    source: 'CONV([[[0d1]]], [[[[0d1]]]], stride_w = "1")'
+    source: 'convolve([[[0d1]]], [[[[0d1]]]], stride_w = "1")'
   - name: conv-extended-x-not-rank3
     language: Prefix
-    source: 'CONV([[0d1]], [[[[0d1]]]], stride_w = 0d1)'
+    source: 'convolve([[0d1]], [[[[0d1]]]], stride_w = 0d1)'
   - name: conv-first-non-tns
     language: Prefix
-    source: 'CONV(0d1, [0d1])'
+    source: 'convolve(0d1, [0d1])'
   - name: conv-legacy-even-kernel
     language: Prefix
-    source: 'CONV([0d1, 0d2, 0d3], [0d1, 0d1])'
+    source: 'convolve([0d1, 0d2, 0d3], [0d1, 0d1])'
   - name: conv-legacy-rank-mismatch
     language: Prefix
-    source: 'CONV([0d1, 0d2], [[0d1, 0d1, 0d1]])'
+    source: 'convolve([0d1, 0d2], [[0d1, 0d1, 0d1]])'
   - name: conv-pointer-writeback
     language: Prefix
     source: |
-        // CONV should write back to pointer operands when passed.
+        // convolve should write back to pointer operands when passed.
         tensor x1 = [0d1, 0d2, 0d3]
         tensor k1 = [0d1, 0d0, 0d1]
-        CONV(@x1, k1)
-        ASSERT(EQ(x1, [0d3, 0d4, 0d5]))
+        convolve(@x1, k1)
+        assert(eq(x1, [0d3, 0d4, 0d5]))
         
         tensor x2 = [0d1, 0d2, 0d3]
         tensor k2 = [0d1, 0d0, 0d1]
-        CONV(x2, @k2)
-        ASSERT(EQ(k2, [0d3, 0d4, 0d5]))
+        convolve(x2, @k2)
+        assert(eq(k2, [0d3, 0d4, 0d5]))
         
         tensor x3 = [0d1, 0d2, 0d3]
         tensor k3 = [0d1, 0d0, 0d1]
-        CONV(@x3, @k3)
-        ASSERT(EQ(x3, [0d3, 0d4, 0d5]))
-        ASSERT(EQ(k3, [0d3, 0d4, 0d5]))
+        convolve(@x3, @k3)
+        assert(eq(x3, [0d3, 0d4, 0d5]))
+        assert(eq(k3, [0d3, 0d4, 0d5]))
         
   - name: conv-second-non-tns
     language: Prefix
-    source: 'CONV([0d1], 0d1)'
+    source: 'convolve([0d1], 0d1)'

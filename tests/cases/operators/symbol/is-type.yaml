@@ -16,15 +16,15 @@ passing:
         
         thread(sample_thr){}
         
-        ASSERT(isbool(sample_bool_true))
-        ASSERT(isbool(sample_bool_false))
-        REFUTE(isbool(sample_int))
-        REFUTE(isbool(sample_flt))
-        REFUTE(isbool(sample_str))
-        REFUTE(isbool(sample_tns))
-        REFUTE(isbool(sample_map))
-        REFUTE(isbool(sample_func))
-        REFUTE(isbool(sample_thr))
+        assert(isbool(sample_bool_true))
+        assert(isbool(sample_bool_false))
+        refute(isbool(sample_int))
+        refute(isbool(sample_flt))
+        refute(isbool(sample_str))
+        refute(isbool(sample_tns))
+        refute(isbool(sample_map))
+        refute(isbool(sample_func))
+        refute(isbool(sample_thr))
         
   - name: isflt
     language: Prefix
@@ -42,14 +42,14 @@ passing:
         
         thread(sample_thr){}
         
-        REFUTE(isfloat(sample_bool_true))
-        REFUTE(isfloat(sample_int))
-        ASSERT(isfloat(sample_flt))
-        REFUTE(isfloat(sample_str))
-        REFUTE(isfloat(sample_tns))
-        REFUTE(isfloat(sample_map))
-        REFUTE(isfloat(sample_func))
-        REFUTE(isfloat(sample_thr))
+        refute(isfloat(sample_bool_true))
+        refute(isfloat(sample_int))
+        assert(isfloat(sample_flt))
+        refute(isfloat(sample_str))
+        refute(isfloat(sample_tns))
+        refute(isfloat(sample_map))
+        refute(isfloat(sample_func))
+        refute(isfloat(sample_thr))
         
   - name: isfunc
     language: Prefix
@@ -68,15 +68,15 @@ passing:
         
         thread(sample_thr){}
         
-        ASSERT(isfunc(sample_func))
-        REFUTE(isfunc(sample_bool_true))
-        REFUTE(isfunc(sample_bool_false))
-        REFUTE(isfunc(sample_int))
-        REFUTE(isfunc(sample_flt))
-        REFUTE(isfunc(sample_str))
-        REFUTE(isfunc(sample_tns))
-        REFUTE(isfunc(sample_map))
-        REFUTE(isfunc(sample_thr))
+        assert(isfunc(sample_func))
+        refute(isfunc(sample_bool_true))
+        refute(isfunc(sample_bool_false))
+        refute(isfunc(sample_int))
+        refute(isfunc(sample_flt))
+        refute(isfunc(sample_str))
+        refute(isfunc(sample_tns))
+        refute(isfunc(sample_map))
+        refute(isfunc(sample_thr))
         
   - name: isint
     language: Prefix
@@ -94,14 +94,14 @@ passing:
         
         thread(sample_thr){}
         
-        REFUTE(isint(sample_bool_true))
-        ASSERT(isint(sample_int))
-        REFUTE(isint(sample_flt))
-        REFUTE(isint(sample_str))
-        REFUTE(isint(sample_tns))
-        REFUTE(isint(sample_map))
-        REFUTE(isint(sample_func))
-        REFUTE(isint(sample_thr))
+        refute(isint(sample_bool_true))
+        assert(isint(sample_int))
+        refute(isint(sample_flt))
+        refute(isint(sample_str))
+        refute(isint(sample_tns))
+        refute(isint(sample_map))
+        refute(isint(sample_func))
+        refute(isint(sample_thr))
         
   - name: ismap
     language: Prefix
@@ -120,15 +120,15 @@ passing:
         
         thread(sample_thr){}
         
-        ASSERT(ismap(sample_map))
-        REFUTE(ismap(sample_bool_true))
-        REFUTE(ismap(sample_bool_false))
-        REFUTE(ismap(sample_int))
-        REFUTE(ismap(sample_flt))
-        REFUTE(ismap(sample_str))
-        REFUTE(ismap(sample_tns))
-        REFUTE(ismap(sample_func))
-        REFUTE(ismap(sample_thr))
+        assert(ismap(sample_map))
+        refute(ismap(sample_bool_true))
+        refute(ismap(sample_bool_false))
+        refute(ismap(sample_int))
+        refute(ismap(sample_flt))
+        refute(ismap(sample_str))
+        refute(ismap(sample_tns))
+        refute(ismap(sample_func))
+        refute(ismap(sample_thr))
         
   - name: isstr
     language: Prefix
@@ -146,14 +146,14 @@ passing:
         
         thread(sample_thr){}
         
-        REFUTE(isstr(sample_bool_true))
-        REFUTE(isstr(sample_int))
-        REFUTE(isstr(sample_flt))
-        ASSERT(isstr(sample_str))
-        REFUTE(isstr(sample_tns))
-        REFUTE(isstr(sample_map))
-        REFUTE(isstr(sample_func))
-        REFUTE(isstr(sample_thr))
+        refute(isstr(sample_bool_true))
+        refute(isstr(sample_int))
+        refute(isstr(sample_flt))
+        assert(isstr(sample_str))
+        refute(isstr(sample_tns))
+        refute(isstr(sample_map))
+        refute(isstr(sample_func))
+        refute(isstr(sample_thr))
         
   - name: isthr
     language: Prefix
@@ -171,14 +171,14 @@ passing:
         
         thread(sample_thr){}
         
-        REFUTE(isthread(sample_bool_true))
-        REFUTE(isthread(sample_int))
-        REFUTE(isthread(sample_flt))
-        REFUTE(isthread(sample_str))
-        REFUTE(isthread(sample_tns))
-        REFUTE(isthread(sample_map))
-        REFUTE(isthread(sample_func))
-        ASSERT(isthread(sample_thr))
+        refute(isthread(sample_bool_true))
+        refute(isthread(sample_int))
+        refute(isthread(sample_flt))
+        refute(isthread(sample_str))
+        refute(isthread(sample_tns))
+        refute(isthread(sample_map))
+        refute(isthread(sample_func))
+        assert(isthread(sample_thr))
         
   - name: istns
     language: Prefix
@@ -196,14 +196,14 @@ passing:
         
         thread(sample_thr){}
         
-        REFUTE(istensor(sample_bool_true))
-        REFUTE(istensor(sample_int))
-        REFUTE(istensor(sample_flt))
-        REFUTE(istensor(sample_str))
-        ASSERT(istensor(sample_tns))
-        REFUTE(istensor(sample_map))
-        REFUTE(istensor(sample_func))
-        REFUTE(istensor(sample_thr))
+        refute(istensor(sample_bool_true))
+        refute(istensor(sample_int))
+        refute(istensor(sample_flt))
+        refute(istensor(sample_str))
+        assert(istensor(sample_tns))
+        refute(istensor(sample_map))
+        refute(istensor(sample_func))
+        refute(istensor(sample_thr))
         
 failing:
   - name: isfunc-arity-two

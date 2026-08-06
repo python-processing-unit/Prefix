@@ -2,14 +2,14 @@ passing:
   - name: ilen
     language: Prefix
     source: |
-        ASSERT(EQ(ILEN(0d0), 0d1))
-        ASSERT(EQ(ILEN(0d1), 0d1))
-        ASSERT(EQ(ILEN(0d2), 0d2))
-        ASSERT(EQ(ILEN(0d3), 0d2))
-        ASSERT(EQ(ILEN(-0d8), 0d4))
-        ASSERT(EQ(ILEN(-0xA), 0d4))
-        ASSERT(EQ(BASE(ILEN(-0xA)), 0d16))
+        assert(eq(ilen(0d0), 0d1))
+        assert(eq(ilen(0d1), 0d1))
+        assert(eq(ilen(0d2), 0d2))
+        assert(eq(ilen(0d3), 0d2))
+        assert(eq(ilen(-0d8), 0d4))
+        assert(eq(ilen(-0xA), 0d4))
+        assert(eq(BASE(ilen(-0xA)), 0d16))
 failing:
   - name: ilen-non-int
     language: Prefix
-    source: ILEN("abc")
+    source: ilen("abc")

@@ -6,27 +6,27 @@ passing:
         
         try{
             thread worker = async{
-                FREEZE("not_declared")
+                lock("not_declared")
             }
         } catch {
             caught = true
         }
         
-        REFUTE(caught)
+        refute(caught)
         
         
         ! Also ensure awaiting the failed thread does not synchronously raise
         bool caught_await = false
         
         thread worker2 = async{
-            FREEZE("not_declared")
+            lock("not_declared")
         }
         
         try{
-            AWAIT(worker2)
+            await(worker2)
         } catch {
             caught_await = true
         }
         
-        REFUTE(caught_await)
+        refute(caught_await)
         

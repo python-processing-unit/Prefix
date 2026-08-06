@@ -11,9 +11,9 @@ passing:
           $programPath = Join-Path $tempDir 'program.pre'
         
           Set-Content -Path $programPath -Encoding Ascii -Value @'
-        str line = INPUT()
-        ASSERT(isstr(line))
-        ASSERT(EQ(line, ""))
+        str line = input()
+        assert(isstr(line))
+        assert(eq(line, ""))
         '@
         
           $result = Invoke-PrefixProgramWithInput -ProgramPath $programPath -InputText "`r`ntrailing`r`n"
@@ -42,9 +42,9 @@ passing:
           $programPath = Join-Path $tempDir 'program.pre'
         
           Set-Content -Path $programPath -Encoding Ascii -Value @'
-        str line = INPUT("PROMPT>")
-        ASSERT(EQ(line, "alpha"))
-        PRINT("DONE=", line)
+        str line = input("PROMPT>")
+        assert(eq(line, "alpha"))
+        print("DONE=", line)
         '@
         
           $result = Invoke-PrefixProgramWithInput -ProgramPath $programPath -InputText "alpha`r`n"
@@ -73,9 +73,9 @@ passing:
           $programPath = Join-Path $tempDir 'program.pre'
         
           Set-Content -Path $programPath -Encoding Ascii -Value @'
-        str line = INPUT()
-        ASSERT(isstr(line))
-        ASSERT(EQ(line, "Alpha beta 42"))
+        str line = input()
+        assert(isstr(line))
+        assert(eq(line, "Alpha beta 42"))
         '@
         
           $result = Invoke-PrefixProgramWithInput -ProgramPath $programPath -InputText "Alpha beta 42`r`nignored`r`n"
@@ -104,8 +104,8 @@ passing:
           $programPath = Join-Path $tempDir 'program.pre'
         
           Set-Content -Path $programPath -Encoding Ascii -Value @'
-        ASSERT(EQ(INPUT(), "alpha"))
-        ASSERT(EQ(INPUT(), "beta"))
+        assert(eq(input(), "alpha"))
+        assert(eq(input(), "beta"))
         '@
         
           $result = Invoke-PrefixProgramWithInput -ProgramPath $programPath -InputText "alpha`r`nbeta`r`ngamma`r`n"
@@ -126,40 +126,40 @@ failing:
   - name: input-arity-two
     language: Prefix
     source: |
-        INPUT("left", "right")
+        input("left", "right")
         
   - name: input-type-bool
     language: Prefix
     source: |
-        INPUT(true)
+        input(true)
         
   - name: input-type-flt
     language: Prefix
     source: |
-        INPUT(0d1.0)
+        input(0d1.0)
         
   - name: input-type-func
     language: Prefix
     source: |
-        INPUT(LAMBDA bool: (){})
+        input(LAMBDA bool: (){})
         
   - name: input-type-int
     language: Prefix
     source: |
-        INPUT(0d1)
+        input(0d1)
         
   - name: input-type-map
     language: Prefix
     source: |
-        INPUT(<>)
+        input(<>)
         
   - name: input-type-thr
     language: Prefix
     source: |
-        INPUT(async{})
+        input(async{})
         
   - name: input-type-tns
     language: Prefix
     source: |
-        INPUT([0d1])
+        input([0d1])
         

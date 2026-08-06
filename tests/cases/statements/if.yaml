@@ -3,50 +3,50 @@ passing:
     language: Prefix
     source: |
         if(false){
-            ASSERT(false)
+            assert(false)
         } else {
-            ASSERT(true)
+            assert(true)
         }
         if(true){
-            ASSERT(true)
+            assert(true)
         } else {
-            ASSERT(false)
+            assert(false)
         }
         
   - name: if-elseif-else
     language: Prefix
     source: |
         if(false){
-            ASSERT(false)
+            assert(false)
         } elseif(false){
-            ASSERT(false)
+            assert(false)
         } else {
-            ASSERT(true)
+            assert(true)
         }
         if(false){
-            ASSERT(false)
+            assert(false)
         } elseif(true){
-            ASSERT(true)
+            assert(true)
         } else {
-            ASSERT(false)
+            assert(false)
         }
         
   - name: if-elseif-elseif{
     language: Prefix
     source: |
         if(false){
-            ASSERT(false)
+            assert(false)
         } elseif(false){
-            ASSERT(false)
+            assert(false)
         } elseif(true) {
-            ASSERT(true)
+            assert(true)
         }
         
   - name: if
     language: Prefix
     source: |
         if(false){
-            ASSERT(false)
+            assert(false)
         }
         
 failing:
@@ -54,51 +54,51 @@ failing:
     language: Prefix
     source: |
         else{
-            ASSERT(false)
+            assert(false)
         }
         
   - name: elseif-after-else
     language: Prefix
     source: |
         if(false){
-            ASSERT(false)
+            assert(false)
         } else {
-            ASSERT(false)
+            assert(false)
         } elseif(true) {
-            ASSERT(true)
+            assert(true)
         }
         
   - name: elseif-else-seperated
     language: Prefix
     source: |
         if(false){
-            ASSERT(true)
+            assert(true)
         } elseif(false){
-            ASSERT(true)
+            assert(true)
         }
         
         else {
-            ASSERT(true)
+            assert(true)
         }
         
   - name: elseif-elseif-seperated
     language: Prefix
     source: |
         if(false){
-            ASSERT(false)
+            assert(false)
         } elseif(false){
-            ASSERT(false)
+            assert(false)
         }
         
         elseif(true) {
-            ASSERT(true)
+            assert(true)
         }
         
   - name: elseif-no-if
     language: Prefix
     source: |
         elseif(true){
-            ASSERT(false)
+            assert(false)
         }
         
   - name: if-else-no-block
@@ -110,11 +110,11 @@ failing:
     language: Prefix
     source: |
         if(false){
-            ASSERT(true)
+            assert(true)
         }
         
         else{
-            ASSERT(false)
+            assert(false)
         }
         
   - name: if-elseif-no-block
@@ -131,11 +131,11 @@ failing:
     language: Prefix
     source: |
         if(false){
-            ASSERT(true)
+            assert(true)
         }
         
         elseif(true){
-            ASSERT(false)
+            assert(false)
         }
         
   - name: if-no-block

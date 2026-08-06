@@ -1,6 +1,6 @@
 ! `image`-interoperable GUI operations for Prefix
 
-EXTEND("gui")
+extend("gui")
 
 func int SCREEN_WIDTH(){
     return(SCREEN()[0d1])

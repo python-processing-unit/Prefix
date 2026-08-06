@@ -2,74 +2,74 @@ passing:
   - name: replace-basic
     language: Prefix
     source: |
-        ASSERT(EQ(TYPE(REPLACE("prefix", "fix", "lude")), "str"))
-        ASSERT(EQ(REPLACE("prefix", "fix", "lude"), "prelude"))
+        assert(eq(type(replace("prefix", "fix", "lude")), "str"))
+        assert(eq(replace("prefix", "fix", "lude"), "prelude"))
         
   - name: replace-empty-new
     language: Prefix
     source: |
-        ASSERT(EQ(REPLACE("one,two,three", ",", ""), "onetwothree"))
+        assert(eq(replace("one,two,three", ",", ""), "onetwothree"))
         
   - name: replace-every-occurrence
     language: Prefix
     source: |
-        ASSERT(EQ(REPLACE("abXXcdXXef", "XX", "__"), "ab__cd__ef"))
-        ASSERT(EQ(REPLACE("fooXXbarXXXXbaz", "XX", "-"), "foo-bar--baz"))
+        assert(eq(replace("abXXcdXXef", "XX", "__"), "ab__cd__ef"))
+        assert(eq(replace("fooXXbarXXXXbaz", "XX", "-"), "foo-bar--baz"))
         
   - name: replace-not-found
     language: Prefix
     source: |
-        ASSERT(EQ(REPLACE("prefix", "zzz", "X"), "prefix"))
+        assert(eq(replace("prefix", "zzz", "X"), "prefix"))
         
   - name: replace-substring-exact
     language: Prefix
     source: |
-        ASSERT(EQ(REPLACE("abc", "ac", "Z"), "abc"))
-        ASSERT(EQ(REPLACE("a  b  c", "  ", "-"), "a-b-c"))
+        assert(eq(replace("abc", "ac", "Z"), "abc"))
+        assert(eq(replace("a  b  c", "  ", "-"), "a-b-c"))
         
   - name: replace-whole
     language: Prefix
     source: |
-        ASSERT(EQ(REPLACE("token", "token", "x"), "x"))
+        assert(eq(replace("token", "token", "x"), "x"))
         
 failing:
   - name: replace-arity-four
     language: Prefix
     source: |
-        REPLACE("abc", "a", "b", "c")
+        replace("abc", "a", "b", "c")
         
   - name: replace-arity-one
     language: Prefix
     source: |
-        REPLACE("abc")
+        replace("abc")
         
   - name: replace-arity-two
     language: Prefix
     source: |
-        REPLACE("abc", "a")
+        replace("abc", "a")
         
   - name: replace-arity-zero
     language: Prefix
     source: |
-        REPLACE()
+        replace()
         
   - name: replace-empty
     language: Prefix
     source: |
-        REPLACE("abc", "", "x")
+        replace("abc", "", "x")
         
   - name: replace-first-non-str
     language: Prefix
     source: |
-        REPLACE(0d1, "a", "b")
+        replace(0d1, "a", "b")
         
   - name: replace-second-non-str
     language: Prefix
     source: |
-        REPLACE("abc", 0d1, "b")
+        replace("abc", 0d1, "b")
         
   - name: replace-third-non-str
     language: Prefix
     source: |
-        REPLACE("abc", "a", 0d1)
+        replace("abc", "a", 0d1)
         

@@ -1,2 +1,2 @@
-bool first_result = EXTEND("extend_core")
-bool second_result = EXTEND("extend_core")
+bool first_result = extend("extend_core")
+bool second_result = extend("extend_core")

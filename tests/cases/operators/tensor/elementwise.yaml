@@ -2,295 +2,295 @@ passing:
   - name: madd-basic
     language: Prefix
     source: |
-        tensor out = M+([0d1, 0d2, 0d3], [0d4, 0d5, 0d6])
+        tensor out = m+([0d1, 0d2, 0d3], [0d4, 0d5, 0d6])
         
-        ASSERT(EQ(TYPE(out), "tensor"))
-        ASSERT(EQ(out, [0d5, 0d7, 0d9]))
+        assert(eq(type(out), "tensor"))
+        assert(eq(out, [0d5, 0d7, 0d9]))
         
   - name: madd-rank2-shape
     language: Prefix
     source: |
         tensor a = [[0d1, 0d2], [0d3, 0d4]]
         tensor b = [[0d10, 0d20], [0d30, 0d40]]
-        tensor out = M+(a, b)
+        tensor out = m+(a, b)
         
-        ASSERT(EQ(out, [[0d11, 0d22], [0d33, 0d44]]))
-        ASSERT(EQ(SHAPE(out), [0d2, 0d2]))
+        assert(eq(out, [[0d11, 0d22], [0d33, 0d44]]))
+        assert(eq(shape(out), [0d2, 0d2]))
         
   - name: mdiv-basic
     language: Prefix
     source: |
-        ASSERT(EQ(M/([0d8, 0d6, 0d4], [0d2, 0d3, 0d2]), [0d4, 0d2, 0d2]))
+        assert(eq(m/([0d8, 0d6, 0d4], [0d2, 0d3, 0d2]), [0d4, 0d2, 0d2]))
         
   - name: mdiv-rank2
     language: Prefix
     source: |
-        tensor out = M/([[0d9, 0d8], [0d6, 0d4]], [[0d3, 0d2], [0d3, 0d2]])
+        tensor out = m/([[0d9, 0d8], [0d6, 0d4]], [[0d3, 0d2], [0d3, 0d2]])
         
-        ASSERT(EQ(out, [[0d3, 0d4], [0d2, 0d2]]))
-        ASSERT(EQ(SHAPE(out), [0d2, 0d2]))
+        assert(eq(out, [[0d3, 0d4], [0d2, 0d2]]))
+        assert(eq(shape(out), [0d2, 0d2]))
         
   - name: mmul-basic
     language: Prefix
     source: |
-        ASSERT(EQ(M*([0d1, 0d2, 0d3], [0d4, 0d5, 0d6]), [0d4, 0d10, 0d18]))
+        assert(eq(m*([0d1, 0d2, 0d3], [0d4, 0d5, 0d6]), [0d4, 0d10, 0d18]))
         
   - name: mmul-rank2-shape
     language: Prefix
     source: |
         tensor a = [[0d1, 0d2], [0d3, 0d4]]
         tensor b = [[0d5, 0d6], [0d7, 0d8]]
-        tensor out = M*(a, b)
+        tensor out = m*(a, b)
         
-        ASSERT(EQ(out, [[0d5, 0d12], [0d21, 0d32]]))
-        ASSERT(EQ(SHAPE(out), [0d2, 0d2]))
+        assert(eq(out, [[0d5, 0d12], [0d21, 0d32]]))
+        assert(eq(shape(out), [0d2, 0d2]))
         
   - name: msub-basic
     language: Prefix
     source: |
-        tensor out = M-([0d9, 0d7, 0d5], [0d4, 0d5, 0d6])
+        tensor out = m-([0d9, 0d7, 0d5], [0d4, 0d5, 0d6])
         
-        ASSERT(EQ(TYPE(out), "tensor"))
-        ASSERT(EQ(out, [0d5, 0d2, -0d1]))
+        assert(eq(type(out), "tensor"))
+        assert(eq(out, [0d5, 0d2, -0d1]))
   - name: msub-float
     language: Prefix
-    source: 'ASSERT(EQ(M-([0d5.5, 0d3.0], [0d1.0, 0d0.5]), [0d4.5, 0d2.5]))'
+    source: 'assert(eq(m-([0d5.5, 0d3.0], [0d1.0, 0d0.5]), [0d4.5, 0d2.5]))'
   - name: msub-rank2-shape
     language: Prefix
     source: |
         tensor a = [[0d9, 0d8], [0d7, 0d6]]
         tensor b = [[0d1, 0d2], [0d3, 0d4]]
-        tensor out = M-(a, b)
+        tensor out = m-(a, b)
         
-        ASSERT(EQ(out, [[0d8, 0d6], [0d4, 0d2]]))
-        ASSERT(EQ(SHAPE(out), [0d2, 0d2]))
+        assert(eq(out, [[0d8, 0d6], [0d4, 0d2]]))
+        assert(eq(shape(out), [0d2, 0d2]))
 failing:
   - name: madd-arity-one
     language: Prefix
     source: |
-        M+([0d1])
+        m+([0d1])
         
   - name: madd-arity-three
     language: Prefix
     source: |
-        M+([0d1], [0d2], [0d3])
+        m+([0d1], [0d2], [0d3])
         
   - name: madd-arity-zero
     language: Prefix
     source: |
-        M+()
+        m+()
         
   - name: madd-first-non-tns
     language: Prefix
     source: |
-        M+(0d1, [0d2])
+        m+(0d1, [0d2])
         
   - name: madd-non-numeric
     language: Prefix
     source: |
-        M+(["a"], ["b"])
+        m+(["a"], ["b"])
         
   - name: madd-second-non-tns
     language: Prefix
     source: |
-        M+([0d1], 0d2)
+        m+([0d1], 0d2)
         
   - name: madd-shape-mismatch
     language: Prefix
     source: |
-        M+([0d1, 0d2], [0d3])
+        m+([0d1, 0d2], [0d3])
         
   - name: mdiv-arity-one
     language: Prefix
     source: |
-        M/([0d1])
+        m/([0d1])
         
   - name: mdiv-arity-three
     language: Prefix
     source: |
-        M/([0d1], [0d2], [0d3])
+        m/([0d1], [0d2], [0d3])
         
   - name: mdiv-arity-zero
     language: Prefix
     source: |
-        M/()
+        m/()
         
   - name: mdiv-first-non-tns
     language: Prefix
     source: |
-        M/(0d1, [0d2])
+        m/(0d1, [0d2])
         
   - name: mdiv-non-numeric
     language: Prefix
     source: |
-        M/(["a"], ["b"])
+        m/(["a"], ["b"])
         
   - name: mdiv-second-non-tns
     language: Prefix
     source: |
-        M/([0d1], 0d2)
+        m/([0d1], 0d2)
         
   - name: mdiv-shape-mismatch
     language: Prefix
     source: |
-        M/([0d1, 0d2], [0d3])
+        m/([0d1, 0d2], [0d3])
         
   - name: mdiv-zero
     language: Prefix
     source: |
-        M/([0d1, 0d2], [0d1, 0d0])
+        m/([0d1, 0d2], [0d1, 0d0])
         
   - name: mmul-arity-one
     language: Prefix
     source: |
-        M*([0d1])
+        m*([0d1])
         
   - name: mmul-arity-three
     language: Prefix
     source: |
-        M*([0d1], [0d2], [0d3])
+        m*([0d1], [0d2], [0d3])
         
   - name: mmul-arity-zero
     language: Prefix
     source: |
-        M*()
+        m*()
         
   - name: mmul-first-non-tns
     language: Prefix
     source: |
-        M*(0d1, [0d2])
+        m*(0d1, [0d2])
         
   - name: mmul-non-numeric
     language: Prefix
     source: |
-        M*(["a"], ["b"])
+        m*(["a"], ["b"])
         
   - name: mmul-second-non-tns
     language: Prefix
     source: |
-        M*([0d1], 0d2)
+        m*([0d1], 0d2)
         
   - name: mmul-shape-mismatch
     language: Prefix
     source: |
-        M*([0d1, 0d2], [0d3])
+        m*([0d1, 0d2], [0d3])
         
   - name: mops-pointer-writeback
     language: Prefix
     source: |
-        // M* family (matrix/tensor ops) should write back to pointer operands.
+        // m* family (matrix/tensor ops) should write back to pointer operands.
         tensor A1 = [0d1, 0d2]
         tensor B1 = [0d3, 0d4]
-        M+(@A1, B1)
-        ASSERT(EQ(A1, [0d4, 0d6]))
+        m+(@A1, B1)
+        assert(eq(A1, [0d4, 0d6]))
         
         tensor A2 = [0d1, 0d2]
         tensor B2 = [0d3, 0d4]
-        M+(A2, @B2)
-        ASSERT(EQ(B2, [0d4, 0d6]))
+        m+(A2, @B2)
+        assert(eq(B2, [0d4, 0d6]))
         
         // MSUM / MPROD behavior: elementwise -> writeback
         tensor C1 = [0d2, 0d3]
         MSUM(@C1)
-        ASSERT(EQ(C1, [0d5]))
+        assert(eq(C1, [0d5]))
         
   - name: msub-arity-one
     language: Prefix
-    source: M-([0d1])
+    source: m-([0d1])
   - name: msub-arity-three
     language: Prefix
-    source: 'M-([0d1], [0d2], [0d3])'
+    source: 'm-([0d1], [0d2], [0d3])'
   - name: msub-arity-zero
     language: Prefix
-    source: M-()
+    source: m-()
   - name: msub-first-bool
     language: Prefix
-    source: 'M-(true, [0d1])'
+    source: 'm-(true, [0d1])'
   - name: msub-first-flt
     language: Prefix
-    source: 'M-(0d1.0, [0d1])'
+    source: 'm-(0d1.0, [0d1])'
   - name: msub-first-func
     language: Prefix
-    source: 'M-(LAMBDA bool: (){}, [0d1])'
+    source: 'm-(LAMBDA bool: (){}, [0d1])'
   - name: msub-first-int
     language: Prefix
-    source: 'M-(0d1, [0d1])'
+    source: 'm-(0d1, [0d1])'
   - name: msub-first-map
     language: Prefix
-    source: 'M-(<>, [0d1])'
+    source: 'm-(<>, [0d1])'
   - name: msub-first-str
     language: Prefix
-    source: 'M-("a", [0d1])'
+    source: 'm-("a", [0d1])'
   - name: msub-first-thr
     language: Prefix
-    source: 'M-(async{}, [0d1])'
+    source: 'm-(async{}, [0d1])'
   - name: msub-mixed-numeric-types
     language: Prefix
-    source: 'M-([0d1, 0d2], [0d1.0, 0d2.0])'
+    source: 'm-([0d1, 0d2], [0d1.0, 0d2.0])'
   - name: msub-non-numeric-bool
     language: Prefix
-    source: 'M-([true], [true])'
+    source: 'm-([true], [true])'
   - name: msub-non-numeric-func
     language: Prefix
-    source: 'M-([LAMBDA bool: (){}], [LAMBDA bool: (){}])'
+    source: 'm-([LAMBDA bool: (){}], [LAMBDA bool: (){}])'
   - name: msub-non-numeric-map
     language: Prefix
-    source: 'M-([<>], [<>])'
+    source: 'm-([<>], [<>])'
   - name: msub-non-numeric-str
     language: Prefix
-    source: 'M-(["a"], ["b"])'
+    source: 'm-(["a"], ["b"])'
   - name: msub-non-numeric-thr
     language: Prefix
-    source: 'M-([async{}], [async{}])'
+    source: 'm-([async{}], [async{}])'
   - name: msub-non-numeric-tns
     language: Prefix
     source: |
         tensor inner = [0d1]
-        M-([inner], [inner])
+        m-([inner], [inner])
   - name: msub-second-bool
     language: Prefix
-    source: 'M-([0d1], true)'
+    source: 'm-([0d1], true)'
   - name: msub-second-flt
     language: Prefix
-    source: 'M-([0d1], 0d1.0)'
+    source: 'm-([0d1], 0d1.0)'
   - name: msub-second-func
     language: Prefix
-    source: 'M-([0d1], LAMBDA bool: (){})'
+    source: 'm-([0d1], LAMBDA bool: (){})'
   - name: msub-second-int
     language: Prefix
-    source: 'M-([0d1], 0d1)'
+    source: 'm-([0d1], 0d1)'
   - name: msub-second-map
     language: Prefix
-    source: 'M-([0d1], <>)'
+    source: 'm-([0d1], <>)'
   - name: msub-second-str
     language: Prefix
-    source: 'M-([0d1], "a")'
+    source: 'm-([0d1], "a")'
   - name: msub-second-thr
     language: Prefix
-    source: 'M-([0d1], async{})'
+    source: 'm-([0d1], async{})'
   - name: msub-shape-mismatch
     language: Prefix
-    source: 'M-([0d1, 0d2], [0d3])'
+    source: 'm-([0d1, 0d2], [0d3])'
   - name: msub-tensor-mixed-numeric-elements
     language: Prefix
-    source: 'M-([0d1, 0d2.0], [0d1, 0d1])'
+    source: 'm-([0d1, 0d2.0], [0d1, 0d1])'
   - name: tensor-elemwise-pointer-writeback
     language: Prefix
     source: |
         // Elementwise tensor ops should write back to pointer operands when provided.
         tensor a1 = [0d1, 0d2]
         tensor b1 = [0d3, 0d4]
-        T+(@a1, b1)
-        ASSERT(EQ(a1, [0d4, 0d6]))
+        t+(@a1, b1)
+        assert(eq(a1, [0d4, 0d6]))
         
         tensor a2 = [0d1, 0d2]
         tensor b2 = [0d3, 0d4]
-        T+(a2, @b2)
-        ASSERT(EQ(b2, [0d4, 0d6]))
+        t+(a2, @b2)
+        assert(eq(b2, [0d4, 0d6]))
         
-        // similar for T*
+        // similar for t*
         tensor c1 = [0d2, 0d3]
         tensor d1 = [0d4, 0d5]
-        T*(@c1, d1)
-        ASSERT(EQ(c1, [0d8, 0d15]))
+        t*(@c1, d1)
+        assert(eq(c1, [0d8, 0d15]))
         

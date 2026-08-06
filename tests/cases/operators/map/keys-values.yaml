@@ -4,83 +4,83 @@ passing:
     source: |
         map m = <"alpha" = 0d1, "beta" = 0d2, "gamma" = 0d3>
         
-        ASSERT(EQ(KEYS(m), ["alpha", "beta", "gamma"]))
+        assert(eq(keys(m), ["alpha", "beta", "gamma"]))
         
   - name: keys-mixed-key-types
     language: Prefix
     source: |
         map m = <0d1 = "one", 0d2.5 = "two_point_five", "three" = "three">
         
-        ASSERT(EQ(KEYS(m), [0d1, 0d2.5, "three"]))
+        assert(eq(keys(m), [0d1, 0d2.5, "three"]))
         
   - name: keys-result-is-1d
     language: Prefix
     source: |
         map m = <"x" = 0d1, "y" = 0d2>
         
-        tensor k = KEYS(m)
-        ASSERT(EQ(TYPE(k), "tensor"))
-        ASSERT(EQ(SHAPE(k), [0d2]))
+        tensor k = keys(m)
+        assert(eq(type(k), "tensor"))
+        assert(eq(shape(k), [0d2]))
         
   - name: values-insertion-order
     language: Prefix
     source: |
         map m = <"alpha" = "first", "beta" = "second", "gamma" = "third">
         
-        ASSERT(EQ(VALUES(m), ["first", "second", "third"]))
+        assert(eq(VALUES(m), ["first", "second", "third"]))
         
   - name: values-result-is-1d
     language: Prefix
     source: |
         map m = <0d1 = 0d10, 0d2 = 0d20, 0d3 = 0d30>
         
-        ASSERT(EQ(VALUES(m), [0d10, 0d20, 0d30]))
+        assert(eq(VALUES(m), [0d10, 0d20, 0d30]))
         
 failing:
   - name: keys-arity-two
     language: Prefix
     source: |
-        KEYS(<"a" = 0d1>, <"b" = 0d2>)
+        keys(<"a" = 0d1>, <"b" = 0d2>)
         
   - name: keys-arity-zero
     language: Prefix
     source: |
-        KEYS()
+        keys()
         
   - name: keys-bool
     language: Prefix
     source: |
-        KEYS(true)
+        keys(true)
         
   - name: keys-flt
     language: Prefix
     source: |
-        KEYS(0d1.5)
+        keys(0d1.5)
         
   - name: keys-func
     language: Prefix
     source: |
-        KEYS(LAMBDA int: (){})
+        keys(LAMBDA int: (){})
         
   - name: keys-int
     language: Prefix
     source: |
-        KEYS(0d1)
+        keys(0d1)
         
   - name: keys-str
     language: Prefix
     source: |
-        KEYS("map")
+        keys("map")
         
   - name: keys-thr
     language: Prefix
     source: |
-        KEYS(async{})
+        keys(async{})
         
   - name: keys-tns
     language: Prefix
     source: |
-        KEYS([0d1])
+        keys([0d1])
         
   - name: values-arity-two
     language: Prefix

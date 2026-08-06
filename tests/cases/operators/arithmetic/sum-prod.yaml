@@ -2,112 +2,112 @@ passing:
   - name: fprod-base
     language: Prefix
     source: |
-        ! FPROD result uses the highest numeric base present among operands
-        float result = FPROD(0d2, 0x3.0)
+        ! fproduct result uses the highest numeric base present among operands
+        float result = fproduct(0d2, 0x3.0)
         
-        ASSERT(EQ(result, 0x6.0))
-        ASSERT(EQ(BASE(result), 0d16))
+        assert(eq(result, 0x6.0))
+        assert(eq(BASE(result), 0d16))
   - name: fprod-inf
     language: Prefix
     source: |
-        ! FPROD preserves INF under float arithmetic
-        float result = FPROD(INF, 0d2.0)
-        ASSERT(EQ(result, INF))
+        ! fproduct preserves INF under float arithmetic
+        float result = fproduct(INF, 0d2.0)
+        assert(eq(result, INF))
   - name: fprod-mixed
     language: Prefix
     source: |
-        ! FPROD coerces mixed numeric inputs to float before multiplying
-        float result = FPROD(0d2, 0d3.5, 0d4)
-        ASSERT(EQ(result, 0d28.0))
+        ! fproduct coerces mixed numeric inputs to float before multiplying
+        float result = fproduct(0d2, 0d3.5, 0d4)
+        assert(eq(result, 0d28.0))
   - name: fprod-single-int
     language: Prefix
     source: |
-        ! FPROD coerces a single int argument to float
-        float result = FPROD(0d3)
-        ASSERT(EQ(result, 0d3.0))
+        ! fproduct coerces a single int argument to float
+        float result = fproduct(0d3)
+        assert(eq(result, 0d3.0))
   - name: fsum-inf
     language: Prefix
     source: |
-        ! FSUM preserves INF under float arithmetic
-        float result = FSUM(INF, 0d1.0)
-        ASSERT(EQ(result, INF))
+        ! fsum preserves INF under float arithmetic
+        float result = fsum(INF, 0d1.0)
+        assert(eq(result, INF))
         
   - name: fsum
     language: Prefix
     source: |
-        ! FSUM coerces mixed numeric inputs to float
-        float result = FSUM(0d1, 0d2.5, 0d3)
-        ASSERT(EQ(result, 0d6.5))
+        ! fsum coerces mixed numeric inputs to float
+        float result = fsum(0d1, 0d2.5, 0d3)
+        assert(eq(result, 0d6.5))
         
   - name: iprod
     language: Prefix
     source: |
-        ! IPROD coerces inputs to int before multiplying
-        int result = IPROD(0d2.9, 0d3.1)
-        ASSERT(EQ(result, 0d6))
+        ! iproduct coerces inputs to int before multiplying
+        int result = iproduct(0d2.9, 0d3.1)
+        assert(eq(result, 0d6))
         
   - name: isum-trunc
     language: Prefix
     source: |
-        ! ISUM truncates floating-point inputs toward zero
-        int result = ISUM(0d1.9, 0d2.1, -0d0.9)
-        ASSERT(EQ(result, 0d3))
+        ! isum truncates floating-point inputs toward zero
+        int result = isum(0d1.9, 0d2.1, -0d0.9)
+        assert(eq(result, 0d3))
         
   - name: prod-flt
     language: Prefix
     source: |
-        ! PROD with two float arguments
-        float result = PROD(0d1.5, 0d2.0)
-        ASSERT(EQ(result, 0d3.0))
+        ! product with two float arguments
+        float result = product(0d1.5, 0d2.0)
+        assert(eq(result, 0d3.0))
         
   - name: prod-int
     language: Prefix
     source: |
-        ! PROD with three int arguments
-        int result = PROD(0d2, 0d3, 0d1)
-        ASSERT(EQ(result, 0d6))
+        ! product with three int arguments
+        int result = product(0d2, 0d3, 0d1)
+        assert(eq(result, 0d6))
         
   - name: sum-flt
     language: Prefix
     source: |
-        ! SUM with two float arguments
-        float result = SUM(0d1.5, 0d2.5)
-        ASSERT(EQ(result, 0d4.0))
+        ! sum with two float arguments
+        float result = sum(0d1.5, 0d2.5)
+        assert(eq(result, 0d4.0))
         
   - name: sum-int
     language: Prefix
     source: |
-        ! SUM with three int arguments
-        int result = SUM(0d1, 0d2, 0d3)
-        ASSERT(EQ(result, 0d6))
+        ! sum with three int arguments
+        int result = sum(0d1, 0d2, 0d3)
+        assert(eq(result, 0d6))
         
 failing:
   - name: fprod-arity-zero
     language: Prefix
-    source: FPROD()
+    source: fproduct()
   - name: fprod-bool
     language: Prefix
-    source: 'FPROD(true, 0d1)'
+    source: 'fproduct(true, 0d1)'
   - name: fprod-str
     language: Prefix
-    source: 'FPROD("1.0", 0d1)'
+    source: 'fproduct("1.0", 0d1)'
   - name: fsum-str
     language: Prefix
     source: |
-        FSUM('1.0', 0d1)
+        fsum('1.0', 0d1)
         
   - name: prod-mixed
     language: Prefix
     source: |
-        PROD(0d2, 0d2.0)
+        product(0d2, 0d2.0)
         
   - name: sum-mixed
     language: Prefix
     source: |
-        SUM(0d1, 0d2.0)
+        sum(0d1, 0d2.0)
         
   - name: sum-str
     language: Prefix
     source: |
-        SUM('1', 0d1)
+        sum('1', 0d1)
         

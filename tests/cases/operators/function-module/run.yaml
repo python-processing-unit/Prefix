@@ -3,8 +3,8 @@ passing:
     language: Prefix
     source: |
         int marker = 0d1
-        RUN("")
-        ASSERT(EQ(marker, 0d1))
+        run("")
+        assert(eq(marker, 0d1))
   - name: run-parse-error
     language: Prefix
     source: |
@@ -12,14 +12,14 @@ passing:
         bool caught = false
         
         try{
-            RUN("step = 0d1; if(true){")
-            ASSERT(false)
+            run("step = 0d1; if(true){")
+            assert(false)
         } catch {
             caught = true
         }
         
-        ASSERT(caught)
-        ASSERT(EQ(step, 0d0))
+        assert(caught)
+        assert(eq(step, 0d0))
   - name: run-runtime-error
     language: Prefix
     source: |
@@ -27,31 +27,31 @@ passing:
         bool caught = false
         
         try{
-            RUN("step = 0d1; ASSERT(false); step = 0d2")
-            ASSERT(false)
+            run("step = 0d1; assert(false); step = 0d2")
+            assert(false)
         } catch {
             caught = true
         }
         
-        ASSERT(caught)
-        ASSERT(EQ(step, 0d1))
+        assert(caught)
+        assert(eq(step, 0d1))
   - name: run-top-level-env
     language: Prefix
     source: |
         int counter = 0d2
         
-        RUN("ASSERT(EQ(counter, 0d2)); counter = +(counter, 0d3)")
-        ASSERT(EQ(counter, 0d5))
+        run("assert(eq(counter, 0d2)); counter = +(counter, 0d3)")
+        assert(eq(counter, 0d5))
         
-        RUN("int created = -(counter, 0d1)")
-        ASSERT(EQ(created, 0d4))
+        run("int created = -(counter, 0d1)")
+        assert(eq(created, 0d4))
 failing:
   - name: run-arity-two
     language: Prefix
-    source: 'RUN("", "")'
+    source: 'run("", "")'
   - name: run-arity-zero
     language: Prefix
-    source: RUN()
+    source: run()
   - name: run-non-str
     language: Prefix
-    source: RUN(0d1)
+    source: run(0d1)

@@ -5,90 +5,90 @@ passing:
         int errors = 0d0
         
         try{
-            UNSER("{")
+            unserialize("{")
         } catch(err){
             +(@errors, 0d1)
         }
         
         try{
-            UNSER('\R{"v":true}')
+            unserialize('\R{"v":true}')
         } catch(err){
             +(@errors, 0d1)
         }
         
         try{
-            UNSER('\R{"t":"bool"}')
+            unserialize('\R{"t":"bool"}')
         } catch(err){
             +(@errors, 0d1)
         }
         
         try{
-            UNSER('\R{"t":"NOPE","v":0}')
+            unserialize('\R{"t":"NOPE","v":0}')
         } catch(err){
             +(@errors, 0d1)
         }
         
-        ASSERT(EQ(errors, 0d4))
+        assert(eq(errors, 0d4))
   - name: unser-errors-numeric
     language: Prefix
     source: |
         int errors = 0d0
         
         try{
-            UNSER('\R{"t":"int","v":"12"}')
+            unserialize('\R{"t":"int","v":"12"}')
         } catch(err){
             +(@errors, 0d1)
         }
         
         try{
-            UNSER('\R{"t":"float","v":"0d1"}')
+            unserialize('\R{"t":"float","v":"0d1"}')
         } catch(err){
             +(@errors, 0d1)
         }
         
         try{
-            UNSER('\R{"t":"float","v":"-NaN"}')
+            unserialize('\R{"t":"float","v":"-NaN"}')
         } catch(err){
             +(@errors, 0d1)
         }
         
-        ASSERT(EQ(errors, 0d3))
+        assert(eq(errors, 0d3))
   - name: unser-errors-structure
     language: Prefix
     source: |
         int errors = 0d0
         
         try{
-            UNSER('\R{"t":"tensor","shape":[0],"v":[]}')
+            unserialize('\R{"t":"tensor","shape":[0],"v":[]}')
         } catch(err){
             +(@errors, 0d1)
         }
         
         try{
-            UNSER('\R{"t":"tensor","shape":[2,2],"v":[{"t":"int","v":"0d1"},{"t":"int","v":"0d2"},{"t":"int","v":"0d3"}]}')
+            unserialize('\R{"t":"tensor","shape":[2,2],"v":[{"t":"int","v":"0d1"},{"t":"int","v":"0d2"},{"t":"int","v":"0d3"}]}')
         } catch(err){
             +(@errors, 0d1)
         }
         
         try{
-            UNSER('\R{"t":"map","v":[{"k":{"t":"tensor","shape":[1],"v":[{"t":"int","v":"0d1"}]},"v":{"t":"int","v":"0d2"}}]}')
+            unserialize('\R{"t":"map","v":[{"k":{"t":"tensor","shape":[1],"v":[{"t":"int","v":"0d1"}]},"v":{"t":"int","v":"0d2"}}]}')
         } catch(err){
             +(@errors, 0d1)
         }
         
         try{
-            UNSER('\R{"t":"map","v":[{"k":{"t":"str","v":"x"}}]}')
+            unserialize('\R{"t":"map","v":[{"k":{"t":"str","v":"x"}}]}')
         } catch(err){
             +(@errors, 0d1)
         }
         
-        ASSERT(EQ(errors, 0d4))
+        assert(eq(errors, 0d4))
   - name: unser-func-closure
     language: Prefix
     source: |
         str loc = '\R{"file":"<unknown>","line":1,"column":1,"statement":""}'
         
-        str json = JOIN( ^
+        str json = join( ^
             '\R{"t":"func","id":"f1","name":"read_alias","return":"int","params":[],"def":{"name":"read_alias","return":"int","params":[],"body":{"n":"Block","loc":', ^
             loc, ^
             '\R,"statements":[{"n":"ReturnStatement","loc":', ^
@@ -98,27 +98,27 @@ passing:
             '\R,"name":"alias"}}]},"closure":{"t":"ENV","id":"e1","def":{"values":{"seed":{"t":"int","v":"0d9"},"alias":{"t":"PTR","name":"seed","env":{"t":"ENV","id":"e1","ref":true},"value_type":"int"}},"declared":{"seed":"int","alias":"int"},"frozen":[],"permafrozen":[],"parent":null}}}}' ^
         )
         
-        func reader = UNSER(json)
-        ASSERT(EQ(TYPE(reader), "func"))
-        ASSERT(EQ(reader(), 0d9))
+        func reader = unserialize(json)
+        assert(eq(type(reader), "func"))
+        assert(eq(reader(), 0d9))
   - name: unser-func-params
     language: Prefix
     source: |
         str loc = '\R{"file":"<unknown>","line":1,"column":1,"statement":""}'
         
-        str step_default = JOIN( ^
+        str step_default = join( ^
             '\R{"n":"Literal","loc":', ^
             loc, ^
             '\R,"value":2,"base":10,"literal_type":"int"}' ^
         )
         
-        str params = JOIN( ^
+        str params = join( ^
             '\R[{"name":"value","type":"int","coerced":true,"default":null},{"name":"step","type":"int","coerced":false,"default":', ^
             step_default, ^
             '\R}]' ^
         )
         
-        str json = JOIN( ^
+        str json = join( ^
             '\R{"t":"func","id":"f1","name":"add_default","return":"int","params":', ^
             params, ^
             '\R,"def":{"name":"add_default","return":"int","params":', ^
@@ -138,15 +138,15 @@ passing:
             '\R,"name":"step"}}]}}]},"closure":null}}' ^
         )
         
-        func add_default = UNSER(json)
-        ASSERT(EQ(add_default("0d3"), 0d5))
-        ASSERT(EQ(add_default("0d3", step = 0d4), 0d7))
+        func add_default = unserialize(json)
+        assert(eq(add_default("0d3"), 0d5))
+        assert(eq(add_default("0d3", step = 0d4), 0d7))
   - name: unser-func-ref
     language: Prefix
     source: |
         str loc = '\R{"file":"<unknown>","line":1,"column":1,"statement":""}'
         
-        str full = JOIN( ^
+        str full = join( ^
             '\R{"t":"func","id":"f1","name":"five","return":"int","params":[],"def":{"name":"five","return":"int","params":[],"body":{"n":"Block","loc":', ^
             loc, ^
             '\R,"statements":[{"n":"ReturnStatement","loc":', ^
@@ -156,22 +156,22 @@ passing:
             '\R,"value":5,"base":10,"literal_type":"int"}}]},"closure":null}}' ^
         )
         
-        str json = JOIN( ^
+        str json = join( ^
             '\R{"t":"map","v":[{"k":{"t":"str","v":"first"},"v":', ^
             full, ^
             '\R},{"k":{"t":"str","v":"second"},"v":{"t":"func","id":"f1","ref":true}}]}' ^
         )
         
-        map funcs = UNSER(json)
-        ASSERT(EQ(funcs<"first">, funcs<"second">))
-        ASSERT(EQ(funcs<"first">(), 0d5))
-        ASSERT(EQ(funcs<"second">(), 0d5))
+        map funcs = unserialize(json)
+        assert(eq(funcs<"first">, funcs<"second">))
+        assert(eq(funcs<"first">(), 0d5))
+        assert(eq(funcs<"second">(), 0d5))
   - name: unser-func
     language: Prefix
     source: |
         str loc = '\R{"file":"<unknown>","line":1,"column":1,"statement":""}'
         
-        str json = JOIN( ^
+        str json = join( ^
             '\R{"t":"func","id":"f1","name":"double","return":"int","params":[{"name":"value","type":"int","coerced":false,"default":null}],"def":{"name":"double","return":"int","params":[{"name":"value","type":"int","coerced":false,"default":null}],"body":{"n":"Block","loc":', ^
             loc, ^
             '\R,"statements":[{"n":"ReturnStatement","loc":', ^
@@ -187,47 +187,47 @@ passing:
             '\R,"name":"value"}}]}}]},"closure":null}}' ^
         )
         
-        func double = UNSER(json)
-        ASSERT(EQ(TYPE(double), "func"))
-        ASSERT(EQ(double(0d3), 0d6))
+        func double = unserialize(json)
+        assert(eq(type(double), "func"))
+        assert(eq(double(0d3), 0d6))
   - name: unser-map
     language: Prefix
     source: |
-        map value = UNSER('\R{"t":"map","v":[{"k":{"t":"str","v":"alpha"},"v":{"t":"int","v":"0d1"}},{"k":{"t":"int","v":"0d2"},"v":{"t":"str","v":"two"}},{"k":{"t":"float","v":"0d3.5"},"v":{"t":"map","v":[{"k":{"t":"str","v":"nested"},"v":{"t":"bool","v":true}}]}}]}')
+        map value = unserialize('\R{"t":"map","v":[{"k":{"t":"str","v":"alpha"},"v":{"t":"int","v":"0d1"}},{"k":{"t":"int","v":"0d2"},"v":{"t":"str","v":"two"}},{"k":{"t":"float","v":"0d3.5"},"v":{"t":"map","v":[{"k":{"t":"str","v":"nested"},"v":{"t":"bool","v":true}}]}}]}')
         
-        ASSERT(EQ(value<"alpha">, 0d1))
-        ASSERT(EQ(value<0d2>, "two"))
-        ASSERT(EQ(value<0d3.5, "nested">, true))
-        ASSERT(EQ(KEYS(value), ["alpha", 0d2, 0d3.5]))
+        assert(eq(value<"alpha">, 0d1))
+        assert(eq(value<0d2>, "two"))
+        assert(eq(value<0d3.5, "nested">, true))
+        assert(eq(keys(value), ["alpha", 0d2, 0d3.5]))
   - name: unser-scalars
     language: Prefix
     source: |
-        ASSERT(EQ(UNSER('\R{"t":"bool","v":true}'), true))
+        assert(eq(unserialize('\R{"t":"bool","v":true}'), true))
         
-        str spaced_false = JOIN("\n  ", '\R{"t":"bool","v":false}', "\r\t")
-        ASSERT(EQ(UNSER(spaced_false), false))
+        str spaced_false = join("\n  ", '\R{"t":"bool","v":false}', "\r\t")
+        assert(eq(unserialize(spaced_false), false))
         
-        ASSERT(EQ(UNSER('\R{"t":"int","v":"-0xA"}'), -0xA))
-        ASSERT(EQ(UNSER('\R{"t":"float","v":"0d3.5"}'), 0d3.5))
-        ASSERT(EQ(str(UNSER('\R{"t":"float","v":"NaN"}')), "NaN"))
-        ASSERT(EQ(UNSER('\R{"t":"str","v":"Prefix\n"}'), "Prefix\n"))
-        ASSERT(EQ(UNSER('\R{"t":"str","v":"\u00E9"}'), "\u00E9"))
+        assert(eq(unserialize('\R{"t":"int","v":"-0xA"}'), -0xA))
+        assert(eq(unserialize('\R{"t":"float","v":"0d3.5"}'), 0d3.5))
+        assert(eq(str(unserialize('\R{"t":"float","v":"NaN"}')), "NaN"))
+        assert(eq(unserialize('\R{"t":"str","v":"Prefix\n"}'), "Prefix\n"))
+        assert(eq(unserialize('\R{"t":"str","v":"\u00E9"}'), "\u00E9"))
   - name: unser-tensor
     language: Prefix
     source: |
-        tensor tensor = UNSER('\R{"t":"tensor","shape":[2,2],"v":[{"t":"int","v":"0d1"},{"t":"int","v":"0d2"},{"t":"int","v":"0d3"},{"t":"int","v":"0d4"}]}')
+        tensor tensor = unserialize('\R{"t":"tensor","shape":[2,2],"v":[{"t":"int","v":"0d1"},{"t":"int","v":"0d2"},{"t":"int","v":"0d3"},{"t":"int","v":"0d4"}]}')
         
-        ASSERT(EQ(tensor, [[0d1, 0d2], [0d3, 0d4]]))
-        ASSERT(EQ(SHAPE(tensor), [0d2, 0d2]))
+        assert(eq(tensor, [[0d1, 0d2], [0d3, 0d4]]))
+        assert(eq(shape(tensor), [0d2, 0d2]))
         
-        tensor mixed = UNSER('\R{"t":"tensor","shape":[3],"v":[{"t":"bool","v":true},{"t":"str","v":"two"},{"t":"float","v":"0d3.5"}]}')
-        ASSERT(EQ(mixed, [true, "two", 0d3.5]))
+        tensor mixed = unserialize('\R{"t":"tensor","shape":[3],"v":[{"t":"bool","v":true},{"t":"str","v":"two"},{"t":"float","v":"0d3.5"}]}')
+        assert(eq(mixed, [true, "two", 0d3.5]))
   - name: unser-thr-ref
     language: Prefix
     source: |
         str thread_json = '\R{"t":"thread","id":"t1","state":"finished","paused":false,"finished":true,"stop":false,"env":null,"block":null}'
         
-        str json = JOIN( ^
+        str json = join( ^
             '\R{"t":"map","v":[{"k":{"t":"str","v":"first"},"v":', ^
             thread_json, ^
             '\R},{"k":{"t":"str","v":"second"},"v":', ^
@@ -235,34 +235,34 @@ passing:
             '\R}]}' ^
         )
         
-        map threads = UNSER(json)
-        ASSERT(EQ(threads<"first">, threads<"second">))
-        REFUTE(bool(threads<"first">))
+        map threads = unserialize(json)
+        assert(eq(threads<"first">, threads<"second">))
+        refute(bool(threads<"first">))
   - name: unser-thr
     language: Prefix
     source: |
-        thread finished = UNSER('\R{"t":"thread","id":"t1","state":"finished","paused":false,"finished":true,"stop":false,"env":null,"block":null}')
+        thread finished = unserialize('\R{"t":"thread","id":"t1","state":"finished","paused":false,"finished":true,"stop":false,"env":null,"block":null}')
         
-        ASSERT(EQ(TYPE(finished), "thread"))
-        REFUTE(bool(finished))
-        ASSERT(EQ(AWAIT(finished), finished))
+        assert(eq(type(finished), "thread"))
+        refute(bool(finished))
+        assert(eq(await(finished), finished))
         
-        thread paused = UNSER('\R{"t":"thread","id":"t2","state":"paused","paused":true,"finished":false,"stop":false,"env":null,"block":null}')
-        ASSERT(PAUSED(paused))
-        ASSERT(bool(paused))
+        thread paused = unserialize('\R{"t":"thread","id":"t2","state":"paused","paused":true,"finished":false,"stop":false,"env":null,"block":null}')
+        assert(paused(paused))
+        assert(bool(paused))
 failing:
   - name: unser-arity-two
     language: Prefix
-    source: 'UNSER("{}", "{}")'
+    source: 'unserialize("{}", "{}")'
   - name: unser-arity-zero
     language: Prefix
-    source: UNSER()
+    source: unserialize()
   - name: unser-type-bool
     language: Prefix
-    source: UNSER(true)
+    source: unserialize(true)
   - name: unser-type-flt
     language: Prefix
-    source: UNSER(0d1.0)
+    source: unserialize(0d1.0)
   - name: unser-type-func
     language: Prefix
     source: |
@@ -270,19 +270,19 @@ failing:
             return(value)
         }
         
-        UNSER(identity)
+        unserialize(identity)
   - name: unser-type-int
     language: Prefix
-    source: UNSER(0d1)
+    source: unserialize(0d1)
   - name: unser-type-map
     language: Prefix
-    source: 'UNSER(<"n" = 0d1>)'
+    source: 'unserialize(<"n" = 0d1>)'
   - name: unser-type-thr
     language: Prefix
     source: |
         thread(worker){}
         
-        UNSER(worker)
+        unserialize(worker)
   - name: unser-type-tns
     language: Prefix
-    source: UNSER([0d1])
+    source: unserialize([0d1])

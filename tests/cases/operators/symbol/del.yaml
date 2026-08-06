@@ -3,39 +3,39 @@ passing:
     language: Prefix
     source: |
         bool frozen_symbol = true
-        REFUTE(FREEZE("frozen_symbol"))
+        refute(lock("frozen_symbol"))
         
         bool frozen_delete_failed = false
         try{
-            DEL("frozen_symbol")
+            del("frozen_symbol")
         } catch {
             frozen_delete_failed = true
         }
-        ASSERT(frozen_delete_failed)
-        ASSERT(EXIST("frozen_symbol"))
+        assert(frozen_delete_failed)
+        assert(exist("frozen_symbol"))
         
-        REFUTE(THAW("frozen_symbol"))
-        REFUTE(DEL("frozen_symbol"))
-        REFUTE(EXIST("frozen_symbol"))
+        refute(unlock("frozen_symbol"))
+        refute(del("frozen_symbol"))
+        refute(exist("frozen_symbol"))
         
         bool permafrozen_symbol = true
-        REFUTE(PERMAFREEZE("permafrozen_symbol"))
+        refute(freeze("permafrozen_symbol"))
         
         bool permafrozen_delete_failed = false
         try{
-            DEL("permafrozen_symbol")
+            del("permafrozen_symbol")
         } catch {
             permafrozen_delete_failed = true
         }
-        ASSERT(permafrozen_delete_failed)
-        ASSERT(EXIST("permafrozen_symbol"))
+        assert(permafrozen_delete_failed)
+        assert(exist("permafrozen_symbol"))
         
   - name: del-map
     language: Prefix
     source: |
         map top = <"keep" = 0d1, "drop" = 0d2>
-        REFUTE(DEL('top<"drop">'))
-        ASSERT(EQ(top, <"keep" = 0d1>))
+        refute(del('top<"drop">'))
+        assert(eq(top, <"keep" = 0d1>))
         
         bool top_missing = false
         try{
@@ -43,27 +43,27 @@ passing:
         } catch {
             top_missing = true
         }
-        ASSERT(top_missing)
+        assert(top_missing)
         
         map nested = <"outer" = <"keep" = 0d1, "drop" = 0d2>>
-        REFUTE(DEL('nested<"outer", "drop">'))
-        ASSERT(EQ(nested, <"outer" = <"keep" = 0d1>>))
+        refute(del('nested<"outer", "drop">'))
+        assert(eq(nested, <"outer" = <"keep" = 0d1>>))
         
         map missing_intermediate = <"outer" = <"keep" = 0d1>>
-        REFUTE(DEL('missing_intermediate<"absent", "drop">'))
-        ASSERT(EQ(missing_intermediate, <"outer" = <"keep" = 0d1>>))
+        refute(del('missing_intermediate<"absent", "drop">'))
+        assert(eq(missing_intermediate, <"outer" = <"keep" = 0d1>>))
         
         map missing_final = <"outer" = <"keep" = 0d1>>
-        REFUTE(DEL('missing_final<"outer", "drop">'))
-        ASSERT(EQ(missing_final, <"outer" = <"keep" = 0d1>>))
+        refute(del('missing_final<"outer", "drop">'))
+        assert(eq(missing_final, <"outer" = <"keep" = 0d1>>))
         
   - name: del-symbol
     language: Prefix
     source: |
         bool symbol = true
-        ASSERT(EXIST("symbol"))
-        REFUTE(DEL("symbol"))
-        REFUTE(EXIST("symbol"))
+        assert(exist("symbol"))
+        refute(del("symbol"))
+        refute(exist("symbol"))
         
         bool deleted_read_failed = false
         try{
@@ -71,59 +71,59 @@ passing:
         } catch {
         	deleted_read_failed = true
         }
-        ASSERT(deleted_read_failed)
+        assert(deleted_read_failed)
         
         int count = 0d1
-        REFUTE(DEL("count"))
+        refute(del("count"))
         count = 0d2
-        ASSERT(EQ(count, 0d2))
-        ASSERT(EXIST("count"))
+        assert(eq(count, 0d2))
+        assert(exist("count"))
         
 failing:
   - name: del-already-deleted-symbol
     language: Prefix
     source: |
         bool x = true
-        DEL("x")
-        DEL("x")
+        del("x")
+        del("x")
         
   - name: del-map-intermediate-not-map
     language: Prefix
     source: |
         map value = <"branch" = 0d1>
-        DEL('value<"branch", "leaf">')
+        del('value<"branch", "leaf">')
         
   - name: del-map-target-not-map
     language: Prefix
     source: |
         int value = 0d1
-        DEL('value<"key">')
+        del('value<"key">')
         
   - name: del-never-assigned-symbol
     language: Prefix
     source: |
         bool x
-        DEL("x")
+        del("x")
         
   - name: del-nonexistent-symbol
     language: Prefix
     source: |
-        DEL("x")
+        del("x")
         
   - name: del-raw-indexed-target
     language: Prefix
     source: |
         map value = <"key" = 0d1>
-        DEL(value<"key">)
+        del(value<"key">)
   - name: del-raw-symbol-argument
     language: Prefix
     source: |
         bool x = true
-        DEL(x)
+        del(x)
   - name: del-type-mismatch-after-delete
     language: Prefix
     source: |
         int x = 0d1
-        DEL("x")
+        del("x")
         bool x = true
         

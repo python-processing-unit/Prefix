@@ -15,12 +15,12 @@ passing:
         
         thread(sample_thr){}
         
-        ASSERT(EQ(TYPE(sample_bool), "bool"))
-        ASSERT(EQ(TYPE(sample_int), "int"))
-        ASSERT(EQ(TYPE(sample_flt), "float"))
-        ASSERT(EQ(TYPE(sample_str), "str"))
-        ASSERT(EQ(TYPE(sample_tns), "tensor"))
-        ASSERT(EQ(TYPE(sample_map), "map"))
-        ASSERT(EQ(TYPE(sample_func), "func"))
-        ASSERT(EQ(TYPE(sample_thr), "thread"))
+        assert(eq(type(sample_bool), "bool"))
+        assert(eq(type(sample_int), "int"))
+        assert(eq(type(sample_flt), "float"))
+        assert(eq(type(sample_str), "str"))
+        assert(eq(type(sample_tns), "tensor"))
+        assert(eq(type(sample_map), "map"))
+        assert(eq(type(sample_func), "func"))
+        assert(eq(type(sample_thr), "thread"))
         

@@ -2,26 +2,26 @@ passing:
   - name: froot-neg
     language: Prefix
     source: |
-        ! FROOT negative example with odd exponent allowed
-        float result = FROOT(-0d8.0, 0d3.0)
-        ASSERT(EQ(result, -0d2.0))
+        ! froot negative example with odd exponent allowed
+        float result = froot(-0d8.0, 0d3.0)
+        assert(eq(result, -0d2.0))
         
   - name: froot
     language: Prefix
     source: |
-        float result_root_normal = FROOT(0d16.0, 0d2.0)
-        ASSERT(EQ(result_root_normal, 0d4.0))
+        float result_root_normal = froot(0d16.0, 0d2.0)
+        assert(eq(result_root_normal, 0d4.0))
         
-        ! FROOT positive example: cube root of 8.0 (merged from froot.pre)
-        float result = FROOT(0d8.0, 0d3.0)
-        ASSERT(EQ(result, 0d2.0))
+        ! froot positive example: cube root of 8.0 (merged from froot.pre)
+        float result = froot(0d8.0, 0d3.0)
+        assert(eq(result, 0d2.0))
         
   - name: iroot
     language: Prefix
     source: |
         ! Passing integer arithmetic, checking coercion and correct logic
-        int result_root = IROOT(0d16, 0d2)
-        ASSERT(EQ(result_root, 0d4))
+        int result_root = iroot(0d16, 0d2)
+        assert(eq(result_root, 0d4))
         
   - name: root-flt
     language: Prefix
@@ -33,17 +33,17 @@ passing:
         float root_dec = 0d2.0
         float root_hex = 0x3.0
         
-        ASSERT(EQ(ROOT(exact_hex, root_dec), 0xA.0))
-        ASSERT(isfloat(ROOT(exact_hex, root_dec)))
-        ASSERT(EQ(BASE(ROOT(exact_hex, root_dec)), 0d16))
+        assert(eq(root(exact_hex, root_dec), 0xA.0))
+        assert(isfloat(root(exact_hex, root_dec)))
+        assert(eq(BASE(root(exact_hex, root_dec)), 0d16))
         
-        ASSERT(EQ(ROOT(exact_dec, root_hex), 0x4.0))
-        ASSERT(EQ(BASE(ROOT(exact_dec, root_hex)), 0d16))
+        assert(eq(root(exact_dec, root_hex), 0x4.0))
+        assert(eq(BASE(root(exact_dec, root_hex)), 0d16))
         
-        ASSERT(EQ(ROOT(zero_hex, root_hex), 0x0.0))
-        ASSERT(EQ(BASE(ROOT(zero_hex, root_hex)), 0d16))
-        ASSERT(EQ(ROOT(negative_odd_dec, root_hex), -0x3.0))
-        ASSERT(EQ(BASE(ROOT(negative_odd_dec, root_hex)), 0d16))
+        assert(eq(root(zero_hex, root_hex), 0x0.0))
+        assert(eq(BASE(root(zero_hex, root_hex)), 0d16))
+        assert(eq(root(negative_odd_dec, root_hex), -0x3.0))
+        assert(eq(BASE(root(negative_odd_dec, root_hex)), 0d16))
         
   - name: root-int
     language: Prefix
@@ -56,66 +56,66 @@ passing:
         int root_hex = 0x2
         int neg_one_dec = -0d1
         
-        ASSERT(EQ(ROOT(exact_hex, root_dec), 0xA))
-        ASSERT(isint(ROOT(exact_hex, root_dec)))
-        ASSERT(EQ(BASE(ROOT(exact_hex, root_dec)), 0d16))
+        assert(eq(root(exact_hex, root_dec), 0xA))
+        assert(isint(root(exact_hex, root_dec)))
+        assert(eq(BASE(root(exact_hex, root_dec)), 0d16))
         
-        ASSERT(EQ(ROOT(floor_dec, root_hex), 0x4))
-        ASSERT(EQ(BASE(ROOT(floor_dec, root_hex)), 0d16))
+        assert(eq(root(floor_dec, root_hex), 0x4))
+        assert(eq(BASE(root(floor_dec, root_hex)), 0d16))
         
-        ASSERT(EQ(ROOT(zero_hex, 0d5), 0x0))
-        ASSERT(EQ(BASE(ROOT(zero_hex, 0d5)), 0d16))
-        ASSERT(EQ(ROOT(unit_hex, neg_one_dec), 0x1))
-        ASSERT(EQ(BASE(ROOT(unit_hex, neg_one_dec)), 0d16))
+        assert(eq(root(zero_hex, 0d5), 0x0))
+        assert(eq(BASE(root(zero_hex, 0d5)), 0d16))
+        assert(eq(root(unit_hex, neg_one_dec), 0x1))
+        assert(eq(BASE(root(unit_hex, neg_one_dec)), 0d16))
         
 failing:
   - name: froot-neg-even
     language: Prefix
     source: |
-        FROOT(-0d1.0, 0d2.0)
+        froot(-0d1.0, 0d2.0)
         
   - name: iroot-int-zero-exponent
     language: Prefix
     source: |
-        IROOT(0d10, 0d0)
+        iroot(0d10, 0d0)
         
   - name: root-arity-one
     language: Prefix
     source: |
-        ROOT(0d16)
+        root(0d16)
         
   - name: root-arity-three
     language: Prefix
     source: |
-        ROOT(0d16, 0d2, 0d2)
+        root(0d16, 0d2, 0d2)
         
   - name: root-flt-negative-even
     language: Prefix
     source: |
-        ROOT(-0d16.0, 0d2.0)
+        root(-0d16.0, 0d2.0)
         
   - name: root-flt-zero-exponent
     language: Prefix
     source: |
-        ROOT(0d16.0, 0d0.0)
+        root(0d16.0, 0d0.0)
         
   - name: root-int-invalid-negative
     language: Prefix
     source: |
-        ROOT(0d2, -0d1)
+        root(0d2, -0d1)
         
   - name: root-int-zero-exponent
     language: Prefix
     source: |
-        ROOT(0d16, 0d0)
+        root(0d16, 0d0)
         
   - name: root-type-bool
     language: Prefix
     source: |
-        ROOT(true, false)
+        root(true, false)
         
   - name: root-type-str
     language: Prefix
     source: |
-        ROOT("16", "2")
+        root("16", "2")
         

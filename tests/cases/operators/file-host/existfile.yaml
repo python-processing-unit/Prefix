@@ -2,38 +2,38 @@ passing:
   - name: existfile
     language: Prefix
     source: |
-        IMPORT("path")
+        import("path")
         
-        ASSERT(EXISTFILE(JOIN(path.script_dir, "/plain.txt")))
-        REFUTE(EXISTFILE(JOIN(path.script_dir, "/nonexistent.txt")))
+        assert(exist_file(join(path.script_dir, "/plain.txt")))
+        refute(exist_file(join(path.script_dir, "/nonexistent.txt")))
 failing:
   - name: existfile-arity-two
     language: Prefix
     source: |
-        IMPORT("path")
+        import("path")
         
-        EXISTFILE(path.script_dir, "/plain.txt")
+        exist_file(path.script_dir, "/plain.txt")
   - name: existfile-arity-zero
     language: Prefix
-    source: EXISTFILE()
+    source: exist_file()
   - name: existfile-bool
     language: Prefix
-    source: EXISTFILE(true)
+    source: exist_file(true)
   - name: existfile-flt
     language: Prefix
-    source: EXISTFILE(0d1.0)
+    source: exist_file(0d1.0)
   - name: existfile-func
     language: Prefix
-    source: 'EXISTFILE(LAMBDA bool: (){})'
+    source: 'exist_file(LAMBDA bool: (){})'
   - name: existfile-int
     language: Prefix
-    source: EXISTFILE(0d1)
+    source: exist_file(0d1)
   - name: existfile-map
     language: Prefix
-    source: EXISTFILE(<>)
+    source: exist_file(<>)
   - name: existfile-thr
     language: Prefix
-    source: EXISTFILE(async{})
+    source: exist_file(async{})
   - name: existfile-tns
     language: Prefix
-    source: EXISTFILE([0d1])
+    source: exist_file([0d1])

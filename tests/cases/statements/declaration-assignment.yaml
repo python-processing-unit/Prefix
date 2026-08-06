@@ -3,36 +3,36 @@ passing:
     language: Prefix
     source: |
         map m = <"a" = 0d1>
-        ASSERT(EQ(ASSIGN(m<"b">, 0d2), 0d2))
-        ASSERT(EQ(m<"b">, 0d2))
+        assert(eq(assign(m<"b">, 0d2), 0d2))
+        assert(eq(m<"b">, 0d2))
         
   - name: assign-nested-map-auto-create
     language: Prefix
     source: |
         map m
         
-        ASSERT(EQ(ASSIGN(m<"a", "b">, 0d5), 0d5))
-        ASSERT(EQ(m<"a", "b">, 0d5))
-        ASSERT(EQ(m, <"a" = <"b" = 0d5>>))
+        assert(eq(assign(m<"a", "b">, 0d5), 0d5))
+        assert(eq(m<"a", "b">, 0d5))
+        assert(eq(m, <"a" = <"b" = 0d5>>))
         
   - name: assign-tns-index
     language: Prefix
     source: |
         tensor vec = [0d1, 0d2, 0d3]
-        ASSERT(EQ(ASSIGN(vec[0d2], 0d9), 0d9))
-        ASSERT(EQ(vec[0d2], 0d9))
+        assert(eq(assign(vec[0d2], 0d9), 0d9))
+        assert(eq(vec[0d2], 0d9))
         
   - name: assign
     language: Prefix
     source: |
-        ASSIGN(bool x, true)
-        ASSERT(EXIST("x"))
+        assign(bool x, true)
+        assert(exist("x"))
         
   - name: later-assign-no-type
     language: Prefix
     source: |
-        ASSIGN(bool x, true)
-        ASSIGN(x, false)
+        assign(bool x, true)
+        assign(x, false)
         
   - name: later-decl-no-type
     language: Prefix
@@ -43,8 +43,8 @@ passing:
   - name: multi-assign-type
     language: Prefix
     source: |
-        ASSIGN(bool x, true)
-        ASSIGN(bool x, false)
+        assign(bool x, true)
+        assign(bool x, false)
         
   - name: multi-decl-type
     language: Prefix
@@ -57,16 +57,16 @@ passing:
     source: |
         tensor vec = [0d1, 0d2, 0d3]
         
-        ASSERT(EQ(ASSIGN(vec[0d1:0d2], [0d9, 0d10]), [0d9, 0d10]))
-        ASSERT(EQ(vec, [0d9, 0d10, 0d3]))
+        assert(eq(assign(vec[0d1:0d2], [0d9, 0d10]), [0d9, 0d10]))
+        assert(eq(vec, [0d9, 0d10, 0d3]))
         
   - name: tns-slice-assign-2d
     language: Prefix
     source: |
         tensor matrix = [[0d1, 0d2], [0d3, 0d4]]
         
-        ASSERT(EQ(ASSIGN(matrix[# , 0d2], [0d9, 0d10]), [0d9, 0d10]))
-        ASSERT(EQ(matrix, [[0d1, 0d9], [0d3, 0d10]]))
+        assert(eq(assign(matrix[# , 0d2], [0d9, 0d10]), [0d9, 0d10]))
+        assert(eq(matrix, [[0d1, 0d9], [0d3, 0d10]]))
         
   - name: type-then-decl-type
     language: Prefix
@@ -85,85 +85,85 @@ failing:
     language: Prefix
     source: |
         bool b = true
-        ASSIGN(b<"k">, 0d1)
+        assign(b<"k">, 0d1)
         
   - name: assign-map-index-on-flt
     language: Prefix
     source: |
         float f = 0d1.5
-        ASSIGN(f<0d1>, 0d1)
+        assign(f<0d1>, 0d1)
         
   - name: assign-map-index-on-func
     language: Prefix
     source: |
         func fn = GET_FIVE
-        ASSIGN(fn<"k">, 0d1)
+        assign(fn<"k">, 0d1)
         
   - name: assign-map-index-on-int
     language: Prefix
     source: |
         int i = 0d1
-        ASSIGN(i<0d1>, 0d1)
+        assign(i<0d1>, 0d1)
         
   - name: assign-map-index-on-str
     language: Prefix
     source: |
         str s = "x"
-        ASSIGN(s<"k">, 0d1)
+        assign(s<"k">, 0d1)
         
   - name: assign-map-index-on-thr
     language: Prefix
     source: |
         thread t = async{}
-        ASSIGN(t<"k">, 0d1)
+        assign(t<"k">, 0d1)
         
   - name: assign-map-index-on-tns
     language: Prefix
     source: |
         tensor vec = [0d1, 0d2]
-        ASSIGN(vec<"a">, 0d1)
+        assign(vec<"a">, 0d1)
         
   - name: assign-tns-index-on-bool
     language: Prefix
     source: |
         bool b = true
-        ASSIGN(b[0d1], 0d1)
+        assign(b[0d1], 0d1)
         
   - name: assign-tns-index-on-flt
     language: Prefix
     source: |
         float f = 0d1.5
-        ASSIGN(f[0d1], 0d1)
+        assign(f[0d1], 0d1)
         
   - name: assign-tns-index-on-func
     language: Prefix
     source: |
         func fn = GET_FIVE
-        ASSIGN(fn[0d1], 0d1)
+        assign(fn[0d1], 0d1)
         
   - name: assign-tns-index-on-int
     language: Prefix
     source: |
         int i = 0d1
-        ASSIGN(i[0d1], 0d2)
+        assign(i[0d1], 0d2)
         
   - name: assign-tns-index-on-map
     language: Prefix
     source: |
         map m = <"a" = 0d1>
-        ASSIGN(m[0d1], 0d2)
+        assign(m[0d1], 0d2)
         
   - name: assign-tns-index-on-str
     language: Prefix
     source: |
         str s = "x"
-        ASSIGN(s[0d1], 0d1)
+        assign(s[0d1], 0d1)
         
   - name: assign-tns-index-on-thr
     language: Prefix
     source: |
         thread t = async{}
-        ASSIGN(t[0d1], 0d1)
+        assign(t[0d1], 0d1)
         
   - name: decl-conflicting-type
     language: Prefix
@@ -174,7 +174,7 @@ failing:
   - name: first-assign-no-type
     language: Prefix
     source: |
-        ASSIGN(x, true)
+        assign(x, true)
         
   - name: first-decl-no-type
     language: Prefix
@@ -185,25 +185,25 @@ failing:
     language: Prefix
     source: |
         tensor matrix = [[0d1, 0d2], [0d3, 0d4]]
-        ASSIGN(matrix[# , 0d2], [[0d9], [0d10]])
+        assign(matrix[# , 0d2], [[0d9], [0d10]])
         
   - name: tns-slice-element-type-mismatch
     language: Prefix
     source: |
         tensor vec = [0d1, 0d2]
-        ASSIGN(vec[0d1-0d2], [0d1.5, 0d2.5])
+        assign(vec[0d1-0d2], [0d1.5, 0d2.5])
         
   - name: tns-slice-rhs-not-tns
     language: Prefix
     source: |
         tensor vec = [0d1, 0d2]
-        ASSIGN(vec[0d1-0d2], 0d9)
+        assign(vec[0d1-0d2], 0d9)
         
   - name: tns-slice-shape-mismatch
     language: Prefix
     source: |
         tensor matrix = [[0d1, 0d2], [0d3, 0d4]]
-        ASSIGN(matrix[# , #], [[0d9, 0d10, 0d11], [0d12, 0d13, 0d14]])
+        assign(matrix[# , #], [[0d9, 0d10, 0d11], [0d12, 0d13, 0d14]])
         
   - name: uppercase-bool-rejected
     language: Prefix

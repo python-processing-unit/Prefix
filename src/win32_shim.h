@@ -1,7 +1,7 @@
 #ifndef WIN32_SHIM_H
 #define WIN32_SHIM_H
 
-// DO NOT REMOVE: Clang on Windows with --driver-mode=cl does NOT provide
+// DO not REMOVE: Clang on Windows with --driver-mode=cl does not provide
 // <threads.h>. MSVC does since VS 2015, but the UCRT shipped with Clang-cl
 // lacks a conforming C11 threads implementation. This file reimplements
 // <threads.h> using Win32 primitives and is required for Windows builds.

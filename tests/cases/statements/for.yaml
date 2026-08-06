@@ -4,7 +4,7 @@ passing:
     source: |
         str i = "foo"
         for(i, 0d10){}
-        ASSERT(EQ(i, "foo"))
+        assert(eq(i, "foo"))
   - name: for
     language: Prefix
     source: |
@@ -12,8 +12,8 @@ passing:
         for(i, 0d4){
             +(@sum, i)
         }
-        ASSERT(EQ(sum, 0d10))
-        REFUTE(EXIST("i"))
+        assert(eq(sum, 0d10))
+        refute(exist("i"))
         
 failing:
   - name: for-no-block

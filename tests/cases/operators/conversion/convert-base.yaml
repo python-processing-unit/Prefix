@@ -5,10 +5,10 @@ passing:
         float flt_decimal = 0d1.5
         float flt_binary = 0b1.1
         
-        ASSERT(EQ(BASE(flt_decimal), 0d10))
-        ASSERT(EQ(BASE(flt_binary), 0d2))
-        ASSERT(EQ(CONVERT(flt_binary, BASE(flt_decimal)), flt_decimal))
-        ASSERT(EQ(BASE(CONVERT(flt_decimal, 0d64)), 0d64))
+        assert(eq(BASE(flt_decimal), 0d10))
+        assert(eq(BASE(flt_binary), 0d2))
+        assert(eq(switch_base(flt_binary, BASE(flt_decimal)), flt_decimal))
+        assert(eq(BASE(switch_base(flt_decimal, 0d64)), 0d64))
         
   - name: base-int
     language: Prefix
@@ -16,32 +16,32 @@ passing:
         int int_binary = 0b101010
         int int_hex = 0x2A
         
-        ASSERT(EQ(BASE(int_binary), 0d2))
-        ASSERT(EQ(BASE(int_hex), 0d16))
-        ASSERT(EQ(CONVERT(int_binary, BASE(int_hex)), int_hex))
-        ASSERT(EQ(BASE(CONVERT(int_hex, 0d64)), 0d64))
+        assert(eq(BASE(int_binary), 0d2))
+        assert(eq(BASE(int_hex), 0d16))
+        assert(eq(switch_base(int_binary, BASE(int_hex)), int_hex))
+        assert(eq(BASE(switch_base(int_hex, 0d64)), 0d64))
         
   - name: convert-flt
     language: Prefix
     source: |
         float flt_value = 0d1.5
         
-        ASSERT(EQ(CONVERT(flt_value, 0b10), 0b1.1))
-        ASSERT(EQ(BASE(CONVERT(flt_value, 0b10)), 0d2))
-        ASSERT(EQ(CONVERT(flt_value, 0x10), 0x1.8))
-        ASSERT(EQ(BASE(CONVERT(flt_value, 0x10)), 0d16))
-        ASSERT(EQ(BASE(CONVERT(flt_value, 0d64)), 0d64))
+        assert(eq(switch_base(flt_value, 0b10), 0b1.1))
+        assert(eq(BASE(switch_base(flt_value, 0b10)), 0d2))
+        assert(eq(switch_base(flt_value, 0x10), 0x1.8))
+        assert(eq(BASE(switch_base(flt_value, 0x10)), 0d16))
+        assert(eq(BASE(switch_base(flt_value, 0d64)), 0d64))
         
   - name: convert-int
     language: Prefix
     source: |
         int int_value = 0d42
         
-        ASSERT(EQ(CONVERT(int_value, 0x10), 0x2A))
-        ASSERT(EQ(BASE(CONVERT(int_value, 0x10)), 0d16))
-        ASSERT(EQ(CONVERT(int_value, 0d2), 0b101010))
-        ASSERT(EQ(BASE(CONVERT(int_value, 0d2)), 0d2))
-        ASSERT(EQ(BASE(CONVERT(int_value, 0d64)), 0d64))
+        assert(eq(switch_base(int_value, 0x10), 0x2A))
+        assert(eq(BASE(switch_base(int_value, 0x10)), 0d16))
+        assert(eq(switch_base(int_value, 0d2), 0b101010))
+        assert(eq(BASE(switch_base(int_value, 0d2)), 0d2))
+        assert(eq(BASE(switch_base(int_value, 0d64)), 0d64))
         
 failing:
   - name: base-func
@@ -67,25 +67,25 @@ failing:
   - name: convert-base-too-large
     language: Prefix
     source: |
-        CONVERT(0d42, 0d65)
+        switch_base(0d42, 0d65)
         
   - name: convert-base-too-small
     language: Prefix
     source: |
-        CONVERT(0d42, 0d1)
+        switch_base(0d42, 0d1)
         
   - name: convert-base-wrong-type
     language: Prefix
     source: |
-        CONVERT(0d42, true)
+        switch_base(0d42, true)
         
   - name: convert-value-map
     language: Prefix
     source: |
-        CONVERT(<>, 0d10)
+        switch_base(<>, 0d10)
         
   - name: convert-value-string
     language: Prefix
     source: |
-        CONVERT("42", 0d10)
+        switch_base("42", 0d10)
         

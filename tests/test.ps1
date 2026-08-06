@@ -201,7 +201,7 @@ foreach ($yamlFile in $yamlFiles) {
   if ($data.passing) {
     foreach ($tc in $data.passing) {
       $isExclusive = $false
-      if ($tc.source -match 'lib\\std|lib\\usr|ext\\std|ext\\usr|Add-StagedProbe|Copy-Item -Path|WRITEFILE\(|DELETEFILE\(|EXISTFILE\(|READFILE\(|TEMPFILE\(') {
+      if ($tc.source -match 'lib\\std|lib\\usr|ext\\std|ext\\usr|Add-StagedProbe|Copy-Item -Path|write_file\(|delete_file\(|exist_file\(|read_file\(|TEMPFILE\(') {
         $isExclusive = $true
       }
       $allCases += [pscustomobject]@{
@@ -218,7 +218,7 @@ foreach ($yamlFile in $yamlFiles) {
   if ($data.failing) {
     foreach ($tc in $data.failing) {
       $isExclusive = $false
-      if ($tc.source -match 'lib\\std|lib\\usr|ext\\std|ext\\usr|Add-StagedProbe|Copy-Item -Path|WRITEFILE\(|DELETEFILE\(|EXISTFILE\(|READFILE\(|TEMPFILE\(') {
+      if ($tc.source -match 'lib\\std|lib\\usr|ext\\std|ext\\usr|Add-StagedProbe|Copy-Item -Path|write_file\(|delete_file\(|exist_file\(|read_file\(|TEMPFILE\(') {
         $isExclusive = $true
       }
       $allCases += [pscustomobject]@{

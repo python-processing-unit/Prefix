@@ -5,14 +5,14 @@ passing:
         bool caught = false
         
         try{
-            THROW("left=", 0d42, ",right=", -0b10)
+            throw("left=", 0d42, ",right=", -0b10)
         } catch(err) {
             caught = true
-            PRINT(err) ! debug
-            ASSERT(EQ(err, "left=0d42,right=-0b10"))
+            print(err) ! debug
+            assert(eq(err, "left=0d42,right=-0b10"))
         }
         
-        ASSERT(caught)
+        assert(caught)
   - name: throw-control-transfer
     language: Prefix
     source: |
@@ -20,57 +20,57 @@ passing:
         
         try{
             step = 0d1
-            THROW('stop')
+            throw('stop')
             step = +(step, 0d1)
         } catch {
             step = +(step, 0d10)
         }
         
-        ASSERT(EQ(step, 0d11))
+        assert(eq(step, 0d11))
   - name: throw-default-message
     language: Prefix
     source: |
         bool caught = false
         
         try{
-            THROW()
+            throw()
         } catch(err) {
             caught = true
-            ASSERT(EQ(err, 'Exception thrown'))
+            assert(eq(err, 'Exception thrown'))
         }
         
-        ASSERT(caught)
+        assert(caught)
   - name: throw-empty-message
     language: Prefix
     source: |
         bool caught = false
         
         try{
-            THROW('')
+            throw('')
         } catch(err) {
             caught = true
-            ASSERT(EQ(err, 'Exception thrown'))
-            ASSERT(EQ(SLEN(err), 0d16))
+            assert(eq(err, 'Exception thrown'))
+            assert(eq(slen(err), 0d16))
         }
         
-        ASSERT(caught)
+        assert(caught)
   - name: throw-string-message
     language: Prefix
     source: |
         bool caught = false
         
         try{
-            THROW('prefix')
+            throw('prefix')
         } catch(err) {
             caught = true
-            ASSERT(EQ(err, 'prefix'))
+            assert(eq(err, 'prefix'))
         }
         
-        ASSERT(caught)
+        assert(caught)
 failing:
   - name: throw-uncaught-default
     language: Prefix
-    source: THROW()
+    source: throw()
   - name: throw-uncaught-message
     language: Prefix
-    source: 'THROW(''prefix'', 0d42)'
+    source: 'throw(''prefix'', 0d42)'

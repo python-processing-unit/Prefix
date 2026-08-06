@@ -25,7 +25,7 @@ typedef struct {
 // Initialize the builtins table
 void builtins_init(void);
 
-// Set process argv for ARGV() builtin
+// Set process argv for argv() builtin
 void builtins_set_argv(int argc, char **argv);
 
 // Lookup a builtin by name, returns NULL if not found

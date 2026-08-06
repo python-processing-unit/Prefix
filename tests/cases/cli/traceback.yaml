@@ -10,7 +10,7 @@ passing:
           $programPath = Join-Path $tempDir 'program.pre'
         
           Set-Content -Path $programPath -Encoding Ascii -Value @'
-        FREEZE("not_declared")
+        lock("not_declared")
         '@
         
           # Pass both -verbose and -private; private should suppress snapshots
@@ -52,7 +52,7 @@ passing:
           $programPath = Join-Path $tempDir 'program.pre'
         
           Set-Content -Path $programPath -Encoding Ascii -Value @'
-        FREEZE("not_declared")
+        lock("not_declared")
         '@
         
           $result = Invoke-PrefixWithArguments -Arguments @('-private', $programPath)

@@ -14,7 +14,7 @@
 #endif
 #include <windows.h>
 #if 0
-/* Linker directives removed; link against OS libraries via build system when needed. */
+/* Linker directives removed; link against os libraries via build system when needed. */
 #endif
 #endif
 

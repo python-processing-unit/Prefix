@@ -1,28 +1,28 @@
 ! Path utilities for Prefix
 
 func str NORMALIZE_PATH(str path){
-    return(REPLACE(path,"\\","/"))
+    return(replace(path,"\\","/"))
 }
 
 func str WINPATH(str path){
-    return(REPLACE(path,"/","\\"))
+    return(replace(path,"/","\\"))
 }
 
 func str BASEPATH(str path){ ! returns directory portion of path
     str npath = NORMALIZE_PATH(path)
     str base = BASENAME(npath)
-    if(EQ(base, "")){
+    if(eq(base, "")){
         return("")
     }
-    str dir = REPLACE(npath, JOIN("/", base), "")
-    DEL("npath")
+    str dir = replace(npath, join("/", base), "")
+    del("npath")
     pop("dir")
 }
 
 func str BASENAME(str path){ ! returns filename portion of path
-    tensor tpath = SPLIT(NORMALIZE_PATH(path), "/")
-    str basename = tpath[MAX(TLEN(tpath, 0d1), 0d1)]
-    DEL("tpath")
+    tensor tpath = split(NORMALIZE_PATH(path), "/")
+    str basename = tpath[max(len_dim(tpath, 0d1), 0d1)]
+    del("tpath")
     pop("basename")
 }
 
@@ -30,30 +30,30 @@ func tensor SPLITEXT(str path){ ! returns [name without ext, ext]
     str npath = NORMALIZE_PATH(path)
     str base = BASENAME(npath)
     str dir = BASEPATH(npath)
-    tensor parts = SPLIT(base, ".")
+    tensor parts = split(base, ".")
     ! If there is no dot, return the path unchanged and empty ext
-    if(EQ(TLEN(parts, 0d1), 0d1)){
-        DEL("base")
+    if(eq(len_dim(parts, 0d1), 0d1)){
+        del("base")
         tensor result = [npath, ""]
         pop("result")
     }
     ! Extension is the last segment (1-based indexing)
-    str ext = parts[ TLEN(parts, 0d1) ]
+    str ext = parts[ len_dim(parts, 0d1) ]
     ! Name is base without the final "." + ext suffix
-    str name = REPLACE(base, JOIN(".", ext), "")
-    DEL("parts")
+    str name = replace(base, join(".", ext), "")
+    del("parts")
     str delex = ""
-    if(EQ(dir, "")){
+    if(eq(dir, "")){
         delex = name
     } else {
-        if( OR( EQ(dir, npath), EQ(dir, JOIN(npath, "/")) ) ){
+        if( or( eq(dir, npath), eq(dir, join(npath, "/")) ) ){
             delex = name
         } else {
-            delex = JOIN(dir, name)
+            delex = join(dir, name)
         }
     }
-    DEL("dir")
-    DEL("name")
+    del("dir")
+    del("name")
     tensor result = [delex, ext]
     pop("result")
 }
@@ -67,25 +67,25 @@ func str DELEXT(str path){ ! returns path without extension
 }
 
 func str TEMPFILE(str local_path){
-    if(EQ(OS(),"win")){
+    if(eq(os(),"win")){
         str temp = "C:/Windows/Temp/"
-    } elseif(EQ(OS(),"mac")){
-        THROW("TEMPFILE not implemented for macOS yet")
+    } elseif(eq(os(),"mac")){
+        throw("TEMPFILE not implemented for macOS yet")
         ! per-user temp dirs on macOS are more complex
         ! add later
     } else {
         str temp = "/tmp/"
     }
-    str final_path = JOIN(temp, local_path)
-    DEL("temp")
+    str final_path = join(temp, local_path)
+    del("temp")
     pop("final_path")
 }
 
-str interpreter = ARGV()[0d1]
-str interpreter_dir = NORMALIZE_PATH(BASEPATH(ARGV()[0d1]))
-if(GTE(TLEN(ARGV(), 0d1), 0d2)){
-    str script = ARGV()[0d2]
-    str script_dir = NORMALIZE_PATH(BASEPATH(ARGV()[0d2]))
+str interpreter = argv()[0d1]
+str interpreter_dir = NORMALIZE_PATH(BASEPATH(argv()[0d1]))
+if(gte(len_dim(argv(), 0d1), 0d2)){
+    str script = argv()[0d2]
+    str script_dir = NORMALIZE_PATH(BASEPATH(argv()[0d2]))
 } else {
     str script = ""
     str script_dir = ""

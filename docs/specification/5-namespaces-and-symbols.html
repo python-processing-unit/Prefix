@@ -23,11 +23,11 @@ Prefix MUST maintain a typed lexical environment mapping identifiers to bindings
 
 ### 5.1 Declarations, bindings, and lifetime
 
-A declaration MUST record the symbol's static type without necessarily creating a readable runtime value. A readable binding is created only when a value is first assigned. In all type annotations, the type and name MUST be separated by one or more space characters, and other characters MUST NOT appear between them.
+A declaration MUST record the symbol's static type without necessarily creating a readable runtime value. A readable binding is created only when a value is first assigned. In all type annotations, the type and name MUST be separated by one or more space characters, and other characters MUST not appear between them.
 
 `int` and `float` type annotations MAY include a base specifier written immediately after the type name with no intervening whitespace, in the form `int{base}` or `float{base}`. The `{base}` suffix is part of the type annotation and therefore MUST appear before the required space that separates the type from the declared name. For example, `int{0d2} value` declares a binary integer, while `float{0x} value` declares a hexadecimal float. A base of `0` (typically written as the bare type name) denotes the parent type and accepts any valid numeric base.
 
-`map` type annotations MAY include a schema specifier written immediately after the type name with no intervening whitespace, in the form `map{schema}`. The `{schema}` suffix is part of the type annotation and therefore MUST appear before the required space that separates the type from the declared name. For example, `map{<"x" = 0d1>} value` declares a map that requires an `"x"` key with integer value. The `schema` MUST evaluate to a `map`. Signatures produced by the `SIGNATURE` built-in MUST include the schema in the type annotation for named `map` bindings.
+`map` type annotations MAY include a schema specifier written immediately after the type name with no intervening whitespace, in the form `map{schema}`. The `{schema}` suffix is part of the type annotation and therefore MUST appear before the required space that separates the type from the declared name. For example, `map{<"x" = 0d1>} value` declares a map that requires an `"x"` key with integer value. The `schema` MUST evaluate to a `map`. Signatures produced by the `signature` built-in MUST include the schema in the type annotation for named `map` bindings.
 
 Reading an undeclared symbol, a declared-but-never-assigned symbol, or a deleted symbol MUST raise a runtime error. Removing a binding MUST preserve its recorded static type, so any later re-assignment to the same name MUST still match the original type.
 
@@ -63,7 +63,7 @@ The language's pointer mechanism MUST create an alias to an existing visible bin
 
 Assigning through a symbol whose current binding is a pointer MUST update the pointed-to target rather than replace the pointer object. Pointer cycles, including direct self-reference, MUST be rejected as runtime errors.
 
-When a built-in operator produces a transformed value from one or more operand arguments, any operand argument that is a pointer literal MUST be written back through the alias for that operand. Arguments that act only as flags, modes, delimiters, bounds, or other control inputs MUST NOT be written back unless they are themselves part of the transformed output.
+When a built-in operator produces a transformed value from one or more operand arguments, any operand argument that is a pointer literal MUST be written back through the alias for that operand. Arguments that act only as flags, modes, delimiters, bounds, or other control inputs MUST not be written back unless they are themselves part of the transformed output.
 
 Because `tensor` and `map` are atomic container types, ordinary assignment of those values MUST duplicate the container object by default. Shared mutable aliasing for containers therefore requires the explicit alias mechanism.
 

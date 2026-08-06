@@ -372,7 +372,7 @@ window.SPEC_INDEX = [
                          },
                          {
                              "level":  3,
-                             "text":  "8.2 Extensions and `EXTEND`",
+                             "text":  "8.2 Extensions and `extend`",
                              "slug":  "82-extensions-and-extend"
                          },
                          {

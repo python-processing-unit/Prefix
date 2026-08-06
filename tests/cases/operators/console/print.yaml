@@ -2,9 +2,9 @@ passing:
   - name: print-coerce-scalars
     language: Prefix
     source: |
-        ASSERT(NOT(PRINT(true)))
-        ASSERT(NOT(PRINT(0d42)))
-        ASSERT(NOT(PRINT(0d1.5)))
+        assert(not(print(true)))
+        assert(not(print(0d42)))
+        assert(not(print(0d1.5)))
   - name: print-output-concat-newline
     language: PowerShell
     source: |
@@ -23,7 +23,7 @@ passing:
           $programPath = Join-Path $tempDir 'program.pre'
         
           Set-Content -Path $programPath -Encoding Ascii -Value @'
-        PRINT("left=", true, ",right=", 0d42, ",flt=", INF)
+        print("left=", true, ",right=", 0d42, ",flt=", INF)
         '@
         
           $startInfo = New-Object System.Diagnostics.ProcessStartInfo
@@ -59,20 +59,20 @@ passing:
         }
   - name: print-return-type
     language: Prefix
-    source: 'ASSERT(EQ(PRINT("value"), false))'
+    source: 'assert(eq(print("value"), false))'
 failing:
   - name: print-arity-zero
     language: Prefix
-    source: PRINT()
+    source: print()
   - name: print-first-func
     language: Prefix
-    source: 'PRINT(LAMBDA bool: (){})'
+    source: 'print(LAMBDA bool: (){})'
   - name: print-first-map
     language: Prefix
-    source: 'PRINT(<"key" = 0d1>)'
+    source: 'print(<"key" = 0d1>)'
   - name: print-first-thr
     language: Prefix
-    source: PRINT(async{})
+    source: print(async{})
   - name: print-first-tns
     language: Prefix
-    source: PRINT([0d1])
+    source: print([0d1])

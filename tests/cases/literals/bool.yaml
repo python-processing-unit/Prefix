@@ -5,8 +5,8 @@ passing:
         bool truthy = true
         bool falsy = false
         
-        ASSERT(truthy)
-        REFUTE(falsy)
+        assert(truthy)
+        refute(falsy)
   - name: bool-lowercase
     language: Prefix
-    source: ASSERT(true)
+    source: assert(true)

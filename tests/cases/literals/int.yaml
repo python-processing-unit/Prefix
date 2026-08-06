@@ -10,13 +10,13 @@ passing:
         int g = 0r16FF
         int h = -0r16FF
         
-        ASSERT(EQ(a, 0d123))
-        ASSERT(EQ(b, -0d42))
-        ASSERT(EQ(c, 0x1A3))
-        ASSERT(EQ(d, 0b1010))
-        ASSERT(EQ(e, 0o755))
-        ASSERT(EQ(g, 0xFF))
-        ASSERT(EQ(h, -0xFF))
+        assert(eq(a, 0d123))
+        assert(eq(b, -0d42))
+        assert(eq(c, 0x1A3))
+        assert(eq(d, 0b1010))
+        assert(eq(e, 0o755))
+        assert(eq(g, 0xFF))
+        assert(eq(h, -0xFF))
         
   - name: int
     language: Prefix
@@ -38,10 +38,10 @@ passing:
         int c = 42
         int d = 007
         
-        ASSERT(EQ(a, 0d123))
-        ASSERT(EQ(b, 0d0))
-        ASSERT(EQ(c, 0d42))
-        ASSERT(EQ(d, 0d7))
+        assert(eq(a, 0d123))
+        assert(eq(b, 0d0))
+        assert(eq(c, 0d42))
+        assert(eq(d, 0d7))
         
   - name: int-decimal-base-annotation
     language: Prefix
@@ -49,8 +49,8 @@ passing:
         int{10} a = 0d42
         int{2} b = 0b101
         
-        ASSERT(EQ(a, 0d42))
-        ASSERT(EQ(b, 0b101))
+        assert(eq(a, 0d42))
+        assert(eq(b, 0b101))
         
 failing:
   - name: int-invalid-digit

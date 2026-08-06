@@ -2,27 +2,27 @@ passing:
   - name: argv-elements-str
     language: Prefix
     source: |
-        tensor args = ARGV()
+        tensor args = argv()
         
-        for(i, TLEN(args, 0d1)){
-            ASSERT(isstr(args[i]))
+        for(i, len_dim(args, 0d1)){
+            assert(isstr(args[i]))
         }
   - name: argv-order-program-arg-last
     language: Prefix
     source: |
         ! ARGV_LAST_ARG_SELF_FILE_MARKER
-        str source = REPLACE(READFILE(ARGV()[-0d1]), "\r", "")
+        str source = replace(read_file(argv()[-0d1]), "\r", "")
         
-        ASSERT(IN("! ARGV_LAST_ARG_SELF_FILE_MARKER", SPLIT(source, "\n")))
+        assert(in("! ARGV_LAST_ARG_SELF_FILE_MARKER", split(source, "\n")))
   - name: argv-rank-1
     language: Prefix
     source: |
-        ASSERT(EQ(TYPE(SHAPE(ARGV())), "tensor"))
-        ASSERT(EQ(TLEN(SHAPE(ARGV()), 0d1), 0d1))
+        assert(eq(type(shape(argv())), "tensor"))
+        assert(eq(len_dim(shape(argv()), 0d1), 0d1))
   - name: argv-return-type
     language: Prefix
-    source: 'ASSERT(EQ(TYPE(ARGV()), "tensor"))'
+    source: 'assert(eq(type(argv()), "tensor"))'
 failing:
   - name: argv-arity-one
     language: Prefix
-    source: ARGV("extra")
+    source: argv("extra")

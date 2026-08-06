@@ -4,126 +4,126 @@ passing:
     source: |
         int a1 = 0d10
         int b1 = 0d5
-        I+(@a1, b1)
-        ASSERT(EQ(a1, 0d15))
+        i+(@a1, b1)
+        assert(eq(a1, 0d15))
         
         int a2 = 0d10
         int b2 = 0d5
-        I+(a2, @b2)
-        ASSERT(EQ(b2, 0d15))
+        i+(a2, @b2)
+        assert(eq(b2, 0d15))
         
         int a3 = 0d10
         int b3 = 0d5
-        I+(@a3, @b3)
-        ASSERT(EQ(a3, 0d15))
-        ASSERT(EQ(b3, 0d15))
+        i+(@a3, @b3)
+        assert(eq(a3, 0d15))
+        assert(eq(b3, 0d15))
         
   - name: iadd
     language: Prefix
     source: |
         ! Passing integer arithmetic, checking coercion and correct logic
-        int result_add_1 = I+(0d10, 0d5)
-        int result_add_2 = I+(0d10.5, 0d5.2) ! Coerces to integers before/after?
-        ASSERT(EQ(result_add_1, 0d15))
+        int result_add_1 = i+(0d10, 0d5)
+        int result_add_2 = i+(0d10.5, 0d5.2) ! Coerces to integers before/after?
+        assert(eq(result_add_1, 0d15))
         
   - name: idiv-pointer-writeback
     language: Prefix
     source: |
         int a1 = 0d20
         int b1 = 0d4
-        I/(@a1, b1)
-        ASSERT(EQ(a1, 0d5))
+        i/(@a1, b1)
+        assert(eq(a1, 0d5))
         
   - name: idiv
     language: Prefix
     source: |
         ! Passing integer arithmetic, checking coercion and correct logic
-        int result_div = I/(0d20, 0d4)
-        ASSERT(EQ(result_div, 0d5))
+        int result_div = i/(0d20, 0d4)
+        assert(eq(result_div, 0d5))
         
   - name: imul-pointer-writeback
     language: Prefix
     source: |
         int a1 = 0d4
         int b1 = 0d3
-        I*(@a1, b1)
-        ASSERT(EQ(a1, 0d12))
+        i*(@a1, b1)
+        assert(eq(a1, 0d12))
         
         int a2 = 0d4
         int b2 = 0d3
-        I*(a2, @b2)
-        ASSERT(EQ(b2, 0d12))
+        i*(a2, @b2)
+        assert(eq(b2, 0d12))
         
         int a3 = 0d4
         int b3 = 0d3
-        I*(@a3, @b3)
-        ASSERT(EQ(a3, 0d12))
-        ASSERT(EQ(b3, 0d12))
+        i*(@a3, @b3)
+        assert(eq(a3, 0d12))
+        assert(eq(b3, 0d12))
         
   - name: imul
     language: Prefix
     source: |
         ! Passing integer arithmetic, checking coercion and correct logic
-        int result_mul = I*(0d4, 0d5)
-        ASSERT(EQ(result_mul, 0d20))
+        int result_mul = i*(0d4, 0d5)
+        assert(eq(result_mul, 0d20))
         
   - name: ipow
     language: Prefix
     source: |
         ! Passing integer arithmetic, checking coercion and correct logic
-        int result_pow = IPOW(0d2, 0d3)
-        ASSERT(EQ(result_pow, 0d8))
+        int result_pow = ipow(0d2, 0d3)
+        assert(eq(result_pow, 0d8))
         
   - name: isub-int
     language: Prefix
     source: |
         ! Passing integer arithmetic, checking coercion and correct logic
-        int result_sub = I-(0d10, 0d2.0)
-        ASSERT(EQ(result_sub, 0d8))
+        int result_sub = i-(0d10, 0d2.0)
+        assert(eq(result_sub, 0d8))
         
   - name: isub-pointer-writeback
     language: Prefix
     source: |
         int a1 = 0d10
         int b1 = 0d5
-        I-(@a1, b1)
-        ASSERT(EQ(a1, 0d5))
+        i-(@a1, b1)
+        assert(eq(a1, 0d5))
         
 failing:
   - name: iadd-coerce-int-inf
     language: Prefix
     source: |
-        I+(0d1, INF)
+        i+(0d1, INF)
         
   - name: iadd-coerce-int-nan
     language: Prefix
     source: |
-        I+(0d1, NaN)
+        i+(0d1, NaN)
         
   - name: iadd-coerce-int-str
     language: Prefix
     source: |
-        I+(0d1, "x")
+        i+(0d1, "x")
         
   - name: iadd-coerce-str-int
     language: Prefix
     source: |
-        I+("string", 0d5)
+        i+("string", 0d5)
         
   - name: iadd-coerce-type-bool
     language: Prefix
     source: |
-        I+(0d1, true)
+        i+(0d1, true)
         
   - name: iadd-coerce-type-map
     language: Prefix
     source: |
-        I+([0d1], 0d2)
+        i+([0d1], 0d2)
         
   - name: idiv-zero-int
     language: Prefix
     source: |
         int a = 0d1
         int b = 0d0
-        I/(a, b)
+        i/(a, b)
         
