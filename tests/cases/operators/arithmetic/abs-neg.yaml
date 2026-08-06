@@ -8,10 +8,10 @@ passing:
         float zero = 0o0.0
         float neg_zero = -0o0.0
         
-        ASSERT(EQ(ABS(pos_oct), pos_oct))
-        ASSERT(EQ(ABS(neg_oct), 0o1.4))
-        ASSERT(EQ(ABS(neg_zero), 0o0.0))
-        ASSERT(EQ(BASE(ABS(hex_val)), BASE(hex_val)))
+        assert(eq(abs(pos_oct), pos_oct))
+        assert(eq(abs(neg_oct), 0o1.4))
+        assert(eq(abs(neg_zero), 0o0.0))
+        assert(eq(BASE(abs(hex_val)), BASE(hex_val)))
         
   - name: abs-int
     language: Prefix
@@ -23,23 +23,23 @@ passing:
         int bin_neg = -0b1010
         int zero = 0d0
         
-        ASSERT(EQ(ABS(pos_dec), pos_dec))
-        ASSERT(EQ(ABS(neg_dec), 0d5))
-        ASSERT(EQ(ABS(neg_hex), 0xA))
-        ASSERT(EQ(BASE(ABS(neg_hex)), BASE(hex_val)))
-        ASSERT(EQ(ABS(bin_neg), 0b1010))
-        ASSERT(EQ(ABS(zero), 0d0))
+        assert(eq(abs(pos_dec), pos_dec))
+        assert(eq(abs(neg_dec), 0d5))
+        assert(eq(abs(neg_hex), 0xA))
+        assert(eq(BASE(abs(neg_hex)), BASE(hex_val)))
+        assert(eq(abs(bin_neg), 0b1010))
+        assert(eq(abs(zero), 0d0))
         
   - name: abs-pointer-writeback
     language: Prefix
     source: |
         int in1 = -0d5
-        ABS(@in1)
-        ASSERT(EQ(in1, 0d5))
+        abs(@in1)
+        assert(eq(in1, 0d5))
         
         float fin1 = -0d5.5
-        ABS(@fin1)
-        ASSERT(EQ(fin1, 0d5.5))
+        abs(@fin1)
+        assert(eq(fin1, 0d5.5))
         
   - name: neg-flt
     language: Prefix
@@ -49,11 +49,11 @@ passing:
         float hex_val = 0x1.8
         float zero = 0o0.0
         
-        ASSERT(EQ(NEG(pos_oct), -0o1.4))
-        ASSERT(EQ(NEG(neg_literal), 0o1.4))
-        ASSERT(EQ(NEG(NEG(pos_oct)), pos_oct))
-        ASSERT(EQ(NEG(zero), 0o0.0))
-        ASSERT(EQ(BASE(NEG(hex_val)), BASE(hex_val)))
+        assert(eq(neg(pos_oct), -0o1.4))
+        assert(eq(neg(neg_literal), 0o1.4))
+        assert(eq(neg(neg(pos_oct)), pos_oct))
+        assert(eq(neg(zero), 0o0.0))
+        assert(eq(BASE(neg(hex_val)), BASE(hex_val)))
         
   - name: neg-int
     language: Prefix
@@ -64,46 +64,46 @@ passing:
         int bin_val = 0b1010
         int zero = 0d0
         
-        ASSERT(EQ(NEG(pos_dec), -0d3))
-        ASSERT(EQ(NEG(neg_literal), 0d3))
-        ASSERT(EQ(NEG(NEG(pos_dec)), pos_dec))
-        ASSERT(EQ(NEG(zero), 0d0))
-        ASSERT(EQ(BASE(NEG(hex_val)), BASE(hex_val)))
-        ASSERT(EQ(BASE(NEG(bin_val)), BASE(bin_val)))
+        assert(eq(neg(pos_dec), -0d3))
+        assert(eq(neg(neg_literal), 0d3))
+        assert(eq(neg(neg(pos_dec)), pos_dec))
+        assert(eq(neg(zero), 0d0))
+        assert(eq(BASE(neg(hex_val)), BASE(hex_val)))
+        assert(eq(BASE(neg(bin_val)), BASE(bin_val)))
         
   - name: neg-pointer-writeback
     language: Prefix
     source: |
         int in1 = 0d5
-        NEG(@in1)
-        ASSERT(EQ(in1, -0d5))
+        neg(@in1)
+        assert(eq(in1, -0d5))
         
         float fin1 = 0d5.5
-        NEG(@fin1)
-        ASSERT(EQ(fin1, -0d5.5))
+        neg(@fin1)
+        assert(eq(fin1, -0d5.5))
         
 failing:
   - name: abs-type-bool
     language: Prefix
     source: |
         bool b = true
-        ABS(b)
+        abs(b)
         
   - name: abs-type-str
     language: Prefix
     source: |
         str s = 'not-a-number'
-        ABS(s)
+        abs(s)
         
   - name: neg-type-bool
     language: Prefix
     source: |
         bool b = true
-        NEG(b)
+        neg(b)
         
   - name: neg-type-str
     language: Prefix
     source: |
         str s = 'not-a-number'
-        NEG(s)
+        neg(s)
         

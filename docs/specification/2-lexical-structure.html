@@ -17,7 +17,7 @@
 
 ## 2. Lexical structure
 
-Source files MUST consist of ASCII characters. Non-ASCII characters MUST NOT appear in syntactic elements that enter the program namespace, such as identifiers.
+Source files MUST consist of ASCII characters. Non-ASCII characters MUST not appear in syntactic elements that enter the program namespace, such as identifiers.
 
 ---
 
@@ -35,21 +35,21 @@ The caret character (`^`) MUST act as a line-continuation marker when it is imme
 
 ### 2.2 Tokens and reserved words
 
-The lexer MUST distinguish at least the following token classes: numeric literals, string literals, identifiers, keywords and built-ins, and delimiters. The base delimiters of the language are `(`, `)`, `{`, `}`, `[`, `]`, `<`, `>`, `,`, `:`, `=`, and `~`. The pointer marker `@` MUST be tokenized separately and MUST NOT be treated as part of an identifier.
+The lexer MUST distinguish at least the following token classes: numeric literals, string literals, identifiers, keywords and built-ins, and delimiters. The base delimiters of the language are `(`, `)`, `{`, `}`, `[`, `]`, `<`, `>`, `,`, `:`, `=`, and `~`. The pointer marker `@` MUST be tokenized separately and MUST not be treated as part of an identifier.
 
 Keywords and built-in names MUST be matched case-sensitively and MUST be written in their canonical uppercase forms. If a reserved word is written in any other case, it MUST be tokenized as an identifier instead.
 
 The character `-` MUST introduce a negative numeric literal when it is followed, optionally after horizontal whitespace, by a `0`-prefixed numeric base marker. The exact spelling `-INF` MUST remain reserved for negative infinity, and the exact spelling `-NaN` MUST remain invalid. In all other cases, `-` MAY participate in identifiers subject to [2.3](#23-identifiers).
 
-The character `~` MUST be reserved for coerced function parameters and MUST NOT appear inside identifiers.
+The character `~` MUST be reserved for coerced function parameters and MUST not appear inside identifiers.
 
 ---
 
 ### 2.3 Identifiers
 
-Identifiers MUST be non-empty and case-sensitive. Variables and user-defined functions share a single flat namespace, so one name MUST NOT denote both a variable and a function. A user-defined function name MUST NOT conflict with any built-in operator or function name.
+Identifiers MUST be non-empty and case-sensitive. Variables and user-defined functions share a single flat namespace, so one name MUST not denote both a variable and a function. A user-defined function name MUST not conflict with any built-in operator or function name.
 
-Identifiers MUST NOT contain non-ASCII characters or any of the following characters: `{`, `}`, `[`, `]`, `(`, `)`, `=`, `,`, `!`, `~`, or `@`. The first character of an identifier MUST NOT be a decimal digit (`0`-`9`), and the first two characters of an identifier MUST NOT be `-0`.
+Identifiers MUST not contain non-ASCII characters or any of the following characters: `{`, `}`, `[`, `]`, `(`, `)`, `=`, `,`, `!`, `~`, or `@`. The first character of an identifier MUST not be a decimal digit (`0`-`9`), and the first two characters of an identifier MUST not be `-0`.
 
 The first identifier character MAY be a letter `A-Z` or `a-z`, `*`, or one of `/`, `$`, `%`, `&`, `_`, `+`, `|`, `?`, or `-`. If the first identifier character is `-`, the second character MUST be valid as an opening character. Subsequent identifier characters MAY additionally include the decimal digits `0-9`, `*`, and `-`. The exact spelling `-INF` is reserved by [4.3.2](#4-types.html#432-special-values). This permissive ASCII-only character set preserves an unambiguous distinction between identifiers and numeric literals, which MUST begin with a decimal digit.
 
@@ -57,7 +57,7 @@ The first identifier character MAY be a letter `A-Z` or `a-z`, `*`, or one of `/
 
 ### 2.4 Pointer token
 
-The syntax `@name` MUST form a pointer literal, where `@` is a dedicated lexical token and `name` is an identifier resolved in the current lexical environment. Because `@` is a separate token, it MUST NOT appear inside identifier names.
+The syntax `@name` MUST form a pointer literal, where `@` is a dedicated lexical token and `name` is an identifier resolved in the current lexical environment. Because `@` is a separate token, it MUST not appear inside identifier names.
 
 ---
 

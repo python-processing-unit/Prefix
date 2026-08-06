@@ -2,43 +2,43 @@ passing:
   - name: and
     language: Prefix
     source: |
-        ASSERT(AND(true, true))
-        REFUTE(AND(true, false))
+        assert(and(true, true))
+        refute(and(true, false))
         
   - name: or
     language: Prefix
     source: |
-        REFUTE(OR(false, false))
-        ASSERT(OR(false, true))
+        refute(or(false, false))
+        assert(or(false, true))
         
   - name: xor
     language: Prefix
     source: |
-        REFUTE(XOR(false, false))
-        ASSERT(XOR(true, false))
+        refute(xor(false, false))
+        assert(xor(true, false))
         
 failing:
   - name: and-arity-three
     language: Prefix
     source: |
-        AND(true, true, true)
+        and(true, true, true)
         
   - name: and-arity-zero
     language: Prefix
-    source: AND()
+    source: and()
   - name: or-arity-three
     language: Prefix
     source: |
-        OR(true, true, true)
+        or(true, true, true)
         
   - name: or-arity-zero
     language: Prefix
-    source: OR()
+    source: or()
   - name: xor-arity-three
     language: Prefix
     source: |
-        XOR(true, true, true)
+        xor(true, true, true)
         
   - name: xor-arity-zero
     language: Prefix
-    source: XOR()
+    source: xor()

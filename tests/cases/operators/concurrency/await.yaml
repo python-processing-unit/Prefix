@@ -3,20 +3,20 @@ passing:
     language: Prefix
     source: |
         thread worker = async{}
-        thread awaited = AWAIT(worker)
+        thread awaited = await(worker)
         
-        ASSERT(EQ(TYPE(awaited), "thread"))
-        ASSERT(EQ(awaited, worker))
-        REFUTE(bool(awaited))
+        assert(eq(type(awaited), "thread"))
+        assert(eq(awaited, worker))
+        refute(bool(awaited))
   - name: await-finished-thread
     language: Prefix
     source: |
         thread(worker){}
         
-        AWAIT(worker)
+        await(worker)
         
-        ASSERT(EQ(AWAIT(worker), worker))
-        REFUTE(bool(worker))
+        assert(eq(await(worker), worker))
+        refute(bool(worker))
   - name: await-shared-mutation
     language: Prefix
     source: |
@@ -28,38 +28,38 @@ passing:
             shared = 0d1
         }
         
-        thread awaited = AWAIT(worker)
+        thread awaited = await(worker)
         
-        ASSERT(EQ(awaited, worker))
-        ASSERT(EQ(shared, 0d1))
-        REFUTE(bool(worker))
+        assert(eq(awaited, worker))
+        assert(eq(shared, 0d1))
+        refute(bool(worker))
 failing:
   - name: await-arity-two
     language: Prefix
     source: |
         thread(worker){}
-        AWAIT(worker, worker)
+        await(worker, worker)
   - name: await-arity-zero
     language: Prefix
-    source: AWAIT()
+    source: await()
   - name: await-type-bool
     language: Prefix
-    source: AWAIT(true)
+    source: await(true)
   - name: await-type-flt
     language: Prefix
-    source: AWAIT(0d1.0)
+    source: await(0d1.0)
   - name: await-type-func
     language: Prefix
-    source: 'AWAIT(LAMBDA bool: (){})'
+    source: 'await(LAMBDA bool: (){})'
   - name: await-type-int
     language: Prefix
-    source: AWAIT(0d1)
+    source: await(0d1)
   - name: await-type-map
     language: Prefix
-    source: AWAIT(<>)
+    source: await(<>)
   - name: await-type-str
     language: Prefix
-    source: AWAIT("thread")
+    source: await("thread")
   - name: await-type-tns
     language: Prefix
-    source: AWAIT([0d1])
+    source: await([0d1])

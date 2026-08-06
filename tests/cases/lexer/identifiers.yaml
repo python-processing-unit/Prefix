@@ -72,10 +72,10 @@ passing:
         bool mid-dash = true
         bool a-0tail = true
         
-        ASSERT(-)
-        ASSERT(-lead)
-        ASSERT(mid-dash)
-        ASSERT(a-0tail)
+        assert(-)
+        assert(-lead)
+        assert(mid-dash)
+        assert(a-0tail)
 failing:
   - name: open-parentheses-in-ident
     language: Prefix

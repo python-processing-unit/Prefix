@@ -49,7 +49,7 @@ Every non-private execution MUST produce a state log whose entries are ordered b
 
 Observable effects MUST be represented explicitly in the execution record rather than being left implicit in host-language side effects. This includes printed output, consumed input, extension hook activity, runtime error creation, thread lifecycle events, and scheduler decisions that influence visible behavior.
 
-Logging configuration MAY change how much diagnostic data is retained, but it MUST NOT change the language semantics of the running program. In particular, enabling verbose tracing or disabling snapshots for privacy MUST affect diagnostics only, except that disabling the state logger necessarily removes replay artifacts that depend on that log.
+Logging configuration MAY change how much diagnostic data is retained, but it MUST not change the language semantics of the running program. In particular, enabling verbose tracing or disabling snapshots for privacy MUST affect diagnostics only, except that disabling the state logger necessarily removes replay artifacts that depend on that log.
 
 ---
 
@@ -61,7 +61,7 @@ Scheduling decisions that can affect observable behavior MUST be treated as expl
 
 Each individual rewrite step MUST belong to exactly one active execution context. The implementation MAY choose statement-level or finer-grained interleaving, but whatever granularity it uses for a given execution MUST be reflected in the state log strongly enough to explain shared-state races, asynchronous errors, and cross-thread visibility of mutations.
 
-Runtime errors raised in background or parallel contexts MUST be attributed to the originating execution context in the log and reported according to the control-flow rules in [3.4](#3-statements.html#34-exception-handling), [3.5](#3-statements.html#35-loops), and [7](#7-tracebacks-and-error-handling.html#7-tracebacks-and-error-handling). A surrounding handler in another execution context MUST NOT intercept such an error synchronously unless some future language construct explicitly specifies that behavior.
+Runtime errors raised in background or parallel contexts MUST be attributed to the originating execution context in the log and reported according to the control-flow rules in [3.4](#3-statements.html#34-exception-handling), [3.5](#3-statements.html#35-loops), and [7](#7-tracebacks-and-error-handling.html#7-tracebacks-and-error-handling). A surrounding handler in another execution context MUST not intercept such an error synchronously unless some future language construct explicitly specifies that behavior.
 
 ---
 
@@ -69,7 +69,7 @@ Runtime errors raised in background or parallel contexts MUST be attributed to t
 
 When state logging is enabled, the interpreter MUST support deterministic replay from the seed configuration together with the recorded sequence of external inputs and nondeterministic choices. Replay MUST reconstruct the same transition sequence, the same observable effects, and the same terminal outcome as the original execution.
 
-Replay tooling SHOULD be able to resume from any serialized intermediate state whose required predecessor data is available. If an implementation redacts or omits diagnostic data, it MUST clearly indicate that omission and MUST NOT present the resulting replay record as complete when it is not.
+Replay tooling SHOULD be able to resume from any serialized intermediate state whose required predecessor data is available. If an implementation redacts or omits diagnostic data, it MUST clearly indicate that omission and MUST not present the resulting replay record as complete when it is not.
 
 The state log defined by this section is the normative source for tracebacks, diagnostics, and replay-oriented tooling. Any alternate implementation strategy remains conforming only if it preserves the same externally visible execution behavior and can expose an equivalent serialized transition history.
 

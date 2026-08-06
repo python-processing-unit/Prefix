@@ -1,21 +1,21 @@
 passing:
   - name: copy-bool
     language: Prefix
-    source: 'ASSERT(EQ(COPY(true), true))'
+    source: 'assert(eq(copy(true), true))'
   - name: copy-flt
     language: Prefix
-    source: 'ASSERT(EQ(COPY(0d1.5), 0d1.5))'
+    source: 'assert(eq(copy(0d1.5), 0d1.5))'
   - name: copy-from-pointer
     language: Prefix
     source: |
         map source = <"plain" = 0d2, "nested" = <"value" = 0d3>>
-        map copied = COPY(@source)
+        map copied = copy(@source)
         
         copied<"plain"> = 0d9
-        ASSERT(EQ(source<"plain">, 0d2))
+        assert(eq(source<"plain">, 0d2))
         
         copied<"nested", "value"> = 0d8
-        ASSERT(EQ(source<"nested", "value">, 0d8))
+        assert(eq(source<"nested", "value">, 0d8))
   - name: copy-func
     language: Prefix
     source: |
@@ -23,53 +23,53 @@ passing:
             return(value)
         }
         
-        func func_copy = COPY(identity)
+        func func_copy = copy(identity)
         
-        ASSERT(EQ(func_copy, identity))
-        ASSERT(EQ(func_copy(0d7), 0d7))
+        assert(eq(func_copy, identity))
+        assert(eq(func_copy(0d7), 0d7))
   - name: copy-int
     language: Prefix
-    source: 'ASSERT(EQ(COPY(0xA), 0xA))'
+    source: 'assert(eq(copy(0xA), 0xA))'
   - name: copy-map
     language: Prefix
     source: |
         map map_value = <"n" = 0d3>
         
-        ASSERT(EQ(COPY(map_value), map_value))
+        assert(eq(copy(map_value), map_value))
   - name: copy-str
     language: Prefix
-    source: 'ASSERT(EQ(COPY("prefix"), "prefix"))'
+    source: 'assert(eq(copy("prefix"), "prefix"))'
   - name: copy-thr
     language: Prefix
     source: |
         thread(worker){}
         
-        thread thread_copy = COPY(worker)
+        thread thread_copy = copy(worker)
         
-        ASSERT(EQ(thread_copy, worker))
+        assert(eq(thread_copy, worker))
   - name: copy-tns
     language: Prefix
     source: |
         tensor tensor = [0d1, 0d2]
         
-        ASSERT(EQ(COPY(tensor), tensor))
+        assert(eq(copy(tensor), tensor))
   - name: deepcopy-bool
     language: Prefix
-    source: 'ASSERT(EQ(DEEPCOPY(true), true))'
+    source: 'assert(eq(deep_copy(true), true))'
   - name: deepcopy-flt
     language: Prefix
-    source: 'ASSERT(EQ(DEEPCOPY(0d1.5), 0d1.5))'
+    source: 'assert(eq(deep_copy(0d1.5), 0d1.5))'
   - name: deepcopy-from-pointer
     language: Prefix
     source: |
         map source = <"plain" = 0d2, "nested" = <"value" = 0d3>>
-        map copied = DEEPCOPY(@source)
+        map copied = deep_copy(@source)
         
         copied<"plain"> = 0d9
         copied<"nested", "value"> = 0d8
         
-        ASSERT(EQ(source<"plain">, 0d2))
-        ASSERT(EQ(source<"nested", "value">, 0d3))
+        assert(eq(source<"plain">, 0d2))
+        assert(eq(source<"nested", "value">, 0d3))
   - name: deepcopy-func
     language: Prefix
     source: |
@@ -77,46 +77,46 @@ passing:
             return(value)
         }
         
-        func func_copy = DEEPCOPY(identity)
+        func func_copy = deep_copy(identity)
         
-        ASSERT(EQ(func_copy, identity))
-        ASSERT(EQ(func_copy(0d7), 0d7))
+        assert(eq(func_copy, identity))
+        assert(eq(func_copy(0d7), 0d7))
   - name: deepcopy-int
     language: Prefix
-    source: 'ASSERT(EQ(DEEPCOPY(0xA), 0xA))'
+    source: 'assert(eq(deep_copy(0xA), 0xA))'
   - name: deepcopy-map
     language: Prefix
     source: |
         map map_value = <"n" = 0d3>
         
-        ASSERT(EQ(DEEPCOPY(map_value), map_value))
+        assert(eq(deep_copy(map_value), map_value))
   - name: deepcopy-str
     language: Prefix
-    source: 'ASSERT(EQ(DEEPCOPY("prefix"), "prefix"))'
+    source: 'assert(eq(deep_copy("prefix"), "prefix"))'
   - name: deepcopy-thr
     language: Prefix
     source: |
         thread(worker){}
         
-        thread thread_copy = DEEPCOPY(worker)
+        thread thread_copy = deep_copy(worker)
         
-        ASSERT(EQ(thread_copy, worker))
+        assert(eq(thread_copy, worker))
   - name: deepcopy-tns
     language: Prefix
     source: |
         tensor tensor = [0d1, 0d2]
         
-        ASSERT(EQ(DEEPCOPY(tensor), tensor))
+        assert(eq(deep_copy(tensor), tensor))
 failing:
   - name: copy-arity-two
     language: Prefix
-    source: 'COPY(0d1, 0d2)'
+    source: 'copy(0d1, 0d2)'
   - name: copy-arity-zero
     language: Prefix
-    source: COPY()
+    source: copy()
   - name: deepcopy-arity-two
     language: Prefix
-    source: 'DEEPCOPY(0d1, 0d2)'
+    source: 'deep_copy(0d1, 0d2)'
   - name: deepcopy-arity-zero
     language: Prefix
-    source: DEEPCOPY()
+    source: deep_copy()

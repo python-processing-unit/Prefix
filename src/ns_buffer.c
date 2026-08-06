@@ -388,7 +388,7 @@ static void free_op(NsOp *op) {
     if (op->error_message) {
         free(op->error_message);
     }
-    /* Note: op->value is NOT freed here – ownership was transferred
+    /* Note: op->value is not freed here – ownership was transferred
        to the env by the _direct function.  If the op failed we must
        still not double-free because the _direct function already
        consumed (or left untouched) the value copy we made. */

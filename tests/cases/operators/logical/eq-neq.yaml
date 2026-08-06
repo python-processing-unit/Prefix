@@ -2,18 +2,18 @@ passing:
   - name: eq-scalars
     language: Prefix
     source: |
-        ASSERT(isbool(EQ(true, true)))
-        ASSERT(EQ(true, true))
-        REFUTE(EQ(true, false))
+        assert(isbool(eq(true, true)))
+        assert(eq(true, true))
+        refute(eq(true, false))
         
-        ASSERT(EQ(0d42, 0d42))
-        REFUTE(EQ(0d42, 0d43))
+        assert(eq(0d42, 0d42))
+        refute(eq(0d42, 0d43))
         
-        ASSERT(EQ(0d1.5, 0d1.5))
-        REFUTE(EQ(NaN, NaN))
+        assert(eq(0d1.5, 0d1.5))
+        refute(eq(NaN, NaN))
         
-        ASSERT(EQ("prefix", "prefix"))
-        REFUTE(EQ("prefix", "Prefix"))
+        assert(eq("prefix", "prefix"))
+        refute(eq("prefix", "Prefix"))
   - name: eq-structured
     language: Prefix
     source: |
@@ -30,30 +30,30 @@ passing:
         
         thread(worker){}
         
-        ASSERT(isbool(EQ(tensor_copy, tensor)))
-        ASSERT(EQ(tensor_copy, tensor))
-        REFUTE(EQ(tensor, [[0d1, 0d2], [0d3, 0d5]]))
+        assert(isbool(eq(tensor_copy, tensor)))
+        assert(eq(tensor_copy, tensor))
+        refute(eq(tensor, [[0d1, 0d2], [0d3, 0d5]]))
         
-        ASSERT(EQ(map_copy, map_value))
-        REFUTE(EQ(map_value, <"alpha" = 0d1, "beta" = [0d2, 0d4]>))
+        assert(eq(map_copy, map_value))
+        refute(eq(map_value, <"alpha" = 0d1, "beta" = [0d2, 0d4]>))
         
-        ASSERT(EQ(identity_alias, identity))
-        ASSERT(EQ(worker, worker))
+        assert(eq(identity_alias, identity))
+        assert(eq(worker, worker))
   - name: neq-scalars
     language: Prefix
     source: |
-        ASSERT(isbool(NEQ(true, false)))
-        ASSERT(NEQ(true, false))
-        REFUTE(NEQ(true, true))
+        assert(isbool(neq(true, false)))
+        assert(neq(true, false))
+        refute(neq(true, true))
         
-        ASSERT(NEQ(0d42, 0d43))
-        REFUTE(NEQ(0d42, 0d42))
+        assert(neq(0d42, 0d43))
+        refute(neq(0d42, 0d42))
         
-        ASSERT(NEQ(0d1.5, 0d1.25))
-        ASSERT(NEQ(NaN, NaN))
+        assert(neq(0d1.5, 0d1.25))
+        assert(neq(NaN, NaN))
         
-        ASSERT(NEQ("prefix", "Prefix"))
-        REFUTE(NEQ("prefix", "prefix"))
+        assert(neq("prefix", "Prefix"))
+        refute(neq("prefix", "prefix"))
   - name: neq-structured
     language: Prefix
     source: |
@@ -71,26 +71,26 @@ passing:
         thread(worker){}
         thread(other){}
         
-        ASSERT(isbool(NEQ(tensor, different_tensor)))
-        ASSERT(NEQ(tensor, different_tensor))
-        REFUTE(NEQ(tensor, tensor))
+        assert(isbool(neq(tensor, different_tensor)))
+        assert(neq(tensor, different_tensor))
+        refute(neq(tensor, tensor))
         
-        ASSERT(NEQ(map_value, different_map))
-        REFUTE(NEQ(map_value, map_value))
+        assert(neq(map_value, different_map))
+        refute(neq(map_value, map_value))
         
-        REFUTE(NEQ(identity_alias, identity))
-        REFUTE(NEQ(worker, worker))
-        ASSERT(NEQ(worker, other))
+        refute(neq(identity_alias, identity))
+        refute(neq(worker, worker))
+        assert(neq(worker, other))
 failing:
   - name: eq-arity-one
     language: Prefix
-    source: EQ(0d1)
+    source: eq(0d1)
   - name: eq-arity-three
     language: Prefix
-    source: 'EQ(0d1, 0d2, 0d3)'
+    source: 'eq(0d1, 0d2, 0d3)'
   - name: neq-arity-one
     language: Prefix
-    source: NEQ(0d1)
+    source: neq(0d1)
   - name: neq-arity-three
     language: Prefix
-    source: 'NEQ(0d1, 0d2, 0d3)'
+    source: 'neq(0d1, 0d2, 0d3)'

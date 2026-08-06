@@ -1,1 +1,1 @@
-bool extend_result = EXTEND("extend_prex_only")
+bool extend_result = extend("extend_prex_only")

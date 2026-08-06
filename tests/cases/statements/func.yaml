@@ -14,24 +14,24 @@ passing:
         }
         
         order_trace = 0d0
-        ASSERT(EQ(place(mark(0d1), second = mark(0d2)), 0d12))
-        ASSERT(EQ(order_trace, 0d12))
+        assert(eq(place(mark(0d1), second = mark(0d2)), 0d12))
+        assert(eq(order_trace, 0d12))
         
         int outer_bonus = 0d1
         func int add_bonus(int value, int bonus = outer_bonus){
             return(+(value, bonus))
         }
         
-        ASSERT(EQ(add_bonus(0d2), 0d3))
+        assert(eq(add_bonus(0d2), 0d3))
         outer_bonus = 0d4
-        ASSERT(EQ(add_bonus(0d2), 0d6))
+        assert(eq(add_bonus(0d2), 0d6))
         
         func int double_self(int value, int second = value){
             return(+(value, second))
         }
         
-        ASSERT(EQ(double_self(0d3), 0d6))
-        ASSERT(EQ(double_self(0d3, second = 0d1), 0d4))
+        assert(eq(double_self(0d3), 0d6))
+        assert(eq(double_self(0d3, second = 0d1), 0d4))
         
         func int accept_int(int value){
             return(value)
@@ -41,7 +41,7 @@ passing:
             return(value)
         }
         
-        ASSERT(EQ(coerce_int("0d11"), 0d11))
+        assert(eq(coerce_int("0d11"), 0d11))
         
   - name: func-basics
     language: Prefix
@@ -50,26 +50,26 @@ passing:
             return(+(left, right))
         }
         
-        ASSERT(EQ(add(0d2, 0d3), 0d5))
+        assert(eq(add(0d2, 0d3), 0d5))
         
         func add_alias = add
-        ASSERT(EQ(add_alias(0d4, 0d5), 0d9))
+        assert(eq(add_alias(0d4, 0d5), 0d9))
         
         func bool bool_default(){}
         func int int_default(){}
         func float flt_default(){}
         func str str_default(){}
         
-        ASSERT(EQ(bool_default(), false))
-        ASSERT(EQ(int_default(), 0d0))
-        ASSERT(EQ(flt_default(), 0d0.0))
-        ASSERT(EQ(str_default(), ""))
+        assert(eq(bool_default(), false))
+        assert(eq(int_default(), 0d0))
+        assert(eq(flt_default(), 0d0.0))
+        assert(eq(str_default(), ""))
         
         bool func_truthy = false
         if(add_alias){
             func_truthy = true
         }
-        ASSERT(func_truthy)
+        assert(func_truthy)
         
         int stop_flag = 0d0
         func int early_return(){
@@ -77,8 +77,8 @@ passing:
             stop_flag = 0d1
         }
         
-        ASSERT(EQ(early_return(), 0d7))
-        ASSERT(EQ(stop_flag, 0d0))
+        assert(eq(early_return(), 0d7))
+        assert(eq(stop_flag, 0d0))
         
   - name: func-call-errors
     language: Prefix
@@ -121,7 +121,7 @@ passing:
             runtime_errors = +(runtime_errors, 0d1)
         }
         
-        ASSERT(EQ(runtime_errors, 0d4))
+        assert(eq(runtime_errors, 0d4))
         
   - name: func-closures
     language: Prefix
@@ -136,26 +136,26 @@ passing:
             return(+(captured, delta))
         }
         
-        ASSERT(EQ(read_captured(), 0d2))
-        ASSERT(EQ(add_captured(0d1), 0d3))
+        assert(eq(read_captured(), 0d2))
+        assert(eq(add_captured(0d1), 0d3))
         captured = 0d5
-        ASSERT(EQ(read_captured(), 0d5))
-        ASSERT(EQ(add_captured(0d1), 0d6))
+        assert(eq(read_captured(), 0d5))
+        assert(eq(add_captured(0d1), 0d6))
         
         func greeter = LAMBDA str (str name, str prefix = "Hi"){
-            return(JOIN(" ", prefix, name))
+            return(join(" ", prefix, name))
         }
         
-        ASSERT(EQ(greeter("Prefix"), "Hi Prefix"))
-        ASSERT(EQ(greeter("Prefix", prefix = "Hello"), "Hello Prefix"))
+        assert(eq(greeter("Prefix"), "Hi Prefix"))
+        assert(eq(greeter("Prefix", prefix = "Hello"), "Hello Prefix"))
         
-        ASSERT(EQ((LAMBDA int (int x){ return(+(x, 0d1)) })(0d2), 0d3))
+        assert(eq((LAMBDA int (int x){ return(+(x, 0d1)) })(0d2), 0d3))
         
         func int invoke(func callable, int arg){
             return(callable(arg))
         }
         
-        ASSERT(EQ(invoke(add_captured, 0d2), 0d7))
+        assert(eq(invoke(add_captured, 0d2), 0d7))
         
         func func make_reader(int seed){
             return(LAMBDA int (){
@@ -164,16 +164,16 @@ passing:
         }
         
         func reader = make_reader(0d9)
-        ASSERT(EQ(reader(), 0d9))
+        assert(eq(reader(), 0d9))
         
   - name: func-containers
     language: Prefix
     source: |
         tensor func_slots = [LAMBDA int (int left, int right){ return(+(left, right)) }]
-        ASSERT(EQ(func_slots[0d1](0d2, 0d3), 0d5))
+        assert(eq(func_slots[0d1](0d2, 0d3), 0d5))
         
         map func_map = <"sum" = func_slots[0d1]>
-        ASSERT(EQ(func_map<"sum">(0d3, 0d4), 0d7))
+        assert(eq(func_map<"sum">(0d3, 0d4), 0d7))
         
         map method_map = < ^
             "install" = LAMBDA func (){ ^
@@ -185,17 +185,17 @@ passing:
         map method_copy = method_map
         map method_alias = @method_map
         
-        ASSERT(EQ(method_copy<"install">()(), 0d7))
+        assert(eq(method_copy<"install">()(), 0d7))
         bool copy_did_not_mutate_source = false
         try{
             method_map<"tag">()
         } catch(err){
             copy_did_not_mutate_source = true
         }
-        ASSERT(copy_did_not_mutate_source)
+        assert(copy_did_not_mutate_source)
         
-        ASSERT(EQ(method_alias<"install">()(), 0d7))
-        ASSERT(EQ(method_map<"tag">(), 0d7))
+        assert(eq(method_alias<"install">()(), 0d7))
+        assert(eq(method_map<"tag">(), 0d7))
         
   - name: func-pop
     language: Prefix
@@ -206,14 +206,14 @@ passing:
             pop("pop_target")
         }
         
-        ASSERT(EQ(take_and_delete(), 0d8))
+        assert(eq(take_and_delete(), 0d8))
         bool pop_deleted = false
         try{
             pop_target
         } catch(err){
             pop_deleted = true
         }
-        ASSERT(pop_deleted)
+        assert(pop_deleted)
         
   - name: func-return-errors
     language: Prefix
@@ -265,13 +265,13 @@ passing:
             runtime_errors = +(runtime_errors, 0d1)
         }
         
-        ASSERT(EQ(runtime_errors, 0d6))
+        assert(eq(runtime_errors, 0d6))
         
   - name: lambda-space-signature
     language: Prefix
     source: |
-        ASSIGN(func f, LAMBDA int (int x) { return(x) })
-        ASSERT(EQ(f(0d2), 0d2))
+        assign(func f, LAMBDA int (int x) { return(x) })
+        assert(eq(f(0d2), 0d2))
         
 failing:
   - name: func-default-before-positional
@@ -296,7 +296,7 @@ failing:
   - name: func-name-conflicts-builtin
     language: Prefix
     source: |
-        func int ASSERT(){
+        func int assert(){
             return(0d0)
         }
   - name: func-name-conflicts-symbol
@@ -317,7 +317,7 @@ failing:
   - name: lambda-colon-form
     language: Prefix
     source: |
-        ASSIGN(f, LAMBDA int: (int x) { return(x) })
+        assign(f, LAMBDA int: (int x) { return(x) })
         
   - name: lambda-default-before-positional
     language: Prefix

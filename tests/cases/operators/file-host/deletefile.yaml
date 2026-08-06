@@ -2,50 +2,50 @@ passing:
   - name: deletefile
     language: Prefix
     source: |
-        IMPORT("path")
+        import("path")
         
         str p = path.TEMPFILE("temp.txt")
-        WRITEFILE("Prefix", p)
-        ASSERT(EXISTFILE(p))
-        ASSERT(DELETEFILE(p))
-        REFUTE(EXISTFILE(p))
+        write_file("Prefix", p)
+        assert(exist_file(p))
+        assert(delete_file(p))
+        refute(exist_file(p))
 failing:
   - name: deletefile-arity-two
     language: Prefix
     source: |
-        IMPORT("path")
+        import("path")
         
         str p = path.TEMPFILE("temp.txt")
-        WRITEFILE("Prefix", p)
-        ASSERT(EXISTFILE(p))
-        ASSERT(DELETEFILE(p, "Prefix"))
+        write_file("Prefix", p)
+        assert(exist_file(p))
+        assert(delete_file(p, "Prefix"))
   - name: deletefile-arity-zero
     language: Prefix
-    source: DELETEFILE()
+    source: delete_file()
   - name: deletefile-bool
     language: Prefix
-    source: DELETEFILE(true)
+    source: delete_file(true)
   - name: deletefile-flt
     language: Prefix
-    source: DELETEFILE(0d1.0)
+    source: delete_file(0d1.0)
   - name: deletefile-func
     language: Prefix
-    source: 'DELETEFILE(LAMBDA bool: (){})'
+    source: 'delete_file(LAMBDA bool: (){})'
   - name: deletefile-int
     language: Prefix
-    source: DELETEFILE(0d1)
+    source: delete_file(0d1)
   - name: deletefile-map
     language: Prefix
-    source: DELETEFILE(<>)
+    source: delete_file(<>)
   - name: deletefile-nonexistent
     language: Prefix
     source: |
-        IMPORT("path")
+        import("path")
         
-        DELETEFILE(JOIN(path.script_dir, "/nonexistent.txt"))
+        delete_file(join(path.script_dir, "/nonexistent.txt"))
   - name: deletefile-thr
     language: Prefix
-    source: DELETEFILE(async{})
+    source: delete_file(async{})
   - name: deletefile-tns
     language: Prefix
-    source: DELETEFILE([0d1])
+    source: delete_file([0d1])

@@ -87,11 +87,11 @@ void value_map_set_self(Value *mapval, Value key);
 
 // Pointer helpers (for lvalue/indexed assignment)
 // Returns a pointer to the stored value for key, optionally creating a missing entry with NULL value.
-// Returned pointer is owned by the map; do NOT free it.
+// Returned pointer is owned by the map; do not free it.
 Value *value_map_get_ptr(Value *mapval, Value key, bool create_if_missing);
 
 // Returns a pointer to a tensor element for full indexing (nidxs must equal ndim).
-// Returned pointer is owned by the tensor; do NOT free it.
+// Returned pointer is owned by the tensor; do not free it.
 Value *value_tensor_get_ptr(Value t, const size_t *idxs, size_t nidxs);
 
 Value value_null(void);
@@ -134,7 +134,7 @@ bool decl_type_accepts_value(DeclType expected, int expected_base, Value value);
 // Format a type name including base for int/float. Returns buf.
 const char *decl_type_name_base(DeclType type, int base, char *buf, size_t buf_size);
 
-// Validate a map value against a map schema (same semantics as VALIDATE with defaults).
+// Validate a map value against a map schema (same semantics as validate with defaults).
 // Returns true if all keys in `templ` exist in `map` and satisfy the validate (typing=0, recurse=0, shape=0).
 // Supports "validate" metadata override in the schema.
 bool value_map_matches(Value map, Value templ);

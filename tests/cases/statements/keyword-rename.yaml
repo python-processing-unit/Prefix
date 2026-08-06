@@ -3,18 +3,18 @@ passing:
     language: Prefix
     source: |
         if(false){
-            PRINT("a")
+            print("a")
         } elseif(true){
-            PRINT("b")
+            print("b")
         } else {
-            PRINT("c")
+            print("c")
         }
 
   - name: lowercase-while
     language: Prefix
     source: |
         int c = 0d0
-        while(LT(c, 0d3)){
+        while(lt(c, 0d3)){
             c = +(c, 0d1)
         }
 
@@ -54,8 +54,8 @@ passing:
     source: |
         int s = 0d0
         for(i, 0d10){
-            if(EQ(i, 0d3)){ continue() }
-            if(EQ(i, 0d6)){ break(0d1) }
+            if(eq(i, 0d3)){ continue() }
+            if(eq(i, 0d6)){ break(0d1) }
             +(@s, i)
         }
 
@@ -65,7 +65,7 @@ passing:
         int c = 0d0
         gotopoint("loop")
         c = +(c, 0d1)
-        if(LT(c, 0d3)){ goto("loop") }
+        if(lt(c, 0d3)){ goto("loop") }
 
   - name: lowercase-async
     language: Prefix
@@ -89,10 +89,10 @@ passing:
     source: |
         int total = 0d0
         for(i, 0d5){
-            if(EQ(i, 0d2)){ continue() }
+            if(eq(i, 0d2)){ continue() }
             +(@total, i)
         }
-        while(GT(total, 0d0)){
+        while(gt(total, 0d0)){
             total = -(total, 0d1)
         }
         try {

@@ -1,1 +1,1 @@
-bool extend_result = EXTEND("exttree")
+bool extend_result = extend("exttree")

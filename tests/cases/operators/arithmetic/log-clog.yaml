@@ -2,53 +2,53 @@ passing:
   - name: clog-int
     language: Prefix
     source: |
-        ASSERT(EQ(CLOG(0d8), 0d3))
-        ASSERT(EQ(CLOG(0d9), 0d4))
-        ASSERT(EQ(CLOG(0d1), 0d0))
-        ASSERT(EQ(CLOG(0d5), 0d3))
+        assert(eq(clog(0d8), 0d3))
+        assert(eq(clog(0d9), 0d4))
+        assert(eq(clog(0d1), 0d0))
+        assert(eq(clog(0d5), 0d3))
         
   - name: log-float
     language: Prefix
     source: |
-        ASSERT(EQ(LOG(0b11.1), 0b1.0))
-        ASSERT(EQ(LOG(0b10000.0), 0b100.0))
+        assert(eq(log(0b11.1), 0b1.0))
+        assert(eq(log(0b10000.0), 0b100.0))
         
   - name: log-int
     language: Prefix
     source: |
-        ASSERT(EQ(LOG(0d8), 0d3))
-        ASSERT(EQ(LOG(0d9), 0d3))
-        ASSERT(EQ(LOG(0d1), 0d0))
-        ASSERT(EQ(LOG(0d2), 0d1))
+        assert(eq(log(0d8), 0d3))
+        assert(eq(log(0d9), 0d3))
+        assert(eq(log(0d1), 0d0))
+        assert(eq(log(0d2), 0d1))
         
 failing:
   - name: clog-float
     language: Prefix
     source: |
-        CLOG(0d3.5)
+        clog(0d3.5)
         
   - name: clog-negative
     language: Prefix
     source: |
-        CLOG(-0d1)
+        clog(-0d1)
         
   - name: clog-zero
     language: Prefix
     source: |
-        CLOG(0d0)
+        clog(0d0)
         
   - name: log-negative
     language: Prefix
     source: |
-        LOG(-0d3)
+        log(-0d3)
         
   - name: log-non-numeric
     language: Prefix
     source: |
-        LOG("hello")
+        log("hello")
         
   - name: log-zero
     language: Prefix
     source: |
-        LOG(0d0)
+        log(0d0)
         

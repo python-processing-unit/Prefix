@@ -2,60 +2,60 @@ passing:
   - name: strip-basic
     language: Prefix
     source: |
-        ASSERT(EQ(TYPE(STRIP("prefix", "fix")), "str"))
-        ASSERT(EQ(STRIP("prefix", "fix"), "pre"))
+        assert(eq(type(strip("prefix", "fix")), "str"))
+        assert(eq(strip("prefix", "fix"), "pre"))
         
   - name: strip-empty-and-whole
     language: Prefix
     source: |
-        ASSERT(EQ(STRIP("", "x"), ""))
-        ASSERT(EQ(STRIP("whole", "whole"), ""))
+        assert(eq(strip("", "x"), ""))
+        assert(eq(strip("whole", "whole"), ""))
         
   - name: strip-every-occurrence
     language: Prefix
     source: |
-        ASSERT(EQ(STRIP("banana", "an"), "ba"))
-        ASSERT(EQ(STRIP("fooXXbarXXXXbazXX", "XX"), "foobarbaz"))
+        assert(eq(strip("banana", "an"), "ba"))
+        assert(eq(strip("fooXXbarXXXXbazXX", "XX"), "foobarbaz"))
         
   - name: strip-not-found
     language: Prefix
     source: |
-        ASSERT(EQ(STRIP("prefix", "zzz"), "prefix"))
+        assert(eq(strip("prefix", "zzz"), "prefix"))
         
   - name: strip-substring-exact
     language: Prefix
     source: |
-        ASSERT(EQ(STRIP("abc", "ac"), "abc"))
-        ASSERT(EQ(STRIP("a  b  c", "  "), "abc"))
+        assert(eq(strip("abc", "ac"), "abc"))
+        assert(eq(strip("a  b  c", "  "), "abc"))
         
 failing:
   - name: strip-arity-one
     language: Prefix
     source: |
-        STRIP("abc")
+        strip("abc")
         
   - name: strip-arity-three
     language: Prefix
     source: |
-        STRIP("abc", "a", "b")
+        strip("abc", "a", "b")
         
   - name: strip-arity-zero
     language: Prefix
     source: |
-        STRIP()
+        strip()
         
   - name: strip-empty-remove
     language: Prefix
     source: |
-        STRIP("abc", "")
+        strip("abc", "")
         
   - name: strip-first-non-str
     language: Prefix
     source: |
-        STRIP(0d1, "a")
+        strip(0d1, "a")
         
   - name: strip-second-non-str
     language: Prefix
     source: |
-        STRIP("abc", 0d1)
+        strip("abc", 0d1)
         

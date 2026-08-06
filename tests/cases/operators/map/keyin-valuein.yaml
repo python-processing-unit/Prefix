@@ -4,20 +4,20 @@ passing:
     source: |
         map m = <"a" = 0d1, "b" = 0d2>
         
-        ASSERT(KEYIN("a", m))
-        ASSERT(NOT(KEYIN("missing", m)))
-        ASSERT(EQ(TYPE(KEYIN("a", m)), "bool"))
+        assert(key_in("a", m))
+        assert(not(key_in("missing", m)))
+        assert(eq(type(key_in("a", m)), "bool"))
         
   - name: keyin-key-types
     language: Prefix
     source: |
         map m = <0d1 = "int", 0d2.5 = "flt", "three" = "str">
         
-        ASSERT(KEYIN(0d1, m))
-        ASSERT(KEYIN(0d2.5, m))
-        ASSERT(KEYIN("three", m))
-        REFUTE(KEYIN(0d1.0, m))
-        REFUTE(KEYIN("0d1", m))
+        assert(key_in(0d1, m))
+        assert(key_in(0d2.5, m))
+        assert(key_in("three", m))
+        refute(key_in(0d1.0, m))
+        refute(key_in("0d1", m))
         
   - name: valuein-any-type
     language: Prefix
@@ -28,97 +28,97 @@ passing:
         map str_map = <"s" = "text">
         map tns_map = <"vec" = [0d1, 0d2]>
         
-        ASSERT(VALUEIN(true, bool_map))
-        ASSERT(VALUEIN(0d7, int_map))
-        ASSERT(VALUEIN(0d2.5, flt_map))
-        ASSERT(VALUEIN("text", str_map))
-        ASSERT(VALUEIN([0d1, 0d2], tns_map))
-        REFUTE(VALUEIN([0d2, 0d1], tns_map))
+        assert(VALUEIN(true, bool_map))
+        assert(VALUEIN(0d7, int_map))
+        assert(VALUEIN(0d2.5, flt_map))
+        assert(VALUEIN("text", str_map))
+        assert(VALUEIN([0d1, 0d2], tns_map))
+        refute(VALUEIN([0d2, 0d1], tns_map))
         
   - name: valuein-basic
     language: Prefix
     source: |
         map m = <"x" = "cat", "y" = "dog">
         
-        ASSERT(VALUEIN("cat", m))
-        REFUTE(VALUEIN("bird", m))
-        ASSERT(EQ(TYPE(VALUEIN("cat", m)), "bool"))
+        assert(VALUEIN("cat", m))
+        refute(VALUEIN("bird", m))
+        assert(eq(type(VALUEIN("cat", m)), "bool"))
         
 failing:
   - name: keyin-arity-one
     language: Prefix
     source: |
-        KEYIN("a")
+        key_in("a")
         
   - name: keyin-arity-three
     language: Prefix
     source: |
-        KEYIN("a", <"a" = 0d1>, 0d1)
+        key_in("a", <"a" = 0d1>, 0d1)
         
   - name: keyin-arity-zero
     language: Prefix
     source: |
-        KEYIN()
+        key_in()
         
   - name: keyin-first-bool
     language: Prefix
     source: |
-        KEYIN(true, <"a" = 0d1>)
+        key_in(true, <"a" = 0d1>)
         
   - name: keyin-first-func
     language: Prefix
     source: |
-        KEYIN(LAMBDA int: (){}, <"a" = 0d1>)
+        key_in(LAMBDA int: (){}, <"a" = 0d1>)
         
   - name: keyin-first-map
     language: Prefix
     source: |
-        KEYIN(<"a" = 0d1>, <"a" = 0d1>)
+        key_in(<"a" = 0d1>, <"a" = 0d1>)
         
   - name: keyin-first-thr
     language: Prefix
     source: |
-        KEYIN(async{}, <"a" = 0d1>)
+        key_in(async{}, <"a" = 0d1>)
         
   - name: keyin-first-tns
     language: Prefix
     source: |
-        KEYIN([0d1], <"a" = 0d1>)
+        key_in([0d1], <"a" = 0d1>)
         
   - name: keyin-second-bool
     language: Prefix
     source: |
-        KEYIN("a", true)
+        key_in("a", true)
         
   - name: keyin-second-flt
     language: Prefix
     source: |
-        KEYIN("a", 0d1.5)
+        key_in("a", 0d1.5)
         
   - name: keyin-second-func
     language: Prefix
     source: |
-        KEYIN("a", LAMBDA int: (){})
+        key_in("a", LAMBDA int: (){})
         
   - name: keyin-second-int
     language: Prefix
     source: |
-        KEYIN("a", 0d1)
+        key_in("a", 0d1)
         
   - name: keyin-second-str
     language: Prefix
     source: |
-        KEYIN("a", "map")
+        key_in("a", "map")
         
   - name: keyin-second-thr
     language: Prefix
     source: |
-        KEYIN("a", async{})
+        key_in("a", async{})
         
   - name: keyin-second-tns
     language: Prefix
     source: |
-        KEYIN("a", [0d1])
+        key_in("a", [0d1])
         
   - name: valuein-arity-one
     language: Prefix

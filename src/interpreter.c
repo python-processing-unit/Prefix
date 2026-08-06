@@ -39,7 +39,7 @@ static const char *stmt_type_name(StmtType type) {
     case STMT_EXPR:
         return "EXPR";
     case STMT_ASSIGN:
-        return "ASSIGN";
+        return "assign";
     case STMT_DECL:
         return "DECL";
     case STMT_IF:
@@ -452,10 +452,10 @@ static void bg_threads_init(Interpreter *interp) {
 
 // Register a background thread on the interpreter that spawned it. The registry
 // is only used to detect, at teardown, whether workers might still be using
-// shared state (global_env/modules). We deliberately do NOT join such threads:
+// shared state (global_env/modules). We deliberately do not join such threads:
 // async/thread workers may be long-running or infinite by design, so blocking
 // on them at process exit would hang. Instead the interpreter skips freeing
-// shared state while any worker is live and lets the OS reclaim it on exit.
+// shared state while any worker is live and lets the os reclaim it on exit.
 static void bg_threads_register(Interpreter *interp, struct Thread *th) {
     if (!interp || !th) {
         return;
@@ -797,7 +797,7 @@ static int should_defer_async_argument_for_call(const char *func_name, int arg_i
     if (arg_expr->type != EXPR_ASYNC) {
         return 0;
     }
-    return strcmp(func_name, "STOP") == 0 || strcmp(func_name, "PAUSE") == 0;
+    return strcmp(func_name, "stop") == 0 || strcmp(func_name, "pause") == 0;
 }
 
 static Value make_deferred_async_handle(Expr *async_expr, Env *env) {
@@ -1565,7 +1565,7 @@ Value eval_expr(Interpreter *interp, Expr *expr, Env *env) {
                             deferred_async_arg0 = true;
                             continue;
                         }
-                        if (strcmp(func_name, "ASSIGN") == 0 && i == 0) {
+                        if (strcmp(func_name, "assign") == 0 && i == 0) {
                             // leave as null placeholder for identifier-like targets
                             continue;
                         }
@@ -1651,8 +1651,8 @@ Value eval_expr(Interpreter *interp, Expr *expr, Env *env) {
                 }
 
                 // effective_argc should count the original positional arguments
-                // and extend if any keyword maps beyond them. Do NOT trim placeholder
-                // NULLs for intentionally-unevaluated positional args (e.g. ASSIGN).
+                // and extend if any keyword maps beyond them. Do not trim placeholder
+                // NULLs for intentionally-unevaluated positional args (e.g. assign).
                 int effective_argc = pos_argc;
                 if (max_slot > effective_argc) {
                     effective_argc = max_slot;
@@ -1695,7 +1695,7 @@ Value eval_expr(Interpreter *interp, Expr *expr, Env *env) {
                 // Call builtin
                 Value result = builtin->impl(interp, args, effective_argc, arg_nodes, env, expr->line, expr->column);
 
-                // Start deferred STOP/PAUSE async argument only after the builtin call completes.
+                // Start deferred stop/pause async argument only after the builtin call completes.
                 if (deferred_async_arg0 && args && max_slot > 0) {
                     if (start_deferred_async_handle(interp, args[0], expr->line, expr->column) != 0) {
                         value_free(result);
@@ -3230,7 +3230,7 @@ static ExecResult exec_stmt(Interpreter *interp, Stmt *stmt, Env *env, LabelMap 
     extensions_run_periodic_hooks(interp);
     extensions_fire_event(interp, "before_statement");
 
-    // If running in a background thread and a STOP has been requested for
+    // If running in a background thread and a stop has been requested for
     // this thread, terminate execution cooperatively by returning early.
     if (interpreter_thr_should_stop(interp)) {
         return make_ok(value_null());
@@ -3560,7 +3560,7 @@ static ExecResult exec_stmt(Interpreter *interp, Stmt *stmt, Env *env, LabelMap 
         }
 
         // Also expose the function as a binding in the current environment
-        // so that builtins which operate on identifiers (DEL, EXIST, etc.)
+        // so that builtins which operate on identifiers (del, exist, etc.)
         // can find and manipulate the function by name.
         Value fv = value_func(f);
         EnvEntry *existing = env_get_entry(env, f->name);
@@ -4508,7 +4508,7 @@ void interpreter_destroy(Interpreter *interp) {
     // now would be a use-after-free if a worker touches them during teardown
     // (observed intermittently under CI load). Such workers may be long-running
     // or infinite by design, so we must not block waiting for them. Instead we
-    // deliberately leak the shared state; the OS reclaims it when the process
+    // deliberately leak the shared state; the os reclaims it when the process
     // exits and forcibly terminates the remaining threads.
     int has_live_threads = (interp->bg_thread_count > 0);
 
@@ -4564,7 +4564,7 @@ int interpreter_restart_thread(Interpreter *interp, Value thread_val, int line, 
     (void)col;
     if (thread_val.type != VAL_THREAD || !thread_val.as.thread) {
         if (interp) {
-            interp->error = strdup("RESTART expects thread argument");
+            interp->error = strdup("restart expects thread argument");
         }
         return -1;
     }

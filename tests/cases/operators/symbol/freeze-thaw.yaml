@@ -4,17 +4,17 @@ passing:
     source: |
         bool frozen_value = true
         
-        REFUTE(FREEZE("frozen_value"))
-        ASSERT(FROZEN("frozen_value"))
-        REFUTE(PERMAFROZEN("frozen_value"))
+        refute(lock("frozen_value"))
+        assert(locked("frozen_value"))
+        refute(frozen("frozen_value"))
         
         bool freeze_undefined_failed = false
         try{
-            FREEZE("not_declared")
+            lock("not_declared")
         } catch {
             freeze_undefined_failed = true
         }
-        ASSERT(freeze_undefined_failed)
+        assert(freeze_undefined_failed)
         
         bool reassignment_failed = false
         try{
@@ -22,54 +22,54 @@ passing:
         } catch {
             reassignment_failed = true
         }
-        ASSERT(reassignment_failed)
-        ASSERT(EQ(frozen_value, true))
+        assert(reassignment_failed)
+        assert(eq(frozen_value, true))
         
         bool deletion_failed = false
         try{
-            DEL("frozen_value")
+            del("frozen_value")
         } catch {
             deletion_failed = true
         }
-        ASSERT(deletion_failed)
-        ASSERT(EXIST("frozen_value"))
+        assert(deletion_failed)
+        assert(exist("frozen_value"))
         
-        REFUTE(THAW("frozen_value"))
-        REFUTE(FROZEN("frozen_value"))
+        refute(unlock("frozen_value"))
+        refute(locked("frozen_value"))
         frozen_value = false
-        ASSERT(EQ(frozen_value, false))
+        assert(eq(frozen_value, false))
         
   - name: frozen
     language: Prefix
     source: |
         bool normal_value = true
-        REFUTE(FROZEN("normal_value"))
+        refute(locked("normal_value"))
         
-        REFUTE(FREEZE("normal_value"))
-        ASSERT(FROZEN("normal_value"))
-        REFUTE(THAW("normal_value"))
-        REFUTE(FROZEN("normal_value"))
+        refute(lock("normal_value"))
+        assert(locked("normal_value"))
+        refute(unlock("normal_value"))
+        refute(locked("normal_value"))
         
-        REFUTE(PERMAFREEZE("normal_value"))
-        ASSERT(FROZEN("normal_value"))
-        ASSERT(PERMAFROZEN("normal_value"))
+        refute(freeze("normal_value"))
+        assert(locked("normal_value"))
+        assert(frozen("normal_value"))
         
   - name: permafreeze
     language: Prefix
     source: |
         bool locked_value = true
         
-        REFUTE(PERMAFREEZE("locked_value"))
-        ASSERT(FROZEN("locked_value"))
-        ASSERT(PERMAFROZEN("locked_value"))
+        refute(freeze("locked_value"))
+        assert(locked("locked_value"))
+        assert(frozen("locked_value"))
         
         bool permafreeze_undefined_failed = false
         try{
-            PERMAFREEZE("not_declared")
+            freeze("not_declared")
         } catch {
             permafreeze_undefined_failed = true
         }
-        ASSERT(permafreeze_undefined_failed)
+        assert(permafreeze_undefined_failed)
         
         bool reassignment_failed = false
         try{
@@ -77,60 +77,60 @@ passing:
         } catch {
             reassignment_failed = true
         }
-        ASSERT(reassignment_failed)
-        ASSERT(EQ(locked_value, true))
+        assert(reassignment_failed)
+        assert(eq(locked_value, true))
         
         bool deletion_failed = false
         try{
-            DEL("locked_value")
+            del("locked_value")
         } catch {
             deletion_failed = true
         }
-        ASSERT(deletion_failed)
-        ASSERT(EXIST("locked_value"))
+        assert(deletion_failed)
+        assert(exist("locked_value"))
         
         bool thaw_failed = false
         try{
-            THAW("locked_value")
+            unlock("locked_value")
         } catch {
             thaw_failed = true
         }
-        ASSERT(thaw_failed)
-        ASSERT(PERMAFROZEN("locked_value"))
+        assert(thaw_failed)
+        assert(frozen("locked_value"))
         
   - name: permafrozen
     language: Prefix
     source: |
         bool normal_value = true
-        REFUTE(PERMAFROZEN("normal_value"))
+        refute(frozen("normal_value"))
         
-        REFUTE(PERMAFREEZE("normal_value"))
-        ASSERT(PERMAFROZEN("normal_value"))
-        ASSERT(FROZEN("normal_value"))
+        refute(freeze("normal_value"))
+        assert(frozen("normal_value"))
+        assert(locked("normal_value"))
         
   - name: thaw
     language: Prefix
     source: |
         bool thaw_value = true
         
-        REFUTE(THAW("thaw_value"))
-        ASSERT(thaw_value)
+        refute(unlock("thaw_value"))
+        assert(thaw_value)
         
-        REFUTE(FREEZE("thaw_value"))
-        ASSERT(FROZEN("thaw_value"))
-        REFUTE(THAW("thaw_value"))
-        REFUTE(FROZEN("thaw_value"))
+        refute(lock("thaw_value"))
+        assert(locked("thaw_value"))
+        refute(unlock("thaw_value"))
+        refute(locked("thaw_value"))
         
         thaw_value = false
-        ASSERT(EQ(thaw_value, false))
+        assert(eq(thaw_value, false))
         
         bool thaw_undefined_failed = false
         try{
-            THAW("not_declared")
+            unlock("not_declared")
         } catch {
             thaw_undefined_failed = true
         }
-        ASSERT(thaw_undefined_failed)
+        assert(thaw_undefined_failed)
         
 failing:
   - name: alias-cycle
@@ -145,7 +145,7 @@ failing:
     language: Prefix
     source: |
         int t = 0d1
-        FREEZE("t")
+        lock("t")
         
         int p = @t
         

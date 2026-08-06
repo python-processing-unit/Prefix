@@ -3107,7 +3107,7 @@ static Expr *deser_expr(JsonValue *obj, UnserCtx *ctx, Interpreter *interp, cons
         const char *lt = (lit_type && lit_type->type == JSON_STR) ? lit_type->as.str : "int";
         if (strcmp(lt, "bool") == 0) {
             if (!val) {
-                *err = "UNSER: invalid bool value";
+                *err = "unserialize: invalid bool value";
                 return NULL;
             }
             if (val->type == JSON_BOOL) {
@@ -3121,7 +3121,7 @@ static Expr *deser_expr(JsonValue *obj, UnserCtx *ctx, Interpreter *interp, cons
                     return expr_bool(false, line, col);
                 }
             }
-            *err = "UNSER: invalid bool value";
+            *err = "unserialize: invalid bool value";
             return NULL;
         }
         if (strcmp(lt, "int") == 0) {
@@ -3456,17 +3456,17 @@ static Env *deser_env(JsonValue *obj, UnserCtx *ctx, Interpreter *interp, const 
         return NULL;
     }
     if (obj->type != JSON_OBJ) {
-        *err = "UNSER: invalid ENV";
+        *err = "unserialize: invalid ENV";
         return NULL;
     }
     JsonValue *t = json_obj_get(obj, "t");
     if (!t || t->type != JSON_STR || strcmp(t->as.str, "ENV") != 0) {
-        *err = "UNSER: invalid ENV";
+        *err = "unserialize: invalid ENV";
         return NULL;
     }
     JsonValue *idv = json_obj_get(obj, "id");
     if (!idv || idv->type != JSON_STR) {
-        *err = "UNSER: invalid ENV id";
+        *err = "unserialize: invalid ENV id";
         return NULL;
     }
     Env *existing = unser_env_get(ctx, idv->as.str);
@@ -3593,12 +3593,12 @@ static Env *deser_env(JsonValue *obj, UnserCtx *ctx, Interpreter *interp, const 
 
 static Value deser_val(JsonValue *obj, UnserCtx *ctx, Interpreter *interp, const char **err) {
     if (!obj || obj->type != JSON_OBJ) {
-        *err = "UNSER: invalid serialized form";
+        *err = "unserialize: invalid serialized form";
         return value_null();
     }
     JsonValue *t = json_obj_get(obj, "t");
     if (!t || t->type != JSON_STR) {
-        *err = "UNSER: invalid serialized form";
+        *err = "unserialize: invalid serialized form";
         return value_null();
     }
     const char *tp = t->as.str;
@@ -3609,7 +3609,7 @@ static Value deser_val(JsonValue *obj, UnserCtx *ctx, Interpreter *interp, const
         int64_t val = 0;
         int base = 2;
         if (!parse_prefixed_int_string(s, &val, &base)) {
-            *err = "UNSER: invalid int value";
+            *err = "unserialize: invalid int value";
             return value_null();
         }
         return value_int_base(val, base);
@@ -3617,7 +3617,7 @@ static Value deser_val(JsonValue *obj, UnserCtx *ctx, Interpreter *interp, const
     if (strcmp(tp, "bool") == 0) {
         JsonValue *v = json_obj_get(obj, "v");
         if (!v) {
-            *err = "UNSER: invalid bool value";
+            *err = "unserialize: invalid bool value";
             return value_null();
         }
         if (v->type == JSON_BOOL) {
@@ -3631,7 +3631,7 @@ static Value deser_val(JsonValue *obj, UnserCtx *ctx, Interpreter *interp, const
                 return value_bool(false);
             }
         }
-        *err = "UNSER: invalid bool value";
+        *err = "unserialize: invalid bool value";
         return value_null();
     }
     if (strcmp(tp, "float") == 0) {
@@ -3641,7 +3641,7 @@ static Value deser_val(JsonValue *obj, UnserCtx *ctx, Interpreter *interp, const
         int base = 2;
         int base_is_nan = 0;
         if (!parse_prefixed_flt_string(s, &f, &base, &base_is_nan)) {
-            *err = "UNSER: invalid float value";
+            *err = "unserialize: invalid float value";
             return value_null();
         }
         if (base_is_nan) {
@@ -3658,12 +3658,12 @@ static Value deser_val(JsonValue *obj, UnserCtx *ctx, Interpreter *interp, const
         JsonValue *shape = json_obj_get(obj, "shape");
         JsonValue *flat = json_obj_get(obj, "v");
         if (!shape || shape->type != JSON_ARR || !flat || flat->type != JSON_ARR) {
-            *err = "UNSER: invalid tensor shape";
+            *err = "unserialize: invalid tensor shape";
             return value_null();
         }
         size_t ndim = shape->as.arr.count;
         if (ndim == 0) {
-            *err = "UNSER: invalid tensor shape";
+            *err = "unserialize: invalid tensor shape";
             return value_null();
         }
         // Compute expected element count and validate dims
@@ -3671,23 +3671,23 @@ static Value deser_val(JsonValue *obj, UnserCtx *ctx, Interpreter *interp, const
         for (size_t i = 0; i < ndim; i++) {
             JsonValue *it = shape->as.arr.items[i];
             if (!it || it->type != JSON_NUM) {
-                *err = "UNSER: invalid tensor shape";
+                *err = "unserialize: invalid tensor shape";
                 return value_null();
             }
             size_t sv = (size_t)it->as.num;
             if (sv == 0) {
-                *err = "UNSER: invalid tensor shape";
+                *err = "unserialize: invalid tensor shape";
                 return value_null();
             }
             if (expected_total > 0 && sv > 0 && expected_total > (SIZE_MAX / sv)) {
-                *err = "UNSER: tensor size overflow";
+                *err = "unserialize: tensor size overflow";
                 return value_null();
             }
             expected_total *= sv;
         }
         size_t total = flat->as.arr.count;
         if (expected_total != total) {
-            *err = "UNSER: invalid tensor element count";
+            *err = "unserialize: invalid tensor element count";
             return value_null();
         }
         size_t *shp = malloc(sizeof(size_t) * ndim);
@@ -3743,7 +3743,7 @@ static Value deser_val(JsonValue *obj, UnserCtx *ctx, Interpreter *interp, const
     if (strcmp(tp, "map") == 0) {
         JsonValue *items = json_obj_get(obj, "v");
         if (!items || items->type != JSON_ARR) {
-            *err = "UNSER: invalid map form";
+            *err = "unserialize: invalid map form";
             return value_null();
         }
         Value mv = value_map_new();
@@ -3760,7 +3760,7 @@ static Value deser_val(JsonValue *obj, UnserCtx *ctx, Interpreter *interp, const
             if (!(k.type == VAL_INT || k.type == VAL_FLOAT || k.type == VAL_STR)) {
                 value_free(k);
                 value_free(mv);
-                *err = "UNSER: invalid map key type";
+                *err = "unserialize: invalid map key type";
                 return value_null();
             }
             Value v = deser_val(json_obj_get(pair, "v"), ctx, interp, err);
@@ -3871,9 +3871,9 @@ static Value deser_val(JsonValue *obj, UnserCtx *ctx, Interpreter *interp, const
         fn->closure = env_create(NULL);
 
         Stmt *block = stmt_block(1, 1);
-        Expr *callee = expr_ident(strdup("THROW"), 1, 1);
+        Expr *callee = expr_ident(strdup("throw"), 1, 1);
         Expr *call = expr_call(callee, 1, 1);
-        Expr *arg = expr_str(strdup("UNSER: function not available"), 1, 1);
+        Expr *arg = expr_str(strdup("unserialize: function not available"), 1, 1);
         expr_list_add(&call->as.call.args, arg);
         Stmt *exprs = stmt_expr(call, 1, 1);
         stmt_list_add(&block->as.block, exprs);
@@ -3923,7 +3923,7 @@ static Value deser_val(JsonValue *obj, UnserCtx *ctx, Interpreter *interp, const
         return thr;
     }
 
-    *err = "UNSER: cannot reconstruct type";
+    *err = "unserialize: cannot reconstruct type";
     return value_null();
 }
 
@@ -3931,7 +3931,7 @@ static Value builtin_ser(Interpreter *interp, Value *args, int argc, Expr **arg_
     (void)arg_nodes;
     (void)env;
     if (argc != 1) {
-        RUNTIME_ERROR(interp, "SER expects 1 argument", line, col);
+        RUNTIME_ERROR(interp, "serialize expects 1 argument", line, col);
     }
     SerCtx ctx;
     ser_ctx_init(&ctx);
@@ -3948,14 +3948,14 @@ static Value builtin_unser(Interpreter *interp, Value *args, int argc, Expr **ar
     (void)arg_nodes;
     (void)env;
     if (argc != 1) {
-        RUNTIME_ERROR(interp, "UNSER expects 1 argument", line, col);
+        RUNTIME_ERROR(interp, "unserialize expects 1 argument", line, col);
     }
-    EXPECT_STR(args[0], "UNSER", interp, line, col);
+    EXPECT_STR(args[0], "unserialize", interp, line, col);
     const char *text = args[0].as.s ? args[0].as.s : "";
     const char *jerr = NULL;
     JsonValue *root = json_parse(text, &jerr);
     if (!root) {
-        RUNTIME_ERROR(interp, "UNSER: invalid JSON", line, col);
+        RUNTIME_ERROR(interp, "unserialize: invalid JSON", line, col);
     }
     UnserCtx ctx;
     unser_ctx_init(&ctx);
@@ -4077,15 +4077,15 @@ static Value builtin_div(Interpreter *interp, Value *args, int argc, Expr **arg_
     return result;
 }
 
-// CDIV: ceiling division (supports int and float; returns same numeric type)
+// cdiv: ceiling division (supports int and float; returns same numeric type)
 static Value builtin_cdiv(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
     (void)arg_nodes;
     (void)env;
-    EXPECT_NUM(args[0], "CDIV", interp, line, col);
-    EXPECT_NUM(args[1], "CDIV", interp, line, col);
+    EXPECT_NUM(args[0], "cdiv", interp, line, col);
+    EXPECT_NUM(args[1], "cdiv", interp, line, col);
 
     if (args[0].type != args[1].type) {
-        RUNTIME_ERROR(interp, "CDIV cannot mix int and float", line, col);
+        RUNTIME_ERROR(interp, "cdiv cannot mix int and float", line, col);
     }
 
     int out_base = result_base_from_values(args[0], args[1]);
@@ -4102,7 +4102,7 @@ static Value builtin_cdiv(Interpreter *interp, Value *args, int argc, Expr **arg
             q += 1;
         }
         Value result = value_int_base(q, out_base);
-        if (!writeback_ptr_range(interp, arg_nodes, env, 0, 2, result, "CDIV", line, col)) {
+        if (!writeback_ptr_range(interp, arg_nodes, env, 0, 2, result, "cdiv", line, col)) {
             value_free(result);
             return value_null();
         }
@@ -4113,7 +4113,7 @@ static Value builtin_cdiv(Interpreter *interp, Value *args, int argc, Expr **arg
     }
     double res = ceil(args[0].as.f / args[1].as.f);
     Value result = value_float_base(res, out_base);
-    if (!writeback_ptr_range(interp, arg_nodes, env, 0, 2, result, "CDIV", line, col)) {
+    if (!writeback_ptr_range(interp, arg_nodes, env, 0, 2, result, "cdiv", line, col)) {
         value_free(result);
         return value_null();
     }
@@ -4122,11 +4122,11 @@ static Value builtin_cdiv(Interpreter *interp, Value *args, int argc, Expr **arg
 
 static Value builtin_mod(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
     (void)env;
-    EXPECT_NUM(args[0], "MOD", interp, line, col);
-    EXPECT_NUM(args[1], "MOD", interp, line, col);
+    EXPECT_NUM(args[0], "mod", interp, line, col);
+    EXPECT_NUM(args[1], "mod", interp, line, col);
 
     if (args[0].type != args[1].type) {
-        RUNTIME_ERROR(interp, "MOD cannot mix int and float", line, col);
+        RUNTIME_ERROR(interp, "mod cannot mix int and float", line, col);
     }
 
     int out_base = result_base_from_values(args[0], args[1]);
@@ -4139,16 +4139,16 @@ static Value builtin_mod(Interpreter *interp, Value *args, int argc, Expr **arg_
 
         bool ok = true;
         if (arg_nodes && arg_nodes[0] && arg_nodes[0]->type == EXPR_PTR) {
-            if (!writeback_ptr_node(interp, arg_nodes[0], env, result, "MOD", line, col)) {
+            if (!writeback_ptr_node(interp, arg_nodes[0], env, result, "mod", line, col)) {
                 ok = false;
             }
         }
         /* Only write back into the divisor (arg_nodes[1]) when the dividend
            (arg_nodes[0]) is also a pointer literal — matching the spec and
-           tests that expect MOD(a2, @b2) to NOT overwrite b2. */
+           tests that expect mod(a2, @b2) to not overwrite b2. */
         if (ok && arg_nodes && arg_nodes[1] && arg_nodes[1]->type == EXPR_PTR && arg_nodes[0] &&
             arg_nodes[0]->type == EXPR_PTR) {
-            if (!writeback_ptr_node(interp, arg_nodes[1], env, result, "MOD", line, col)) {
+            if (!writeback_ptr_node(interp, arg_nodes[1], env, result, "mod", line, col)) {
                 ok = false;
             }
         }
@@ -4168,13 +4168,13 @@ static Value builtin_mod(Interpreter *interp, Value *args, int argc, Expr **arg_
 
     bool ok = true;
     if (arg_nodes && arg_nodes[0] && arg_nodes[0]->type == EXPR_PTR) {
-        if (!writeback_ptr_node(interp, arg_nodes[0], env, result, "MOD", line, col)) {
+        if (!writeback_ptr_node(interp, arg_nodes[0], env, result, "mod", line, col)) {
             ok = false;
         }
     }
     if (ok && arg_nodes && arg_nodes[1] && arg_nodes[1]->type == EXPR_PTR && arg_nodes[0] &&
         arg_nodes[0]->type == EXPR_PTR) {
-        if (!writeback_ptr_node(interp, arg_nodes[1], env, result, "MOD", line, col)) {
+        if (!writeback_ptr_node(interp, arg_nodes[1], env, result, "mod", line, col)) {
             ok = false;
         }
     }
@@ -4189,11 +4189,11 @@ static Value builtin_mod(Interpreter *interp, Value *args, int argc, Expr **arg_
 static Value builtin_pow(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
     (void)arg_nodes;
     (void)env;
-    EXPECT_NUM(args[0], "POW", interp, line, col);
-    EXPECT_NUM(args[1], "POW", interp, line, col);
+    EXPECT_NUM(args[0], "pow", interp, line, col);
+    EXPECT_NUM(args[1], "pow", interp, line, col);
 
     if (args[0].type != args[1].type) {
-        RUNTIME_ERROR(interp, "POW cannot mix int and float", line, col);
+        RUNTIME_ERROR(interp, "pow cannot mix int and float", line, col);
     }
 
     int out_base = result_base_from_values(args[0], args[1]);
@@ -4212,14 +4212,14 @@ static Value builtin_pow(Interpreter *interp, Value *args, int argc, Expr **arg_
             exp >>= 1;
         }
         Value out = value_int_base(result, out_base);
-        if (!writeback_first_ptr(interp, arg_nodes, env, out, "POW", line, col)) {
+        if (!writeback_first_ptr(interp, arg_nodes, env, out, "pow", line, col)) {
             value_free(out);
             return value_null();
         }
         return out;
     }
     Value out = value_float_base(pow(args[0].as.f, args[1].as.f), out_base);
-    if (!writeback_first_ptr(interp, arg_nodes, env, out, "POW", line, col)) {
+    if (!writeback_first_ptr(interp, arg_nodes, env, out, "pow", line, col)) {
         value_free(out);
         return value_null();
     }
@@ -4229,18 +4229,18 @@ static Value builtin_pow(Interpreter *interp, Value *args, int argc, Expr **arg_
 static Value builtin_neg(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
     (void)arg_nodes;
     (void)env;
-    EXPECT_NUM(args[0], "NEG", interp, line, col);
+    EXPECT_NUM(args[0], "neg", interp, line, col);
 
     if (args[0].type == VAL_INT) {
         Value result = value_int_base(-args[0].as.i, numeric_base_of(args[0]));
-        if (!writeback_ptr_range(interp, arg_nodes, env, 0, 1, result, "NEG", line, col)) {
+        if (!writeback_ptr_range(interp, arg_nodes, env, 0, 1, result, "neg", line, col)) {
             value_free(result);
             return value_null();
         }
         return result;
     }
     Value result = value_float_base(-args[0].as.f, numeric_base_of(args[0]));
-    if (!writeback_ptr_range(interp, arg_nodes, env, 0, 1, result, "NEG", line, col)) {
+    if (!writeback_ptr_range(interp, arg_nodes, env, 0, 1, result, "neg", line, col)) {
         value_free(result);
         return value_null();
     }
@@ -4250,18 +4250,18 @@ static Value builtin_neg(Interpreter *interp, Value *args, int argc, Expr **arg_
 static Value builtin_abs(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
     (void)arg_nodes;
     (void)env;
-    EXPECT_NUM(args[0], "ABS", interp, line, col);
+    EXPECT_NUM(args[0], "abs", interp, line, col);
 
     if (args[0].type == VAL_INT) {
         Value result = value_int_base(args[0].as.i < 0 ? -args[0].as.i : args[0].as.i, numeric_base_of(args[0]));
-        if (!writeback_ptr_range(interp, arg_nodes, env, 0, 1, result, "ABS", line, col)) {
+        if (!writeback_ptr_range(interp, arg_nodes, env, 0, 1, result, "abs", line, col)) {
             value_free(result);
             return value_null();
         }
         return result;
     }
     Value result = value_float_base(args[0].as.f < 0 ? -args[0].as.f : args[0].as.f, numeric_base_of(args[0]));
-    if (!writeback_ptr_range(interp, arg_nodes, env, 0, 1, result, "ABS", line, col)) {
+    if (!writeback_ptr_range(interp, arg_nodes, env, 0, 1, result, "abs", line, col)) {
         value_free(result);
         return value_null();
     }
@@ -4272,14 +4272,14 @@ static Value builtin_abs(Interpreter *interp, Value *args, int argc, Expr **arg_
 static Value builtin_iadd(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
     (void)arg_nodes;
     (void)env;
-    EXPECT_NUM(args[0], "I+", interp, line, col);
-    EXPECT_NUM(args[1], "I+", interp, line, col);
+    EXPECT_NUM(args[0], "i+", interp, line, col);
+    EXPECT_NUM(args[1], "i+", interp, line, col);
 
     int64_t a;
     if (args[0].type == VAL_INT) {
         a = args[0].as.i;
     } else {
-        if (!coerce_flt_to_int_checked(interp, args[0].as.f, &a, "I+", line, col)) {
+        if (!coerce_flt_to_int_checked(interp, args[0].as.f, &a, "i+", line, col)) {
             return value_null();
         }
     }
@@ -4287,12 +4287,12 @@ static Value builtin_iadd(Interpreter *interp, Value *args, int argc, Expr **arg
     if (args[1].type == VAL_INT) {
         b = args[1].as.i;
     } else {
-        if (!coerce_flt_to_int_checked(interp, args[1].as.f, &b, "I+", line, col)) {
+        if (!coerce_flt_to_int_checked(interp, args[1].as.f, &b, "i+", line, col)) {
             return value_null();
         }
     }
     Value result = value_int_base(a + b, result_base_from_values(args[0], args[1]));
-    if (!writeback_ptr_range(interp, arg_nodes, env, 0, 2, result, "I+", line, col)) {
+    if (!writeback_ptr_range(interp, arg_nodes, env, 0, 2, result, "i+", line, col)) {
         value_free(result);
         return value_null();
     }
@@ -4302,14 +4302,14 @@ static Value builtin_iadd(Interpreter *interp, Value *args, int argc, Expr **arg
 static Value builtin_isub(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
     (void)arg_nodes;
     (void)env;
-    EXPECT_NUM(args[0], "I-", interp, line, col);
-    EXPECT_NUM(args[1], "I-", interp, line, col);
+    EXPECT_NUM(args[0], "i-", interp, line, col);
+    EXPECT_NUM(args[1], "i-", interp, line, col);
 
     int64_t a;
     if (args[0].type == VAL_INT) {
         a = args[0].as.i;
     } else {
-        if (!coerce_flt_to_int_checked(interp, args[0].as.f, &a, "I-", line, col)) {
+        if (!coerce_flt_to_int_checked(interp, args[0].as.f, &a, "i-", line, col)) {
             return value_null();
         }
     }
@@ -4317,12 +4317,12 @@ static Value builtin_isub(Interpreter *interp, Value *args, int argc, Expr **arg
     if (args[1].type == VAL_INT) {
         b = args[1].as.i;
     } else {
-        if (!coerce_flt_to_int_checked(interp, args[1].as.f, &b, "I-", line, col)) {
+        if (!coerce_flt_to_int_checked(interp, args[1].as.f, &b, "i-", line, col)) {
             return value_null();
         }
     }
     Value result = value_int_base(a - b, result_base_from_values(args[0], args[1]));
-    if (!writeback_ptr_range(interp, arg_nodes, env, 0, 2, result, "I-", line, col)) {
+    if (!writeback_ptr_range(interp, arg_nodes, env, 0, 2, result, "i-", line, col)) {
         value_free(result);
         return value_null();
     }
@@ -4332,14 +4332,14 @@ static Value builtin_isub(Interpreter *interp, Value *args, int argc, Expr **arg
 static Value builtin_imul(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
     (void)arg_nodes;
     (void)env;
-    EXPECT_NUM(args[0], "I*", interp, line, col);
-    EXPECT_NUM(args[1], "I*", interp, line, col);
+    EXPECT_NUM(args[0], "i*", interp, line, col);
+    EXPECT_NUM(args[1], "i*", interp, line, col);
 
     int64_t a;
     if (args[0].type == VAL_INT) {
         a = args[0].as.i;
     } else {
-        if (!coerce_flt_to_int_checked(interp, args[0].as.f, &a, "I*", line, col)) {
+        if (!coerce_flt_to_int_checked(interp, args[0].as.f, &a, "i*", line, col)) {
             return value_null();
         }
     }
@@ -4347,12 +4347,12 @@ static Value builtin_imul(Interpreter *interp, Value *args, int argc, Expr **arg
     if (args[1].type == VAL_INT) {
         b = args[1].as.i;
     } else {
-        if (!coerce_flt_to_int_checked(interp, args[1].as.f, &b, "I*", line, col)) {
+        if (!coerce_flt_to_int_checked(interp, args[1].as.f, &b, "i*", line, col)) {
             return value_null();
         }
     }
     Value result = value_int_base(a * b, result_base_from_values(args[0], args[1]));
-    if (!writeback_ptr_range(interp, arg_nodes, env, 0, 2, result, "I*", line, col)) {
+    if (!writeback_ptr_range(interp, arg_nodes, env, 0, 2, result, "i*", line, col)) {
         value_free(result);
         return value_null();
     }
@@ -4362,14 +4362,14 @@ static Value builtin_imul(Interpreter *interp, Value *args, int argc, Expr **arg
 static Value builtin_idiv(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
     (void)arg_nodes;
     (void)env;
-    EXPECT_NUM(args[0], "I/", interp, line, col);
-    EXPECT_NUM(args[1], "I/", interp, line, col);
+    EXPECT_NUM(args[0], "i/", interp, line, col);
+    EXPECT_NUM(args[1], "i/", interp, line, col);
 
     int64_t a;
     if (args[0].type == VAL_INT) {
         a = args[0].as.i;
     } else {
-        if (!coerce_flt_to_int_checked(interp, args[0].as.f, &a, "I/", line, col)) {
+        if (!coerce_flt_to_int_checked(interp, args[0].as.f, &a, "i/", line, col)) {
             return value_null();
         }
     }
@@ -4377,7 +4377,7 @@ static Value builtin_idiv(Interpreter *interp, Value *args, int argc, Expr **arg
     if (args[1].type == VAL_INT) {
         b = args[1].as.i;
     } else {
-        if (!coerce_flt_to_int_checked(interp, args[1].as.f, &b, "I/", line, col)) {
+        if (!coerce_flt_to_int_checked(interp, args[1].as.f, &b, "i/", line, col)) {
             return value_null();
         }
     }
@@ -4385,7 +4385,7 @@ static Value builtin_idiv(Interpreter *interp, Value *args, int argc, Expr **arg
         RUNTIME_ERROR(interp, "Division by zero", line, col);
     }
     Value result = value_int_base(a / b, result_base_from_values(args[0], args[1]));
-    if (!writeback_ptr_range(interp, arg_nodes, env, 0, 2, result, "I/", line, col)) {
+    if (!writeback_ptr_range(interp, arg_nodes, env, 0, 2, result, "i/", line, col)) {
         value_free(result);
         return value_null();
     }
@@ -4394,13 +4394,13 @@ static Value builtin_idiv(Interpreter *interp, Value *args, int argc, Expr **arg
 
 static Value builtin_fadd(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
     (void)argc;
-    EXPECT_NUM(args[0], "F+", interp, line, col);
-    EXPECT_NUM(args[1], "F+", interp, line, col);
+    EXPECT_NUM(args[0], "f+", interp, line, col);
+    EXPECT_NUM(args[1], "f+", interp, line, col);
 
     double a = args[0].type == VAL_FLOAT ? args[0].as.f : (double)args[0].as.i;
     double b = args[1].type == VAL_FLOAT ? args[1].as.f : (double)args[1].as.i;
     Value result = value_float_base(a + b, result_base_from_values(args[0], args[1]));
-    if (!writeback_ptr_range(interp, arg_nodes, env, 0, 2, result, "F+", line, col)) {
+    if (!writeback_ptr_range(interp, arg_nodes, env, 0, 2, result, "f+", line, col)) {
         value_free(result);
         return value_null();
     }
@@ -4410,13 +4410,13 @@ static Value builtin_fadd(Interpreter *interp, Value *args, int argc, Expr **arg
 static Value builtin_fsub(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
     (void)arg_nodes;
     (void)env;
-    EXPECT_NUM(args[0], "F-", interp, line, col);
-    EXPECT_NUM(args[1], "F-", interp, line, col);
+    EXPECT_NUM(args[0], "f-", interp, line, col);
+    EXPECT_NUM(args[1], "f-", interp, line, col);
 
     double a = args[0].type == VAL_FLOAT ? args[0].as.f : (double)args[0].as.i;
     double b = args[1].type == VAL_FLOAT ? args[1].as.f : (double)args[1].as.i;
     Value result = value_float_base(a - b, result_base_from_values(args[0], args[1]));
-    if (!writeback_ptr_range(interp, arg_nodes, env, 0, 2, result, "F-", line, col)) {
+    if (!writeback_ptr_range(interp, arg_nodes, env, 0, 2, result, "f-", line, col)) {
         value_free(result);
         return value_null();
     }
@@ -4426,13 +4426,13 @@ static Value builtin_fsub(Interpreter *interp, Value *args, int argc, Expr **arg
 static Value builtin_fmul(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
     (void)arg_nodes;
     (void)env;
-    EXPECT_NUM(args[0], "F*", interp, line, col);
-    EXPECT_NUM(args[1], "F*", interp, line, col);
+    EXPECT_NUM(args[0], "f*", interp, line, col);
+    EXPECT_NUM(args[1], "f*", interp, line, col);
 
     double a = args[0].type == VAL_FLOAT ? args[0].as.f : (double)args[0].as.i;
     double b = args[1].type == VAL_FLOAT ? args[1].as.f : (double)args[1].as.i;
     Value result = value_float_base(a * b, result_base_from_values(args[0], args[1]));
-    if (!writeback_ptr_range(interp, arg_nodes, env, 0, 2, result, "F*", line, col)) {
+    if (!writeback_ptr_range(interp, arg_nodes, env, 0, 2, result, "f*", line, col)) {
         value_free(result);
         return value_null();
     }
@@ -4442,8 +4442,8 @@ static Value builtin_fmul(Interpreter *interp, Value *args, int argc, Expr **arg
 static Value builtin_fdiv(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
     (void)arg_nodes;
     (void)env;
-    EXPECT_NUM(args[0], "F/", interp, line, col);
-    EXPECT_NUM(args[1], "F/", interp, line, col);
+    EXPECT_NUM(args[0], "f/", interp, line, col);
+    EXPECT_NUM(args[1], "f/", interp, line, col);
 
     double a = args[0].type == VAL_FLOAT ? args[0].as.f : (double)args[0].as.i;
     double b = args[1].type == VAL_FLOAT ? args[1].as.f : (double)args[1].as.i;
@@ -4451,7 +4451,7 @@ static Value builtin_fdiv(Interpreter *interp, Value *args, int argc, Expr **arg
         RUNTIME_ERROR(interp, "Division by zero", line, col);
     }
     Value result = value_float_base(a / b, result_base_from_values(args[0], args[1]));
-    if (!writeback_ptr_range(interp, arg_nodes, env, 0, 2, result, "F/", line, col)) {
+    if (!writeback_ptr_range(interp, arg_nodes, env, 0, 2, result, "f/", line, col)) {
         value_free(result);
         return value_null();
     }
@@ -4461,14 +4461,14 @@ static Value builtin_fdiv(Interpreter *interp, Value *args, int argc, Expr **arg
 static Value builtin_ipow(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
     (void)arg_nodes;
     (void)env;
-    EXPECT_NUM(args[0], "IPOW", interp, line, col);
-    EXPECT_NUM(args[1], "IPOW", interp, line, col);
+    EXPECT_NUM(args[0], "ipow", interp, line, col);
+    EXPECT_NUM(args[1], "ipow", interp, line, col);
 
     int64_t base;
     if (args[0].type == VAL_INT) {
         base = args[0].as.i;
     } else {
-        if (!coerce_flt_to_int_checked(interp, args[0].as.f, &base, "IPOW", line, col)) {
+        if (!coerce_flt_to_int_checked(interp, args[0].as.f, &base, "ipow", line, col)) {
             return value_null();
         }
     }
@@ -4476,7 +4476,7 @@ static Value builtin_ipow(Interpreter *interp, Value *args, int argc, Expr **arg
     if (args[1].type == VAL_INT) {
         exp = args[1].as.i;
     } else {
-        if (!coerce_flt_to_int_checked(interp, args[1].as.f, &exp, "IPOW", line, col)) {
+        if (!coerce_flt_to_int_checked(interp, args[1].as.f, &exp, "ipow", line, col)) {
             return value_null();
         }
     }
@@ -4492,7 +4492,7 @@ static Value builtin_ipow(Interpreter *interp, Value *args, int argc, Expr **arg
         exp >>= 1;
     }
     Value out = value_int_base(result, result_base_from_values(args[0], args[1]));
-    if (!writeback_first_ptr(interp, arg_nodes, env, out, "IPOW", line, col)) {
+    if (!writeback_first_ptr(interp, arg_nodes, env, out, "ipow", line, col)) {
         value_free(out);
         return value_null();
     }
@@ -4502,13 +4502,13 @@ static Value builtin_ipow(Interpreter *interp, Value *args, int argc, Expr **arg
 static Value builtin_fpow(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
     (void)arg_nodes;
     (void)env;
-    EXPECT_NUM(args[0], "FPOW", interp, line, col);
-    EXPECT_NUM(args[1], "FPOW", interp, line, col);
+    EXPECT_NUM(args[0], "fpow", interp, line, col);
+    EXPECT_NUM(args[1], "fpow", interp, line, col);
 
     double a = args[0].type == VAL_FLOAT ? args[0].as.f : (double)args[0].as.i;
     double b = args[1].type == VAL_FLOAT ? args[1].as.f : (double)args[1].as.i;
     Value out = value_float_base(pow(a, b), result_base_from_values(args[0], args[1]));
-    if (!writeback_first_ptr(interp, arg_nodes, env, out, "FPOW", line, col)) {
+    if (!writeback_first_ptr(interp, arg_nodes, env, out, "fpow", line, col)) {
         value_free(out);
         return value_null();
     }
@@ -4524,14 +4524,14 @@ static Value tensor_elemwise_op(Interpreter *interp, Value a, Value b, int op, i
         Tensor *ta = a.as.tensor;
         Tensor *tb = b.as.tensor;
         if (ta->elem_type != tb->elem_type) {
-            RUNTIME_ERROR(interp, "T* operators require same element types", line, col);
+            RUNTIME_ERROR(interp, "t* operators require same element types", line, col);
         }
         if (ta->ndim != tb->ndim) {
-            RUNTIME_ERROR(interp, "T* operators require same tensor dimensionality", line, col);
+            RUNTIME_ERROR(interp, "t* operators require same tensor dimensionality", line, col);
         }
         for (size_t i = 0; i < ta->ndim; i++) {
             if (ta->shape[i] != tb->shape[i]) {
-                RUNTIME_ERROR(interp, "T* operators require identical tensor shapes", line, col);
+                RUNTIME_ERROR(interp, "t* operators require identical tensor shapes", line, col);
             }
         }
 
@@ -4543,7 +4543,7 @@ static Value tensor_elemwise_op(Interpreter *interp, Value a, Value b, int op, i
             // Only support numeric element types
             if (va.type != vb.type) {
                 value_free(out);
-                RUNTIME_ERROR(interp, "T* element type mismatch", line, col);
+                RUNTIME_ERROR(interp, "t* element type mismatch", line, col);
             }
             if (va.type == VAL_INT) {
                 int64_t ra = va.as.i;
@@ -4612,7 +4612,7 @@ static Value tensor_elemwise_op(Interpreter *interp, Value a, Value b, int op, i
                 ot->data[i] = tensor_elemwise_op(interp, va, vb, op, line, col);
             } else {
                 value_free(out);
-                RUNTIME_ERROR(interp, "T* operators only support numeric or nested tensor elements", line, col);
+                RUNTIME_ERROR(interp, "t* operators only support numeric or nested tensor elements", line, col);
             }
         }
         return out;
@@ -4698,7 +4698,7 @@ static Value tensor_elemwise_op(Interpreter *interp, Value a, Value b, int op, i
                 ot->data[i] = tensor_elemwise_op(interp, va, b, op, line, col);
             } else {
                 value_free(out);
-                RUNTIME_ERROR(interp, "Unsupported tensor element type for T*", line, col);
+                RUNTIME_ERROR(interp, "Unsupported tensor element type for t*", line, col);
             }
         }
         return out;
@@ -4784,13 +4784,13 @@ static Value tensor_elemwise_op(Interpreter *interp, Value a, Value b, int op, i
                 ot->data[i] = tensor_elemwise_op(interp, a, vb, op, line, col);
             } else {
                 value_free(out);
-                RUNTIME_ERROR(interp, "Unsupported tensor element type for scalar-left T*", line, col);
+                RUNTIME_ERROR(interp, "Unsupported tensor element type for scalar-left t*", line, col);
             }
         }
         return out;
     }
 
-    RUNTIME_ERROR(interp, "T* operators expect tensors or tensor+scalar", line, col);
+    RUNTIME_ERROR(interp, "t* operators expect tensors or tensor+scalar", line, col);
 }
 
 static Value builtin_tadd(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
@@ -4823,13 +4823,13 @@ static Value builtin_tpow(Interpreter *interp, Value *args, int argc, Expr **arg
     return tensor_elemwise_op(interp, args[0], args[1], 4, line, col);
 }
 
-// SHAPE: returns 1-D tensor of int lengths (one per dimension)
+// shape: returns 1-D tensor of int lengths (one per dimension)
 static Value builtin_shape(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
     (void)arg_nodes;
     (void)env;
     (void)argc;
     if (args[0].type != VAL_TENSOR) {
-        RUNTIME_ERROR(interp, "SHAPE expects tensor argument", line, col);
+        RUNTIME_ERROR(interp, "shape expects tensor argument", line, col);
     }
     Tensor *t = args[0].as.tensor;
     size_t ndim = t->ndim;
@@ -4851,13 +4851,13 @@ static Value builtin_shape(Interpreter *interp, Value *args, int argc, Expr **ar
     return out;
 }
 
-// CONV: N-D discrete convolution (two-argument backward-compatible form)
-// Usage: CONV(tensor: x, tensor: kernel) -> tensor (same shape as x)
+// convolve: N-D discrete convolution (two-argument backward-compatible form)
+// Usage: convolve(tensor: x, tensor: kernel) -> tensor (same shape as x)
 static Value builtin_conv(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
     (void)arg_nodes;
     (void)env;
     if (args[0].type != VAL_TENSOR || args[1].type != VAL_TENSOR) {
-        RUNTIME_ERROR(interp, "CONV expects (tensor, tensor)", line, col);
+        RUNTIME_ERROR(interp, "convolve expects (tensor, tensor)", line, col);
     }
     Tensor *x = args[0].as.tensor;
     Tensor *k = args[1].as.tensor;
@@ -4865,10 +4865,10 @@ static Value builtin_conv(Interpreter *interp, Value *args, int argc, Expr **arg
     // Extended 2-D multi-output form triggered when more than two arguments provided
     if (argc > 2) {
         if (x->ndim != 3) {
-            RUNTIME_ERROR(interp, "CONV extended form requires input rank 3", line, col);
+            RUNTIME_ERROR(interp, "convolve extended form requires input rank 3", line, col);
         }
         if (k->ndim != 4) {
-            RUNTIME_ERROR(interp, "CONV extended form requires kernel rank 4", line, col);
+            RUNTIME_ERROR(interp, "convolve extended form requires kernel rank 4", line, col);
         }
 
         size_t in_w = x->shape[0];
@@ -4880,13 +4880,13 @@ static Value builtin_conv(Interpreter *interp, Value *args, int argc, Expr **arg
         size_t out_c = k->shape[3];
 
         if (k_in_c != in_c) {
-            RUNTIME_ERROR(interp, "CONV kernel input channels must match x channels", line, col);
+            RUNTIME_ERROR(interp, "convolve kernel input channels must match x channels", line, col);
         }
 
         // Element types must be numeric
         if (!((x->elem_type == TYPE_INT || x->elem_type == TYPE_FLOAT) &&
               (k->elem_type == TYPE_INT || k->elem_type == TYPE_FLOAT))) {
-            RUNTIME_ERROR(interp, "CONV only supports int or float element types", line, col);
+            RUNTIME_ERROR(interp, "convolve only supports int or float element types", line, col);
         }
 
         // Parse optional args: stride_w, stride_h, pad_w, pad_h, bias
@@ -4895,36 +4895,36 @@ static Value builtin_conv(Interpreter *interp, Value *args, int argc, Expr **arg
         int64_t pad_w = 0;
         int64_t pad_h = 0;
         if (argc > 2 && args[2].type != VAL_NULL) {
-            EXPECT_INT(args[2], "CONV", interp, line, col);
+            EXPECT_INT(args[2], "convolve", interp, line, col);
             stride_w = args[2].as.i;
         }
         if (argc > 3 && args[3].type != VAL_NULL) {
-            EXPECT_INT(args[3], "CONV", interp, line, col);
+            EXPECT_INT(args[3], "convolve", interp, line, col);
             stride_h = args[3].as.i;
         }
         if (argc > 4 && args[4].type != VAL_NULL) {
-            EXPECT_INT(args[4], "CONV", interp, line, col);
+            EXPECT_INT(args[4], "convolve", interp, line, col);
             pad_w = args[4].as.i;
         }
         if (argc > 5 && args[5].type != VAL_NULL) {
-            EXPECT_INT(args[5], "CONV", interp, line, col);
+            EXPECT_INT(args[5], "convolve", interp, line, col);
             pad_h = args[5].as.i;
         }
 
         if (stride_w <= 0 || stride_h <= 0 || pad_w < 0 || pad_h < 0) {
-            RUNTIME_ERROR(interp, "CONV invalid stride/pad", line, col);
+            RUNTIME_ERROR(interp, "convolve invalid stride/pad", line, col);
         }
 
         bool bias_present = false;
         Tensor *bias_t = NULL;
         if (argc > 6 && args[6].type != VAL_NULL) {
             if (args[6].type != VAL_TENSOR) {
-                RUNTIME_ERROR(interp, "CONV bias must be tensor", line, col);
+                RUNTIME_ERROR(interp, "convolve bias must be tensor", line, col);
             }
             bias_present = true;
             bias_t = args[6].as.tensor;
             if ((bias_t->ndim != 1 && bias_t->length != 0) || (bias_t->length != 0 && bias_t->shape[0] != out_c)) {
-                RUNTIME_ERROR(interp, "CONV bias size mismatch", line, col);
+                RUNTIME_ERROR(interp, "convolve bias size mismatch", line, col);
             }
         }
 
@@ -4970,7 +4970,7 @@ static Value builtin_conv(Interpreter *interp, Value *args, int argc, Expr **arg
                                     Value vk = k->data[k_off];
                                     if (vx.type != VAL_INT || vk.type != VAL_INT) {
                                         value_free(out);
-                                        RUNTIME_ERROR(interp, "CONV integer-mode requires int elements", line, col);
+                                        RUNTIME_ERROR(interp, "convolve integer-mode requires int elements", line, col);
                                     }
                                     acc += vx.as.i * vk.as.i;
                                 }
@@ -4984,14 +4984,14 @@ static Value builtin_conv(Interpreter *interp, Value *args, int argc, Expr **arg
                                 }
                             } else if (bv.type == VAL_FLOAT) {
                                 int64_t tmp;
-                                if (!coerce_flt_to_int_checked(interp, bv.as.f, &tmp, "CONV", line, col)) {
+                                if (!coerce_flt_to_int_checked(interp, bv.as.f, &tmp, "convolve", line, col)) {
                                     value_free(out);
                                     return value_null();
                                 }
                                 acc += tmp;
                             } else {
                                 value_free(out);
-                                RUNTIME_ERROR(interp, "CONV bias must be numeric", line, col);
+                                RUNTIME_ERROR(interp, "convolve bias must be numeric", line, col);
                             }
                         }
                         ot->data[(ow * ot->strides[0]) + (oh * ot->strides[1]) + (oc * ot->strides[2])] =
@@ -5034,20 +5034,20 @@ static Value builtin_conv(Interpreter *interp, Value *args, int argc, Expr **arg
 
     // Legacy two-argument N-D convolution (backward-compatible)
     if (x->ndim != k->ndim) {
-        RUNTIME_ERROR(interp, "CONV kernel must have same rank as input", line, col);
+        RUNTIME_ERROR(interp, "convolve kernel must have same rank as input", line, col);
     }
 
     // kernel dims must be odd
     for (size_t d = 0; d < k->ndim; d++) {
         if ((k->shape[d] & 1) == 0) {
-            RUNTIME_ERROR(interp, "CONV kernel dimensions must be odd", line, col);
+            RUNTIME_ERROR(interp, "convolve kernel dimensions must be odd", line, col);
         }
     }
 
     // Element types must be numeric
     if (!((x->elem_type == TYPE_INT || x->elem_type == TYPE_FLOAT) &&
           (k->elem_type == TYPE_INT || k->elem_type == TYPE_FLOAT))) {
-        RUNTIME_ERROR(interp, "CONV only supports int or float element types", line, col);
+        RUNTIME_ERROR(interp, "convolve only supports int or float element types", line, col);
     }
 
     // Output typing: int only if both are int, otherwise float
@@ -5070,7 +5070,7 @@ static Value builtin_conv(Interpreter *interp, Value *args, int argc, Expr **arg
         if (x->ndim > 64) {
             free(centers);
             value_free(out);
-            RUNTIME_ERROR(interp, "CONV: too many dimensions", line, col);
+            RUNTIME_ERROR(interp, "convolve: too many dimensions", line, col);
         }
         for (size_t d = 0; d < x->ndim; d++) {
             idx[d] = rem / x->strides[d];
@@ -5104,7 +5104,7 @@ static Value builtin_conv(Interpreter *interp, Value *args, int argc, Expr **arg
                 if (vx.type != VAL_INT || vk.type != VAL_INT) {
                     free(centers);
                     value_free(out);
-                    RUNTIME_ERROR(interp, "CONV integer-mode requires int elements", line, col);
+                    RUNTIME_ERROR(interp, "convolve integer-mode requires int elements", line, col);
                 }
                 acc += vx.as.i * vk.as.i;
             }
@@ -5143,36 +5143,36 @@ static Value builtin_conv(Interpreter *interp, Value *args, int argc, Expr **arg
     return out;
 }
 
-// TLEN: returns length of 1-based dimension
+// len_dim: returns length of 1-based dimension
 static Value builtin_tlen(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
     (void)arg_nodes;
     (void)env;
     (void)argc;
     if (args[0].type != VAL_TENSOR) {
-        RUNTIME_ERROR(interp, "TLEN expects tensor as first argument", line, col);
+        RUNTIME_ERROR(interp, "len_dim expects tensor as first argument", line, col);
     }
-    EXPECT_INT(args[1], "TLEN", interp, line, col);
+    EXPECT_INT(args[1], "len_dim", interp, line, col);
     Tensor *t = args[0].as.tensor;
     int64_t dim = args[1].as.i; // 1-based
     if (dim < 1 || (size_t)dim > t->ndim) {
-        RUNTIME_ERROR(interp, "TLEN dimension out of range", line, col);
+        RUNTIME_ERROR(interp, "len_dim dimension out of range", line, col);
     }
     return value_int((int64_t)t->shape[(size_t)dim - 1]);
 }
 
-// TFLIP: returns a new tensor with elements along 1-based dimension dim reversed
+// flip_dim: returns a new tensor with elements along 1-based dimension dim reversed
 static Value builtin_tflip(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
     (void)arg_nodes;
     (void)env;
     (void)argc;
     if (args[0].type != VAL_TENSOR) {
-        RUNTIME_ERROR(interp, "TFLIP expects tensor as first argument", line, col);
+        RUNTIME_ERROR(interp, "flip_dim expects tensor as first argument", line, col);
     }
-    EXPECT_INT(args[1], "TFLIP", interp, line, col);
+    EXPECT_INT(args[1], "flip_dim", interp, line, col);
     Tensor *t = args[0].as.tensor;
     int64_t dim1 = args[1].as.i; // 1-based
     if (dim1 < 1 || (size_t)dim1 > t->ndim) {
-        RUNTIME_ERROR(interp, "TFLIP dimension out of range", line, col);
+        RUNTIME_ERROR(interp, "flip_dim dimension out of range", line, col);
     }
     size_t dim = (size_t)dim1 - 1;
     // create output tensor
@@ -5195,7 +5195,7 @@ static Value builtin_tflip(Interpreter *interp, Value *args, int argc, Expr **ar
     return out;
 }
 
-// FILL: return a new tensor with the same shape as the first arg,
+// fill: return a new tensor with the same shape as the first arg,
 // filled with the supplied value. The fill value's runtime type
 // must match the existing element types in the source tensor.
 static Value builtin_fill(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
@@ -5203,14 +5203,14 @@ static Value builtin_fill(Interpreter *interp, Value *args, int argc, Expr **arg
     (void)env;
     (void)argc;
     if (args[0].type != VAL_TENSOR) {
-        RUNTIME_ERROR(interp, "FILL expects tensor as first argument", line, col);
+        RUNTIME_ERROR(interp, "fill expects tensor as first argument", line, col);
     }
     Tensor *t = args[0].as.tensor;
     Value fill = args[1];
     // Ensure element runtime types match the fill value's type
     for (size_t i = 0; i < t->length; i++) {
         if (t->data[i].type != fill.type) {
-            RUNTIME_ERROR(interp, "FILL value type must match existing tensor element types", line, col);
+            RUNTIME_ERROR(interp, "fill value type must match existing tensor element types", line, col);
         }
     }
 
@@ -5222,20 +5222,20 @@ static Value builtin_fill(Interpreter *interp, Value *args, int argc, Expr **arg
     return out;
 }
 
-// APPEND: append a single element to a 1-D tensor and return a new tensor
+// append: append a single element to a 1-D tensor and return a new tensor
 static Value builtin_append(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
     (void)arg_nodes;
     (void)env;
     (void)argc;
     if (args[1].type != VAL_TENSOR) {
-        RUNTIME_ERROR(interp, "APPEND expects (ANY, tensor)", line, col);
+        RUNTIME_ERROR(interp, "append expects (any, tensor)", line, col);
     }
     Tensor *t = args[1].as.tensor;
     if (!t) {
         RUNTIME_ERROR(interp, "Invalid target tensor", line, col);
     }
     if (t->ndim != 1) {
-        RUNTIME_ERROR(interp, "APPEND target must be 1-D tensor", line, col);
+        RUNTIME_ERROR(interp, "append target must be 1-D tensor", line, col);
     }
 
     size_t old_len = t->shape[0];
@@ -5296,7 +5296,7 @@ static Value builtin_append(Interpreter *interp, Value *args, int argc, Expr **a
         ot->data[new_len - 1] = value_copy(args[0]);
     }
 
-    if (!writeback_ptr_node(interp, arg_nodes ? arg_nodes[1] : NULL, env, out, "APPEND", line, col)) {
+    if (!writeback_ptr_node(interp, arg_nodes ? arg_nodes[1] : NULL, env, out, "append", line, col)) {
         value_free(out);
         return value_null();
     }
@@ -5304,14 +5304,14 @@ static Value builtin_append(Interpreter *interp, Value *args, int argc, Expr **a
     return out;
 }
 
-// SCAT: return a copy of dst with a rectangular slice replaced by src.
-// Args: SCAT(tensor: src, tensor: dst, tensor: ind)
+// scatter: return a copy of dst with a rectangular slice replaced by src.
+// Args: scatter(tensor: src, tensor: dst, tensor: ind)
 static Value builtin_scat(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
     (void)arg_nodes;
     (void)env;
     (void)argc;
     if (args[0].type != VAL_TENSOR || args[1].type != VAL_TENSOR || args[2].type != VAL_TENSOR) {
-        RUNTIME_ERROR(interp, "SCAT expects (tensor, tensor, tensor)", line, col);
+        RUNTIME_ERROR(interp, "scatter expects (tensor, tensor, tensor)", line, col);
     }
     Tensor *src = args[0].as.tensor;
     Tensor *dst = args[1].as.tensor;
@@ -5320,18 +5320,18 @@ static Value builtin_scat(Interpreter *interp, Value *args, int argc, Expr **arg
     size_t rank = dst->ndim;
     // ind must be 2-D with shape [rank, 2]
     if (ind->ndim != 2) {
-        RUNTIME_ERROR(interp, "SCAT index tensor must be 2-dimensional", line, col);
+        RUNTIME_ERROR(interp, "scatter index tensor must be 2-dimensional", line, col);
     }
     if (ind->shape[0] != rank || ind->shape[1] != 2) {
-        RUNTIME_ERROR(interp, "SCAT index tensor shape must be [rank,2]", line, col);
+        RUNTIME_ERROR(interp, "scatter index tensor shape must be [rank,2]", line, col);
     }
 
     // src must have same dimensionality as dst and element types must match
     if (src->ndim != rank) {
-        RUNTIME_ERROR(interp, "SCAT src must have same rank as dst", line, col);
+        RUNTIME_ERROR(interp, "scatter src must have same rank as dst", line, col);
     }
     if (src->elem_type != dst->elem_type) {
-        RUNTIME_ERROR(interp, "SCAT src and dst element types must match", line, col);
+        RUNTIME_ERROR(interp, "scatter src and dst element types must match", line, col);
     }
 
     // Read lo/hi per dimension and validate bounds
@@ -5351,14 +5351,14 @@ static Value builtin_scat(Interpreter *interp, Value *args, int argc, Expr **arg
         if (vlo.type != VAL_INT || vhi.type != VAL_INT) {
             free(lo);
             free(hi);
-            RUNTIME_ERROR(interp, "SCAT indices must be int", line, col);
+            RUNTIME_ERROR(interp, "scatter indices must be int", line, col);
         }
         int64_t l = vlo.as.i;
         int64_t h = vhi.as.i;
         if (l == 0 || h == 0) {
             free(lo);
             free(hi);
-            RUNTIME_ERROR(interp, "SCAT indices are 1-based and cannot be 0", line, col);
+            RUNTIME_ERROR(interp, "scatter indices are 1-based and cannot be 0", line, col);
         }
         // handle negative indices: -1 means last element
         if (l < 0) {
@@ -5373,14 +5373,14 @@ static Value builtin_scat(Interpreter *interp, Value *args, int argc, Expr **arg
         if (l0 < 0 || h0 < 0 || (size_t)h0 >= dst->shape[d] || l0 > h0) {
             free(lo);
             free(hi);
-            RUNTIME_ERROR(interp, "SCAT index out of range or invalid", line, col);
+            RUNTIME_ERROR(interp, "scatter index out of range or invalid", line, col);
         }
         // check slice length matches src dimension
         int64_t expected = h0 - l0 + 1;
         if ((size_t)expected != src->shape[d]) {
             free(lo);
             free(hi);
-            RUNTIME_ERROR(interp, "SCAT src dimension lengths must match index spans", line, col);
+            RUNTIME_ERROR(interp, "scatter src dimension lengths must match index spans", line, col);
         }
         lo[d] = l0;
         hi[d] = h0;
@@ -5420,30 +5420,30 @@ static Value builtin_scat(Interpreter *interp, Value *args, int argc, Expr **arg
     return out;
 }
 
-// M* operators: strict elementwise operations for two tensors (no broadcasting)
+// m* operators: strict elementwise operations for two tensors (no broadcasting)
 static Value builtin_mop(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col,
                          int op) {
     (void)arg_nodes;
     (void)env;
     (void)argc;
     if (args[0].type != VAL_TENSOR || args[1].type != VAL_TENSOR) {
-        RUNTIME_ERROR(interp, "M* operators expect tensor arguments", line, col);
+        RUNTIME_ERROR(interp, "m* operators expect tensor arguments", line, col);
     }
     Tensor *ta = args[0].as.tensor;
     Tensor *tb = args[1].as.tensor;
     if (ta->ndim != tb->ndim) {
-        RUNTIME_ERROR(interp, "M* operators require same tensor dimensionality", line, col);
+        RUNTIME_ERROR(interp, "m* operators require same tensor dimensionality", line, col);
     }
     for (size_t i = 0; i < ta->ndim; i++) {
         if (ta->shape[i] != tb->shape[i]) {
-            RUNTIME_ERROR(interp, "M* operators require identical tensor shapes", line, col);
+            RUNTIME_ERROR(interp, "m* operators require identical tensor shapes", line, col);
         }
     }
     if (ta->elem_type != tb->elem_type) {
-        RUNTIME_ERROR(interp, "M* operators require same element types", line, col);
+        RUNTIME_ERROR(interp, "m* operators require same element types", line, col);
     }
     if (!(ta->elem_type == TYPE_INT || ta->elem_type == TYPE_FLOAT)) {
-        RUNTIME_ERROR(interp, "M* operators only support int or float element types", line, col);
+        RUNTIME_ERROR(interp, "m* operators only support int or float element types", line, col);
     }
 
     Value out = value_tensor_new(ta->elem_type, ta->ndim, ta->shape);
@@ -5455,7 +5455,7 @@ static Value builtin_mop(Interpreter *interp, Value *args, int argc, Expr **arg_
         // Expect scalar numeric elements
         if (va.type != vb.type) {
             value_free(out);
-            RUNTIME_ERROR(interp, "M* element type mismatch", line, col);
+            RUNTIME_ERROR(interp, "m* element type mismatch", line, col);
         }
         if (va.type == VAL_INT) {
             int64_t a = va.as.i;
@@ -5503,7 +5503,7 @@ static Value builtin_mop(Interpreter *interp, Value *args, int argc, Expr **arg_
             }
         } else {
             value_free(out);
-            RUNTIME_ERROR(interp, "M* operators only support numeric scalar elements", line, col);
+            RUNTIME_ERROR(interp, "m* operators only support numeric scalar elements", line, col);
         }
     }
     return out;
@@ -5645,15 +5645,15 @@ static Value builtin_mprod(Interpreter *interp, Value *args, int argc, Expr **ar
     return out;
 }
 
-// ROOT and variants
+// root and variants
 static Value builtin_root(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
     (void)arg_nodes;
     (void)env;
-    EXPECT_NUM(args[0], "ROOT", interp, line, col);
-    EXPECT_NUM(args[1], "ROOT", interp, line, col);
+    EXPECT_NUM(args[0], "root", interp, line, col);
+    EXPECT_NUM(args[1], "root", interp, line, col);
 
     if (args[0].type != args[1].type) {
-        RUNTIME_ERROR(interp, "ROOT cannot mix int and float", line, col);
+        RUNTIME_ERROR(interp, "root cannot mix int and float", line, col);
     }
 
     int out_base = result_base_from_values(args[0], args[1]);
@@ -5662,14 +5662,14 @@ static Value builtin_root(Interpreter *interp, Value *args, int argc, Expr **arg
         int64_t x = args[0].as.i;
         int64_t n = args[1].as.i;
         if (n == 0) {
-            RUNTIME_ERROR(interp, "ROOT exponent must be non-zero", line, col);
+            RUNTIME_ERROR(interp, "root exponent must be non-zero", line, col);
         }
         if (n < 0) {
             if (x == 0) {
                 RUNTIME_ERROR(interp, "Division by zero", line, col);
             }
             if (x != 1 && x != -1) {
-                RUNTIME_ERROR(interp, "Negative ROOT exponent yields non-integer result", line, col);
+                RUNTIME_ERROR(interp, "Negative root exponent yields non-integer result", line, col);
             }
             return value_int_base(x, out_base);
         }
@@ -5738,7 +5738,7 @@ static Value builtin_root(Interpreter *interp, Value *args, int argc, Expr **arg
     double x = args[0].as.f;
     double n = args[1].as.f;
     if (n == 0.0) {
-        RUNTIME_ERROR(interp, "ROOT exponent must be non-zero", line, col);
+        RUNTIME_ERROR(interp, "root exponent must be non-zero", line, col);
     }
     if (x == 0.0 && n < 0.0) {
         RUNTIME_ERROR(interp, "Division by zero", line, col);
@@ -5746,7 +5746,7 @@ static Value builtin_root(Interpreter *interp, Value *args, int argc, Expr **arg
     if (x < 0.0) {
         double abs_n = n < 0 ? -n : n;
         if (floor(abs_n) != abs_n || ((int64_t)abs_n) % 2 == 0) {
-            RUNTIME_ERROR(interp, "ROOT of negative float requires odd integer root", line, col);
+            RUNTIME_ERROR(interp, "root of negative float requires odd integer root", line, col);
         }
         double res = -pow(-x, 1.0 / n);
         double rintv = round(res);
@@ -5766,16 +5766,16 @@ static Value builtin_root(Interpreter *interp, Value *args, int argc, Expr **arg
     return value_float_base(res, out_base);
 }
 
-// IROOT: integer-specific root (coerces/expects integers)
+// iroot: integer-specific root (coerces/expects integers)
 static Value builtin_iroot(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
     (void)arg_nodes;
     (void)env;
-    EXPECT_INT(args[0], "IROOT", interp, line, col);
-    EXPECT_INT(args[1], "IROOT", interp, line, col);
+    EXPECT_INT(args[0], "iroot", interp, line, col);
+    EXPECT_INT(args[1], "iroot", interp, line, col);
     return builtin_root(interp, args, argc, arg_nodes, env, line, col);
 }
 
-// FROOT: float-specific root (coerce args to float and delegate)
+// froot: float-specific root (coerce args to float and delegate)
 static Value builtin_froot(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
     (void)arg_nodes;
     (void)env;
@@ -5788,16 +5788,16 @@ static Value builtin_froot(Interpreter *interp, Value *args, int argc, Expr **ar
     return builtin_root(interp, tmp, 2, NULL, NULL, line, col);
 }
 
-// LOG
+// log
 static Value builtin_log(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
     (void)arg_nodes;
     (void)env;
-    EXPECT_NUM(args[0], "LOG", interp, line, col);
+    EXPECT_NUM(args[0], "log", interp, line, col);
 
     if (args[0].type == VAL_INT) {
         int64_t x = args[0].as.i;
         if (x <= 0) {
-            RUNTIME_ERROR(interp, "LOG argument must be > 0", line, col);
+            RUNTIME_ERROR(interp, "log argument must be > 0", line, col);
         }
         int64_t result = 0;
         while (x > 1) {
@@ -5809,19 +5809,19 @@ static Value builtin_log(Interpreter *interp, Value *args, int argc, Expr **arg_
 
     double x = args[0].as.f;
     if (x <= 0.0) {
-        RUNTIME_ERROR(interp, "LOG argument must be > 0", line, col);
+        RUNTIME_ERROR(interp, "log argument must be > 0", line, col);
     }
     return value_float(floor(log2(x)));
 }
 
-// CLOG: integer-only variant of LOG with ceiling-like behavior for powers of two
+// clog: integer-only variant of log with ceiling-like behavior for powers of two
 static Value builtin_clog(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
     (void)arg_nodes;
     (void)env;
-    EXPECT_INT(args[0], "CLOG", interp, line, col);
+    EXPECT_INT(args[0], "clog", interp, line, col);
     int64_t x = args[0].as.i;
     if (x <= 0) {
-        RUNTIME_ERROR(interp, "CLOG argument must be > 0", line, col);
+        RUNTIME_ERROR(interp, "clog argument must be > 0", line, col);
     }
     int bits = 0;
     int64_t tmp = x;
@@ -5835,7 +5835,7 @@ static Value builtin_clog(Interpreter *interp, Value *args, int argc, Expr **arg
     return value_int(bits);
 }
 
-// GCD
+// gcd
 static int64_t gcd_int(int64_t a, int64_t b) {
     if (a < 0) {
         a = -a;
@@ -5854,11 +5854,11 @@ static int64_t gcd_int(int64_t a, int64_t b) {
 static Value builtin_gcd(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
     (void)arg_nodes;
     (void)env;
-    EXPECT_NUM(args[0], "GCD", interp, line, col);
-    EXPECT_NUM(args[1], "GCD", interp, line, col);
+    EXPECT_NUM(args[0], "gcd", interp, line, col);
+    EXPECT_NUM(args[1], "gcd", interp, line, col);
 
     if (args[0].type != args[1].type) {
-        RUNTIME_ERROR(interp, "GCD cannot mix int and float", line, col);
+        RUNTIME_ERROR(interp, "gcd cannot mix int and float", line, col);
     }
 
     int out_base = result_base_from_values(args[0], args[1]);
@@ -5870,20 +5870,20 @@ static Value builtin_gcd(Interpreter *interp, Value *args, int argc, Expr **arg_
     double a = args[0].as.f;
     double b = args[1].as.f;
     if (floor(a) != a || floor(b) != b) {
-        RUNTIME_ERROR(interp, "GCD expects integer-valued floats", line, col);
+        RUNTIME_ERROR(interp, "gcd expects integer-valued floats", line, col);
     }
     return value_float_base((double)gcd_int((int64_t)a, (int64_t)b), out_base);
 }
 
-// LCM
+// lcm
 static Value builtin_lcm(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
     (void)arg_nodes;
     (void)env;
-    EXPECT_NUM(args[0], "LCM", interp, line, col);
-    EXPECT_NUM(args[1], "LCM", interp, line, col);
+    EXPECT_NUM(args[0], "lcm", interp, line, col);
+    EXPECT_NUM(args[1], "lcm", interp, line, col);
 
     if (args[0].type != args[1].type) {
-        RUNTIME_ERROR(interp, "LCM cannot mix int and float", line, col);
+        RUNTIME_ERROR(interp, "lcm cannot mix int and float", line, col);
     }
     int out_base = result_base_from_values(args[0], args[1]);
 
@@ -5906,7 +5906,7 @@ static Value builtin_lcm(Interpreter *interp, Value *args, int argc, Expr **arg_
     double a = args[0].as.f;
     double b = args[1].as.f;
     if (floor(a) != a || floor(b) != b) {
-        RUNTIME_ERROR(interp, "LCM expects integer-valued floats", line, col);
+        RUNTIME_ERROR(interp, "lcm expects integer-valued floats", line, col);
     }
     int64_t ai = (int64_t)a;
     int64_t bi = (int64_t)b;
@@ -6091,7 +6091,7 @@ static Value builtin_neq(Interpreter *interp, Value *args, int argc, Expr **arg_
     (void)env;
     (void)interp;
 
-    /* If types differ, they are not equal -> NEQ should be true (1) */
+    /* If types differ, they are not equal -> neq should be true (1) */
     if (args[0].type != args[1].type) {
         return value_bool(true);
     }
@@ -6102,11 +6102,11 @@ static Value builtin_neq(Interpreter *interp, Value *args, int argc, Expr **arg_
 static Value builtin_gt(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
     (void)arg_nodes;
     (void)env;
-    EXPECT_NUM(args[0], "GT", interp, line, col);
-    EXPECT_NUM(args[1], "GT", interp, line, col);
+    EXPECT_NUM(args[0], "gt", interp, line, col);
+    EXPECT_NUM(args[1], "gt", interp, line, col);
 
     if (args[0].type != args[1].type) {
-        RUNTIME_ERROR(interp, "GT cannot mix int and float", line, col);
+        RUNTIME_ERROR(interp, "gt cannot mix int and float", line, col);
     }
 
     if (args[0].type == VAL_INT) {
@@ -6118,11 +6118,11 @@ static Value builtin_gt(Interpreter *interp, Value *args, int argc, Expr **arg_n
 static Value builtin_lt(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
     (void)arg_nodes;
     (void)env;
-    EXPECT_NUM(args[0], "LT", interp, line, col);
-    EXPECT_NUM(args[1], "LT", interp, line, col);
+    EXPECT_NUM(args[0], "lt", interp, line, col);
+    EXPECT_NUM(args[1], "lt", interp, line, col);
 
     if (args[0].type != args[1].type) {
-        RUNTIME_ERROR(interp, "LT cannot mix int and float", line, col);
+        RUNTIME_ERROR(interp, "lt cannot mix int and float", line, col);
     }
 
     if (args[0].type == VAL_INT) {
@@ -6134,11 +6134,11 @@ static Value builtin_lt(Interpreter *interp, Value *args, int argc, Expr **arg_n
 static Value builtin_gte(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
     (void)arg_nodes;
     (void)env;
-    EXPECT_NUM(args[0], "GTE", interp, line, col);
-    EXPECT_NUM(args[1], "GTE", interp, line, col);
+    EXPECT_NUM(args[0], "gte", interp, line, col);
+    EXPECT_NUM(args[1], "gte", interp, line, col);
 
     if (args[0].type != args[1].type) {
-        RUNTIME_ERROR(interp, "GTE cannot mix int and float", line, col);
+        RUNTIME_ERROR(interp, "gte cannot mix int and float", line, col);
     }
 
     if (args[0].type == VAL_INT) {
@@ -6150,11 +6150,11 @@ static Value builtin_gte(Interpreter *interp, Value *args, int argc, Expr **arg_
 static Value builtin_lte(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
     (void)arg_nodes;
     (void)env;
-    EXPECT_NUM(args[0], "LTE", interp, line, col);
-    EXPECT_NUM(args[1], "LTE", interp, line, col);
+    EXPECT_NUM(args[0], "lte", interp, line, col);
+    EXPECT_NUM(args[1], "lte", interp, line, col);
 
     if (args[0].type != args[1].type) {
-        RUNTIME_ERROR(interp, "LTE cannot mix int and float", line, col);
+        RUNTIME_ERROR(interp, "lte cannot mix int and float", line, col);
     }
 
     if (args[0].type == VAL_INT) {
@@ -6217,10 +6217,10 @@ static Value builtin_bool(Interpreter *interp, Value *args, int argc, Expr **arg
 static Value builtin_band(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
     (void)arg_nodes;
     (void)env;
-    EXPECT_INT(args[0], "BAND", interp, line, col);
-    EXPECT_INT(args[1], "BAND", interp, line, col);
+    EXPECT_INT(args[0], "band", interp, line, col);
+    EXPECT_INT(args[1], "band", interp, line, col);
     if (numeric_base_of(args[0]) != 2 || numeric_base_of(args[1]) != 2) {
-        RUNTIME_ERROR(interp, "BAND requires binary int operands", line, col);
+        RUNTIME_ERROR(interp, "band requires binary int operands", line, col);
     }
     return value_int_base(args[0].as.i & args[1].as.i, 2);
 }
@@ -6228,10 +6228,10 @@ static Value builtin_band(Interpreter *interp, Value *args, int argc, Expr **arg
 static Value builtin_bor(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
     (void)arg_nodes;
     (void)env;
-    EXPECT_INT(args[0], "BOR", interp, line, col);
-    EXPECT_INT(args[1], "BOR", interp, line, col);
+    EXPECT_INT(args[0], "bor", interp, line, col);
+    EXPECT_INT(args[1], "bor", interp, line, col);
     if (numeric_base_of(args[0]) != 2 || numeric_base_of(args[1]) != 2) {
-        RUNTIME_ERROR(interp, "BOR requires binary int operands", line, col);
+        RUNTIME_ERROR(interp, "bor requires binary int operands", line, col);
     }
     return value_int_base(args[0].as.i | args[1].as.i, 2);
 }
@@ -6239,10 +6239,10 @@ static Value builtin_bor(Interpreter *interp, Value *args, int argc, Expr **arg_
 static Value builtin_bxor(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
     (void)arg_nodes;
     (void)env;
-    EXPECT_INT(args[0], "BXOR", interp, line, col);
-    EXPECT_INT(args[1], "BXOR", interp, line, col);
+    EXPECT_INT(args[0], "bxor", interp, line, col);
+    EXPECT_INT(args[1], "bxor", interp, line, col);
     if (numeric_base_of(args[0]) != 2 || numeric_base_of(args[1]) != 2) {
-        RUNTIME_ERROR(interp, "BXOR requires binary int operands", line, col);
+        RUNTIME_ERROR(interp, "bxor requires binary int operands", line, col);
     }
     return value_int_base(args[0].as.i ^ args[1].as.i, 2);
 }
@@ -6356,17 +6356,17 @@ static Value builtin_float(Interpreter *interp, Value *args, int argc, Expr **ar
     RUNTIME_ERROR(interp, "float expects bool, int, float, or str argument", line, col);
 }
 
-// CONVERT(num, base): change numeric base of a value (int or float)
+// switch_base(num, base): change numeric base of a value (int or float)
 static Value builtin_convert(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line,
                              int col) {
     (void)argc;
     (void)arg_nodes;
     (void)env;
-    EXPECT_NUM(args[0], "CONVERT", interp, line, col);
-    EXPECT_INT(args[1], "CONVERT", interp, line, col);
+    EXPECT_NUM(args[0], "switch_base", interp, line, col);
+    EXPECT_INT(args[1], "switch_base", interp, line, col);
     int64_t base = args[1].as.i;
     if (base < 2 || base > 64) {
-        RUNTIME_ERROR(interp, "CONVERT base must be between 2 and 64", line, col);
+        RUNTIME_ERROR(interp, "switch_base base must be between 2 and 64", line, col);
     }
     if (args[0].type == VAL_INT) {
         return value_int_base(args[0].as.i, (int)base);
@@ -6433,22 +6433,22 @@ Value builtin_str_value(Interpreter *interp, Value v, int line, int col) {
     return builtin_str(interp, args, 1, NULL, NULL, line, col);
 }
 
-// BYTES(int: n, endian = "big"):tensor
+// bytes(int: n, endian = "big"):tensor
 static Value builtin_bytes(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
     (void)arg_nodes;
     (void)env;
     // Expect first arg int
-    EXPECT_INT(args[0], "BYTES", interp, line, col);
+    EXPECT_INT(args[0], "bytes", interp, line, col);
     int64_t n = args[0].as.i;
     if (n < 0) {
-        RUNTIME_ERROR(interp, "BYTES: negative integer not allowed", line, col);
+        RUNTIME_ERROR(interp, "bytes: negative integer not allowed", line, col);
     }
 
     // Default endian is "big"
     bool little = false;
     if (argc >= 2) {
         if (args[1].type != VAL_STR) {
-            RUNTIME_ERROR(interp, "BYTES: endian must be a string\n", line, col);
+            RUNTIME_ERROR(interp, "bytes: endian must be a string\n", line, col);
         }
         const char *e = args[1].as.s;
         if (strcmp(e, "little") == 0) {
@@ -6456,7 +6456,7 @@ static Value builtin_bytes(Interpreter *interp, Value *args, int argc, Expr **ar
         } else if (strcmp(e, "big") == 0) {
             little = false;
         } else {
-            RUNTIME_ERROR(interp, "BYTES: endian must be \"big\" or \"little\"", line, col);
+            RUNTIME_ERROR(interp, "bytes: endian must be \"big\" or \"little\"", line, col);
         }
     }
 
@@ -6509,14 +6509,14 @@ static Value builtin_bytes(Interpreter *interp, Value *args, int argc, Expr **ar
 static Value builtin_slen(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
     (void)arg_nodes;
     (void)env;
-    EXPECT_STR(args[0], "SLEN", interp, line, col);
+    EXPECT_STR(args[0], "slen", interp, line, col);
     return value_int((int64_t)utf8_codepoint_count(args[0].as.s));
 }
 
 static Value builtin_upper(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
     (void)arg_nodes;
     (void)env;
-    EXPECT_STR(args[0], "UPPER", interp, line, col);
+    EXPECT_STR(args[0], "uppercase", interp, line, col);
     char *s = strdup(args[0].as.s);
     for (char *p = s; *p; p++) {
         *p = (char)toupper((unsigned char)*p);
@@ -6529,7 +6529,7 @@ static Value builtin_upper(Interpreter *interp, Value *args, int argc, Expr **ar
 static Value builtin_lower(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
     (void)arg_nodes;
     (void)env;
-    EXPECT_STR(args[0], "LOWER", interp, line, col);
+    EXPECT_STR(args[0], "lowercase", interp, line, col);
     char *s = strdup(args[0].as.s);
     for (char *p = s; *p; p++) {
         *p = (char)tolower((unsigned char)*p);
@@ -6609,22 +6609,22 @@ static Value builtin_flip(Interpreter *interp, Value *args, int argc, Expr **arg
         return v;
     }
 
-    RUNTIME_ERROR(interp, "FLIP expects int or str", line, col);
+    RUNTIME_ERROR(interp, "flip expects int or str", line, col);
 }
 
 static Value builtin_join(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
     (void)arg_nodes;
     (void)env;
-    // JOIN(a1, a2, ..., aN): if first arg is str, treat it as separator
+    // join(a1, a2, ..., aN): if first arg is str, treat it as separator
     // and join subsequent str args; otherwise join INTs by binary spellings
     if (argc < 1) {
-        RUNTIME_ERROR(interp, "JOIN requires at least 1 argument", line, col);
+        RUNTIME_ERROR(interp, "join requires at least 1 argument", line, col);
     }
 
     // Disallow tensors
     for (int i = 0; i < argc; ++i) {
         if (args[i].type == VAL_TENSOR) {
-            RUNTIME_ERROR(interp, "JOIN cannot operate on tensors", line, col);
+            RUNTIME_ERROR(interp, "join cannot operate on tensors", line, col);
         }
     }
     int first_type = args[0].type;
@@ -6643,7 +6643,7 @@ static Value builtin_join(Interpreter *interp, Value *args, int argc, Expr **arg
             size_t total = 0;
             for (int i = 1; i < argc; ++i) {
                 if (args[i].type != VAL_STR) {
-                    RUNTIME_ERROR(interp, "JOIN cannot mix integers and strings", line, col);
+                    RUNTIME_ERROR(interp, "join cannot mix integers and strings", line, col);
                 }
                 total += strlen(args[i].as.s);
                 if (i > 1) {
@@ -6664,7 +6664,7 @@ static Value builtin_join(Interpreter *interp, Value *args, int argc, Expr **arg
             Value v = value_str(out);
             free(out);
             for (int i = 1; i < argc; ++i) {
-                if (!writeback_ptr_node(interp, arg_nodes ? arg_nodes[i] : NULL, env, v, "JOIN", line, col)) {
+                if (!writeback_ptr_node(interp, arg_nodes ? arg_nodes[i] : NULL, env, v, "join", line, col)) {
                     value_free(v);
                     return value_null();
                 }
@@ -6675,7 +6675,7 @@ static Value builtin_join(Interpreter *interp, Value *args, int argc, Expr **arg
         size_t total = 0;
         for (int i = 0; i < argc; ++i) {
             if (args[i].type != VAL_STR) {
-                RUNTIME_ERROR(interp, "JOIN cannot mix integers and strings", line, col);
+                RUNTIME_ERROR(interp, "join cannot mix integers and strings", line, col);
             }
             total += strlen(args[i].as.s);
         }
@@ -6694,7 +6694,7 @@ static Value builtin_join(Interpreter *interp, Value *args, int argc, Expr **arg
         Value v = value_str(out);
         free(out);
         for (int i = 0; i < argc; ++i) {
-            if (!writeback_ptr_node(interp, arg_nodes ? arg_nodes[i] : NULL, env, v, "JOIN", line, col)) {
+            if (!writeback_ptr_node(interp, arg_nodes ? arg_nodes[i] : NULL, env, v, "join", line, col)) {
                 value_free(v);
                 return value_null();
             }
@@ -6706,7 +6706,7 @@ static Value builtin_join(Interpreter *interp, Value *args, int argc, Expr **arg
     // Ensure all args are integers and check sign consistency
     for (int i = 0; i < argc; ++i) {
         if (args[i].type != VAL_INT) {
-            RUNTIME_ERROR(interp, "JOIN cannot mix integers and strings", line, col);
+            RUNTIME_ERROR(interp, "join cannot mix integers and strings", line, col);
         }
     }
     // Check sign consistency
@@ -6721,7 +6721,7 @@ static Value builtin_join(Interpreter *interp, Value *args, int argc, Expr **arg
         }
     }
     if (any_neg && any_pos) {
-        RUNTIME_ERROR(interp, "JOIN arguments must not mix positive and negative values", line, col);
+        RUNTIME_ERROR(interp, "join arguments must not mix positive and negative values", line, col);
     }
 
     // Build concatenated bits
@@ -6775,7 +6775,7 @@ static Value builtin_join(Interpreter *interp, Value *args, int argc, Expr **arg
     }
     Value v = value_int(result);
     for (int i = 0; i < argc; ++i) {
-        if (!writeback_ptr_node(interp, arg_nodes ? arg_nodes[i] : NULL, env, v, "JOIN", line, col)) {
+        if (!writeback_ptr_node(interp, arg_nodes ? arg_nodes[i] : NULL, env, v, "join", line, col)) {
             value_free(v);
             return value_null();
         }
@@ -6786,14 +6786,14 @@ static Value builtin_join(Interpreter *interp, Value *args, int argc, Expr **arg
 static Value builtin_split(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
     (void)arg_nodes;
     (void)env;
-    // SPLIT(str, sep?) -> 1-D tensor of str
-    EXPECT_STR(args[0], "SPLIT", interp, line, col);
+    // split(str, sep?) -> 1-D tensor of str
+    EXPECT_STR(args[0], "split", interp, line, col);
     const char *sep = NULL;
     if (argc >= 2) {
-        EXPECT_STR(args[1], "SPLIT", interp, line, col);
+        EXPECT_STR(args[1], "split", interp, line, col);
         sep = args[1].as.s;
         if (sep[0] == '\0') {
-            RUNTIME_ERROR(interp, "SPLIT expects a non-empty delimiter", line, col);
+            RUNTIME_ERROR(interp, "split expects a non-empty delimiter", line, col);
         }
     }
     const char *s = args[0].as.s;
@@ -6878,7 +6878,7 @@ static Value builtin_split(Interpreter *interp, Value *args, int argc, Expr **ar
     return out;
 }
 
-// IN (membership): IN(value, container)
+// in (membership): in(value, container)
 // Only supports container of type tensor. Returns 1 if any element in the
 // tensor is deeply equal to the provided value, otherwise 0. No special
 // handling for STRs (no substring semantics).
@@ -6886,12 +6886,12 @@ static Value builtin_in(Interpreter *interp, Value *args, int argc, Expr **arg_n
     (void)arg_nodes;
     (void)env;
     if (argc != 2) {
-        RUNTIME_ERROR(interp, "IN requires two arguments", line, col);
+        RUNTIME_ERROR(interp, "in requires two arguments", line, col);
     }
 
     // Container must be a tensor; otherwise this is a runtime error per spec
     if (args[1].type != VAL_TENSOR) {
-        RUNTIME_ERROR(interp, "IN expects tensor as second argument", line, col);
+        RUNTIME_ERROR(interp, "in expects tensor as second argument", line, col);
     }
 
     Tensor *t = args[1].as.tensor;
@@ -6907,16 +6907,16 @@ static Value builtin_in(Interpreter *interp, Value *args, int argc, Expr **arg_n
     return value_bool(false);
 }
 
-// IMPORT_PATH: import a module by explicit filesystem path (string)
+// import_path: import a module by explicit filesystem path (string)
 static Value builtin_import_path(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line,
                                  int col) {
     (void)arg_nodes;
     (void)env;
     if (argc < 1) {
-        RUNTIME_ERROR(interp, "IMPORT_PATH expects a path string", line, col);
+        RUNTIME_ERROR(interp, "import_path expects a path string", line, col);
     }
     if (args[0].type != VAL_STR) {
-        RUNTIME_ERROR(interp, "IMPORT_PATH first argument must be str", line, col);
+        RUNTIME_ERROR(interp, "import_path first argument must be str", line, col);
     }
     const char *inpath = args[0].as.s ? args[0].as.s : "";
 
@@ -6924,7 +6924,7 @@ static Value builtin_import_path(Interpreter *interp, Value *args, int argc, Exp
     char *alias_dup = NULL;
     if (argc >= 2) {
         if (args[1].type != VAL_STR) {
-            RUNTIME_ERROR(interp, "IMPORT_PATH second argument must be str (alias)", line, col);
+            RUNTIME_ERROR(interp, "import_path second argument must be str (alias)", line, col);
         }
         alias = args[1].as.s ? args[1].as.s : "";
     } else {
@@ -6960,7 +6960,7 @@ static Value builtin_import_path(Interpreter *interp, Value *args, int argc, Exp
                 if (alias_dup) {
                     free(alias_dup);
                 }
-                RUNTIME_ERROR(interp, "IMPORT_PATH: package missing init.pre", line, col);
+                RUNTIME_ERROR(interp, "import_path: package missing init.pre", line, col);
             }
         }
     } else {
@@ -6984,7 +6984,7 @@ static Value builtin_import_path(Interpreter *interp, Value *args, int argc, Exp
             if (alias_dup) {
                 free(alias_dup);
             }
-            RUNTIME_ERROR(interp, "IMPORT_PATH: module not found", line, col);
+            RUNTIME_ERROR(interp, "import_path: module not found", line, col);
         }
     }
 
@@ -6996,7 +6996,7 @@ static Value builtin_import_path(Interpreter *interp, Value *args, int argc, Exp
             if (alias_dup) {
                 free(alias_dup);
             }
-            RUNTIME_ERROR(interp, "IMPORT_PATH failed to register module", line, col);
+            RUNTIME_ERROR(interp, "import_path failed to register module", line, col);
         }
         mod_env = module_env_lookup(interp, cache_key);
         if (!mod_env) {
@@ -7005,7 +7005,7 @@ static Value builtin_import_path(Interpreter *interp, Value *args, int argc, Exp
             if (alias_dup) {
                 free(alias_dup);
             }
-            RUNTIME_ERROR(interp, "IMPORT_PATH failed to lookup module env", line, col);
+            RUNTIME_ERROR(interp, "import_path failed to lookup module env", line, col);
         }
     }
 
@@ -7017,7 +7017,7 @@ static Value builtin_import_path(Interpreter *interp, Value *args, int argc, Exp
         (void)module_register_alias(interp, found_path, mod_env);
     }
     // Register provided alias name in module registry so callers can
-    // refer to the module by that identifier (EXPORT relies on this).
+    // refer to the module by that identifier (export relies on this).
     if (alias && strcmp(alias, cache_key) != 0) {
         (void)module_register_alias(interp, alias, mod_env);
     }
@@ -7068,7 +7068,7 @@ static Value builtin_import_path(Interpreter *interp, Value *args, int argc, Exp
                     if (alias_dup) {
                         free(alias_dup);
                     }
-                    interp->error = strdup("IMPORT_PATH: parse error");
+                    interp->error = strdup("import_path: parse error");
                     interp->error_line = parser.current_token.line;
                     interp->error_col = parser.current_token.column;
                     return value_null();
@@ -7102,7 +7102,7 @@ static Value builtin_import_path(Interpreter *interp, Value *args, int argc, Exp
     free(found_path);
     free(canonical_path);
 
-    if (module_export_bindings(interp, env, mod_env, alias, line, col, "IMPORT_PATH failed to assign qualified name") !=
+    if (module_export_bindings(interp, env, mod_env, alias, line, col, "import_path failed to assign qualified name") !=
         0) {
         if (alias_dup) {
             free(alias_dup);
@@ -7117,7 +7117,7 @@ static Value builtin_import_path(Interpreter *interp, Value *args, int argc, Exp
             if (alias_dup) {
                 free(alias_dup);
             }
-            RUNTIME_ERROR(interp, "IMPORT_PATH failed to assign module name", line, col);
+            RUNTIME_ERROR(interp, "import_path failed to assign module name", line, col);
         }
     }
 
@@ -7129,17 +7129,17 @@ static Value builtin_import_path(Interpreter *interp, Value *args, int argc, Exp
 static Value builtin_slice(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
     (void)arg_nodes;
     (void)env;
-    // SLICE per spec: SLICE(int|str: a, int: start, int: end)
+    // slice per spec: slice(int|str: a, int: start, int: end)
     // int -> bit-slice [start:end] (1-based, negatives from end)
     // str -> inclusive char-slice counting from the left (index 1 = first char)
     if (args[0].type == VAL_INT) {
-        EXPECT_INT(args[1], "SLICE", interp, line, col);
-        EXPECT_INT(args[2], "SLICE", interp, line, col);
+        EXPECT_INT(args[1], "slice", interp, line, col);
+        EXPECT_INT(args[2], "slice", interp, line, col);
 
         int64_t v = args[0].as.i;
         uint64_t u = (v < 0) ? (uint64_t)(-v) : (uint64_t)v;
 
-        // compute bit length (ILEN semantics)
+        // compute bit length (ilen semantics)
         int64_t bitlen = 0;
         if (u == 0) {
             {
@@ -7195,8 +7195,8 @@ static Value builtin_slice(Interpreter *interp, Value *args, int argc, Expr **ar
     }
 
     if (args[0].type == VAL_STR) {
-        EXPECT_INT(args[1], "SLICE", interp, line, col);
-        EXPECT_INT(args[2], "SLICE", interp, line, col);
+        EXPECT_INT(args[1], "slice", interp, line, col);
+        EXPECT_INT(args[2], "slice", interp, line, col);
         const char *s = args[0].as.s;
         size_t len = strlen(s);
         /* Treat string slice arguments as start,end (first -> start, second -> end).
@@ -7242,16 +7242,16 @@ static Value builtin_slice(Interpreter *interp, Value *args, int argc, Expr **ar
         return v;
     }
 
-    RUNTIME_ERROR(interp, "SLICE expects int or str", line, col);
+    RUNTIME_ERROR(interp, "slice expects int or str", line, col);
 }
 
 static Value builtin_replace(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line,
                              int col) {
     (void)arg_nodes;
     (void)env;
-    EXPECT_STR(args[0], "REPLACE", interp, line, col);
-    EXPECT_STR(args[1], "REPLACE", interp, line, col);
-    EXPECT_STR(args[2], "REPLACE", interp, line, col);
+    EXPECT_STR(args[0], "replace", interp, line, col);
+    EXPECT_STR(args[1], "replace", interp, line, col);
+    EXPECT_STR(args[2], "replace", interp, line, col);
 
     const char *haystack = args[0].as.s;
     const char *needle = args[1].as.s;
@@ -7262,7 +7262,7 @@ static Value builtin_replace(Interpreter *interp, Value *args, int argc, Expr **
     size_t haystack_len = strlen(haystack);
 
     if (needle_len == 0) {
-        RUNTIME_ERROR(interp, "REPLACE expects non-empty old substring", line, col);
+        RUNTIME_ERROR(interp, "replace expects non-empty old substring", line, col);
     }
 
     // Count occurrences
@@ -7301,8 +7301,8 @@ static Value builtin_replace(Interpreter *interp, Value *args, int argc, Expr **
 static Value builtin_strip(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
     (void)arg_nodes;
     (void)env;
-    EXPECT_STR(args[0], "STRIP", interp, line, col);
-    EXPECT_STR(args[1], "STRIP", interp, line, col);
+    EXPECT_STR(args[0], "strip", interp, line, col);
+    EXPECT_STR(args[1], "strip", interp, line, col);
 
     const char *haystack = args[0].as.s;
     const char *needle = args[1].as.s;
@@ -7311,7 +7311,7 @@ static Value builtin_strip(Interpreter *interp, Value *args, int argc, Expr **ar
     size_t haystack_len = strlen(haystack);
 
     if (needle_len == 0) {
-        RUNTIME_ERROR(interp, "STRIP expects non-empty remove substring", line, col);
+        RUNTIME_ERROR(interp, "strip expects non-empty remove substring", line, col);
     }
 
     // Count non-overlapping occurrences of needle
@@ -7355,7 +7355,7 @@ static Value builtin_print(Interpreter *interp, Value *args, int argc, Expr **ar
     (void)col;
 
     if (argc == 0) {
-        RUNTIME_ERROR(interp, "PRINT expects at least one argument", line, col);
+        RUNTIME_ERROR(interp, "print expects at least one argument", line, col);
     }
 
     int forward = !(interp && interp->shushed);
@@ -7390,7 +7390,7 @@ static Value builtin_print(Interpreter *interp, Value *args, int argc, Expr **ar
             }
             break;
         default:
-            RUNTIME_ERROR(interp, "PRINT expects bool, int, float, or str argument", line, col);
+            RUNTIME_ERROR(interp, "print expects bool, int, float, or str argument", line, col);
             break;
         }
     }
@@ -7409,7 +7409,7 @@ static Value builtin_warn(Interpreter *interp, Value *args, int argc, Expr **arg
         return value_bool(false);
     }
     if (argc < 1) {
-        RUNTIME_ERROR(interp, "WARN expects at least one argument", line, col);
+        RUNTIME_ERROR(interp, "warn expects at least one argument", line, col);
     }
 
     int forward = (interp->verbose && !interp->shushed);
@@ -7444,7 +7444,7 @@ static Value builtin_warn(Interpreter *interp, Value *args, int argc, Expr **arg
             break;
         default: {
             char buf[128];
-            snprintf(buf, sizeof(buf), "WARN expects bool, int, float, or str argument, got %s",
+            snprintf(buf, sizeof(buf), "warn expects bool, int, float, or str argument, got %s",
                      value_type_name(args[i]));
             free(out);
             RUNTIME_ERROR(interp, buf, line, col);
@@ -7494,7 +7494,7 @@ static Value builtin_input(Interpreter *interp, Value *args, int argc, Expr **ar
     (void)col;
 
     if (argc >= 1) {
-        EXPECT_STR(args[0], "INPUT", interp, line, col);
+        EXPECT_STR(args[0], "input", interp, line, col);
         printf("%s", args[0].as.s);
         fflush(stdout);
     }
@@ -7518,7 +7518,7 @@ static Value builtin_input(Interpreter *interp, Value *args, int argc, Expr **ar
     return value_str("");
 }
 
-// SHUSH():bool - suppress forwarding of console output
+// shush():bool - suppress forwarding of console output
 static Value builtin_shush(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
     (void)args;
     (void)argc;
@@ -7533,7 +7533,7 @@ static Value builtin_shush(Interpreter *interp, Value *args, int argc, Expr **ar
     return value_bool(false);
 }
 
-// UNSHUSH():bool - re-enable forwarding of console output
+// unshush():bool - re-enable forwarding of console output
 static Value builtin_unshush(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line,
                              int col) {
     (void)args;
@@ -7549,14 +7549,14 @@ static Value builtin_unshush(Interpreter *interp, Value *args, int argc, Expr **
     return value_bool(false);
 }
 
-// CL: execute a command string using the host shell and return exit code
+// cl: execute a command string using the host shell and return exit code
 static Value builtin_cl(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
     (void)arg_nodes;
     (void)env;
     if (argc < 1) {
-        RUNTIME_ERROR(interp, "CL expects 1 argument", line, col);
+        RUNTIME_ERROR(interp, "cl expects 1 argument", line, col);
     }
-    EXPECT_STR(args[0], "CL", interp, line, col);
+    EXPECT_STR(args[0], "cl", interp, line, col);
     const char *cmd = args[0].as.s;
     int rc;
     if (interp && interp->shushed) {
@@ -7579,7 +7579,7 @@ static Value builtin_cl(Interpreter *interp, Value *args, int argc, Expr **arg_n
         rc = system(cmd);
     }
     if (rc == -1) {
-        RUNTIME_ERROR(interp, "Failed to invoke shell for CL", line, col);
+        RUNTIME_ERROR(interp, "Failed to invoke shell for cl", line, col);
     }
 #ifdef WIFEXITED
     if (WIFEXITED(rc)) {
@@ -7589,18 +7589,18 @@ static Value builtin_cl(Interpreter *interp, Value *args, int argc, Expr **arg_n
     return value_int(rc);
 }
 
-// READFILE(str: path, str: coding = "UTF-8"):str
+// read_file(str: path, str: coding = "UTF-8"):str
 static Value builtin_readfile(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line,
                               int col) {
     (void)arg_nodes;
     (void)env;
     if (argc < 1) {
-        RUNTIME_ERROR(interp, "READFILE expects at least 1 argument", line, col);
+        RUNTIME_ERROR(interp, "read_file expects at least 1 argument", line, col);
     }
-    EXPECT_STR(args[0], "READFILE", interp, line, col);
+    EXPECT_STR(args[0], "read_file", interp, line, col);
     const char *coding = "utf-8";
     if (argc >= 2) {
-        EXPECT_STR(args[1], "READFILE", interp, line, col);
+        EXPECT_STR(args[1], "read_file", interp, line, col);
         coding = args[1].as.s;
     }
 
@@ -7617,16 +7617,16 @@ static Value builtin_readfile(Interpreter *interp, Value *args, int argc, Expr *
 
     FILE *f = fopen(args[0].as.s, "rb");
     if (!f) {
-        RUNTIME_ERROR(interp, "READFILE: cannot open file", line, col);
+        RUNTIME_ERROR(interp, "read_file: cannot open file", line, col);
     }
     if (fseek(f, 0, SEEK_END) != 0) {
         fclose(f);
-        RUNTIME_ERROR(interp, "READFILE: seek failed", line, col);
+        RUNTIME_ERROR(interp, "read_file: seek failed", line, col);
     }
     long sz = ftell(f);
     if (sz < 0) {
         fclose(f);
-        RUNTIME_ERROR(interp, "READFILE: ftell failed", line, col);
+        RUNTIME_ERROR(interp, "read_file: ftell failed", line, col);
     }
     rewind(f);
     unsigned char *buf = malloc((size_t)sz + 1);
@@ -7752,22 +7752,22 @@ static Value builtin_readfile(Interpreter *interp, Value *args, int argc, Expr *
 
     // Unknown/unsupported coding: error
     free(buf);
-    RUNTIME_ERROR(interp, "READFILE: unsupported coding", line, col);
+    RUNTIME_ERROR(interp, "read_file: unsupported coding", line, col);
 }
 
-// WRITEFILE(str: blob, str: path, str: coding = "UTF-8"):int
+// write_file(str: blob, str: path, str: coding = "UTF-8"):int
 static Value builtin_writefile(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line,
                                int col) {
     (void)arg_nodes;
     (void)env;
     if (argc < 2) {
-        RUNTIME_ERROR(interp, "WRITEFILE expects at least 2 arguments", line, col);
+        RUNTIME_ERROR(interp, "write_file expects at least 2 arguments", line, col);
     }
-    EXPECT_STR(args[0], "WRITEFILE", interp, line, col);
-    EXPECT_STR(args[1], "WRITEFILE", interp, line, col);
+    EXPECT_STR(args[0], "write_file", interp, line, col);
+    EXPECT_STR(args[1], "write_file", interp, line, col);
     const char *coding = "utf-8";
     if (argc >= 3) {
-        EXPECT_STR(args[2], "WRITEFILE", interp, line, col);
+        EXPECT_STR(args[2], "write_file", interp, line, col);
         coding = args[2].as.s;
     }
     // normalize
@@ -7787,11 +7787,11 @@ static Value builtin_writefile(Interpreter *interp, Value *args, int argc, Expr 
     if (strcmp(codelb, "binary") == 0 || strcmp(codelb, "bin") == 0) {
         size_t blen = strlen(blob);
         if (blen % 8 != 0) {
-            RUNTIME_ERROR(interp, "WRITEFILE(binary) expects bitstring length multiple of 8", line, col);
+            RUNTIME_ERROR(interp, "write_file(binary) expects bitstring length multiple of 8", line, col);
         }
         FILE *f = fopen(args[1].as.s, "wb");
         if (!f) {
-            fprintf(stderr, "WRITEFILE: cannot open '%s' for writing: %s\n", args[1].as.s, strerror(errno));
+            fprintf(stderr, "write_file: cannot open '%s' for writing: %s\n", args[1].as.s, strerror(errno));
             return value_bool(false);
         }
         for (size_t i = 0; i < blen; i += 8) {
@@ -7800,7 +7800,7 @@ static Value builtin_writefile(Interpreter *interp, Value *args, int argc, Expr 
                 char c = blob[i + b];
                 if (c != '0' && c != '1') {
                     fclose(f);
-                    RUNTIME_ERROR(interp, "WRITEFILE(binary) expects only 0/1 characters", line, col);
+                    RUNTIME_ERROR(interp, "write_file(binary) expects only 0/1 characters", line, col);
                 }
                 byte = (byte << 1) | (unsigned char)(c - '0');
             }
@@ -7817,11 +7817,11 @@ static Value builtin_writefile(Interpreter *interp, Value *args, int argc, Expr 
     if (strcmp(codelb, "hex") == 0 || strcmp(codelb, "hexadecimal") == 0) {
         size_t blen = strlen(blob);
         if (blen % 2 != 0) {
-            RUNTIME_ERROR(interp, "WRITEFILE(hex) expects even-length hex string", line, col);
+            RUNTIME_ERROR(interp, "write_file(hex) expects even-length hex string", line, col);
         }
         FILE *f = fopen(args[1].as.s, "wb");
         if (!f) {
-            fprintf(stderr, "WRITEFILE: cannot open '%s' for writing: %s\n", args[1].as.s, strerror(errno));
+            fprintf(stderr, "write_file: cannot open '%s' for writing: %s\n", args[1].as.s, strerror(errno));
             return value_bool(false);
         }
         for (size_t i = 0; i < blen; i += 2) {
@@ -7837,7 +7837,7 @@ static Value builtin_writefile(Interpreter *interp, Value *args, int argc, Expr 
                                               : -1;
             if (start < 0 || lo < 0) {
                 fclose(f);
-                RUNTIME_ERROR(interp, "WRITEFILE(hex) expects valid hex digits", line, col);
+                RUNTIME_ERROR(interp, "write_file(hex) expects valid hex digits", line, col);
             }
             unsigned char byte = (unsigned char)((start << 4) | lo);
             if (fwrite(&byte, 1, 1, f) != 1) {
@@ -7861,11 +7861,11 @@ static Value builtin_writefile(Interpreter *interp, Value *args, int argc, Expr 
         size_t outlen = 0;
         unsigned char *outbuf = enc_utf8_to_utf16(blob, &outlen, little);
         if (!outbuf) {
-            RUNTIME_ERROR(interp, "WRITEFILE: encoding failed", line, col);
+            RUNTIME_ERROR(interp, "write_file: encoding failed", line, col);
         }
         FILE *f = fopen(args[1].as.s, "wb");
         if (!f) {
-            fprintf(stderr, "WRITEFILE: cannot open '%s' for writing: %s\n", args[1].as.s, strerror(errno));
+            fprintf(stderr, "write_file: cannot open '%s' for writing: %s\n", args[1].as.s, strerror(errno));
             free(outbuf);
             return value_bool(false);
         }
@@ -7891,11 +7891,11 @@ static Value builtin_writefile(Interpreter *interp, Value *args, int argc, Expr 
 #endif
         );
         if (!outbuf) {
-            RUNTIME_ERROR(interp, "WRITEFILE: data contains characters not representable in ANSI", line, col);
+            RUNTIME_ERROR(interp, "write_file: data contains characters not representable in ANSI", line, col);
         }
         FILE *f = fopen(args[1].as.s, "wb");
         if (!f) {
-            fprintf(stderr, "WRITEFILE: cannot open '%s' for writing: %s\n", args[1].as.s, strerror(errno));
+            fprintf(stderr, "write_file: cannot open '%s' for writing: %s\n", args[1].as.s, strerror(errno));
             free(outbuf);
             return value_bool(false);
         }
@@ -7915,7 +7915,7 @@ static Value builtin_writefile(Interpreter *interp, Value *args, int argc, Expr 
     if (strcmp(codelb, "utf-8-bom") == 0 || strcmp(codelb, "utf-8 bom") == 0) {
         FILE *f = fopen(args[1].as.s, "wb");
         if (!f) {
-            fprintf(stderr, "WRITEFILE: cannot open '%s' for writing: %s\n", args[1].as.s, strerror(errno));
+            fprintf(stderr, "write_file: cannot open '%s' for writing: %s\n", args[1].as.s, strerror(errno));
             return value_bool(false);
         }
         unsigned char bom[3] = {0xEF, 0xBB, 0xBF};
@@ -7937,7 +7937,7 @@ static Value builtin_writefile(Interpreter *interp, Value *args, int argc, Expr 
     if (strcmp(codelb, "utf-8") == 0 || strcmp(codelb, "utf8") == 0) {
         FILE *f = fopen(args[1].as.s, "wb");
         if (!f) {
-            fprintf(stderr, "WRITEFILE: cannot open '%s' for writing: %s\n", args[1].as.s, strerror(errno));
+            fprintf(stderr, "write_file: cannot open '%s' for writing: %s\n", args[1].as.s, strerror(errno));
             return value_bool(false);
         }
         size_t towrite = strlen(blob);
@@ -7951,18 +7951,18 @@ static Value builtin_writefile(Interpreter *interp, Value *args, int argc, Expr 
         return value_bool(true);
     }
 
-    RUNTIME_ERROR(interp, "WRITEFILE: unsupported coding", line, col);
+    RUNTIME_ERROR(interp, "write_file: unsupported coding", line, col);
 }
 
-// EXISTFILE(str: path):int
+// exist_file(str: path):int
 static Value builtin_existfile(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line,
                                int col) {
     (void)arg_nodes;
     (void)env;
     if (argc < 1) {
-        RUNTIME_ERROR(interp, "EXISTFILE expects 1 argument", line, col);
+        RUNTIME_ERROR(interp, "exist_file expects 1 argument", line, col);
     }
-    EXPECT_STR(args[0], "EXISTFILE", interp, line, col);
+    EXPECT_STR(args[0], "exist_file", interp, line, col);
     FILE *f = fopen(args[0].as.s, "rb");
     if (f) {
         fclose(f);
@@ -7971,17 +7971,17 @@ static Value builtin_existfile(Interpreter *interp, Value *args, int argc, Expr 
     return value_bool(false);
 }
 
-// DELETEFILE(str: path):int
+// delete_file(str: path):int
 static Value builtin_deletefile(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line,
                                 int col) {
     (void)arg_nodes;
     (void)env;
     if (argc < 1) {
-        RUNTIME_ERROR(interp, "DELETEFILE expects 1 argument", line, col);
+        RUNTIME_ERROR(interp, "delete_file expects 1 argument", line, col);
     }
-    EXPECT_STR(args[0], "DELETEFILE", interp, line, col);
+    EXPECT_STR(args[0], "delete_file", interp, line, col);
     if (remove(args[0].as.s) != 0) {
-        RUNTIME_ERROR(interp, "DELETEFILE failed", line, col);
+        RUNTIME_ERROR(interp, "delete_file failed", line, col);
     }
     return value_bool(true);
 }
@@ -7998,7 +7998,7 @@ static Value builtin_assert(Interpreter *interp, Value *args, int argc, Expr **a
     return value_bool(true);
 }
 
-// REFUTE(~bool: cond):bool
+// refute(~bool: cond):bool
 static Value builtin_refute(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
     (void)arg_nodes;
     (void)env;
@@ -8017,7 +8017,7 @@ static Value builtin_throw(Interpreter *interp, Value *args, int argc, Expr **ar
         RUNTIME_ERROR(interp, "Exception thrown", line, col);
     }
 
-    /* Build error message by concatenating rendered args (same rules as PRINT),
+    /* Build error message by concatenating rendered args (same rules as print),
      * but do not append a trailing newline. Ownership of the resulting buffer
      * is transferred to interp->error (it will be freed by interpreter cleanup).
      */
@@ -8225,13 +8225,13 @@ static char *map_schema_to_str(Value v) {
     return jb.data;
 }
 
-// SIGNATURE(SYMBOL: sym):str
+// signature(SYMBOL: sym):str
 static Value builtin_signature(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line,
                                int col) {
     (void)args;
     (void)argc;
     if (argc != 1 || arg_nodes[0]->type != EXPR_IDENT) {
-        RUNTIME_ERROR(interp, "SIGNATURE expects an identifier", line, col);
+        RUNTIME_ERROR(interp, "signature expects an identifier", line, col);
     }
     const char *name = arg_nodes[0]->as.ident;
     EnvEntry *entry = env_get_entry(env, name);
@@ -8249,7 +8249,7 @@ static Value builtin_signature(Interpreter *interp, Value *args, int argc, Expr 
             char rtype_buf[64];
             const char *rname = decl_type_name_base(f->return_type, f->return_base, rtype_buf, sizeof(rtype_buf));
             if (strcmp(rname, "UNKNOWN") == 0) {
-                rname = "ANY";
+                rname = "any";
             }
             strcat(buf, rname);
             if (f->return_schema_value.type == VAL_MAP) {
@@ -8267,7 +8267,7 @@ static Value builtin_signature(Interpreter *interp, Value *args, int argc, Expr 
                 char ptype_buf[64];
                 const char *tname = decl_type_name_base(p.type, p.num_base, ptype_buf, sizeof(ptype_buf));
                 if (strcmp(tname, "UNKNOWN") == 0) {
-                    tname = "ANY";
+                    tname = "any";
                 }
                 if (i > 0) {
                     strcat(buf, ", ");
@@ -8334,14 +8334,14 @@ static Value builtin_signature(Interpreter *interp, Value *args, int argc, Expr 
         }
     }
 
-    // Non-function: return "TYPE name" using declared type if available
+    // Non-function: return "type name" using declared type if available
     if (!entry) {
-        RUNTIME_ERROR(interp, "SIGNATURE: identifier not found or uninitialized", line, col);
+        RUNTIME_ERROR(interp, "signature: identifier not found or uninitialized", line, col);
     }
     char var_type_buf[128];
     const char *tname = decl_type_name_base(entry->decl_type, entry->decl_base, var_type_buf, sizeof(var_type_buf));
     if (strcmp(tname, "UNKNOWN") == 0) {
-        tname = "ANY";
+        tname = "any";
     }
     // Build schema string for map if schema is present
     char *schema_str = NULL;
@@ -8383,12 +8383,12 @@ static Expr *parse_del_target_expr(Interpreter *interp, const char *src, Stmt **
         *out_program = NULL;
     }
 
-    lexer_init(&lex, src ? src : "", "<DEL>");
+    lexer_init(&lex, src ? src : "", "<del>");
     parser_init(&parser, &lex);
     program = parser_parse(&parser);
 
     if (parser.had_error || !program) {
-        char *msg = strdup(parser.error_msg ? parser.error_msg : "DEL: invalid target string");
+        char *msg = strdup(parser.error_msg ? parser.error_msg : "del: invalid target string");
         int err_line = parser.error_line ? parser.error_line : line;
         int err_col = parser.error_col ? parser.error_col : col;
         if (program) {
@@ -8405,7 +8405,7 @@ static Expr *parse_del_target_expr(Interpreter *interp, const char *src, Stmt **
 
     if (program->type != STMT_BLOCK || program->as.block.count != 1) {
         free_stmt(program);
-        interp->error = strdup("DEL target must be a single identifier or indexed identifier");
+        interp->error = strdup("del target must be a single identifier or indexed identifier");
         interp->error_line = line;
         interp->error_col = col;
         return NULL;
@@ -8414,7 +8414,7 @@ static Expr *parse_del_target_expr(Interpreter *interp, const char *src, Stmt **
     stmt = program->as.block.items[0];
     if (!stmt || stmt->type != STMT_EXPR || !stmt->as.expr_stmt.expr) {
         free_stmt(program);
-        interp->error = strdup("DEL target must be a single identifier or indexed identifier");
+        interp->error = strdup("del target must be a single identifier or indexed identifier");
         interp->error_line = stmt ? stmt->line : line;
         interp->error_col = stmt ? stmt->column : col;
         return NULL;
@@ -8432,9 +8432,9 @@ static Value builtin_del(Interpreter *interp, Value *args, int argc, Expr **arg_
     (void)arg_nodes;
     Stmt *target_program = NULL;
     if (argc != 1) {
-        RUNTIME_ERROR(interp, "DEL expects str argument", line, col);
+        RUNTIME_ERROR(interp, "del expects str argument", line, col);
     }
-    EXPECT_STR(args[0], "DEL", interp, line, col);
+    EXPECT_STR(args[0], "del", interp, line, col);
 
     Expr *target = parse_del_target_expr(interp, args[0].as.s, &target_program, line, col);
     if (!target) {
@@ -8467,7 +8467,7 @@ static Value builtin_del(Interpreter *interp, Value *args, int argc, Expr **arg_
         return value_bool(false);
     }
 
-    /* Case 2: indexed expression – support deleting map entries like DEL("m<k>") or DEL("m<k1,k2>") */
+    /* Case 2: indexed expression – support deleting map entries like del("m<k>") or del("m<k1,k2>") */
     if (target->type == EXPR_INDEX) {
         /* collect chain of index nodes (possibly nested) */
         size_t chain_len = 0;
@@ -8478,7 +8478,7 @@ static Value builtin_del(Interpreter *interp, Value *args, int argc, Expr **arg_
         }
         if (!walker || walker->type != EXPR_IDENT) {
             free_stmt(target_program);
-            RUNTIME_ERROR(interp, "DEL target must be an identifier or indexed identifier", line, col);
+            RUNTIME_ERROR(interp, "del target must be an identifier or indexed identifier", line, col);
         }
 
         const char *base_name = walker->as.ident;
@@ -8530,7 +8530,7 @@ static Value builtin_del(Interpreter *interp, Value *args, int argc, Expr **arg_
                 Value key = eval_expr(interp, it, env);
                 if (interp->error) {
                     /* propagate evaluation error */
-                    char *em = strdup(interp->error ? interp->error : "DEL target evaluation failed");
+                    char *em = strdup(interp->error ? interp->error : "del target evaluation failed");
                     int el = interp->error_line;
                     int ec = interp->error_col;
                     clear_error(interp);
@@ -8599,20 +8599,20 @@ static Value builtin_del(Interpreter *interp, Value *args, int argc, Expr **arg_
     }
 
     free_stmt(target_program);
-    RUNTIME_ERROR(interp, "DEL target must be an identifier or indexed identifier", line, col);
+    RUNTIME_ERROR(interp, "del target must be an identifier or indexed identifier", line, col);
 }
 
 static Value builtin_freeze(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
     (void)arg_nodes;
     if (argc != 1) {
-        RUNTIME_ERROR(interp, "FREEZE expects 1 argument", line, col);
+        RUNTIME_ERROR(interp, "lock expects 1 argument", line, col);
     }
-    EXPECT_STR(args[0], "FREEZE", interp, line, col);
+    EXPECT_STR(args[0], "lock", interp, line, col);
     const char *name = args[0].as.s ? args[0].as.s : "";
     int r = env_freeze(env, name);
     if (r != 0) {
         char buf[128];
-        snprintf(buf, sizeof(buf), "FREEZE: identifier '%s' not found", name);
+        snprintf(buf, sizeof(buf), "lock: identifier '%s' not found", name);
         RUNTIME_ERROR(interp, buf, line, col);
     }
     return value_bool(false);
@@ -8621,19 +8621,19 @@ static Value builtin_freeze(Interpreter *interp, Value *args, int argc, Expr **a
 static Value builtin_thaw(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
     (void)arg_nodes;
     if (argc != 1) {
-        RUNTIME_ERROR(interp, "THAW expects 1 argument", line, col);
+        RUNTIME_ERROR(interp, "unlock expects 1 argument", line, col);
     }
-    EXPECT_STR(args[0], "THAW", interp, line, col);
+    EXPECT_STR(args[0], "unlock", interp, line, col);
     const char *name = args[0].as.s ? args[0].as.s : "";
     int r = env_thaw(env, name);
     if (r == -1) {
         char buf[128];
-        snprintf(buf, sizeof(buf), "THAW: identifier '%s' not found", name);
+        snprintf(buf, sizeof(buf), "unlock: identifier '%s' not found", name);
         RUNTIME_ERROR(interp, buf, line, col);
     }
     if (r == -2) {
         char buf[128];
-        snprintf(buf, sizeof(buf), "THAW: identifier '%s' is permanently frozen", name);
+        snprintf(buf, sizeof(buf), "unlock: identifier '%s' is permanently frozen", name);
         RUNTIME_ERROR(interp, buf, line, col);
     }
     return value_bool(false);
@@ -8643,14 +8643,14 @@ static Value builtin_permafreeze(Interpreter *interp, Value *args, int argc, Exp
                                  int col) {
     (void)arg_nodes;
     if (argc != 1) {
-        RUNTIME_ERROR(interp, "PERMAFREEZE expects 1 argument", line, col);
+        RUNTIME_ERROR(interp, "freeze expects 1 argument", line, col);
     }
-    EXPECT_STR(args[0], "PERMAFREEZE", interp, line, col);
+    EXPECT_STR(args[0], "freeze", interp, line, col);
     const char *name = args[0].as.s ? args[0].as.s : "";
     int r = env_permafreeze(env, name);
     if (r != 0) {
         char buf[128];
-        snprintf(buf, sizeof(buf), "PERMAFREEZE: identifier '%s' not found", name);
+        snprintf(buf, sizeof(buf), "freeze: identifier '%s' not found", name);
         RUNTIME_ERROR(interp, buf, line, col);
     }
     return value_bool(false);
@@ -8659,10 +8659,10 @@ static Value builtin_permafreeze(Interpreter *interp, Value *args, int argc, Exp
 static Value builtin_export(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
     (void)arg_nodes;
     if (argc != 2) {
-        RUNTIME_ERROR(interp, "EXPORT expects two str arguments (symbol, module)", line, col);
+        RUNTIME_ERROR(interp, "export expects two str arguments (symbol, module)", line, col);
     }
     if (args[0].type != VAL_STR || args[1].type != VAL_STR) {
-        RUNTIME_ERROR(interp, "EXPORT expects str symbol and str module", line, col);
+        RUNTIME_ERROR(interp, "export expects str symbol and str module", line, col);
     }
     const char *sym = args[0].as.s ? args[0].as.s : "";
     const char *module = args[1].as.s ? args[1].as.s : "";
@@ -8671,7 +8671,7 @@ static Value builtin_export(Interpreter *interp, Value *args, int argc, Expr **a
     EnvEntry *entry = env_get_entry(env, sym);
     if (!entry || !entry->initialized) {
         char buf[128];
-        snprintf(buf, sizeof(buf), "EXPORT: identifier '%s' not found", sym);
+        snprintf(buf, sizeof(buf), "export: identifier '%s' not found", sym);
         RUNTIME_ERROR(interp, buf, line, col);
     }
 
@@ -8679,29 +8679,29 @@ static Value builtin_export(Interpreter *interp, Value *args, int argc, Expr **a
     Env *mod_env = module_env_lookup(interp, module);
     if (!mod_env) {
         char buf[128];
-        snprintf(buf, sizeof(buf), "EXPORT: module '%s' not imported", module);
+        snprintf(buf, sizeof(buf), "export: module '%s' not imported", module);
         RUNTIME_ERROR(interp, buf, line, col);
     }
 
     // Assign into module's env under the plain symbol name
     if (!env_assign(mod_env, sym, entry->value, entry->decl_type, entry->decl_base, true)) {
-        RUNTIME_ERROR(interp, "EXPORT failed to assign into module", line, col);
+        RUNTIME_ERROR(interp, "export failed to assign into module", line, col);
     }
 
     /* Materialize qualified bindings for every registered alias that
-       references the same module environment. This ensures EXPORT updates
+       references the same module environment. This ensures export updates
        sibling aliases that point at the same module (per spec). */
     size_t alias_count = 0;
     char **aliases = module_list_aliases(interp, mod_env, &alias_count);
     if (aliases) {
         for (size_t ai = 0; ai < alias_count; ai++) {
             if (module_export_bindings(interp, env, mod_env, aliases[ai], line, col,
-                                       "EXPORT failed to assign qualified name") != 0) {
+                                       "export failed to assign qualified name") != 0) {
                 for (size_t j = 0; j < alias_count; j++) {
                     free(aliases[j]);
                 }
                 free(aliases);
-                RUNTIME_ERROR(interp, "EXPORT failed to assign qualified name", line, col);
+                RUNTIME_ERROR(interp, "export failed to assign qualified name", line, col);
             }
             free(aliases[ai]);
         }
@@ -8716,7 +8716,7 @@ static Value builtin_export(Interpreter *interp, Value *args, int argc, Expr **a
         snprintf(qualified, len, "%s.%s", module, sym);
         if (!env_assign(env, qualified, entry->value, entry->decl_type, entry->decl_base, true)) {
             free(qualified);
-            RUNTIME_ERROR(interp, "EXPORT failed to assign qualified name", line, col);
+            RUNTIME_ERROR(interp, "export failed to assign qualified name", line, col);
         }
         free(qualified);
     }
@@ -8727,9 +8727,9 @@ static Value builtin_export(Interpreter *interp, Value *args, int argc, Expr **a
 static Value builtin_frozen(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
     (void)arg_nodes;
     if (argc != 1) {
-        RUNTIME_ERROR(interp, "FROZEN expects 1 argument", line, col);
+        RUNTIME_ERROR(interp, "locked expects 1 argument", line, col);
     }
-    EXPECT_STR(args[0], "FROZEN", interp, line, col);
+    EXPECT_STR(args[0], "locked", interp, line, col);
     const char *name = args[0].as.s ? args[0].as.s : "";
     int st = env_frozen_state(env, name);
     return value_bool(st != 0);
@@ -8739,9 +8739,9 @@ static Value builtin_permafrozen(Interpreter *interp, Value *args, int argc, Exp
                                  int col) {
     (void)arg_nodes;
     if (argc != 1) {
-        RUNTIME_ERROR(interp, "PERMAFROZEN expects 1 argument", line, col);
+        RUNTIME_ERROR(interp, "frozen expects 1 argument", line, col);
     }
-    EXPECT_STR(args[0], "PERMAFROZEN", interp, line, col);
+    EXPECT_STR(args[0], "frozen", interp, line, col);
     const char *name = args[0].as.s ? args[0].as.s : "";
     int p = env_permafrozen(env, name);
     return value_bool(p != 0);
@@ -8751,9 +8751,9 @@ static Value builtin_exist(Interpreter *interp, Value *args, int argc, Expr **ar
     (void)arg_nodes;
 
     if (argc != 1) {
-        RUNTIME_ERROR(interp, "EXIST expects 1 argument", line, col);
+        RUNTIME_ERROR(interp, "exist expects 1 argument", line, col);
     }
-    EXPECT_STR(args[0], "EXIST", interp, line, col);
+    EXPECT_STR(args[0], "exist", interp, line, col);
 
     const char *name = args[0].as.s ? args[0].as.s : "";
     return value_bool(env_exists(env, name));
@@ -8766,14 +8766,14 @@ static Value builtin_sum(Interpreter *interp, Value *args, int argc, Expr **arg_
     (void)env;
 
     if (argc == 0) {
-        RUNTIME_ERROR(interp, "SUM requires at least one argument", line, col);
+        RUNTIME_ERROR(interp, "sum requires at least one argument", line, col);
     }
 
     if (args[0].type == VAL_INT) {
         int64_t sum = 0;
         int out_base = numeric_base_of(args[0]);
         for (int i = 0; i < argc; i++) {
-            EXPECT_INT(args[i], "SUM", interp, line, col);
+            EXPECT_INT(args[i], "sum", interp, line, col);
             sum += args[i].as.i;
             int bi = numeric_base_of(args[i]);
             if (bi > out_base) {
@@ -8786,7 +8786,7 @@ static Value builtin_sum(Interpreter *interp, Value *args, int argc, Expr **arg_
         double sum = 0.0;
         int out_base = numeric_base_of(args[0]);
         for (int i = 0; i < argc; i++) {
-            EXPECT_FLOAT(args[i], "SUM", interp, line, col);
+            EXPECT_FLOAT(args[i], "sum", interp, line, col);
             sum += args[i].as.f;
             int bi = numeric_base_of(args[i]);
             if (bi > out_base) {
@@ -8795,7 +8795,7 @@ static Value builtin_sum(Interpreter *interp, Value *args, int argc, Expr **arg_
         }
         return value_float_base(sum, out_base);
     }
-    RUNTIME_ERROR(interp, "SUM expects int or float arguments", line, col);
+    RUNTIME_ERROR(interp, "sum expects int or float arguments", line, col);
 }
 
 static Value builtin_prod(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
@@ -8803,14 +8803,14 @@ static Value builtin_prod(Interpreter *interp, Value *args, int argc, Expr **arg
     (void)env;
 
     if (argc == 0) {
-        RUNTIME_ERROR(interp, "PROD requires at least one argument", line, col);
+        RUNTIME_ERROR(interp, "product requires at least one argument", line, col);
     }
 
     if (args[0].type == VAL_INT) {
         int64_t prod = 1;
         int out_base = numeric_base_of(args[0]);
         for (int i = 0; i < argc; i++) {
-            EXPECT_INT(args[i], "PROD", interp, line, col);
+            EXPECT_INT(args[i], "product", interp, line, col);
             prod *= args[i].as.i;
             int bi = numeric_base_of(args[i]);
             if (bi > out_base) {
@@ -8823,7 +8823,7 @@ static Value builtin_prod(Interpreter *interp, Value *args, int argc, Expr **arg
         double prod = 1.0;
         int out_base = numeric_base_of(args[0]);
         for (int i = 0; i < argc; i++) {
-            EXPECT_FLOAT(args[i], "PROD", interp, line, col);
+            EXPECT_FLOAT(args[i], "product", interp, line, col);
             prod *= args[i].as.f;
             int bi = numeric_base_of(args[i]);
             if (bi > out_base) {
@@ -8832,7 +8832,7 @@ static Value builtin_prod(Interpreter *interp, Value *args, int argc, Expr **arg
         }
         return value_float_base(prod, out_base);
     }
-    RUNTIME_ERROR(interp, "PROD expects int or float arguments", line, col);
+    RUNTIME_ERROR(interp, "product expects int or float arguments", line, col);
 }
 
 static Value builtin_max(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
@@ -8840,14 +8840,14 @@ static Value builtin_max(Interpreter *interp, Value *args, int argc, Expr **arg_
     (void)env;
 
     if (argc == 0) {
-        RUNTIME_ERROR(interp, "MAX requires at least one argument", line, col);
+        RUNTIME_ERROR(interp, "max requires at least one argument", line, col);
     }
 
     if (args[0].type == VAL_INT) {
         int64_t max = args[0].as.i;
         int out_base = numeric_base_of(args[0]);
         for (int i = 1; i < argc; i++) {
-            EXPECT_INT(args[i], "MAX", interp, line, col);
+            EXPECT_INT(args[i], "max", interp, line, col);
             if (args[i].as.i > max) {
                 max = args[i].as.i;
             }
@@ -8862,7 +8862,7 @@ static Value builtin_max(Interpreter *interp, Value *args, int argc, Expr **arg_
         double max = args[0].as.f;
         int out_base = numeric_base_of(args[0]);
         for (int i = 1; i < argc; i++) {
-            EXPECT_FLOAT(args[i], "MAX", interp, line, col);
+            EXPECT_FLOAT(args[i], "max", interp, line, col);
             if (args[i].as.f > max) {
                 max = args[i].as.f;
             }
@@ -8877,7 +8877,7 @@ static Value builtin_max(Interpreter *interp, Value *args, int argc, Expr **arg_
         const char *max = args[0].as.s;
         size_t max_len = strlen(max);
         for (int i = 1; i < argc; i++) {
-            EXPECT_STR(args[i], "MAX", interp, line, col);
+            EXPECT_STR(args[i], "max", interp, line, col);
             size_t len = strlen(args[i].as.s);
             if (len > max_len) {
                 max = args[i].as.s;
@@ -8887,20 +8887,20 @@ static Value builtin_max(Interpreter *interp, Value *args, int argc, Expr **arg_
         return value_str(max);
     }
     if (args[0].type == VAL_TENSOR) {
-        // MAX(tensor: t1, ..., tN) -> flatten tensors and return largest scalar element
+        // max(tensor: t1, ..., tN) -> flatten tensors and return largest scalar element
         // All tensors must have same scalar element type (int/float/str)
         Tensor *t0 = args[0].as.tensor;
         DeclType etype = t0->elem_type;
         if (!(etype == TYPE_INT || etype == TYPE_FLOAT || etype == TYPE_STR)) {
-            RUNTIME_ERROR(interp, "MAX tensor form requires scalar element types", line, col);
+            RUNTIME_ERROR(interp, "max tensor form requires scalar element types", line, col);
         }
         // verify all args are tensors with same element type
         for (int j = 0; j < argc; j++) {
             if (args[j].type != VAL_TENSOR) {
-                RUNTIME_ERROR(interp, "MAX expects tensor arguments in this form", line, col);
+                RUNTIME_ERROR(interp, "max expects tensor arguments in this form", line, col);
             }
             if (args[j].as.tensor->elem_type != etype) {
-                RUNTIME_ERROR(interp, "MAX tensor arguments must share the same element type", line, col);
+                RUNTIME_ERROR(interp, "max tensor arguments must share the same element type", line, col);
             }
         }
         // find first element to seed
@@ -8929,7 +8929,7 @@ static Value builtin_max(Interpreter *interp, Value *args, int argc, Expr **arg_
             }
         }
         if (!seeded) {
-            RUNTIME_ERROR(interp, "MAX requires non-empty tensors", line, col);
+            RUNTIME_ERROR(interp, "max requires non-empty tensors", line, col);
         }
         // compare remaining elements
         for (int j = 0; j < argc; j++) {
@@ -8937,19 +8937,19 @@ static Value builtin_max(Interpreter *interp, Value *args, int argc, Expr **arg_
             for (size_t i = 0; i < tj->length; i++) {
                 Value v = tj->data[i];
                 if (etype == TYPE_INT) {
-                    EXPECT_INT(v, "MAX", interp, line, col);
+                    EXPECT_INT(v, "max", interp, line, col);
                     if (v.as.i > best.as.i) {
                         value_free(best);
                         best = value_int_base(v.as.i, numeric_base_of(v));
                     }
                 } else if (etype == TYPE_FLOAT) {
-                    EXPECT_FLOAT(v, "MAX", interp, line, col);
+                    EXPECT_FLOAT(v, "max", interp, line, col);
                     if (v.as.f > best.as.f) {
                         value_free(best);
                         best = value_float_base(v.as.f, numeric_base_of(v));
                     }
                 } else { // str
-                    EXPECT_STR(v, "MAX", interp, line, col);
+                    EXPECT_STR(v, "max", interp, line, col);
                     if (strlen(v.as.s) > strlen(best.as.s)) {
                         value_free(best);
                         best = value_str(v.as.s);
@@ -8959,7 +8959,7 @@ static Value builtin_max(Interpreter *interp, Value *args, int argc, Expr **arg_
         }
         return best;
     }
-    RUNTIME_ERROR(interp, "MAX expects int, float, or str arguments", line, col);
+    RUNTIME_ERROR(interp, "max expects int, float, or str arguments", line, col);
 }
 
 static Value builtin_min(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
@@ -8967,14 +8967,14 @@ static Value builtin_min(Interpreter *interp, Value *args, int argc, Expr **arg_
     (void)env;
 
     if (argc == 0) {
-        RUNTIME_ERROR(interp, "MIN requires at least one argument", line, col);
+        RUNTIME_ERROR(interp, "min requires at least one argument", line, col);
     }
 
     if (args[0].type == VAL_INT) {
         int64_t min = args[0].as.i;
         int out_base = numeric_base_of(args[0]);
         for (int i = 1; i < argc; i++) {
-            EXPECT_INT(args[i], "MIN", interp, line, col);
+            EXPECT_INT(args[i], "min", interp, line, col);
             if (args[i].as.i < min) {
                 min = args[i].as.i;
             }
@@ -8989,7 +8989,7 @@ static Value builtin_min(Interpreter *interp, Value *args, int argc, Expr **arg_
         double min = args[0].as.f;
         int out_base = numeric_base_of(args[0]);
         for (int i = 1; i < argc; i++) {
-            EXPECT_FLOAT(args[i], "MIN", interp, line, col);
+            EXPECT_FLOAT(args[i], "min", interp, line, col);
             if (args[i].as.f < min) {
                 min = args[i].as.f;
             }
@@ -9004,7 +9004,7 @@ static Value builtin_min(Interpreter *interp, Value *args, int argc, Expr **arg_
         const char *min = args[0].as.s;
         size_t min_len = strlen(min);
         for (int i = 1; i < argc; i++) {
-            EXPECT_STR(args[i], "MIN", interp, line, col);
+            EXPECT_STR(args[i], "min", interp, line, col);
             size_t len = strlen(args[i].as.s);
             if (len < min_len) {
                 min = args[i].as.s;
@@ -9014,18 +9014,18 @@ static Value builtin_min(Interpreter *interp, Value *args, int argc, Expr **arg_
         return value_str(min);
     }
     if (args[0].type == VAL_TENSOR) {
-        // MIN(tensor: t1, ..., tN) -> flatten tensors and return smallest scalar element
+        // min(tensor: t1, ..., tN) -> flatten tensors and return smallest scalar element
         Tensor *t0 = args[0].as.tensor;
         DeclType etype = t0->elem_type;
         if (!(etype == TYPE_INT || etype == TYPE_FLOAT || etype == TYPE_STR)) {
-            RUNTIME_ERROR(interp, "MIN tensor form requires scalar element types", line, col);
+            RUNTIME_ERROR(interp, "min tensor form requires scalar element types", line, col);
         }
         for (int j = 0; j < argc; j++) {
             if (args[j].type != VAL_TENSOR) {
-                RUNTIME_ERROR(interp, "MIN expects tensor arguments in this form", line, col);
+                RUNTIME_ERROR(interp, "min expects tensor arguments in this form", line, col);
             }
             if (args[j].as.tensor->elem_type != etype) {
-                RUNTIME_ERROR(interp, "MIN tensor arguments must share the same element type", line, col);
+                RUNTIME_ERROR(interp, "min tensor arguments must share the same element type", line, col);
             }
         }
         bool seeded = false;
@@ -9053,26 +9053,26 @@ static Value builtin_min(Interpreter *interp, Value *args, int argc, Expr **arg_
             }
         }
         if (!seeded) {
-            RUNTIME_ERROR(interp, "MIN requires non-empty tensors", line, col);
+            RUNTIME_ERROR(interp, "min requires non-empty tensors", line, col);
         }
         for (int j = 0; j < argc; j++) {
             Tensor *tj = args[j].as.tensor;
             for (size_t i = 0; i < tj->length; i++) {
                 Value v = tj->data[i];
                 if (etype == TYPE_INT) {
-                    EXPECT_INT(v, "MIN", interp, line, col);
+                    EXPECT_INT(v, "min", interp, line, col);
                     if (v.as.i < best.as.i) {
                         value_free(best);
                         best = value_int_base(v.as.i, numeric_base_of(v));
                     }
                 } else if (etype == TYPE_FLOAT) {
-                    EXPECT_FLOAT(v, "MIN", interp, line, col);
+                    EXPECT_FLOAT(v, "min", interp, line, col);
                     if (v.as.f < best.as.f) {
                         value_free(best);
                         best = value_float_base(v.as.f, numeric_base_of(v));
                     }
                 } else {
-                    EXPECT_STR(v, "MIN", interp, line, col);
+                    EXPECT_STR(v, "min", interp, line, col);
                     if (strlen(v.as.s) < strlen(best.as.s)) {
                         value_free(best);
                         best = value_str(v.as.s);
@@ -9082,7 +9082,7 @@ static Value builtin_min(Interpreter *interp, Value *args, int argc, Expr **arg_
         }
         return best;
     }
-    RUNTIME_ERROR(interp, "MIN expects int, float, or str arguments", line, col);
+    RUNTIME_ERROR(interp, "min expects int, float, or str arguments", line, col);
 }
 
 static Value builtin_any(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
@@ -9121,17 +9121,17 @@ static Value builtin_isum(Interpreter *interp, Value *args, int argc, Expr **arg
     (void)env;
 
     if (argc == 0) {
-        RUNTIME_ERROR(interp, "ISUM requires at least one argument", line, col);
+        RUNTIME_ERROR(interp, "isum requires at least one argument", line, col);
     }
 
     int64_t sum = 0;
     for (int i = 0; i < argc; i++) {
-        EXPECT_NUM(args[i], "ISUM", interp, line, col);
+        EXPECT_NUM(args[i], "isum", interp, line, col);
         if (args[i].type == VAL_INT) {
             sum += args[i].as.i;
         } else {
             int64_t tmp;
-            if (!coerce_flt_to_int_checked(interp, args[i].as.f, &tmp, "ISUM", line, col)) {
+            if (!coerce_flt_to_int_checked(interp, args[i].as.f, &tmp, "isum", line, col)) {
                 return value_null();
             }
             sum += tmp;
@@ -9145,12 +9145,12 @@ static Value builtin_fsum(Interpreter *interp, Value *args, int argc, Expr **arg
     (void)env;
 
     if (argc == 0) {
-        RUNTIME_ERROR(interp, "FSUM requires at least one argument", line, col);
+        RUNTIME_ERROR(interp, "fsum requires at least one argument", line, col);
     }
 
     double sum = 0.0;
     for (int i = 0; i < argc; i++) {
-        EXPECT_NUM(args[i], "FSUM", interp, line, col);
+        EXPECT_NUM(args[i], "fsum", interp, line, col);
         sum += args[i].type == VAL_FLOAT ? args[i].as.f : (double)args[i].as.i;
     }
     return value_float(sum);
@@ -9161,17 +9161,17 @@ static Value builtin_iprod(Interpreter *interp, Value *args, int argc, Expr **ar
     (void)env;
 
     if (argc == 0) {
-        RUNTIME_ERROR(interp, "IPROD requires at least one argument", line, col);
+        RUNTIME_ERROR(interp, "iproduct requires at least one argument", line, col);
     }
 
     int64_t prod = 1;
     for (int i = 0; i < argc; i++) {
-        EXPECT_NUM(args[i], "IPROD", interp, line, col);
+        EXPECT_NUM(args[i], "iproduct", interp, line, col);
         if (args[i].type == VAL_INT) {
             prod *= args[i].as.i;
         } else {
             int64_t tmp;
-            if (!coerce_flt_to_int_checked(interp, args[i].as.f, &tmp, "IPROD", line, col)) {
+            if (!coerce_flt_to_int_checked(interp, args[i].as.f, &tmp, "iproduct", line, col)) {
                 return value_null();
             }
             prod *= tmp;
@@ -9185,13 +9185,13 @@ static Value builtin_fprod(Interpreter *interp, Value *args, int argc, Expr **ar
     (void)env;
 
     if (argc == 0) {
-        RUNTIME_ERROR(interp, "FPROD requires at least one argument", line, col);
+        RUNTIME_ERROR(interp, "fproduct requires at least one argument", line, col);
     }
 
     double prod = 1.0;
     int out_base = numeric_base_of(args[0]);
     for (int i = 0; i < argc; i++) {
-        EXPECT_NUM(args[i], "FPROD", interp, line, col);
+        EXPECT_NUM(args[i], "fproduct", interp, line, col);
         prod *= args[i].type == VAL_FLOAT ? args[i].as.f : (double)args[i].as.i;
         int bi = numeric_base_of(args[i]);
         if (bi > out_base) {
@@ -9201,23 +9201,23 @@ static Value builtin_fprod(Interpreter *interp, Value *args, int argc, Expr **ar
     return value_float_base(prod, out_base);
 }
 
-// ROUND
+// round
 static Value builtin_round(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
     (void)arg_nodes;
     (void)env;
-    EXPECT_NUM(args[0], "ROUND", interp, line, col);
+    EXPECT_NUM(args[0], "round", interp, line, col);
 
-    // Signature: ROUND(x, ndigits = 0, mode = "floor")
+    // Signature: round(x, ndigits = 0, mode = "floor")
     int64_t places = 0;
     const char *mode = "floor";
 
     if (argc >= 2 && args[1].type != VAL_NULL) {
-        EXPECT_INT(args[1], "ROUND", interp, line, col);
+        EXPECT_INT(args[1], "round", interp, line, col);
         places = args[1].as.i;
     }
     if (argc >= 3 && args[2].type != VAL_NULL) {
         if (args[2].type != VAL_STR) {
-            RUNTIME_ERROR(interp, "ROUND expects str mode", line, col);
+            RUNTIME_ERROR(interp, "round expects str mode", line, col);
         }
         mode = args[2].as.s;
         if (!mode) {
@@ -9254,13 +9254,13 @@ static Value builtin_round(Interpreter *interp, Value *args, int argc, Expr **ar
     } else if (strcmp(mode, "logical") == 0 || strcmp(mode, "half-up") == 0) {
         rs = round(scaled);
     } else {
-        RUNTIME_ERROR(interp, "Unknown ROUND mode", line, col);
+        RUNTIME_ERROR(interp, "Unknown round mode", line, col);
     }
 
     return value_float(rs / factor);
 }
 
-// INV (map inversion)
+// invert (map inversion)
 static Value builtin_inv(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
     (void)argc;
     (void)interp;
@@ -9279,7 +9279,7 @@ static Value builtin_inv(Interpreter *interp, Value *args, int argc, Expr **arg_
             // Only scalar values may be used as keys
             if (val.type != VAL_INT && val.type != VAL_FLOAT && val.type != VAL_STR) {
                 value_free(out);
-                RUNTIME_ERROR(interp, "INV(map) requires scalar values", line, col);
+                RUNTIME_ERROR(interp, "invert(map) requires scalar values", line, col);
             }
             // Check for duplicate values
             int found = 0;
@@ -9287,7 +9287,7 @@ static Value builtin_inv(Interpreter *interp, Value *args, int argc, Expr **arg_
             if (found) {
                 value_free(existing);
                 value_free(out);
-                RUNTIME_ERROR(interp, "INV(map) contains duplicate values", line, col);
+                RUNTIME_ERROR(interp, "invert(map) contains duplicate values", line, col);
             }
             if (found == 0) {
                 value_free(existing);
@@ -9295,23 +9295,23 @@ static Value builtin_inv(Interpreter *interp, Value *args, int argc, Expr **arg_
             // Insert inverted pair: new_key = value, new_value = key
             value_map_set(&out, val, key);
         }
-        if (!writeback_ptr_range(interp, arg_nodes, env, 0, 1, out, "INV", line, col)) {
+        if (!writeback_ptr_range(interp, arg_nodes, env, 0, 1, out, "invert", line, col)) {
             value_free(out);
             return value_null();
         }
         return out;
     }
 
-    RUNTIME_ERROR(interp, "INV expects map argument", line, col);
+    RUNTIME_ERROR(interp, "invert expects map argument", line, col);
 }
 
-// KEYS(map):tensor - return 1-D tensor of keys in insertion order
+// keys(map):tensor - return 1-D tensor of keys in insertion order
 static Value builtin_keys(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
     (void)arg_nodes;
     (void)env;
     (void)argc;
     if (args[0].type != VAL_MAP) {
-        RUNTIME_ERROR(interp, "KEYS expects map argument", line, col);
+        RUNTIME_ERROR(interp, "keys expects map argument", line, col);
     }
     Map *m = args[0].as.map;
     size_t count = m ? m->count : 0;
@@ -9346,7 +9346,7 @@ static Value builtin_keys(Interpreter *interp, Value *args, int argc, Expr **arg
                 value_free(items[j]);
             }
             free(items);
-            RUNTIME_ERROR(interp, "KEYS: unsupported key type", line, col);
+            RUNTIME_ERROR(interp, "keys: unsupported key type", line, col);
         }
         items[i] = value_copy(m->items[i].key);
         if (i == 0) {
@@ -9446,16 +9446,16 @@ static Value builtin_values(Interpreter *interp, Value *args, int argc, Expr **a
     return out;
 }
 
-// KEYIN(key, map):int - returns 1 if map contains key (type+value)
+// key_in(key, map):int - returns 1 if map contains key (type+value)
 static Value builtin_keyin(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
     (void)arg_nodes;
     (void)env;
     (void)argc;
     if (args[0].type != VAL_INT && args[0].type != VAL_FLOAT && args[0].type != VAL_STR) {
-        RUNTIME_ERROR(interp, "KEYIN expects int, float or str as first argument", line, col);
+        RUNTIME_ERROR(interp, "key_in expects int, float or str as first argument", line, col);
     }
     if (args[1].type != VAL_MAP) {
-        RUNTIME_ERROR(interp, "KEYIN expects map as second argument", line, col);
+        RUNTIME_ERROR(interp, "key_in expects map as second argument", line, col);
     }
     int found = 0;
     Value res = value_map_get(args[1], args[0], &found);
@@ -9609,14 +9609,14 @@ static int validate_read_metadata(Map *tpl, int *typing, int *recurse, int *shap
     return 1;
 }
 
-// VALIDATE(map, schema, typing=0, recurse=0, shape=0):int
+// validate(map, schema, typing=0, recurse=0, shape=0):int
 static Value builtin_validate(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line,
                               int col) {
     (void)arg_nodes;
     (void)env;
     (void)argc;
     if (args[0].type != VAL_MAP || args[1].type != VAL_MAP) {
-        RUNTIME_ERROR(interp, "VALIDATE expects two map arguments", line, col);
+        RUNTIME_ERROR(interp, "validate expects two map arguments", line, col);
     }
     int typing = 0;
     int recurse = 0;
@@ -9625,17 +9625,17 @@ static Value builtin_validate(Interpreter *interp, Value *args, int argc, Expr *
     int explicit_recurse = 0;
     int explicit_shape = 0;
     if (argc >= 3 && args[2].type != VAL_NULL) {
-        EXPECT_INT(args[2], "VALIDATE", interp, line, col);
+        EXPECT_INT(args[2], "validate", interp, line, col);
         typing = args[2].as.i ? 1 : 0;
         explicit_typing = 1;
     }
     if (argc >= 4 && args[3].type != VAL_NULL) {
-        EXPECT_INT(args[3], "VALIDATE", interp, line, col);
+        EXPECT_INT(args[3], "validate", interp, line, col);
         recurse = args[3].as.i ? 1 : 0;
         explicit_recurse = 1;
     }
     if (argc >= 5 && args[4].type != VAL_NULL) {
-        EXPECT_INT(args[4], "VALIDATE", interp, line, col);
+        EXPECT_INT(args[4], "validate", interp, line, col);
         shape = args[4].as.i ? 1 : 0;
         explicit_shape = 1;
     }
@@ -9645,18 +9645,18 @@ static Value builtin_validate(Interpreter *interp, Value *args, int argc, Expr *
     return value_bool(ok != 0);
 }
 
-// COPY (shallow copy for scalars)
+// copy (shallow copy for scalars)
 static Value builtin_copy(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
     (void)arg_nodes;
     (void)env;
     (void)interp;
     (void)line;
     (void)col;
-    /* Preserve existing COPY operator behavior (shallow/aliasing). */
+    /* Preserve existing copy operator behavior (shallow/aliasing). */
     return value_alias(args[0]);
 }
 
-// DEEPCOPY: return a recursive deep copy of the argument
+// deep_copy: return a recursive deep copy of the argument
 static Value builtin_deepcopy(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line,
                               int col) {
     (void)arg_nodes;
@@ -9667,18 +9667,18 @@ static Value builtin_deepcopy(Interpreter *interp, Value *args, int argc, Expr *
     return value_deep_copy(args[0]);
 }
 
-// ASSIGN(target, expr): evaluate expr, assign into target lvalue, return assigned value
+// assign(target, expr): evaluate expr, assign into target lvalue, return assigned value
 static Value builtin_assign(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
     (void)argc;
     if (!arg_nodes || !arg_nodes[0]) {
-        RUNTIME_ERROR(interp, "ASSIGN: missing target expression", line, col);
+        RUNTIME_ERROR(interp, "assign: missing target expression", line, col);
     }
 
     Expr *target = arg_nodes[0];
 
     // RHS should have been evaluated into args[1]
     if (args == NULL) {
-        RUNTIME_ERROR(interp, "ASSIGN internal error", line, col);
+        RUNTIME_ERROR(interp, "assign internal error", line, col);
     }
 
     Value rhs = args[1];
@@ -9734,7 +9734,7 @@ static Value builtin_assign(Interpreter *interp, Value *args, int argc, Expr **a
         }
         if (!env_assign(assign_env, name, rhs, expected, expected_base, true)) {
             char buf[256];
-            snprintf(buf, sizeof(buf), "ASSIGN: cannot assign to target '%s'", name);
+            snprintf(buf, sizeof(buf), "assign: cannot assign to target '%s'", name);
             RUNTIME_ERROR(interp, buf, line, col);
         }
         return value_copy(rhs);
@@ -9745,7 +9745,7 @@ static Value builtin_assign(Interpreter *interp, Value *args, int argc, Expr **a
         const char *name = target->as.ident;
         EnvEntry *e = env_get_entry(env, name);
         if (!e) {
-            RUNTIME_ERROR(interp, "ASSIGN requires target identifier to be declared", line, col);
+            RUNTIME_ERROR(interp, "assign requires target identifier to be declared", line, col);
         }
         // Check static type compatibility if present
         DeclType expected = e->decl_type;
@@ -9781,12 +9781,12 @@ static Value builtin_assign(Interpreter *interp, Value *args, int argc, Expr **a
                 break;
             }
             if (expected != actual) {
-                RUNTIME_ERROR(interp, "ASSIGN: type mismatch", line, col);
+                RUNTIME_ERROR(interp, "assign: type mismatch", line, col);
             }
         }
 
         if (!env_assign(env, name, rhs, TYPE_UNKNOWN, 0, false)) {
-            RUNTIME_ERROR(interp, "ASSIGN: cannot assign to target (frozen?)", line, col);
+            RUNTIME_ERROR(interp, "assign: cannot assign to target (frozen?)", line, col);
         }
         return value_copy(rhs);
     }
@@ -9832,13 +9832,13 @@ static Value builtin_assign(Interpreter *interp, Value *args, int argc, Expr **a
         return value_copy(rhs);
     }
 
-    RUNTIME_ERROR(interp, "ASSIGN: unsupported target expression", line, col);
+    RUNTIME_ERROR(interp, "assign: unsupported target expression", line, col);
 }
-// ILEN - integer length (number of bits)
+// ilen - integer length (number of bits)
 static Value builtin_ilen(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
     (void)arg_nodes;
     (void)env;
-    EXPECT_INT(args[0], "ILEN", interp, line, col);
+    EXPECT_INT(args[0], "ilen", interp, line, col);
     int out_base = numeric_base_of(args[0]);
 
     int64_t v = args[0].as.i;
@@ -9857,7 +9857,7 @@ static Value builtin_ilen(Interpreter *interp, Value *args, int argc, Expr **arg
     return value_int_base(len, out_base);
 }
 
-// LEN: per specification, returns the number of supplied int or str arguments.
+// len: per specification, returns the number of supplied int or str arguments.
 // Passing tensor or any other unsupported type is a runtime error.
 static Value builtin_len(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
     (void)arg_nodes;
@@ -9873,14 +9873,14 @@ static Value builtin_len(Interpreter *interp, Value *args, int argc, Expr **arg_
         } else if (args[i].type == VAL_STR) {
             /* allowed */
         } else {
-            RUNTIME_ERROR(interp, "LEN expects int or str arguments", line, col);
+            RUNTIME_ERROR(interp, "len expects int or str arguments", line, col);
         }
     }
 
     return value_int_base((int64_t)argc, out_base);
 }
 
-// Main, OS
+// Main, os
 static Value builtin_main(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
     (void)args;
     (void)argc;
@@ -9932,7 +9932,7 @@ static Value builtin_exit(Interpreter *interp, Value *args, int argc, Expr **arg
 
     int code = 0;
     if (argc >= 1) {
-        EXPECT_INT(args[0], "EXIT", interp, line, col);
+        EXPECT_INT(args[0], "exit", interp, line, col);
         code = (int)args[0].as.i;
     }
     exit(code);
@@ -9943,15 +9943,15 @@ static Value builtin_extend(Interpreter *interp, Value *args, int argc, Expr **a
     (void)arg_nodes;
 
     if (argc < 1 || !args) {
-        RUNTIME_ERROR(interp, "EXTEND expects str argument", line, col);
+        RUNTIME_ERROR(interp, "extend expects str argument", line, col);
     }
 
-    EXPECT_STR(args[0], "EXTEND", interp, line, col);
+    EXPECT_STR(args[0], "extend", interp, line, col);
 
     const char *spec = args[0].as.s;
 
     if (!spec || spec[0] == '\0') {
-        RUNTIME_ERROR(interp, "EXTEND expects a non-empty extension specifier", line, col);
+        RUNTIME_ERROR(interp, "extend expects a non-empty extension specifier", line, col);
     }
 
     char *base_dir = module_source_dir_dup(env);
@@ -9967,7 +9967,7 @@ static Value builtin_extend(Interpreter *interp, Value *args, int argc, Expr **a
             interp->error = strdup(ext_err);
             free(ext_err);
         } else {
-            interp->error = strdup("EXTEND failed to load extension");
+            interp->error = strdup("extend failed to load extension");
         }
         interp->error_line = line;
         interp->error_col = col;
@@ -10057,7 +10057,7 @@ static int module_include_bindings(Interpreter *interp, Env *caller_env, Env *mo
             if (interp->error) {
                 free(interp->error);
             }
-            interp->error = strdup("INCLUDE failed to assign module binding");
+            interp->error = strdup("include failed to assign module binding");
             interp->error_line = 0;
             interp->error_col = 0;
             return -1;
@@ -10206,16 +10206,16 @@ static Value builtin_import(Interpreter *interp, Value *args, int argc, Expr **a
     (void)arg_nodes;
     (void)env;
     if (argc < 1) {
-        RUNTIME_ERROR(interp, "IMPORT expects a module name str", line, col);
+        RUNTIME_ERROR(interp, "import expects a module name str", line, col);
     }
     if (args[0].type != VAL_STR) {
-        RUNTIME_ERROR(interp, "IMPORT first argument must be str", line, col);
+        RUNTIME_ERROR(interp, "import first argument must be str", line, col);
     }
     const char *modname = args[0].as.s ? args[0].as.s : "";
     const char *alias = NULL;
     if (argc >= 2) {
         if (args[1].type != VAL_STR) {
-            RUNTIME_ERROR(interp, "IMPORT second argument must be str (alias)", line, col);
+            RUNTIME_ERROR(interp, "import second argument must be str (alias)", line, col);
         }
         alias = args[1].as.s ? args[1].as.s : "";
     } else {
@@ -10364,7 +10364,7 @@ static Value builtin_import(Interpreter *interp, Value *args, int argc, Expr **a
                 break;
             }
             char buf[256];
-            snprintf(buf, sizeof(buf), "IMPORT: package '%s' missing init.pre", modname);
+            snprintf(buf, sizeof(buf), "import: package '%s' missing init.pre", modname);
             RUNTIME_ERROR(interp, buf, line, col);
         }
 
@@ -10389,7 +10389,7 @@ static Value builtin_import(Interpreter *interp, Value *args, int argc, Expr **a
             free(found_path);
             free(canonical_path);
             char buf[256];
-            snprintf(buf, sizeof(buf), "IMPORT: module '%s' not found", modname);
+            snprintf(buf, sizeof(buf), "import: module '%s' not found", modname);
             RUNTIME_ERROR(interp, buf, line, col);
         }
     }
@@ -10402,14 +10402,14 @@ static Value builtin_import(Interpreter *interp, Value *args, int argc, Expr **a
         if (module_register(interp, cache_key) != 0) {
             free(found_path);
             free(canonical_path);
-            RUNTIME_ERROR(interp, "IMPORT failed to register module", line, col);
+            RUNTIME_ERROR(interp, "import failed to register module", line, col);
         }
         mod_env = module_env_lookup(interp, cache_key);
     }
     if (!mod_env) {
         free(found_path);
         free(canonical_path);
-        RUNTIME_ERROR(interp, "IMPORT failed to lookup module env", line, col);
+        RUNTIME_ERROR(interp, "import failed to lookup module env", line, col);
     }
 
     if (strcmp(modname, cache_key) != 0) {
@@ -10419,8 +10419,8 @@ static Value builtin_import(Interpreter *interp, Value *args, int argc, Expr **a
         (void)module_register_alias(interp, found_path, mod_env);
     }
     /* Also register the caller-provided alias (if different) so callers can
-       refer to the module by that identifier. IMPORT_PATH does this earlier;
-       ensure builtin IMPORT behaves the same. */
+       refer to the module by that identifier. import_path does this earlier;
+       ensure builtin import behaves the same. */
     if (alias && strcmp(alias, cache_key) != 0) {
         (void)module_register_alias(interp, alias, mod_env);
     }
@@ -10463,7 +10463,7 @@ static Value builtin_import(Interpreter *interp, Value *args, int argc, Expr **a
                     free(srcbuf);
                     free(found_path);
                     free(canonical_path);
-                    interp->error = strdup("IMPORT: parse error");
+                    interp->error = strdup("import: parse error");
                     interp->error_line = parser.current_token.line;
                     interp->error_col = parser.current_token.column;
                     return value_null();
@@ -10474,7 +10474,7 @@ static Value builtin_import(Interpreter *interp, Value *args, int argc, Expr **a
                     free(srcbuf);
                     free(found_path);
                     free(canonical_path);
-                    interp->error = res.error ? strdup(res.error) : strdup("Runtime error in IMPORT");
+                    interp->error = res.error ? strdup(res.error) : strdup("Runtime error in import");
                     interp->error_line = res.error_line;
                     interp->error_col = res.error_column;
                     free(res.error);
@@ -10492,7 +10492,7 @@ static Value builtin_import(Interpreter *interp, Value *args, int argc, Expr **a
     free(found_path);
     free(canonical_path);
 
-    if (module_export_bindings(interp, env, mod_env, alias, line, col, "IMPORT failed to assign qualified name") != 0) {
+    if (module_export_bindings(interp, env, mod_env, alias, line, col, "import failed to assign qualified name") != 0) {
         return value_null();
     }
 
@@ -10500,7 +10500,7 @@ static Value builtin_import(Interpreter *interp, Value *args, int argc, Expr **a
     EnvEntry *alias_entry = env_get_entry(env, alias);
     if (!alias_entry) {
         if (!env_assign(env, alias, value_str(""), TYPE_STR, 0, true)) {
-            RUNTIME_ERROR(interp, "IMPORT failed to assign module name", line, col);
+            RUNTIME_ERROR(interp, "import failed to assign module name", line, col);
         }
     }
 
@@ -10512,10 +10512,10 @@ static Value builtin_include(Interpreter *interp, Value *args, int argc, Expr **
     (void)arg_nodes;
     (void)env;
     if (argc < 1) {
-        RUNTIME_ERROR(interp, "INCLUDE expects a module name str", line, col);
+        RUNTIME_ERROR(interp, "include expects a module name str", line, col);
     }
     if (args[0].type != VAL_STR) {
-        RUNTIME_ERROR(interp, "INCLUDE first argument must be str", line, col);
+        RUNTIME_ERROR(interp, "include first argument must be str", line, col);
     }
     const char *modname = args[0].as.s ? args[0].as.s : "";
 
@@ -10656,7 +10656,7 @@ static Value builtin_include(Interpreter *interp, Value *args, int argc, Expr **
                 break;
             }
             char buf[256];
-            snprintf(buf, sizeof(buf), "INCLUDE: package '%s' missing init.pre", modname);
+            snprintf(buf, sizeof(buf), "include: package '%s' missing init.pre", modname);
             RUNTIME_ERROR(interp, buf, line, col);
         }
 
@@ -10679,7 +10679,7 @@ static Value builtin_include(Interpreter *interp, Value *args, int argc, Expr **
             free(found_path);
             free(canonical_path);
             char buf[256];
-            snprintf(buf, sizeof(buf), "INCLUDE: module '%s' not found", modname);
+            snprintf(buf, sizeof(buf), "include: module '%s' not found", modname);
             RUNTIME_ERROR(interp, buf, line, col);
         }
     }
@@ -10692,14 +10692,14 @@ static Value builtin_include(Interpreter *interp, Value *args, int argc, Expr **
         if (module_register(interp, cache_key) != 0) {
             free(found_path);
             free(canonical_path);
-            RUNTIME_ERROR(interp, "INCLUDE failed to register module", line, col);
+            RUNTIME_ERROR(interp, "include failed to register module", line, col);
         }
         mod_env = module_env_lookup(interp, cache_key);
     }
     if (!mod_env) {
         free(found_path);
         free(canonical_path);
-        RUNTIME_ERROR(interp, "INCLUDE failed to lookup module env", line, col);
+        RUNTIME_ERROR(interp, "include failed to lookup module env", line, col);
     }
 
     if (strcmp(modname, cache_key) != 0) {
@@ -10748,7 +10748,7 @@ static Value builtin_include(Interpreter *interp, Value *args, int argc, Expr **
                     free(srcbuf);
                     free(found_path);
                     free(canonical_path);
-                    interp->error = strdup("INCLUDE: parse error");
+                    interp->error = strdup("include: parse error");
                     interp->error_line = parser.current_token.line;
                     interp->error_col = parser.current_token.column;
                     return value_null();
@@ -10759,7 +10759,7 @@ static Value builtin_include(Interpreter *interp, Value *args, int argc, Expr **
                     free(srcbuf);
                     free(found_path);
                     free(canonical_path);
-                    interp->error = res.error ? strdup(res.error) : strdup("Runtime error in INCLUDE");
+                    interp->error = res.error ? strdup(res.error) : strdup("Runtime error in include");
                     interp->error_line = res.error_line;
                     interp->error_col = res.error_column;
                     free(res.error);
@@ -10786,7 +10786,7 @@ static Value builtin_include(Interpreter *interp, Value *args, int argc, Expr **
 
 // tensor operator: two forms
 // 1) tensor(str: string) -> 1-D tensor of str single-character elements
-// 2) tensor(tensor: shape, ANY: value) -> creates tensor with given shape filled with value
+// 2) tensor(tensor: shape, any: value) -> creates tensor with given shape filled with value
 static Value builtin_tensor(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
     (void)arg_nodes;
     (void)env;
@@ -10818,7 +10818,7 @@ static Value builtin_tensor(Interpreter *interp, Value *args, int argc, Expr **a
     }
 
     if (argc == 2) {
-        // tensor(tensor: shape, ANY: value)
+        // tensor(tensor: shape, any: value)
         if (args[0].type != VAL_TENSOR) {
             RUNTIME_ERROR(interp, "tensor expects a 1-D tensor shape as first argument", line, col);
         }
@@ -11045,8 +11045,8 @@ static Value builtin_tstr(Interpreter *interp, Value *args, int argc, Expr **arg
 }
 
 // ============ Builtins table ============
-// Definitions for ARGV and RUN are placed here so the table can reference them.
-// ARGV builtin: returns a 1-D tensor of str containing process argv in order
+// Definitions for argv and run are placed here so the table can reference them.
+// argv builtin: returns a 1-D tensor of str containing process argv in order
 static Value builtin_argv(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
     (void)args;
     (void)arg_nodes;
@@ -11076,12 +11076,12 @@ static Value builtin_argv(Interpreter *interp, Value *args, int argc, Expr **arg
     return out;
 }
 
-// RUN(str: s) - parse and execute a Prefix program string within
+// run(str: s) - parse and execute a Prefix program string within
 // the current interpreter and environment.
 static Value builtin_run(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
     (void)arg_nodes;
     (void)argc;
-    EXPECT_STR(args[0], "RUN", interp, line, col);
+    EXPECT_STR(args[0], "run", interp, line, col);
 
     const char *src = args[0].as.s ? args[0].as.s : "";
 
@@ -11093,7 +11093,7 @@ static Value builtin_run(Interpreter *interp, Value *args, int argc, Expr **arg_
 
     Stmt *program = parser_parse(&parser);
     if (parser.had_error) {
-        interp->error = strdup("RUN: parse error");
+        interp->error = strdup("run: parse error");
         interp->error_line = parser.current_token.line;
         interp->error_col = parser.current_token.column;
         return value_null();
@@ -11102,7 +11102,7 @@ static Value builtin_run(Interpreter *interp, Value *args, int argc, Expr **arg_
     // Execute parsed program in the caller's environment
     ExecResult res = exec_program_in_env(interp, program, env);
     if (res.status == EXEC_ERROR) {
-        interp->error = res.error ? strdup(res.error) : strdup("Runtime error in RUN");
+        interp->error = res.error ? strdup(res.error) : strdup("Runtime error in run");
         interp->error_line = res.error_line;
         interp->error_col = res.error_column;
         free(res.error);
@@ -11112,15 +11112,15 @@ static Value builtin_run(Interpreter *interp, Value *args, int argc, Expr **arg_
     return value_null();
 }
 
-// AWAIT(thread: thread):thread — block until thread is finished and return handle
+// await(thread: thread):thread — block until thread is finished and return handle
 static Value builtin_await(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
     (void)arg_nodes;
     (void)env;
     if (argc != 1) {
-        RUNTIME_ERROR(interp, "AWAIT expects 1 argument", line, col);
+        RUNTIME_ERROR(interp, "await expects 1 argument", line, col);
     }
     if (args[0].type != VAL_THREAD || !args[0].as.thread) {
-        RUNTIME_ERROR(interp, "AWAIT expects thread argument", line, col);
+        RUNTIME_ERROR(interp, "await expects thread argument", line, col);
     }
     // Make a local copy of the thread handle to ensure the Thread
     // struct remains alive while we wait/join (prevents a race
@@ -11165,15 +11165,15 @@ static int pause_timer_worker(void *arg) {
     return 0;
 }
 
-// PAUSE(thread: thread, float: seconds=-1):thread
+// pause(thread: thread, float: seconds=-1):thread
 static Value builtin_pause(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
     (void)arg_nodes;
     (void)env;
     if (argc < 1 || argc > 2) {
-        RUNTIME_ERROR(interp, "PAUSE expects 1 or 2 arguments", line, col);
+        RUNTIME_ERROR(interp, "pause expects 1 or 2 arguments", line, col);
     }
     if (args[0].type != VAL_THREAD || !args[0].as.thread) {
-        RUNTIME_ERROR(interp, "PAUSE expects thread argument", line, col);
+        RUNTIME_ERROR(interp, "pause expects thread argument", line, col);
     }
     if (value_thread_get_finished(args[0])) {
         RUNTIME_ERROR(interp, "Cannot pause finished thread", line, col);
@@ -11187,7 +11187,7 @@ static Value builtin_pause(Interpreter *interp, Value *args, int argc, Expr **ar
         if (args[1].type == VAL_FLOAT) {
             seconds = args[1].as.f;
         } else {
-            RUNTIME_ERROR(interp, "PAUSE expects float seconds", line, col);
+            RUNTIME_ERROR(interp, "pause expects float seconds", line, col);
         }
     }
 
@@ -11213,15 +11213,15 @@ static Value builtin_pause(Interpreter *interp, Value *args, int argc, Expr **ar
     return value_copy(args[0]);
 }
 
-// RESUME(thread: thread):thread
+// resume(thread: thread):thread
 static Value builtin_resume(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
     (void)arg_nodes;
     (void)env;
     if (argc != 1) {
-        RUNTIME_ERROR(interp, "RESUME expects 1 argument", line, col);
+        RUNTIME_ERROR(interp, "resume expects 1 argument", line, col);
     }
     if (args[0].type != VAL_THREAD || !args[0].as.thread) {
-        RUNTIME_ERROR(interp, "RESUME expects thread argument", line, col);
+        RUNTIME_ERROR(interp, "resume expects thread argument", line, col);
     }
     if (!value_thread_get_paused(args[0])) {
         RUNTIME_ERROR(interp, "Thread is not paused", line, col);
@@ -11230,28 +11230,28 @@ static Value builtin_resume(Interpreter *interp, Value *args, int argc, Expr **a
     return value_copy(args[0]);
 }
 
-// PAUSED(thread: thread):int
+// paused(thread: thread):int
 static Value builtin_paused(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
     (void)arg_nodes;
     (void)env;
     if (argc != 1) {
-        RUNTIME_ERROR(interp, "PAUSED expects 1 argument", line, col);
+        RUNTIME_ERROR(interp, "paused expects 1 argument", line, col);
     }
     if (args[0].type != VAL_THREAD || !args[0].as.thread) {
-        RUNTIME_ERROR(interp, "PAUSED expects thread argument", line, col);
+        RUNTIME_ERROR(interp, "paused expects thread argument", line, col);
     }
     return value_bool(value_thread_get_paused(args[0]) != 0);
 }
 
-// STOP(thread: thread):thread — cooperatively stop a running thread and mark finished
+// stop(thread: thread):thread — cooperatively stop a running thread and mark finished
 static Value builtin_stop(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line, int col) {
     (void)arg_nodes;
     (void)env;
     if (argc != 1) {
-        RUNTIME_ERROR(interp, "STOP expects 1 argument", line, col);
+        RUNTIME_ERROR(interp, "stop expects 1 argument", line, col);
     }
     if (args[0].type != VAL_THREAD || !args[0].as.thread) {
-        RUNTIME_ERROR(interp, "STOP expects thread argument", line, col);
+        RUNTIME_ERROR(interp, "stop expects thread argument", line, col);
     }
     if (value_thread_get_finished(args[0])) {
         return value_copy(args[0]);
@@ -11265,16 +11265,16 @@ static Value builtin_stop(Interpreter *interp, Value *args, int argc, Expr **arg
     return value_copy(args[0]);
 }
 
-// RESTART(thread: thread):thread — reinitialize and start executing the thread again
+// restart(thread: thread):thread — reinitialize and start executing the thread again
 static Value builtin_restart(Interpreter *interp, Value *args, int argc, Expr **arg_nodes, Env *env, int line,
                              int col) {
     (void)arg_nodes;
     (void)env;
     if (argc != 1) {
-        RUNTIME_ERROR(interp, "RESTART expects 1 argument", line, col);
+        RUNTIME_ERROR(interp, "restart expects 1 argument", line, col);
     }
     if (args[0].type != VAL_THREAD || !args[0].as.thread) {
-        RUNTIME_ERROR(interp, "RESTART expects thread argument", line, col);
+        RUNTIME_ERROR(interp, "restart expects thread argument", line, col);
     }
     Thread *th = args[0].as.thread;
     if (!th->body || !th->env) {
@@ -11291,7 +11291,7 @@ static Value builtin_restart(Interpreter *interp, Value *args, int argc, Expr **
     return value_copy(args[0]);
 }
 
-// PARALLEL(tensor: functions) or PARALLEL(func, func, ...):int
+// parallel(tensor: functions) or parallel(func, func, ...):int
 typedef struct {
     Interpreter *interp;
     struct Func *func;
@@ -11536,7 +11536,7 @@ static Value builtin_parallel(Interpreter *interp, Value *args, int argc, Expr *
         }
     } else {
         if (argc < 1) {
-            RUNTIME_ERROR(interp, "PARALLEL expects at least 1 argument", line, col);
+            RUNTIME_ERROR(interp, "parallel expects at least 1 argument", line, col);
         }
         n = (size_t)argc;
         elems = malloc(sizeof(Value) * n);
@@ -11555,7 +11555,7 @@ static Value builtin_parallel(Interpreter *interp, Value *args, int argc, Expr *
                 value_free(elems[j]);
             }
             free(elems);
-            RUNTIME_ERROR(interp, "PARALLEL expects functions (either a tensor of func or func arguments)", line, col);
+            RUNTIME_ERROR(interp, "parallel expects functions (either a tensor of func or func arguments)", line, col);
         }
     }
 
@@ -11616,7 +11616,7 @@ static Value builtin_parallel(Interpreter *interp, Value *args, int argc, Expr *
 
         if (thrd_create(&threads[i], parallel_worker, ps) != thrd_success) {
             // record failure as error string and clean up
-            errors[i] = strdup("Failed to start PARALLEL worker");
+            errors[i] = strdup("Failed to start parallel worker");
             free(thr_interp);
             free(ps);
         }
@@ -11683,75 +11683,75 @@ static BuiltinFunction builtins_table[] = {
     {"-", 2, 2, builtin_sub},
     {"*", 2, 2, builtin_mul},
     {"/", 2, 2, builtin_div},
-    {"MOD", 2, 2, builtin_mod},
-    {"POW", 2, 2, builtin_pow},
-    {"NEG", 1, 1, builtin_neg},
-    {"ABS", 1, 1, builtin_abs},
-    {"ROOT", 2, 2, builtin_root},
-    {"IROOT", 2, 2, builtin_iroot},
-    {"FROOT", 2, 2, builtin_froot},
-    {"LOG", 1, 1, builtin_log},
-    {"CLOG", 1, 1, builtin_clog},
-    {"GCD", 2, 2, builtin_gcd},
-    {"LCM", 2, 2, builtin_lcm},
-    {"INV", 1, 1, builtin_inv},
-    {"ROUND", 1, 3, builtin_round, builtin_params_round, 3},
+    {"mod", 2, 2, builtin_mod},
+    {"pow", 2, 2, builtin_pow},
+    {"neg", 1, 1, builtin_neg},
+    {"abs", 1, 1, builtin_abs},
+    {"root", 2, 2, builtin_root},
+    {"iroot", 2, 2, builtin_iroot},
+    {"froot", 2, 2, builtin_froot},
+    {"log", 1, 1, builtin_log},
+    {"clog", 1, 1, builtin_clog},
+    {"gcd", 2, 2, builtin_gcd},
+    {"lcm", 2, 2, builtin_lcm},
+    {"invert", 1, 1, builtin_inv},
+    {"round", 1, 3, builtin_round, builtin_params_round, 3},
 
     // Coercing arithmetic
-    {"I+", 2, 2, builtin_iadd},
-    {"I-", 2, 2, builtin_isub},
-    {"I*", 2, 2, builtin_imul},
-    {"I/", 2, 2, builtin_idiv},
-    {"CDIV", 2, 2, builtin_cdiv},
-    {"IPOW", 2, 2, builtin_ipow},
-    {"F+", 2, 2, builtin_fadd},
-    {"F-", 2, 2, builtin_fsub},
-    {"F*", 2, 2, builtin_fmul},
-    {"F/", 2, 2, builtin_fdiv},
-    {"FPOW", 2, 2, builtin_fpow},
+    {"i+", 2, 2, builtin_iadd},
+    {"i-", 2, 2, builtin_isub},
+    {"i*", 2, 2, builtin_imul},
+    {"i/", 2, 2, builtin_idiv},
+    {"cdiv", 2, 2, builtin_cdiv},
+    {"ipow", 2, 2, builtin_ipow},
+    {"f+", 2, 2, builtin_fadd},
+    {"f-", 2, 2, builtin_fsub},
+    {"f*", 2, 2, builtin_fmul},
+    {"f/", 2, 2, builtin_fdiv},
+    {"fpow", 2, 2, builtin_fpow},
     // Tensor elementwise operators
     {"tensor", 1, 2, builtin_tensor},
     {"tint", 1, 1, builtin_tint},
     {"tfloat", 1, 1, builtin_tfloat},
     {"tstr", 1, 1, builtin_tstr},
-    {"CONV", 2, 7, builtin_conv, builtin_params_conv, 7},
-    {"FILL", 2, 2, builtin_fill},
-    {"T+", 2, 2, builtin_tadd},
-    {"T-", 2, 2, builtin_tsub},
-    {"T*", 2, 2, builtin_tmul},
-    {"T/", 2, 2, builtin_tdiv},
+    {"convolve", 2, 7, builtin_conv, builtin_params_conv, 7},
+    {"fill", 2, 2, builtin_fill},
+    {"t+", 2, 2, builtin_tadd},
+    {"t-", 2, 2, builtin_tsub},
+    {"t*", 2, 2, builtin_tmul},
+    {"t/", 2, 2, builtin_tdiv},
     {"TPOW", 2, 2, builtin_tpow},
-    {"SHAPE", 1, 1, builtin_shape},
-    {"TLEN", 2, 2, builtin_tlen},
-    {"TFLIP", 2, 2, builtin_tflip},
-    {"SCAT", 3, 3, builtin_scat},
-    {"APPEND", 2, 2, builtin_append},
-    {"M+", 2, 2, builtin_madd},
-    {"M-", 2, 2, builtin_msub},
-    {"M*", 2, 2, builtin_mmul},
-    {"M/", 2, 2, builtin_mdiv},
+    {"shape", 1, 1, builtin_shape},
+    {"len_dim", 2, 2, builtin_tlen},
+    {"flip_dim", 2, 2, builtin_tflip},
+    {"scatter", 3, 3, builtin_scat},
+    {"append", 2, 2, builtin_append},
+    {"m+", 2, 2, builtin_madd},
+    {"m-", 2, 2, builtin_msub},
+    {"m*", 2, 2, builtin_mmul},
+    {"m/", 2, 2, builtin_mdiv},
     {"MSUM", 1, -1, builtin_msum},
     {"MPROD", 1, -1, builtin_mprod},
 
     // Comparison
-    {"EQ", 2, 2, builtin_eq},
-    {"NEQ", 2, 2, builtin_neq},
-    {"GT", 2, 2, builtin_gt},
-    {"LT", 2, 2, builtin_lt},
-    {"GTE", 2, 2, builtin_gte},
-    {"LTE", 2, 2, builtin_lte},
+    {"eq", 2, 2, builtin_eq},
+    {"neq", 2, 2, builtin_neq},
+    {"gt", 2, 2, builtin_gt},
+    {"lt", 2, 2, builtin_lt},
+    {"gte", 2, 2, builtin_gte},
+    {"lte", 2, 2, builtin_lte},
 
     // Logical
-    {"AND", 2, 2, builtin_and},
-    {"OR", 2, 2, builtin_or},
-    {"XOR", 2, 2, builtin_xor},
-    {"NOT", 1, 1, builtin_not},
+    {"and", 2, 2, builtin_and},
+    {"or", 2, 2, builtin_or},
+    {"xor", 2, 2, builtin_xor},
+    {"not", 1, 1, builtin_not},
     {"bool", 1, 1, builtin_bool},
 
     // Bitwise
-    {"BAND", 2, 2, builtin_band},
-    {"BOR", 2, 2, builtin_bor},
-    {"BXOR", 2, 2, builtin_bxor},
+    {"band", 2, 2, builtin_band},
+    {"bor", 2, 2, builtin_bor},
+    {"bxor", 2, 2, builtin_bxor},
     {"BNOT", 1, 1, builtin_bnot},
     {"SHL", 2, 2, builtin_shl},
     {"SHR", 2, 2, builtin_shr},
@@ -11760,11 +11760,11 @@ static BuiltinFunction builtins_table[] = {
     {"int", 1, 1, builtin_int},
     {"float", 1, 1, builtin_float},
     {"str", 1, 1, builtin_str},
-    {"CONVERT", 2, 2, builtin_convert},
+    {"switch_base", 2, 2, builtin_convert},
     {"BASE", 1, 1, builtin_base},
-    {"BYTES", 1, 2, builtin_bytes, builtin_params_bytes, 2},
-    {"SER", 1, 1, builtin_ser},
-    {"UNSER", 1, 1, builtin_unser},
+    {"bytes", 1, 2, builtin_bytes, builtin_params_bytes, 2},
+    {"serialize", 1, 1, builtin_ser},
+    {"unserialize", 1, 1, builtin_unser},
 
     // Type checking
     {"isbool", 1, 1, builtin_isbool},
@@ -11775,87 +11775,87 @@ static BuiltinFunction builtins_table[] = {
     {"ismap", 1, 1, builtin_ismap},
     {"isfunc", 1, 1, builtin_isfunc},
     {"isthread", 1, 1, builtin_isthread},
-    {"TYPE", 1, 1, builtin_type},
-    {"SIGNATURE", 1, 1, builtin_signature},
+    {"type", 1, 1, builtin_type},
+    {"signature", 1, 1, builtin_signature},
 
     // String operations
-    {"SLEN", 1, 1, builtin_slen},
-    {"UPPER", 1, 1, builtin_upper},
-    {"LOWER", 1, 1, builtin_lower},
-    {"FLIP", 1, 1, builtin_flip},
-    {"SLICE", 3, 3, builtin_slice},
-    {"REPLACE", 3, 3, builtin_replace},
-    {"STRIP", 2, 2, builtin_strip},
-    {"JOIN", 1, -1, builtin_join},
-    {"SPLIT", 1, 2, builtin_split, builtin_params_split, 2},
-    {"IN", 2, 2, builtin_in},
-    {"KEYS", 1, 1, builtin_keys},
+    {"slen", 1, 1, builtin_slen},
+    {"uppercase", 1, 1, builtin_upper},
+    {"lowercase", 1, 1, builtin_lower},
+    {"flip", 1, 1, builtin_flip},
+    {"slice", 3, 3, builtin_slice},
+    {"replace", 3, 3, builtin_replace},
+    {"strip", 2, 2, builtin_strip},
+    {"join", 1, -1, builtin_join},
+    {"split", 1, 2, builtin_split, builtin_params_split, 2},
+    {"in", 2, 2, builtin_in},
+    {"keys", 1, 1, builtin_keys},
     {"VALUES", 1, 1, builtin_values},
-    {"KEYIN", 2, 2, builtin_keyin},
+    {"key_in", 2, 2, builtin_keyin},
     {"VALUEIN", 2, 2, builtin_valuein},
-    {"VALIDATE", 2, 5, builtin_validate, builtin_params_validate, 5},
-    {"ILEN", 1, 1, builtin_ilen},
-    {"LEN", 0, -1, builtin_len},
+    {"validate", 2, 5, builtin_validate, builtin_params_validate, 5},
+    {"ilen", 1, 1, builtin_ilen},
+    {"len", 0, -1, builtin_len},
 
     // I/O
-    {"PRINT", 0, -1, builtin_print},
-    {"WARN", 0, -1, builtin_warn},
-    {"INPUT", 0, 1, builtin_input},
-    {"SHUSH", 0, 0, builtin_shush},
-    {"UNSHUSH", 0, 0, builtin_unshush},
-    {"READFILE", 1, 2, builtin_readfile, builtin_params_readfile, 2},
-    {"WRITEFILE", 2, 3, builtin_writefile, builtin_params_writefile, 3},
-    {"CL", 1, 1, builtin_cl},
-    {"EXISTFILE", 1, 1, builtin_existfile},
-    {"DELETEFILE", 1, 1, builtin_deletefile},
-    {"RUN", 1, 1, builtin_run},
-    {"ARGV", 0, 0, builtin_argv},
-    {"PARALLEL", 1, -1, builtin_parallel},
-    {"AWAIT", 1, 1, builtin_await},
-    {"PAUSE", 1, 2, builtin_pause, builtin_params_pause, 2},
-    {"RESUME", 1, 1, builtin_resume},
-    {"PAUSED", 1, 1, builtin_paused},
-    {"STOP", 1, 1, builtin_stop},
-    {"RESTART", 1, 1, builtin_restart},
+    {"print", 0, -1, builtin_print},
+    {"warn", 0, -1, builtin_warn},
+    {"input", 0, 1, builtin_input},
+    {"shush", 0, 0, builtin_shush},
+    {"unshush", 0, 0, builtin_unshush},
+    {"read_file", 1, 2, builtin_readfile, builtin_params_readfile, 2},
+    {"write_file", 2, 3, builtin_writefile, builtin_params_writefile, 3},
+    {"cl", 1, 1, builtin_cl},
+    {"exist_file", 1, 1, builtin_existfile},
+    {"delete_file", 1, 1, builtin_deletefile},
+    {"run", 1, 1, builtin_run},
+    {"argv", 0, 0, builtin_argv},
+    {"parallel", 1, -1, builtin_parallel},
+    {"await", 1, 1, builtin_await},
+    {"pause", 1, 2, builtin_pause, builtin_params_pause, 2},
+    {"resume", 1, 1, builtin_resume},
+    {"paused", 1, 1, builtin_paused},
+    {"stop", 1, 1, builtin_stop},
+    {"restart", 1, 1, builtin_restart},
 
     // Control
-    {"ASSERT", 1, 1, builtin_assert},
-    {"REFUTE", 1, 1, builtin_refute},
-    {"THROW", 0, -1, builtin_throw},
+    {"assert", 1, 1, builtin_assert},
+    {"refute", 1, 1, builtin_refute},
+    {"throw", 0, -1, builtin_throw},
 
     // Variables
-    {"DEL", 1, 1, builtin_del},
-    {"FREEZE", 1, 1, builtin_freeze},
-    {"THAW", 1, 1, builtin_thaw},
-    {"PERMAFREEZE", 1, 1, builtin_permafreeze},
-    {"FROZEN", 1, 1, builtin_frozen},
-    {"PERMAFROZEN", 1, 1, builtin_permafrozen},
-    {"EXIST", 1, 1, builtin_exist},
-    {"COPY", 1, 1, builtin_copy},
-    {"DEEPCOPY", 1, 1, builtin_deepcopy},
-    {"ASSIGN", 2, 2, builtin_assign},
+    {"del", 1, 1, builtin_del},
+    {"lock", 1, 1, builtin_freeze},
+    {"unlock", 1, 1, builtin_thaw},
+    {"freeze", 1, 1, builtin_permafreeze},
+    {"locked", 1, 1, builtin_frozen},
+    {"frozen", 1, 1, builtin_permafrozen},
+    {"exist", 1, 1, builtin_exist},
+    {"copy", 1, 1, builtin_copy},
+    {"deep_copy", 1, 1, builtin_deepcopy},
+    {"assign", 2, 2, builtin_assign},
 
     // Variadic math
-    {"SUM", 1, -1, builtin_sum},
-    {"PROD", 1, -1, builtin_prod},
-    {"MAX", 1, -1, builtin_max},
-    {"MIN", 1, -1, builtin_min},
-    {"ANY", 1, -1, builtin_any},
-    {"ALL", 1, -1, builtin_all},
-    {"ISUM", 1, -1, builtin_isum},
-    {"FSUM", 1, -1, builtin_fsum},
-    {"IPROD", 1, -1, builtin_iprod},
-    {"FPROD", 1, -1, builtin_fprod},
+    {"sum", 1, -1, builtin_sum},
+    {"product", 1, -1, builtin_prod},
+    {"max", 1, -1, builtin_max},
+    {"min", 1, -1, builtin_min},
+    {"any", 1, -1, builtin_any},
+    {"all", 1, -1, builtin_all},
+    {"isum", 1, -1, builtin_isum},
+    {"fsum", 1, -1, builtin_fsum},
+    {"iproduct", 1, -1, builtin_iprod},
+    {"fproduct", 1, -1, builtin_fprod},
 
     // System
-    {"MAIN", 0, 0, builtin_main},
-    {"OS", 0, 0, builtin_os},
-    {"EXIT", 0, 1, builtin_exit},
-    {"EXTEND", 1, 1, builtin_extend},
-    {"INCLUDE", 1, 1, builtin_include},
-    {"IMPORT", 1, 2, builtin_import},
-    {"IMPORT_PATH", 1, 2, builtin_import_path},
-    {"EXPORT", 2, 2, builtin_export},
+    {"is_main", 0, 0, builtin_main},
+    {"os", 0, 0, builtin_os},
+    {"exit", 0, 1, builtin_exit},
+    {"extend", 1, 1, builtin_extend},
+    {"include", 1, 1, builtin_include},
+    {"import", 1, 2, builtin_import},
+    {"import_path", 1, 2, builtin_import_path},
+    {"export", 2, 2, builtin_export},
 
     // Sentinel
     {NULL, 0, 0, NULL}};

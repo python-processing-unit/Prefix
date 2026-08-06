@@ -10,28 +10,28 @@ passing:
         map ordered = <"alpha" = 0d1, "beta" = 0d2, "gamma" = 0d3>
         map duplicate = <"x" = 0d1, "y" = 0d2, "x" = 0d3>
         
-        ASSERT(EQ(empty, <>))
+        assert(eq(empty, <>))
         
         if(empty){
-            ASSERT(false)
+            assert(false)
         } else {
-            ASSERT(true)
+            assert(true)
         }
         
         if(<"false_value" = false>){
-            ASSERT(true)
+            assert(true)
         } else {
-            ASSERT(false)
+            assert(false)
         }
         
-        ASSERT(EQ(ordered, <"alpha" = 0d1, "beta" = 0d2, "gamma" = 0d3>))
-        ASSERT(EQ(KEYS(ordered), ["alpha", "beta", "gamma"]))
-        ASSERT(EQ(VALUES(ordered), [0d1, 0d2, 0d3]))
+        assert(eq(ordered, <"alpha" = 0d1, "beta" = 0d2, "gamma" = 0d3>))
+        assert(eq(keys(ordered), ["alpha", "beta", "gamma"]))
+        assert(eq(VALUES(ordered), [0d1, 0d2, 0d3]))
         
-        ASSERT(EQ(duplicate<"x">, 0d3))
-        ASSERT(EQ(duplicate<"y">, 0d2))
-        ASSERT(EQ(KEYS(duplicate), ["x", "y"]))
-        ASSERT(EQ(VALUES(duplicate), [0d3, 0d2]))
+        assert(eq(duplicate<"x">, 0d3))
+        assert(eq(duplicate<"y">, 0d2))
+        assert(eq(keys(duplicate), ["x", "y"]))
+        assert(eq(VALUES(duplicate), [0d3, 0d2]))
         
   - name: map-literals-mixed-keys-nested
     language: Prefix
@@ -39,17 +39,17 @@ passing:
         map mixed_keys = <0d1 = "int", 0d2.5 = "flt", "three" = "str", +(0d2, 0d2) = "expr">
         map nested = <"outer" = <"inner" = 0d9>, "empty_inner" = <>>
         
-        ASSERT(EQ(mixed_keys<0d1>, "int"))
-        ASSERT(EQ(mixed_keys<0d2.5>, "flt"))
-        ASSERT(EQ(mixed_keys<"three">, "str"))
-        ASSERT(EQ(mixed_keys<0d4>, "expr"))
+        assert(eq(mixed_keys<0d1>, "int"))
+        assert(eq(mixed_keys<0d2.5>, "flt"))
+        assert(eq(mixed_keys<"three">, "str"))
+        assert(eq(mixed_keys<0d4>, "expr"))
         
-        ASSERT(EQ(nested<"outer", "inner">, 0d9))
-        ASSERT(EQ(nested<"empty_inner">, <>))
+        assert(eq(nested<"outer", "inner">, 0d9))
+        assert(eq(nested<"empty_inner">, <>))
         if(nested<"empty_inner">){
-            ASSERT(false)
+            assert(false)
         } else {
-            ASSERT(true)
+            assert(true)
         }
         
   - name: map-literals-mixed-values
@@ -62,14 +62,14 @@ passing:
         thread(worker){}
         map mixed_values = <"bool" = true, "int" = 0d2, "flt" = 0d3.5, "str" = "four", "tns" = [0d1, 0d2], "map" = <"n" = 0d5>, "func" = GET_FIVE, "thr" = worker>
         
-        ASSERT(EQ(mixed_values<"bool">, true))
-        ASSERT(EQ(mixed_values<"int">, 0d2))
-        ASSERT(EQ(mixed_values<"flt">, 0d3.5))
-        ASSERT(EQ(mixed_values<"str">, "four"))
-        ASSERT(EQ(mixed_values<"tns">, [0d1, 0d2]))
-        ASSERT(EQ(mixed_values<"map">, <"n" = 0d5>))
-        ASSERT(EQ(mixed_values<"func">(), 0d5))
-        ASSERT(EQ(mixed_values<"thr">, worker))
+        assert(eq(mixed_values<"bool">, true))
+        assert(eq(mixed_values<"int">, 0d2))
+        assert(eq(mixed_values<"flt">, 0d3.5))
+        assert(eq(mixed_values<"str">, "four"))
+        assert(eq(mixed_values<"tns">, [0d1, 0d2]))
+        assert(eq(mixed_values<"map">, <"n" = 0d5>))
+        assert(eq(mixed_values<"func">(), 0d5))
+        assert(eq(mixed_values<"thr">, worker))
         
   - name: map-literals-self
     language: Prefix
@@ -78,15 +78,15 @@ passing:
         map self_lookup = <"value" = 0d7, "copy" = SELF<"value">, "nested" = <"n" = 0d9>, "copy_nested" = SELF<"nested", "n">>
         map inner_self = <"inner" = <"value" = 0d4, "self" = SELF, "copy" = SELF<"value">>>
         
-        ASSERT(EQ(self_alias<"self", "value">, 0d1))
+        assert(eq(self_alias<"self", "value">, 0d1))
         self_alias<"value"> = 0d2
-        ASSERT(EQ(self_alias<"self", "value">, 0d2))
+        assert(eq(self_alias<"self", "value">, 0d2))
         
-        ASSERT(EQ(self_lookup<"copy">, 0d7))
-        ASSERT(EQ(self_lookup<"copy_nested">, 0d9))
+        assert(eq(self_lookup<"copy">, 0d7))
+        assert(eq(self_lookup<"copy_nested">, 0d9))
         
-        ASSERT(EQ(inner_self<"inner", "self", "value">, 0d4))
-        ASSERT(EQ(inner_self<"inner", "copy">, 0d4))
+        assert(eq(inner_self<"inner", "self", "value">, 0d4))
+        assert(eq(inner_self<"inner", "copy">, 0d4))
         
 failing:
   - name: map-literal-bad-key-bool

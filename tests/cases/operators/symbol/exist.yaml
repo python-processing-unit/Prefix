@@ -7,31 +7,31 @@ passing:
         str outer_name = "outer"
         
         func bool outer_visible(){
-            return(EXIST(outer_name))
+            return(exist(outer_name))
         }
         
         func bool inner_visible(){
             bool inner = true
-            return(EXIST("inner"))
+            return(exist("inner"))
         }
         
         func bool missing_visible(){
-            return(EXIST("missing"))
+            return(exist("missing"))
         }
         
-        ASSERT(EXIST(outer_name))
-        REFUTE(EXIST("declared_only"))
-        ASSERT(outer_visible())
-        ASSERT(inner_visible())
-        REFUTE(missing_visible())
+        assert(exist(outer_name))
+        refute(exist("declared_only"))
+        assert(outer_visible())
+        assert(inner_visible())
+        refute(missing_visible())
         
-        DEL("outer")
-        REFUTE(EXIST(outer_name))
-        REFUTE(outer_visible())
+        del("outer")
+        refute(exist(outer_name))
+        refute(outer_visible())
         
 failing:
   - name: exist-raw-symbol-argument
     language: Prefix
     source: |
         bool x = true
-        EXIST(x)
+        exist(x)

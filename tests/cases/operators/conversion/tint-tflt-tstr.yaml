@@ -4,28 +4,28 @@ passing:
     source: |
         tensor source = [[true, false, 0d7, -0b11, 0d1.75, -0d1.75], ["0d2.5", "-0d3.25", "0d0.5", "INF", "-INF", "NaN"]]
         tensor converted = tfloat(source)
-        ASSERT(EQ(TYPE(converted), "tensor"))
-        ASSERT(EQ(converted[0d1], [0d1.0, 0d0.0, 0d7.0, -0d3.0, 0d1.75, -0d1.75]))
-        ASSERT(EQ(converted[0d2, 0d1], 0d2.5))
-        ASSERT(EQ(converted[0d2, 0d2], -0d3.25))
-        ASSERT(EQ(converted[0d2, 0d3], 0d0.5))
-        ASSERT(EQ(converted[0d2, 0d4], INF))
-        ASSERT(EQ(converted[0d2, 0d5], -INF))
-        ASSERT(NEQ(converted[0d2, 0d6], converted[0d2, 0d6]))
+        assert(eq(type(converted), "tensor"))
+        assert(eq(converted[0d1], [0d1.0, 0d0.0, 0d7.0, -0d3.0, 0d1.75, -0d1.75]))
+        assert(eq(converted[0d2, 0d1], 0d2.5))
+        assert(eq(converted[0d2, 0d2], -0d3.25))
+        assert(eq(converted[0d2, 0d3], 0d0.5))
+        assert(eq(converted[0d2, 0d4], INF))
+        assert(eq(converted[0d2, 0d5], -INF))
+        assert(neq(converted[0d2, 0d6], converted[0d2, 0d6]))
   - name: tint
     language: Prefix
     source: |
         tensor source = [[true, false, 0d7, -0b11, 0d1.75, -0d1.75], ["0x1A", "-0d9", "", "prefix", "0b101", "0d0"]]
         tensor converted = tint(source)
-        ASSERT(EQ(TYPE(converted), "tensor"))
-        ASSERT(EQ(converted, [[0d1, 0d0, 0d7, -0d3, 0d1, -0d1], [0d26, -0d9, 0d0, 0d1, 0d5, 0d0]]))
+        assert(eq(type(converted), "tensor"))
+        assert(eq(converted, [[0d1, 0d0, 0d7, -0d3, 0d1, -0d1], [0d26, -0d9, 0d0, 0d1, 0d5, 0d0]]))
   - name: tstr
     language: Prefix
     source: |
         tensor source = [[true, false, 0b101, -0d7, 0d1.5, -0d1.5], ["prefix", "", INF, -INF, NaN, 0x1A]]
         tensor converted = tstr(source)
-        ASSERT(EQ(TYPE(converted), "tensor"))
-        ASSERT(EQ(converted, [["true", "false", "0b101", "-0d7", "0d1.5", "-0d1.5"], ["prefix", "", "INF", "-INF", "NaN", "0x1A"]]))
+        assert(eq(type(converted), "tensor"))
+        assert(eq(converted, [["true", "false", "0b101", "-0d7", "0d1.5", "-0d1.5"], ["prefix", "", "INF", "-INF", "NaN", "0x1A"]]))
 failing:
   - name: tconvert-pointer-writeback
     language: Prefix
@@ -33,15 +33,15 @@ failing:
         // These tests expect builtins like tint/tfloat/tstr to write back to pointer operands.
         tensor t1 = [0d1.5, 0d2.9]
         tint(@t1)
-        ASSERT(EQ(t1, [0d1, 0d2]))
+        assert(eq(t1, [0d1, 0d2]))
         
         tensor t2 = [0d1, 0d2]
         tfloat(@t2)
-        ASSERT(EQ(t2, [0d1.0, 0d2.0]))
+        assert(eq(t2, [0d1.0, 0d2.0]))
         
         tensor t3 = [0d1, 0d2]
         tstr(@t3)
-        ASSERT(EQ(t3, ["0d1", "0d2"]))
+        assert(eq(t3, ["0d1", "0d2"]))
         
   - name: tflt-bad-str
     language: Prefix

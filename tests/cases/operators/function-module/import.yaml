@@ -2,13 +2,13 @@ passing:
   - name: import-alias-qualified-namespace
     language: Prefix
     source: |
-        IMPORT("path", "helper")
+        import("path", "helper")
         
-        ASSERT(EQ(TYPE(helper.TEMPFILE("import-alias-qualified-namespace.txt")), "str"))
+        assert(eq(type(helper.TEMPFILE("import-alias-qualified-namespace.txt")), "str"))
   - name: import-alias-type-str
     language: Prefix
     source: |
-        IMPORT("path", "helper")
+        import("path", "helper")
         
   - name: import-cached-alias
     language: PowerShell
@@ -28,23 +28,23 @@ passing:
           Set-Content -Path $modulePath -Encoding Ascii -Value @"
         str marker = "$markerLiteral"
         
-        if(EXISTFILE(marker)){
-            WRITEFILE("reloaded", marker)
+        if(exist_file(marker)){
+            write_file("reloaded", marker)
         } else {
-            WRITEFILE("loaded", marker)
+            write_file("loaded", marker)
         }
         
         func str marker_text(){
-            return(READFILE(marker))
+            return(read_file(marker))
         }
         "@
         
           Set-Content -Path $programPath -Encoding Ascii -Value @"
-        IMPORT("$moduleName")
-        IMPORT("$moduleName", "again")
+        import("$moduleName")
+        import("$moduleName", "again")
         
-        ASSERT(EQ($moduleName.marker_text(), "loaded"))
-        ASSERT(EQ(again.marker_text(), "loaded"))
+        assert(eq($moduleName.marker_text(), "loaded"))
+        assert(eq(again.marker_text(), "loaded"))
         "@
         
           $output = & (Get-PrefixExePath) $programPath 2>&1
@@ -80,10 +80,10 @@ passing:
           Set-Content -Path $programPath -Encoding Ascii -Value @"
         int shared = 0d11
         
-        IMPORT("$moduleName", "helper")
+        import("$moduleName", "helper")
         
-        ASSERT(EQ(helper.read_shared(), 0d7))
-        ASSERT(EQ(shared, 0d11))
+        assert(eq(helper.read_shared(), 0d7))
+        assert(eq(shared, 0d11))
         "@
         
           $output = & (Get-PrefixExePath) $programPath 2>&1
@@ -123,9 +123,9 @@ passing:
         '@
         
           Set-Content -Path $programPath -Encoding Ascii -Value @"
-        IMPORT("$moduleName")
+        import("$moduleName")
         
-        ASSERT(EQ($moduleName.identify(), "local"))
+        assert(eq($moduleName.identify(), "local"))
         "@
         
           $output = & (Get-PrefixExePath) $programPath 2>&1
@@ -158,12 +158,12 @@ passing:
         }
         '@
         
-          Set-Content -Path $pointerPath -Encoding Ascii -Value 'this companion pointer file must be ignored by IMPORT'
+          Set-Content -Path $pointerPath -Encoding Ascii -Value 'this companion pointer file must be ignored by import'
         
           Set-Content -Path $programPath -Encoding Ascii -Value @"
-        IMPORT("$moduleName")
+        import("$moduleName")
         
-        ASSERT(EQ($moduleName.identify(), "source"))
+        assert(eq($moduleName.identify(), "source"))
         "@
         
           $output = & (Get-PrefixExePath) $programPath 2>&1
@@ -198,9 +198,9 @@ passing:
         '@
         
           Set-Content -Path $programPath -Encoding Ascii -Value @"
-        IMPORT("$packageName")
+        import("$packageName")
         
-        ASSERT(EQ($packageName.identify(), "package"))
+        assert(eq($packageName.identify(), "package"))
         "@
         
           $output = & (Get-PrefixExePath) $programPath 2>&1
@@ -235,13 +235,13 @@ passing:
         '@
         
           Set-Content -Path $programPath -Encoding Ascii -Value @"
-        IMPORT("$packageName")
+        import("$packageName")
         "@
         
           $result = Invoke-PrefixProgramWithInput -ProgramPath $programPath -InputText ''
           if ($result.ExitCode -eq 0) {
             $outputText = "STDOUT: $(Format-VisibleText $result.Stdout)`nSTDERR: $(Format-VisibleText $result.Stderr)"
-            throw "Expected IMPORT($packageName) to fail when the package directory has no init.pre`n$outputText"
+            throw "Expected import($packageName) to fail when the package directory has no init.pre`n$outputText"
           }
         }
         finally {
@@ -277,9 +277,9 @@ passing:
         '@
         
           Set-Content -Path $programPath -Encoding Ascii -Value @"
-        IMPORT("$packageName")
+        import("$packageName")
         
-        ASSERT(EQ($packageName.identify(), "package"))
+        assert(eq($packageName.identify(), "package"))
         "@
         
           $output = & (Get-PrefixExePath) $programPath 2>&1
@@ -294,9 +294,9 @@ passing:
   - name: import-qualified-namespace
     language: Prefix
     source: |
-        IMPORT("path")
+        import("path")
         
-        ASSERT(EQ(TYPE(path.TEMPFILE("import-qualified-namespace.txt")), "str"))
+        assert(eq(type(path.TEMPFILE("import-qualified-namespace.txt")), "str"))
   - name: import-qualified-only
     language: PowerShell
     source: |
@@ -315,15 +315,15 @@ passing:
         '@
         
           Set-Content -Path $programPath -Encoding Ascii -Value @"
-        IMPORT("$moduleName")
+        import("$moduleName")
         
-        ASSERT(EQ(hidden, 0d7))
+        assert(eq(hidden, 0d7))
         "@
         
           $result = Invoke-PrefixProgramWithInput -ProgramPath $programPath -InputText ''
           if ($result.ExitCode -eq 0) {
             $outputText = "STDOUT: $(Format-VisibleText $result.Stdout)`nSTDERR: $(Format-VisibleText $result.Stderr)"
-            throw "Expected unqualified module binding access to fail after IMPORT($moduleName)`n$outputText"
+            throw "Expected unqualified module binding access to fail after import($moduleName)`n$outputText"
           }
         }
         finally {
@@ -332,8 +332,8 @@ passing:
   - name: import-return-false
     language: Prefix
     source: |
-        ASSERT(EQ(TYPE(IMPORT("path")), "bool"))
-        REFUTE(IMPORT("path"))
+        assert(eq(type(import("path")), "bool"))
+        refute(import("path"))
   - name: import-stdlib-before-userlib
     language: PowerShell
     source: |
@@ -362,9 +362,9 @@ passing:
         '@
         
           Set-Content -Path $programPath -Encoding Ascii -Value @"
-        IMPORT("$moduleName")
+        import("$moduleName")
         
-        ASSERT(EQ($moduleName.identify(), "stdlib"))
+        assert(eq($moduleName.identify(), "stdlib"))
         "@
         
           $output = & (Get-PrefixExePath) $programPath 2>&1
@@ -381,57 +381,57 @@ passing:
   - name: import-type-str
     language: Prefix
     source: |
-        IMPORT("path")
+        import("path")
         
 failing:
   - name: import-alias-type-bool
     language: Prefix
-    source: 'IMPORT("path", true)'
+    source: 'import("path", true)'
   - name: import-alias-type-flt
     language: Prefix
-    source: 'IMPORT("path", 0d1.0)'
+    source: 'import("path", 0d1.0)'
   - name: import-alias-type-func
     language: Prefix
-    source: 'IMPORT("path", LAMBDA bool: (){})'
+    source: 'import("path", LAMBDA bool: (){})'
   - name: import-alias-type-int
     language: Prefix
-    source: 'IMPORT("path", 0d1)'
+    source: 'import("path", 0d1)'
   - name: import-alias-type-map
     language: Prefix
-    source: 'IMPORT("path", <>)'
+    source: 'import("path", <>)'
   - name: import-alias-type-thr
     language: Prefix
-    source: 'IMPORT("path", async{})'
+    source: 'import("path", async{})'
   - name: import-alias-type-tns
     language: Prefix
-    source: 'IMPORT("path", [0d1])'
+    source: 'import("path", [0d1])'
   - name: import-arity-three
     language: Prefix
-    source: 'IMPORT("path", "helper", extra)'
+    source: 'import("path", "helper", extra)'
   - name: import-arity-zero
     language: Prefix
-    source: IMPORT()
+    source: import()
   - name: import-missing-module
     language: Prefix
-    source: IMPORT("prefiximportmissingmoduletest")
+    source: import("prefiximportmissingmoduletest")
   - name: import-type-bool
     language: Prefix
-    source: IMPORT(true)
+    source: import(true)
   - name: import-type-flt
     language: Prefix
-    source: IMPORT(0d1.0)
+    source: import(0d1.0)
   - name: import-type-func
     language: Prefix
-    source: 'IMPORT(LAMBDA bool: (){})'
+    source: 'import(LAMBDA bool: (){})'
   - name: import-type-int
     language: Prefix
-    source: IMPORT(0d1)
+    source: import(0d1)
   - name: import-type-map
     language: Prefix
-    source: IMPORT(<>)
+    source: import(<>)
   - name: import-type-thr
     language: Prefix
-    source: IMPORT(async{})
+    source: import(async{})
   - name: import-type-tns
     language: Prefix
-    source: IMPORT([0d1])
+    source: import([0d1])

@@ -10,41 +10,41 @@ passing:
         }
         
         ! Wait for worker to finish
-        AWAIT(worker)
-        ASSERT(EQ(finished, true))
+        await(worker)
+        assert(eq(finished, true))
         
         ! Restart the finished thread
-        thread r = RESTART(worker)
-        ASSERT(EQ(TYPE(r), "thread"))
-        ASSERT(EQ(r, worker))
-        ASSERT(bool(r))
+        thread r = restart(worker)
+        assert(eq(type(r), "thread"))
+        assert(eq(r, worker))
+        assert(bool(r))
         
         ! After restart, the thread should run again and set finished
-        AWAIT(r)
-        ASSERT(EQ(finished, true))
+        await(r)
+        assert(eq(finished, true))
         
 failing:
   - name: restart-arity-two
     language: Prefix
-    source: 'RESTART(async{}, async{})'
+    source: 'restart(async{}, async{})'
   - name: restart-arity-zero
     language: Prefix
-    source: RESTART()
+    source: restart()
   - name: restart-bool
     language: Prefix
-    source: RESTART(true)
+    source: restart(true)
   - name: restart-flt
     language: Prefix
-    source: RESTART(0d1.0)
+    source: restart(0d1.0)
   - name: restart-func
     language: Prefix
-    source: 'RESTART(LAMBDA bool: (){})'
+    source: 'restart(LAMBDA bool: (){})'
   - name: restart-int
     language: Prefix
-    source: RESTART(0d1)
+    source: restart(0d1)
   - name: restart-map
     language: Prefix
-    source: RESTART(<>)
+    source: restart(<>)
   - name: restart-running
     language: Prefix
     source: |
@@ -52,11 +52,11 @@ failing:
             for(i, 0d100000){}
         }
         
-        RESTART(worker)
+        restart(worker)
         
   - name: restart-str
     language: Prefix
-    source: RESTART("thread")
+    source: restart("thread")
   - name: restart-tns
     language: Prefix
-    source: RESTART([0d1])
+    source: restart([0d1])

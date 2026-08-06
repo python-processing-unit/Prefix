@@ -2,8 +2,8 @@ passing:
   - name: exit-default
     language: Prefix
     source: |
-        EXIT()
-        THROW("unreachable")
+        exit()
+        throw("unreachable")
         
   - name: exit-explicit-nonzero
     language: PowerShell
@@ -17,9 +17,9 @@ passing:
           $programPath = Join-Path $tempDir 'program.pre'
         
           Set-Content -Path $programPath -Encoding Ascii -Value @'
-        PRINT("custom")
-        EXIT(0d23)
-        PRINT("after")
+        print("custom")
+        exit(0d23)
+        print("after")
         '@
         
           $startInfo = New-Object System.Diagnostics.ProcessStartInfo
@@ -75,9 +75,9 @@ passing:
           $programPath = Join-Path $tempDir 'program.pre'
         
           Set-Content -Path $programPath -Encoding Ascii -Value @'
-        PRINT("before")
-        EXIT(0d0)
-        PRINT("after")
+        print("before")
+        exit(0d0)
+        print("after")
         '@
         
           $startInfo = New-Object System.Diagnostics.ProcessStartInfo
@@ -120,40 +120,40 @@ failing:
   - name: exit-arity-two
     language: Prefix
     source: |
-        EXIT(0d0, 0d1)
+        exit(0d0, 0d1)
         
   - name: exit-type-bool
     language: Prefix
     source: |
-        EXIT(true)
+        exit(true)
         
   - name: exit-type-flt
     language: Prefix
     source: |
-        EXIT(0d1.0)
+        exit(0d1.0)
         
   - name: exit-type-func
     language: Prefix
     source: |
-        EXIT(LAMBDA bool: (){})
+        exit(LAMBDA bool: (){})
         
   - name: exit-type-map
     language: Prefix
     source: |
-        EXIT(<>)
+        exit(<>)
         
   - name: exit-type-str
     language: Prefix
     source: |
-        EXIT("0d1")
+        exit("0d1")
         
   - name: exit-type-thr
     language: Prefix
     source: |
-        EXIT(async{})
+        exit(async{})
         
   - name: exit-type-tns
     language: Prefix
     source: |
-        EXIT([0d1])
+        exit([0d1])
         

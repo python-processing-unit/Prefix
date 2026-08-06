@@ -2,10 +2,10 @@ passing:
   - name: warn-coerce-scalars
     language: Prefix
     source: |
-        ASSERT(EQ(WARN(true), false))
-        ASSERT(EQ(WARN(0d42), false))
-        ASSERT(EQ(WARN(0d1.5), false))
-        ASSERT(EQ(WARN("value"), false))
+        assert(eq(warn(true), false))
+        assert(eq(warn(0d42), false))
+        assert(eq(warn(0d1.5), false))
+        assert(eq(warn("value"), false))
   - name: warn-nonverbose-no-output
     language: PowerShell
     source: |
@@ -18,7 +18,7 @@ passing:
           $programPath = Join-Path $tempDir 'program.pre'
         
           Set-Content -Path $programPath -Encoding Ascii -Value @'
-        ASSERT(EQ(WARN("bool=", true, ",int=", 0d42, ",flt=", INF, ",str=", "ok"), false))
+        assert(eq(warn("bool=", true, ",int=", 0d42, ",flt=", INF, ",str=", "ok"), false))
         '@
         
           $startInfo = New-Object System.Diagnostics.ProcessStartInfo
@@ -68,7 +68,7 @@ passing:
           $programPath = Join-Path $tempDir 'program.pre'
         
           Set-Content -Path $programPath -Encoding Ascii -Value @'
-        ASSERT(EQ(WARN("bool=", true, ",int=", 0d42, ",flt=", INF, ",str=", "ok"), true))
+        assert(eq(warn("bool=", true, ",int=", 0d42, ",flt=", INF, ",str=", "ok"), true))
         '@
         
           $startInfo = New-Object System.Diagnostics.ProcessStartInfo
@@ -109,19 +109,19 @@ passing:
 failing:
   - name: warn-arity-zero
     language: Prefix
-    source: WARN()
+    source: warn()
   - name: warn-first-func
     language: Prefix
-    source: 'WARN(LAMBDA bool: (){})'
+    source: 'warn(LAMBDA bool: (){})'
   - name: warn-first-map
     language: Prefix
-    source: 'WARN(<"key" = 0d1>)'
+    source: 'warn(<"key" = 0d1>)'
   - name: warn-first-thr
     language: Prefix
-    source: WARN(async{})
+    source: warn(async{})
   - name: warn-first-tns
     language: Prefix
-    source: WARN([0d1])
+    source: warn([0d1])
   - name: warn-second-map
     language: Prefix
-    source: 'WARN("ok", <"key" = 0d1>)'
+    source: 'warn("ok", <"key" = 0d1>)'

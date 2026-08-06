@@ -814,19 +814,19 @@ int extensions_load_named(const char *spec, const char *base_dir, const char *sc
     }
 
     if (!spec || spec[0] == '\0') {
-        set_error(error_out, "EXTEND: empty extension specifier");
+        set_error(error_out, "extend: empty extension specifier");
         return -1;
     }
 
     if (has_dynlib_suffix(spec)) {
-        set_errorf(error_out, "EXTEND: explicit extension suffix rejected: ", spec);
+        set_errorf(error_out, "extend: explicit extension suffix rejected: ", spec);
         return -1;
     }
 
     char *ext_name = extension_name_from_spec(spec);
     if (!ext_name || ext_name[0] == '\0') {
         free(ext_name);
-        set_error(error_out, "EXTEND: invalid extension name");
+        set_error(error_out, "extend: invalid extension name");
         return -1;
     }
 

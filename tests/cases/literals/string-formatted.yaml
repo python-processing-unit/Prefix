@@ -2,25 +2,25 @@ passing:
   - name: string-fmt-simple
     language: Prefix
     source: |
-        ASSERT(EQ("\F{0d1}", "0d1"))
+        assert(eq("\F{0d1}", "0d1"))
         
   - name: string-formatted-mode
     language: Prefix
     source: |
         str x = "0d1"
         int y = 0d2
-        ASSERT(EQ("\Fx: {x}; y: {y}", "x: 0d1; y: 0d2"))
-        ASSERT(EQ("\F{x}", "0d1"))
-        ASSERT(EQ("\Fhello{ x }world", "hello0d1world"))
-        ASSERT(EQ("\F{+(0d3, 0d4)}", "0d7"))
-        ASSERT(EQ("\F{true}", "true"))
-        ASSERT(EQ("\F{false}", "false"))
-        ASSERT(EQ("\R\F{x}", "{x}"))
-        ASSERT(EQ("\F\R{x}", "{x}"))
-        ASSERT(EQ("\R\F{x}\R", "{x}"))
-        ASSERT(EQ("\F\R{x}\F", "{x}"))
+        assert(eq("\Fx: {x}; y: {y}", "x: 0d1; y: 0d2"))
+        assert(eq("\F{x}", "0d1"))
+        assert(eq("\Fhello{ x }world", "hello0d1world"))
+        assert(eq("\F{+(0d3, 0d4)}", "0d7"))
+        assert(eq("\F{true}", "true"))
+        assert(eq("\F{false}", "false"))
+        assert(eq("\R\F{x}", "{x}"))
+        assert(eq("\F\R{x}", "{x}"))
+        assert(eq("\R\F{x}\R", "{x}"))
+        assert(eq("\F\R{x}\F", "{x}"))
         
 failing:
   - name: string-formatted-unclosed
     language: Prefix
-    source: 'ASSERT(EQ("\F{0d1", "0d1"))'
+    source: 'assert(eq("\F{0d1", "0d1"))'

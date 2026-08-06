@@ -13,7 +13,7 @@ static void report_error(Parser *parser, const char *message) {
     }
     parser->panic_mode = true;
     parser->had_error = true;
-    /* Record last error for possible conversion into a runtime THROW
+    /* Record last error for possible conversion into a runtime throw
        so try/catch can handle parse-time errors that occur inside
        parsed blocks. Also emit the usual diagnostic to stderr. */
     if (parser->error_msg) {
@@ -664,7 +664,7 @@ static void append_parse_error_throw_stmt(Parser *parser, Stmt *block) {
     }
 
     char *msg_dup = strdup(parser->error_msg);
-    Expr *callee = expr_ident(strdup("THROW"), parser->error_line, parser->error_col);
+    Expr *callee = expr_ident(strdup("throw"), parser->error_line, parser->error_col);
     Expr *call = expr_call(callee, parser->error_line, parser->error_col);
     Expr *arg = expr_str(msg_dup, parser->error_line, parser->error_col);
     expr_list_add(&call->as.call.args, arg);
@@ -1022,7 +1022,7 @@ static Expr *parse_call(Parser *parser) {
                 do {
                     bool is_typed_assign_target =
                         (call->as.call.callee->type == EXPR_IDENT &&
-                         strcmp(call->as.call.callee->as.ident, "ASSIGN") == 0 && call->as.call.args.count == 0 &&
+                         strcmp(call->as.call.callee->as.ident, "assign") == 0 && call->as.call.args.count == 0 &&
                          call->as.call.kw_count == 0 && is_type_token(parser->current_token.type) &&
                          (parser->next_token.type == TOKEN_IDENT || parser->next_token.type == TOKEN_COLON ||
                           parser->next_token.type == TOKEN_LBRACE)) != 0;
@@ -1521,7 +1521,7 @@ Stmt *parser_parse(Parser *parser) {
              * assignments must occupy their own logical line. If we parsed
              * such a statement but the next token is not a logical newline
              * (TOKEN_NEWLINE) or EOF, report a parse error and synthesize
-             * a THROW so runtime try/catch can observe it. Then
+             * a throw so runtime try/catch can observe it. Then
              * synchronize to the next logical newline. */
             if ((stmt->type == STMT_EXPR || stmt->type == STMT_ASSIGN) && parser->current_token.type != TOKEN_NEWLINE &&
                 parser->current_token.type != TOKEN_EOF) {
@@ -1542,10 +1542,10 @@ Stmt *parser_parse(Parser *parser) {
             continue;
         }
 
-        /* If a parse error was recorded, synthesize a runtime THROW call
+        /* If a parse error was recorded, synthesize a runtime throw call
            statement so that runtime try/catch can observe the parse error
            as a catchable runtime exception. Then clear the parser error
-           state so callers (e.g. RUN/IMPORT) don't treat it as a fatal
+           state so callers (e.g. run/import) don't treat it as a fatal
            top-level parse failure. */
         if (parser->error_msg) {
             append_parse_error_throw_stmt(parser, program);

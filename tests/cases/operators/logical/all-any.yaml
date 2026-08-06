@@ -2,23 +2,23 @@ passing:
   - name: all
     language: Prefix
     source: |
-        ASSERT(ALL(true, true))
-        REFUTE(ALL(true, false))
-        ASSERT(ALL(true, true, true))
-        REFUTE(ALL(true, true, false))
+        assert(all(true, true))
+        refute(all(true, false))
+        assert(all(true, true, true))
+        refute(all(true, true, false))
         
   - name: any
     language: Prefix
     source: |
-        ASSERT(NOT(ANY(false, false)))
-        ASSERT(ANY(false, true))
-        ASSERT(ANY(false, false, true))
-        ASSERT(NOT(ANY(false, false, false)))
+        assert(not(any(false, false)))
+        assert(any(false, true))
+        assert(any(false, false, true))
+        assert(not(any(false, false, false)))
         
 failing:
   - name: all-arity-zero
     language: Prefix
-    source: ALL()
+    source: all()
   - name: any-arity-zero
     language: Prefix
-    source: ANY()
+    source: any()

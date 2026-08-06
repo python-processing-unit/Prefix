@@ -5,7 +5,7 @@ passing:
         $helperPath = Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) 'helpers\prefix-input.ps1'
         . $helperPath
         
-        $result = Invoke-PrefixWithArguments -Arguments @() -InputText "PRINT('repl-basic')`n.exit`n"
+        $result = Invoke-PrefixWithArguments -Arguments @() -InputText "print('repl-basic')`n.exit`n"
         
         Assert-PrefixSuccess $result
         Assert-NoErrorOutput $result
@@ -22,7 +22,7 @@ passing:
         . $helperPath
         
         # Send a single command and EOF (no explicit .exit)
-        $result = Invoke-PrefixWithArguments -Arguments @() -InputText "PRINT('bye')`n"
+        $result = Invoke-PrefixWithArguments -Arguments @() -InputText "print('bye')`n"
         
         Assert-PrefixSuccess $result
         Assert-NoErrorOutput $result
@@ -42,7 +42,7 @@ passing:
         func str hello(){
         return("hi")
         }
-        PRINT(hello())
+        print(hello())
         .exit
         '@
         
@@ -65,7 +65,7 @@ passing:
         $input = @'
         bool persisted = true
         
-        PRINT(persisted)
+        print(persisted)
         .exit
         '@
         

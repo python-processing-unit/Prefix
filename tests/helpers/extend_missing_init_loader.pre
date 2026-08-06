@@ -1,1 +1,1 @@
-bool extend_result = EXTEND("extend_missing_init")
+bool extend_result = extend("extend_missing_init")

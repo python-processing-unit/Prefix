@@ -3,27 +3,27 @@ passing:
     language: Prefix
     source: |
         if(""){
-            ASSERT(false)
+            assert(false)
         } else {
-            ASSERT(true)
+            assert(true)
         }
         
         if(''){
-            ASSERT(false)
+            assert(false)
         } else {
-            ASSERT(true)
+            assert(true)
         }
         
         if("x"){
-            ASSERT(true)
+            assert(true)
         } else {
-            ASSERT(false)
+            assert(false)
         }
         
         if('x'){
-            ASSERT(true)
+            assert(true)
         } else {
-            ASSERT(false)
+            assert(false)
         }
   - name: string-literals
     language: Prefix
@@ -35,11 +35,11 @@ passing:
         str mixed_single = 'double "quote"'
         str mixed_double = "single 'quote'"
         
-        ASSERT(EQ(empty_single, empty_double))
-        ASSERT(EQ(single, "alpha"))
-        ASSERT(EQ(double, 'beta'))
-        ASSERT(EQ(mixed_single, "double \"quote\""))
-        ASSERT(EQ(mixed_double, 'single \'quote\''))
+        assert(eq(empty_single, empty_double))
+        assert(eq(single, "alpha"))
+        assert(eq(double, 'beta'))
+        assert(eq(mixed_single, "double \"quote\""))
+        assert(eq(mixed_double, 'single \'quote\''))
         
 failing:
   - name: string-mismatched-quote

@@ -14,7 +14,7 @@ void extensions_set_runtime_dirs(const char *interpreter_dir, const char *cwd_di
 // Returns 0 on success, -1 on failure. On failure, *error_out is heap-allocated.
 int extensions_load_library(const char *path, const char *base_dir, char **error_out);
 
-// Load an extension by logical name/specifier used by EXTEND.
+// Load an extension by logical name/specifier used by extend.
 // spec excludes platform filename extension and may use package semantics via "..".
 // scope_name is retained for loader bookkeeping; module-restricted exposure uses
 // the extension name only.

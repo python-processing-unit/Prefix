@@ -83,7 +83,7 @@ typedef struct Interpreter {
     bool in_try_block;
     // Module registry: linked list of imported modules
     struct ModuleEntry *modules;
-    // When non-zero, forwarding of console output (PRINT/CL) is suppressed
+    // When non-zero, forwarding of console output (print/cl) is suppressed
     int shushed;
     // Current thread handle when executing in a background thread (NULL in main thread)
     struct Thread *current_thread;
@@ -103,7 +103,7 @@ typedef struct Interpreter {
     // Registry of live background threads (async/thread) spawned by this
     // interpreter. interpreter_destroy() checks it and, while any worker is
     // still live, skips freeing shared state (global_env/modules) because a
-    // still-running worker could touch freed memory; the OS reclaims it at
+    // still-running worker could touch freed memory; the os reclaims it at
     // process exit.
     struct Thread **bg_threads;
     size_t bg_thread_count;

@@ -424,7 +424,7 @@ int main(int argc, char **argv) {
     }
 
     // Change working directory to the directory containing the script
-    // so relative READFILE/WRITEFILE operate relative to the script.
+    // so relative read_file/write_file operate relative to the script.
     if (path) {
         char *dir = strdup(path);
         char *last_slash = NULL;

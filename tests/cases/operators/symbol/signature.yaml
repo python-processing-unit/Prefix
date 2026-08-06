@@ -14,11 +14,11 @@ passing:
         
         func str local_signature(){
             int inner_value = 0d1
-            return(SIGNATURE(inner_value))
+            return(signature(inner_value))
         }
         
-        ASSERT(EQ(SIGNATURE(sample_value), 'int sample_value'))
-        ASSERT(EQ(SIGNATURE(plain), 'int plain(int left, str right = "def")'))
-        ASSERT(EQ(SIGNATURE(coerced), 'int coerced(~int value, str suffix = "x")'))
-        ASSERT(EQ(local_signature(), 'int inner_value'))
+        assert(eq(signature(sample_value), 'int sample_value'))
+        assert(eq(signature(plain), 'int plain(int left, str right = "def")'))
+        assert(eq(signature(coerced), 'int coerced(~int value, str suffix = "x")'))
+        assert(eq(local_signature(), 'int inner_value'))
         

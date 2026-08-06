@@ -2,257 +2,257 @@ passing:
   - name: export-alias-shared-module
     language: Prefix
     source: |
-        IMPORT("path")
+        import("path")
         
         str tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
-        str helper_path = JOIN(tests_dir, "/helpers/export_target.pre")
+        str helper_path = join(tests_dir, "/helpers/export_target.pre")
         
-        IMPORT_PATH(helper_path)
-        IMPORT_PATH(helper_path, "again")
+        import_path(helper_path)
+        import_path(helper_path, "again")
         
         int via_name = 0d7
-        REFUTE(EXPORT("via_name", "export_target"))
-        ASSERT(EQ(again.via_name, 0d7))
+        refute(export("via_name", "export_target"))
+        assert(eq(again.via_name, 0d7))
         
         int via_alias = 0d8
-        REFUTE(EXPORT("via_alias", "again"))
-        ASSERT(EQ(export_target.via_alias, 0d8))
+        refute(export("via_alias", "again"))
+        assert(eq(export_target.via_alias, 0d8))
   - name: export-copy-map
     language: Prefix
     source: |
-        IMPORT("path")
+        import("path")
         
         str tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
-        str helper_path = JOIN(tests_dir, "/helpers/export_target.pre")
+        str helper_path = join(tests_dir, "/helpers/export_target.pre")
         
-        REFUTE(IMPORT_PATH(helper_path, "helper"))
+        refute(import_path(helper_path, "helper"))
         
         map box = <"value" = 0d5>
-        REFUTE(EXPORT("box", "helper"))
+        refute(export("box", "helper"))
         
         box<"value"> = 0d6
         
-        ASSERT(EQ(helper.read_box_value(), 0d5))
-        REFUTE(helper.set_box_value(0d7))
-        ASSERT(EQ(box<"value">, 0d6))
-        ASSERT(EQ(helper.read_box_value(), 0d7))
+        assert(eq(helper.read_box_value(), 0d5))
+        refute(helper.set_box_value(0d7))
+        assert(eq(box<"value">, 0d6))
+        assert(eq(helper.read_box_value(), 0d7))
   - name: export-copy-tensor
     language: Prefix
     source: |
-        IMPORT("path")
+        import("path")
         
         str tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
-        str helper_path = JOIN(tests_dir, "/helpers/export_target.pre")
+        str helper_path = join(tests_dir, "/helpers/export_target.pre")
         
-        REFUTE(IMPORT_PATH(helper_path, "helper"))
+        refute(import_path(helper_path, "helper"))
         
         tensor tensor = [0d5, 0d6]
-        REFUTE(EXPORT("tensor", "helper"))
+        refute(export("tensor", "helper"))
         
         tensor[0d1] = 0d8
         
-        ASSERT(EQ(helper.read_tensor_first(), 0d5))
-        REFUTE(helper.set_tensor_first(0d9))
-        ASSERT(EQ(tensor[0d1], 0d8))
-        ASSERT(EQ(helper.read_tensor_first(), 0d9))
+        assert(eq(helper.read_tensor_first(), 0d5))
+        refute(helper.set_tensor_first(0d9))
+        assert(eq(tensor[0d1], 0d8))
+        assert(eq(helper.read_tensor_first(), 0d9))
   - name: export-qualified-call
     language: Prefix
     source: |
-        IMPORT("path", "helper")
+        import("path", "helper")
         
         func str describe(){
             return("exported")
         }
         
-        REFUTE(EXPORT("describe", "helper"))
-        ASSERT(EQ(helper.describe(), "exported"))
+        refute(export("describe", "helper"))
+        assert(eq(helper.describe(), "exported"))
   - name: export-return-false
     language: Prefix
     source: |
-        IMPORT("path")
+        import("path")
         
         str tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
-        str helper_path = JOIN(tests_dir, "/helpers/export_target.pre")
+        str helper_path = join(tests_dir, "/helpers/export_target.pre")
         
-        REFUTE(IMPORT_PATH(helper_path, "helper"))
+        refute(import_path(helper_path, "helper"))
         
         int value = 0d42
-        bool result = EXPORT("value", "helper")
+        bool result = export("value", "helper")
         
-        ASSERT(EQ(TYPE(result), "bool"))
-        REFUTE(result)
-        ASSERT(EQ(helper.value, 0d42))
+        assert(eq(type(result), "bool"))
+        refute(result)
+        assert(eq(helper.value, 0d42))
 failing:
   - name: export-arity-one
     language: Prefix
     source: |
         int value = 0d1
-        EXPORT(value)
+        export(value)
   - name: export-arity-three
     language: Prefix
     source: |
         int value = 0d1
-        EXPORT(value, "helper", extra)
+        export(value, "helper", extra)
   - name: export-arity-zero
     language: Prefix
-    source: EXPORT()
+    source: export()
   - name: export-declared-only-symbol
     language: Prefix
     source: |
-        IMPORT("path")
+        import("path")
         
         str tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
-        str helper_path = JOIN(tests_dir, "/helpers/export_target.pre")
+        str helper_path = join(tests_dir, "/helpers/export_target.pre")
         
-        REFUTE(IMPORT_PATH(helper_path, "helper"))
+        refute(import_path(helper_path, "helper"))
         
         int value
-        EXPORT("value", "helper")
+        export("value", "helper")
   - name: export-deleted-symbol
     language: Prefix
     source: |
-        IMPORT("path")
+        import("path")
         
         str tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
-        str helper_path = JOIN(tests_dir, "/helpers/export_target.pre")
+        str helper_path = join(tests_dir, "/helpers/export_target.pre")
         
-        REFUTE(IMPORT_PATH(helper_path, "helper"))
+        refute(import_path(helper_path, "helper"))
         
         int value = 0d1
-        DEL("value")
-        EXPORT("value", "helper")
+        del("value")
+        export("value", "helper")
   - name: export-module-type-bool
     language: Prefix
     source: |
         int value = 0d1
-        EXPORT(value, true)
+        export(value, true)
   - name: export-module-type-flt
     language: Prefix
     source: |
         int value = 0d1
-        EXPORT(value, 0d1.0)
+        export(value, 0d1.0)
   - name: export-module-type-func
     language: Prefix
     source: |
         int value = 0d1
-        EXPORT(value, LAMBDA bool: (){})
+        export(value, LAMBDA bool: (){})
   - name: export-module-type-int
     language: Prefix
     source: |
         int value = 0d1
-        EXPORT(value, 0d1)
+        export(value, 0d1)
   - name: export-module-type-map
     language: Prefix
     source: |
         int value = 0d1
-        EXPORT(value, <>)
+        export(value, <>)
   - name: export-module-type-str
     language: Prefix
     source: |
         int value = 0d1
-        EXPORT(value, "helper")
+        export(value, "helper")
   - name: export-module-type-thr
     language: Prefix
     source: |
         int value = 0d1
-        EXPORT(value, async{})
+        export(value, async{})
   - name: export-module-type-tns
     language: Prefix
     source: |
         int value = 0d1
-        EXPORT(value, [0d1])
+        export(value, [0d1])
   - name: export-symbol-type-bool
     language: Prefix
     source: |
-        IMPORT("path")
+        import("path")
         
         str tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
-        str helper_path = JOIN(tests_dir, "/helpers/export_target.pre")
+        str helper_path = join(tests_dir, "/helpers/export_target.pre")
         
-        REFUTE(IMPORT_PATH(helper_path, "helper"))
-        EXPORT(true, "helper")
+        refute(import_path(helper_path, "helper"))
+        export(true, "helper")
   - name: export-symbol-type-flt
     language: Prefix
     source: |
-        IMPORT("path")
+        import("path")
         
         str tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
-        str helper_path = JOIN(tests_dir, "/helpers/export_target.pre")
+        str helper_path = join(tests_dir, "/helpers/export_target.pre")
         
-        REFUTE(IMPORT_PATH(helper_path, "helper"))
-        EXPORT(0d1.0, "helper")
+        refute(import_path(helper_path, "helper"))
+        export(0d1.0, "helper")
   - name: export-symbol-type-func
     language: Prefix
     source: |
-        IMPORT("path")
+        import("path")
         
         str tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
-        str helper_path = JOIN(tests_dir, "/helpers/export_target.pre")
+        str helper_path = join(tests_dir, "/helpers/export_target.pre")
         
-        REFUTE(IMPORT_PATH(helper_path, "helper"))
-        EXPORT(LAMBDA bool: (){}, "helper")
+        refute(import_path(helper_path, "helper"))
+        export(LAMBDA bool: (){}, "helper")
   - name: export-symbol-type-int
     language: Prefix
     source: |
-        IMPORT("path")
+        import("path")
         
         str tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
-        str helper_path = JOIN(tests_dir, "/helpers/export_target.pre")
+        str helper_path = join(tests_dir, "/helpers/export_target.pre")
         
-        REFUTE(IMPORT_PATH(helper_path, "helper"))
-        EXPORT(0d1, "helper")
+        refute(import_path(helper_path, "helper"))
+        export(0d1, "helper")
   - name: export-symbol-type-map
     language: Prefix
     source: |
-        IMPORT("path")
+        import("path")
         
         str tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
-        str helper_path = JOIN(tests_dir, "/helpers/export_target.pre")
+        str helper_path = join(tests_dir, "/helpers/export_target.pre")
         
-        REFUTE(IMPORT_PATH(helper_path, "helper"))
-        EXPORT(<>, "helper")
+        refute(import_path(helper_path, "helper"))
+        export(<>, "helper")
   - name: export-symbol-type-str
     language: Prefix
     source: |
-        IMPORT("path")
+        import("path")
         
         str tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
-        str helper_path = JOIN(tests_dir, "/helpers/export_target.pre")
+        str helper_path = join(tests_dir, "/helpers/export_target.pre")
         
-        REFUTE(IMPORT_PATH(helper_path, "helper"))
-        EXPORT("value", "helper")
+        refute(import_path(helper_path, "helper"))
+        export("value", "helper")
   - name: export-symbol-type-thr
     language: Prefix
     source: |
-        IMPORT("path")
+        import("path")
         
         str tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
-        str helper_path = JOIN(tests_dir, "/helpers/export_target.pre")
+        str helper_path = join(tests_dir, "/helpers/export_target.pre")
         
-        REFUTE(IMPORT_PATH(helper_path, "helper"))
-        EXPORT(async{}, "helper")
+        refute(import_path(helper_path, "helper"))
+        export(async{}, "helper")
   - name: export-symbol-type-tns
     language: Prefix
     source: |
-        IMPORT("path")
+        import("path")
         
         str tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
-        str helper_path = JOIN(tests_dir, "/helpers/export_target.pre")
+        str helper_path = join(tests_dir, "/helpers/export_target.pre")
         
-        REFUTE(IMPORT_PATH(helper_path, "helper"))
-        EXPORT([0d1], "helper")
+        refute(import_path(helper_path, "helper"))
+        export([0d1], "helper")
   - name: export-undeclared-symbol
     language: Prefix
     source: |
-        IMPORT("path")
+        import("path")
         
         str tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
-        str helper_path = JOIN(tests_dir, "/helpers/export_target.pre")
+        str helper_path = join(tests_dir, "/helpers/export_target.pre")
         
-        REFUTE(IMPORT_PATH(helper_path, "helper"))
-        EXPORT("value", "helper")
+        refute(import_path(helper_path, "helper"))
+        export("value", "helper")
   - name: export-unimported-module
     language: Prefix
     source: |
         int value = 0d1
-        EXPORT("value", "helper")
+        export("value", "helper")

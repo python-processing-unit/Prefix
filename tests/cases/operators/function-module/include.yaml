@@ -17,22 +17,22 @@ passing:
           Set-Content -Path $modulePath -Encoding Ascii -Value @"
         str marker = "$markerLiteral"
         
-        if(EXISTFILE(marker)){
-            WRITEFILE("reloaded", marker)
+        if(exist_file(marker)){
+            write_file("reloaded", marker)
         } else {
-            WRITEFILE("loaded", marker)
+            write_file("loaded", marker)
         }
         
         func str marker_text(){
-            return(READFILE(marker))
+            return(read_file(marker))
         }
         "@
         
           Set-Content -Path $programPath -Encoding Ascii -Value @"
-        INCLUDE("$moduleName")
-        INCLUDE("$moduleName")
+        include("$moduleName")
+        include("$moduleName")
         
-        ASSERT(EQ(marker_text(), "loaded"))
+        assert(eq(marker_text(), "loaded"))
         "@
         
           $output = & (Get-PrefixExePath) $programPath 2>&1
@@ -69,11 +69,11 @@ passing:
           Set-Content -Path $programPath -Encoding Ascii -Value @"
         int caller_var = 0d11
         
-        INCLUDE("$moduleName")
+        include("$moduleName")
         
-        ASSERT(EQ(read_module_var(), 0d7))
-        ASSERT(EQ(module_var, 0d7))
-        ASSERT(EQ(caller_var, 0d11))
+        assert(eq(read_module_var(), 0d7))
+        assert(eq(module_var, 0d7))
+        assert(eq(caller_var, 0d11))
         "@
         
           $output = & (Get-PrefixExePath) $programPath 2>&1
@@ -114,9 +114,9 @@ passing:
         '@
         
           Set-Content -Path $programPath -Encoding Ascii -Value @"
-        INCLUDE("$moduleName")
+        include("$moduleName")
         
-        ASSERT(EQ(identify(), "local"))
+        assert(eq(identify(), "local"))
         "@
         
           $output = & (Get-PrefixExePath) $programPath 2>&1
@@ -150,12 +150,12 @@ passing:
         }
         '@
         
-          Set-Content -Path $pointerPath -Encoding Ascii -Value 'this companion pointer file must be ignored by INCLUDE'
+          Set-Content -Path $pointerPath -Encoding Ascii -Value 'this companion pointer file must be ignored by include'
         
           Set-Content -Path $programPath -Encoding Ascii -Value @"
-        INCLUDE("$moduleName")
+        include("$moduleName")
         
-        ASSERT(EQ(identify(), "source"))
+        assert(eq(identify(), "source"))
         "@
         
           $output = & (Get-PrefixExePath) $programPath 2>&1
@@ -191,9 +191,9 @@ passing:
         '@
         
           Set-Content -Path $programPath -Encoding Ascii -Value @"
-        INCLUDE("$packageName")
+        include("$packageName")
         
-        ASSERT(EQ(identify(), "package"))
+        assert(eq(identify(), "package"))
         "@
         
           $output = & (Get-PrefixExePath) $programPath 2>&1
@@ -229,13 +229,13 @@ passing:
         '@
         
           Set-Content -Path $programPath -Encoding Ascii -Value @"
-        INCLUDE("$packageName")
+        include("$packageName")
         "@
         
           $result = Invoke-PrefixProgramWithInput -ProgramPath $programPath -InputText ''
           if ($result.ExitCode -eq 0) {
             $outputText = "STDOUT: $(Format-VisibleText $result.Stdout)`nSTDERR: $(Format-VisibleText $result.Stderr)"
-            throw "Expected INCLUDE($packageName) to fail when the package directory has no init.pre`n$outputText"
+            throw "Expected include($packageName) to fail when the package directory has no init.pre`n$outputText"
           }
         }
         finally {
@@ -272,9 +272,9 @@ passing:
         '@
         
           Set-Content -Path $programPath -Encoding Ascii -Value @"
-        INCLUDE("$packageName")
+        include("$packageName")
         
-        ASSERT(EQ(identify(), "package"))
+        assert(eq(identify(), "package"))
         "@
         
           $output = & (Get-PrefixExePath) $programPath 2>&1
@@ -305,15 +305,15 @@ passing:
         '@
         
           Set-Content -Path $programPath -Encoding Ascii -Value @"
-        INCLUDE("$moduleName")
+        include("$moduleName")
         
-        ASSERT(EQ($moduleName.hidden, 0d7))
+        assert(eq($moduleName.hidden, 0d7))
         "@
         
           $result = Invoke-PrefixProgramWithInput -ProgramPath $programPath -InputText ''
           if ($result.ExitCode -eq 0) {
             $outputText = "STDOUT: $(Format-VisibleText $result.Stdout)`nSTDERR: $(Format-VisibleText $result.Stderr)"
-            throw "Expected qualified access to fail after INCLUDE($moduleName)`n$outputText"
+            throw "Expected qualified access to fail after include($moduleName)`n$outputText"
           }
         }
         finally {
@@ -323,8 +323,8 @@ passing:
   - name: include-return-false
     language: Prefix
     source: |
-        ASSERT(EQ(TYPE(INCLUDE("path")), "bool"))
-        REFUTE(INCLUDE("path"))
+        assert(eq(type(include("path")), "bool"))
+        refute(include("path"))
         
   - name: include-stdlib-before-userlib
     language: PowerShell
@@ -354,9 +354,9 @@ passing:
         '@
         
           Set-Content -Path $programPath -Encoding Ascii -Value @"
-        INCLUDE("$moduleName")
+        include("$moduleName")
         
-        ASSERT(EQ(identify(), "stdlib"))
+        assert(eq(identify(), "stdlib"))
         "@
         
           $output = & (Get-PrefixExePath) $programPath 2>&1
@@ -374,7 +374,7 @@ passing:
   - name: include-type-str
     language: Prefix
     source: |
-        INCLUDE("path")
+        include("path")
         
   - name: include-unqualified-access
     language: PowerShell
@@ -394,15 +394,15 @@ passing:
         '@
         
           Set-Content -Path $programPath -Encoding Ascii -Value @"
-        INCLUDE("$moduleName")
+        include("$moduleName")
         
-        ASSERT(EQ(hidden, 0d7))
+        assert(eq(hidden, 0d7))
         "@
         
           $result = Invoke-PrefixProgramWithInput -ProgramPath $programPath -InputText ''
           if ($result.ExitCode -ne 0) {
             $outputText = "STDOUT: $(Format-VisibleText $result.Stdout)`nSTDERR: $(Format-VisibleText $result.Stderr)"
-            throw "Expected unqualified module binding access to succeed after INCLUDE($moduleName)`n$outputText"
+            throw "Expected unqualified module binding access to succeed after include($moduleName)`n$outputText"
           }
         }
         finally {
@@ -412,58 +412,58 @@ passing:
   - name: include-unqualified-namespace
     language: Prefix
     source: |
-        INCLUDE("path")
+        include("path")
         
-        ASSERT(EQ(TYPE(TEMPFILE("include-unqualified-namespace.txt")), "str"))
+        assert(eq(type(TEMPFILE("include-unqualified-namespace.txt")), "str"))
         
 failing:
   - name: include-arity-two
     language: Prefix
     source: |
-        INCLUDE("path", "extra")
+        include("path", "extra")
         
   - name: include-arity-zero
     language: Prefix
     source: |
-        INCLUDE()
+        include()
         
   - name: include-missing-module
     language: Prefix
     source: |
-        INCLUDE("prefixincludemissingmoduletest")
+        include("prefixincludemissingmoduletest")
         
   - name: include-type-bool
     language: Prefix
     source: |
-        INCLUDE(true)
+        include(true)
         
   - name: include-type-flt
     language: Prefix
     source: |
-        INCLUDE(0d1.0)
+        include(0d1.0)
         
   - name: include-type-func
     language: Prefix
     source: |
-        INCLUDE(LAMBDA bool: (){})
+        include(LAMBDA bool: (){})
         
   - name: include-type-int
     language: Prefix
     source: |
-        INCLUDE(0d1)
+        include(0d1)
         
   - name: include-type-map
     language: Prefix
     source: |
-        INCLUDE(<>)
+        include(<>)
         
   - name: include-type-thr
     language: Prefix
     source: |
-        INCLUDE(async{})
+        include(async{})
         
   - name: include-type-tns
     language: Prefix
     source: |
-        INCLUDE([0d1])
+        include([0d1])
         

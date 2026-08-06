@@ -2,58 +2,58 @@ passing:
   - name: readfile-ansi
     language: Prefix
     source: |
-        IMPORT("path")
+        import("path")
         
-        str p = JOIN(path.script_dir, "/plain.txt")
+        str p = join(path.script_dir, "/plain.txt")
         
-        ASSERT(EQ(READFILE(p, coding = "ANSI"), "Prefix"))
+        assert(eq(read_file(p, coding = "ANSI"), "Prefix"))
         
   - name: readfile-binary-hex
     language: Prefix
     source: |
-        IMPORT("path")
+        import("path")
         
-        str p = JOIN(path.script_dir, "/plain.txt")
+        str p = join(path.script_dir, "/plain.txt")
         
-        ASSERT(EQ(READFILE(p, coding = "binary"), "010100000111001001100101011001100110100101111000"))
-        ASSERT(EQ(READFILE(p, coding = "hex"), "507265666978"))
+        assert(eq(read_file(p, coding = "binary"), "010100000111001001100101011001100110100101111000"))
+        assert(eq(read_file(p, coding = "hex"), "507265666978"))
         
   - name: readfile-plain
     language: Prefix
     source: |
-        IMPORT("path")
+        import("path")
         
-        str p = JOIN(path.script_dir, "/plain.txt")
+        str p = join(path.script_dir, "/plain.txt")
         
-        ASSERT(EQ(READFILE(p), "Prefix"))
-        ASSERT(EQ(READFILE(p, coding = "uTf-8"), "Prefix"))
+        assert(eq(read_file(p), "Prefix"))
+        assert(eq(read_file(p, coding = "uTf-8"), "Prefix"))
         
   - name: readfile-utf16-replacement
     language: Prefix
     source: |
-        IMPORT("path")
+        import("path")
         
         str p = path.TEMPFILE("prefix-readfile-utf16-replacement.bin")
         
-        ASSERT(WRITEFILE("00D8", p, coding = "hex"))
-        ASSERT(EQ(READFILE(p, coding = "UTF-16 LE"), "\uFFFD"))
+        assert(write_file("00D8", p, coding = "hex"))
+        assert(eq(read_file(p, coding = "UTF-16 LE"), "\uFFFD"))
         
 failing:
   - name: readfile-missing-file
     language: Prefix
     source: |
-        IMPORT("path")
+        import("path")
         
         str missing = path.TEMPFILE("prefix-readfile-missing.txt")
-        try{ DELETEFILE(missing) } catch { }
-        READFILE(missing)
+        try{ delete_file(missing) } catch { }
+        read_file(missing)
         
   - name: readfile-unsupported-coding
     language: Prefix
     source: |
-        IMPORT("path")
+        import("path")
         
-        str p = JOIN(path.script_dir, "/plain.txt")
+        str p = join(path.script_dir, "/plain.txt")
         
-        READFILE(p, coding = "UTF-7")
+        read_file(p, coding = "UTF-7")
         

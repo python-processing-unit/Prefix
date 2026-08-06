@@ -9,12 +9,12 @@ passing:
             parfor(i, 0d5){
                 break(0d2)
             }
-            ASSERT(false)
+            assert(false)
         }
         
-        ASSERT(EQ(outer, 0d1))
-        REFUTE(EXIST("i"))
-        REFUTE(EXIST("j"))
+        assert(eq(outer, 0d1))
+        refute(exist("i"))
+        refute(exist("j"))
         
   - name: parfor-break
     language: Prefix
@@ -30,23 +30,23 @@ passing:
             +(@after, 0d1)
         }
         
-        ASSERT(EQ(outer, 0d3))
-        ASSERT(EQ(after, 0d3))
-        REFUTE(EXIST("i"))
-        REFUTE(EXIST("j"))
+        assert(eq(outer, 0d3))
+        assert(eq(after, 0d3))
+        refute(exist("i"))
+        refute(exist("j"))
         
   - name: parfor-continue
     language: Prefix
     source: |
         tensor seen = [0d0, 0d0, 0d0, 0d0]
         parfor(i, 0d4){
-            if(EQ(i, 0d2)){
+            if(eq(i, 0d2)){
                 continue()
             }
             seen[i] = i
         }
-        ASSERT(EQ(seen, [0d1, 0d0, 0d3, 0d4]))
-        REFUTE(EXIST("i"))
+        assert(eq(seen, [0d1, 0d0, 0d3, 0d4]))
+        refute(exist("i"))
         
   - name: parfor-error-join
     language: Prefix
@@ -57,29 +57,29 @@ passing:
         try{
             parfor(i, 0d3){
                 seen[i] = i
-                if(EQ(i, 0d2)){
-                    ASSERT(false)
+                if(eq(i, 0d2)){
+                    assert(false)
                 }
             }
-            ASSERT(false)
+            assert(false)
         } catch {
             caught = true
         }
         
-        ASSERT(caught)
-        ASSERT(EQ(seen, [0d1, 0d2, 0d3]))
+        assert(caught)
+        assert(eq(seen, [0d1, 0d2, 0d3]))
         
   - name: parfor-merge-symbol
     language: Prefix
     source: |
         parfor(i, 0d3){
-            if(EQ(i, 0d2)){
+            if(eq(i, 0d2)){
                 int merged = 0d7
             }
         }
-        ASSERT(EXIST("merged"))
-        ASSERT(EQ(merged, 0d7))
-        REFUTE(EXIST("i"))
+        assert(exist("merged"))
+        assert(eq(merged, 0d7))
+        refute(exist("i"))
         
   - name: parfor-target-once
     language: Prefix
@@ -95,9 +95,9 @@ passing:
         parfor(i, get_target()){
             seen[i] = i
         }
-        ASSERT(EQ(target_calls, 0d1))
-        ASSERT(EQ(seen, [0d1, 0d2, 0d3]))
-        REFUTE(EXIST("i"))
+        assert(eq(target_calls, 0d1))
+        assert(eq(seen, [0d1, 0d2, 0d3]))
+        refute(exist("i"))
         
   - name: parfor-zero-and-restore-counter
     language: Prefix
@@ -107,8 +107,8 @@ passing:
         parfor(i, 0d5){
             +(@runs, 0d1)
         }
-        ASSERT(EQ(runs, 0d0))
-        ASSERT(i)
+        assert(eq(runs, 0d0))
+        assert(i)
         
   - name: parfor
     language: Prefix
@@ -117,8 +117,8 @@ passing:
         parfor(i, 0d4){
             seen[i] = i
         }
-        ASSERT(EQ(seen, [0d1, 0d2, 0d3, 0d4]))
-        REFUTE(EXIST("i"))
+        assert(eq(seen, [0d1, 0d2, 0d3, 0d4]))
+        refute(exist("i"))
         
 failing:
   - name: parfor-no-block

@@ -2,17 +2,17 @@ passing:
   - name: not
     language: Prefix
     source: |
-        ASSERT(EQ(NOT(false), true))
-        ASSERT(EQ(NOT(true), false))
-        ASSERT(EQ(NOT(0d0), true))
-        ASSERT(EQ(NOT(0d1), false))
-        ASSERT(EQ(NOT(""), true))
-        ASSERT(EQ(NOT("x"), false))
+        assert(eq(not(false), true))
+        assert(eq(not(true), false))
+        assert(eq(not(0d0), true))
+        assert(eq(not(0d1), false))
+        assert(eq(not(""), true))
+        assert(eq(not("x"), false))
         
 failing:
   - name: not-arity-two
     language: Prefix
-    source: 'NOT(true, false)'
+    source: 'not(true, false)'
   - name: not-arity-zero
     language: Prefix
-    source: NOT()
+    source: not()

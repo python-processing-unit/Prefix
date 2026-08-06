@@ -2,18 +2,18 @@ passing:
   - name: op-bool-from-bool
     language: Prefix
     source: |
-        ASSERT(bool(true))
-        REFUTE(bool(false))
+        assert(bool(true))
+        refute(bool(false))
         
   - name: op-bool-from-flt
     language: Prefix
     source: |
-        REFUTE(bool(0d0.0))
-        ASSERT(bool(0d0.5))
-        ASSERT(bool(-0d0.5))
-        ASSERT(bool(INF))
-        ASSERT(bool(-INF))
-        ASSERT(bool(NaN))
+        refute(bool(0d0.0))
+        assert(bool(0d0.5))
+        assert(bool(-0d0.5))
+        assert(bool(INF))
+        assert(bool(-INF))
+        assert(bool(NaN))
         
   - name: op-bool-from-func
     language: Prefix
@@ -22,127 +22,127 @@ passing:
             return(true)
         }
         
-        ASSERT(bool(sample_func))
+        assert(bool(sample_func))
         
   - name: op-bool-from-int
     language: Prefix
     source: |
-        REFUTE(bool(0d0))
-        ASSERT(bool(0d1))
+        refute(bool(0d0))
+        assert(bool(0d1))
         
   - name: op-bool-from-map
     language: Prefix
     source: |
-        REFUTE(bool(<>))
-        ASSERT(bool(<"n" = 0d0>))
+        refute(bool(<>))
+        assert(bool(<"n" = 0d0>))
         
   - name: op-bool-from-str
     language: Prefix
     source: |
-        REFUTE(bool(""))
-        ASSERT(bool("text"))
+        refute(bool(""))
+        assert(bool("text"))
         
   - name: op-bool-from-thr
     language: Prefix
     source: |
         bool thr_release = false
         thread(worker){
-            while(NOT(thr_release)){
+            while(not(thr_release)){
             }
         }
         
-        ASSERT(bool(worker))
+        assert(bool(worker))
         thr_release = true
         while(worker){
         }
-        REFUTE(bool(worker))
+        refute(bool(worker))
         
   - name: op-bool-from-tns
     language: Prefix
     source: |
-        REFUTE(bool([false, 0d0, ""]))
-        ASSERT(bool([false, 0d0, true]))
+        refute(bool([false, 0d0, ""]))
+        assert(bool([false, 0d0, true]))
         
   - name: op-flt-from-bool
     language: Prefix
     source: |
-        ASSERT(EQ(float(true), 0d1.0))
-        ASSERT(EQ(float(false), 0d0.0))
+        assert(eq(float(true), 0d1.0))
+        assert(eq(float(false), 0d0.0))
         
   - name: op-flt-from-flt
     language: Prefix
     source: |
-        ASSERT(EQ(float(0d1.5), 0d1.5))
+        assert(eq(float(0d1.5), 0d1.5))
         
   - name: op-flt-from-int
     language: Prefix
     source: |
-        ASSERT(EQ(float(0d7), 0d7.0))
-        ASSERT(EQ(float(-0d7), -0d7.0))
+        assert(eq(float(0d7), 0d7.0))
+        assert(eq(float(-0d7), -0d7.0))
         
   - name: op-flt-from-special-str
     language: Prefix
     source: |
-        ASSERT(EQ(float("INF"), INF))
-        ASSERT(EQ(float("-INF"), -INF))
-        ASSERT(NEQ(float("NaN"), float("NaN")))
+        assert(eq(float("INF"), INF))
+        assert(eq(float("-INF"), -INF))
+        assert(neq(float("NaN"), float("NaN")))
         
   - name: op-flt-from-str
     language: Prefix
     source: |
-        ASSERT(EQ(float("0d1.25"), 0d1.25))
+        assert(eq(float("0d1.25"), 0d1.25))
         
   - name: op-int-from-bool
     language: Prefix
     source: |
-        ASSERT(EQ(int(true), 0d1))
-        ASSERT(EQ(int(false), 0d0))
+        assert(eq(int(true), 0d1))
+        assert(eq(int(false), 0d0))
         
   - name: op-int-from-flt
     language: Prefix
     source: |
-        ASSERT(EQ(int(0b1.1), 0d1))
-        ASSERT(EQ(int(-0b1.1), -0d1))
+        assert(eq(int(0b1.1), 0d1))
+        assert(eq(int(-0b1.1), -0d1))
         
   - name: op-int-from-int
     language: Prefix
     source: |
-        ASSERT(EQ(int(0d42), 0d42))
+        assert(eq(int(0d42), 0d42))
         
   - name: op-int-from-str
     language: Prefix
     source: |
-        ASSERT(EQ(int("0x1A"), 0d26))
-        ASSERT(EQ(int(""), 0d0))
-        ASSERT(EQ(int("prefix"), 0d1))
+        assert(eq(int("0x1A"), 0d26))
+        assert(eq(int(""), 0d0))
+        assert(eq(int("prefix"), 0d1))
         
   - name: op-str-from-bool
     language: Prefix
     source: |
-        ASSERT(EQ(str(true), "true"))
-        ASSERT(EQ(str(false), "false"))
+        assert(eq(str(true), "true"))
+        assert(eq(str(false), "false"))
         
   - name: op-str-from-flt
     language: Prefix
     source: |
-        ASSERT(EQ(str(-0d1.5), "-0d1.5"))
+        assert(eq(str(-0d1.5), "-0d1.5"))
         
   - name: op-str-from-int
     language: Prefix
     source: |
-        ASSERT(EQ(str(0b101), "0b101"))
+        assert(eq(str(0b101), "0b101"))
         
   - name: op-str-from-special-flt
     language: Prefix
     source: |
-        ASSERT(EQ(str(INF), "INF"))
-        ASSERT(EQ(str(-INF), "-INF"))
-        ASSERT(EQ(str(NaN), "NaN"))
+        assert(eq(str(INF), "INF"))
+        assert(eq(str(-INF), "-INF"))
+        assert(eq(str(NaN), "NaN"))
         
   - name: op-str-from-str
     language: Prefix
     source: |
-        ASSERT(EQ(str("prefix"), "prefix"))
+        assert(eq(str("prefix"), "prefix"))
         
 failing:
   - name: op-flt-bad-str

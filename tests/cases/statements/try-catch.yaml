@@ -3,24 +3,24 @@ passing:
     language: Prefix
     source: |
         try{
-            ASSERT(false)
+            assert(false)
         } catch(err) {
-            ASSERT(EXIST("err"))
+            assert(exist("err"))
         }
-        REFUTE(EXIST("err"))
+        refute(exist("err"))
         
   - name: try-catch
     language: Prefix
     source: |
         try{
-            ASSERT(true)
+            assert(true)
         } catch {
-            ASSERT(false)
+            assert(false)
         }
         try{
-            ASSERT(false)
+            assert(false)
         } catch {
-            ASSERT(true)
+            assert(true)
         }
         
 failing:
@@ -33,19 +33,19 @@ failing:
     language: Prefix
     source: |
         try{
-            ASSERT(false)
+            assert(false)
         } catch(SYMBOL: err) {
-            ASSERT(EXIST("err"))
+            assert(exist("err"))
         }
         
   - name: try-catch-seperated
     language: Prefix
     source: |
         try{
-            ASSERT(false)
+            assert(false)
         }
         catch {
-            ASSERT(true)
+            assert(true)
         }
         
   - name: try-no-catch

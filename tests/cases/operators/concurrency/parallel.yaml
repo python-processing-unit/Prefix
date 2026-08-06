@@ -16,8 +16,8 @@ passing:
         
         tensor workers = [first, second]
         
-        ASSERT(EQ(PARALLEL(workers), false))
-        ASSERT(EQ(seen, [true, true]))
+        assert(eq(parallel(workers), false))
+        assert(eq(seen, [true, true]))
   - name: parallel-tensor-literal
     language: Prefix
     source: |
@@ -33,8 +33,8 @@ passing:
             seen[0d2] = true
         }
         
-        ASSERT(EQ(PARALLEL([first, second]), false))
-        ASSERT(EQ(seen, [true, true]))
+        assert(eq(parallel([first, second]), false))
+        assert(eq(seen, [true, true]))
   - name: parallel-variadic
     language: Prefix
     source: |
@@ -58,29 +58,29 @@ passing:
             seen[0d3] = true
         }
         
-        ASSERT(EQ(PARALLEL(first, second, third), false))
-        ASSERT(EQ(seen, [true, true, true]))
+        assert(eq(parallel(first, second, third), false))
+        assert(eq(seen, [true, true, true]))
 failing:
   - name: parallel-arity-zero
     language: Prefix
-    source: PARALLEL()
+    source: parallel()
   - name: parallel-non-func-arg
     language: Prefix
-    source: PARALLEL(true)
+    source: parallel(true)
   - name: parallel-tensor-non-func
     language: Prefix
     source: |
         func bool worker(){}
         
-        PARALLEL([worker, 0d1])
+        parallel([worker, 0d1])
   - name: parallel-worker-failure
     language: Prefix
     source: |
         func bool explode(){
-            THROW("boom")
+            throw("boom")
         }
         
-        PARALLEL(explode)
+        parallel(explode)
   - name: parallel-worker-no-args
     language: Prefix
     source: |
@@ -88,4 +88,4 @@ failing:
             return(true)
         }
         
-        PARALLEL(requires_arg)
+        parallel(requires_arg)

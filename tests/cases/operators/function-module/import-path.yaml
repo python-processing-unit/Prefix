@@ -2,55 +2,55 @@ passing:
   - name: import_path-alias-qualified-namespace
     language: Prefix
     source: |
-        IMPORT("path")
+        import("path")
         
         str tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
-        str helper_path = JOIN(tests_dir, "/helpers/import_path_basic_target.pre")
+        str helper_path = join(tests_dir, "/helpers/import_path_basic_target.pre")
         
-        REFUTE(IMPORT_PATH(helper_path, "helper"))
-        ASSERT(EQ(helper.identify(), "basic"))
+        refute(import_path(helper_path, "helper"))
+        assert(eq(helper.identify(), "basic"))
   - name: import_path-alias-type-str
     language: Prefix
     source: |
-        IMPORT("path")
+        import("path")
         
         str tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
-        str helper_path = JOIN(tests_dir, "/helpers/import_path_basic_target.pre")
+        str helper_path = join(tests_dir, "/helpers/import_path_basic_target.pre")
         
-        IMPORT_PATH(helper_path, "helper")
+        import_path(helper_path, "helper")
         
   - name: import_path-cached-alias
     language: Prefix
     source: |
-        IMPORT("path")
+        import("path")
         
         str tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
-        str helper_path = JOIN(tests_dir, "/helpers/import_path_cache_target.pre")
+        str helper_path = join(tests_dir, "/helpers/import_path_cache_target.pre")
         str marker_path = path.TEMPFILE("prefix-import-path-cache-target.txt")
         
-        if(EXISTFILE(marker_path)){
-            ASSERT(DELETEFILE(marker_path))
+        if(exist_file(marker_path)){
+            assert(delete_file(marker_path))
         }
         
-        REFUTE(IMPORT_PATH(helper_path))
-        REFUTE(IMPORT_PATH(helper_path, "again"))
+        refute(import_path(helper_path))
+        refute(import_path(helper_path, "again"))
         
         str default_view = import_path_cache_target.marker_text()
         str alias_view = again.marker_text()
         
-        ASSERT(DELETEFILE(marker_path))
-        ASSERT(EQ(default_view, "loaded"))
-        ASSERT(EQ(alias_view, "loaded"))
+        assert(delete_file(marker_path))
+        assert(eq(default_view, "loaded"))
+        assert(eq(alias_view, "loaded"))
   - name: import_path-default-basename
     language: Prefix
     source: |
-        IMPORT("path")
+        import("path")
         
         str tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
-        str helper_path = JOIN(tests_dir, "/helpers/import_path_basic_target.pre")
+        str helper_path = join(tests_dir, "/helpers/import_path_basic_target.pre")
         
-        REFUTE(IMPORT_PATH(helper_path))
-        ASSERT(EQ(import_path_basic_target.identify(), "basic"))
+        refute(import_path(helper_path))
+        assert(eq(import_path_basic_target.identify(), "basic"))
   - name: import_path-equivalent-path-cache
     language: PowerShell
     source: |
@@ -73,23 +73,23 @@ passing:
           Set-Content -Path $modulePath -Encoding Ascii -Value @"
         str marker = "$markerLiteral"
         
-        if(EXISTFILE(marker)){
-            WRITEFILE("reloaded", marker)
+        if(exist_file(marker)){
+            write_file("reloaded", marker)
         } else {
-            WRITEFILE("loaded", marker)
+            write_file("loaded", marker)
         }
         
         func str marker_text(){
-            return(READFILE(marker))
+            return(read_file(marker))
         }
         "@
         
           Set-Content -Path $programPath -Encoding Ascii -Value @"
-        IMPORT_PATH("$extensionlessLiteral")
-        IMPORT_PATH("$moduleLiteral", "again")
+        import_path("$extensionlessLiteral")
+        import_path("$moduleLiteral", "again")
         
-        ASSERT(EQ($moduleName.marker_text(), "loaded"))
-        ASSERT(EQ(again.marker_text(), "loaded"))
+        assert(eq($moduleName.marker_text(), "loaded"))
+        assert(eq(again.marker_text(), "loaded"))
         "@
         
           $result = Invoke-PrefixProgramWithInput -ProgramPath $programPath -InputText ''
@@ -102,26 +102,26 @@ passing:
   - name: import_path-isolated-top-level
     language: Prefix
     source: |
-        IMPORT("path")
+        import("path")
         
         str tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
-        str helper_path = JOIN(tests_dir, "/helpers/import_path_isolated_target.pre")
+        str helper_path = join(tests_dir, "/helpers/import_path_isolated_target.pre")
         
         int shared = 0d11
         
-        REFUTE(IMPORT_PATH(helper_path, "helper"))
-        ASSERT(EQ(helper.read_shared(), 0d7))
-        ASSERT(EQ(shared, 0d11))
+        refute(import_path(helper_path, "helper"))
+        assert(eq(helper.read_shared(), 0d7))
+        assert(eq(shared, 0d11))
   - name: import_path-no-companion-prex
     language: Prefix
     source: |
-        IMPORT("path")
+        import("path")
         
         str tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
-        str helper_path = JOIN(tests_dir, "/helpers/import_path_prex_target.pre")
+        str helper_path = join(tests_dir, "/helpers/import_path_prex_target.pre")
         
-        REFUTE(IMPORT_PATH(helper_path))
-        ASSERT(EQ(import_path_prex_target.identify(), "source"))
+        refute(import_path(helper_path))
+        assert(eq(import_path_prex_target.identify(), "source"))
   - name: import_path-package-init
     language: PowerShell
     source: |
@@ -147,9 +147,9 @@ passing:
           $packageLiteral = $packageDir.Replace('\', '\\')
         
           Set-Content -Path $programPath -Encoding Ascii -Value @"
-        IMPORT_PATH("$packageLiteral")
+        import_path("$packageLiteral")
         
-        ASSERT(EQ($packageName.identify(), "package"))
+        assert(eq($packageName.identify(), "package"))
         "@
         
           $result = Invoke-PrefixProgramWithInput -ProgramPath $programPath -InputText ''
@@ -184,13 +184,13 @@ passing:
           $packageLiteral = $packageDir.Replace('\', '\\')
         
           Set-Content -Path $programPath -Encoding Ascii -Value @"
-        IMPORT_PATH("$packageLiteral")
+        import_path("$packageLiteral")
         "@
         
           $result = Invoke-PrefixProgramWithInput -ProgramPath $programPath -InputText ''
           if ($result.ExitCode -eq 0) {
             $outputText = "STDOUT: $(Format-VisibleText $result.Stdout)`nSTDERR: $(Format-VisibleText $result.Stderr)"
-            throw "Expected IMPORT_PATH($packageLiteral) to fail when the package directory has no init.pre`n$outputText"
+            throw "Expected import_path($packageLiteral) to fail when the package directory has no init.pre`n$outputText"
           }
         }
         finally {
@@ -199,121 +199,121 @@ passing:
   - name: import_path-return-false
     language: Prefix
     source: |
-        IMPORT("path")
+        import("path")
         
         str tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
-        str helper_path = JOIN(tests_dir, "/helpers/import_path_basic_target.pre")
+        str helper_path = join(tests_dir, "/helpers/import_path_basic_target.pre")
         
-        ASSERT(EQ(TYPE(IMPORT_PATH(helper_path)), "bool"))
-        ASSERT(NOT(IMPORT_PATH(helper_path)))
+        assert(eq(type(import_path(helper_path)), "bool"))
+        assert(not(import_path(helper_path)))
 failing:
   - name: import_path-alias-type-bool
     language: Prefix
     source: |
-        IMPORT("path")
+        import("path")
         
         str tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
-        str helper_path = JOIN(tests_dir, "/helpers/import_path_basic_target.pre")
+        str helper_path = join(tests_dir, "/helpers/import_path_basic_target.pre")
         
-        IMPORT_PATH(helper_path, true)
+        import_path(helper_path, true)
   - name: import_path-alias-type-flt
     language: Prefix
     source: |
-        IMPORT("path")
+        import("path")
         
         str tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
-        str helper_path = JOIN(tests_dir, "/helpers/import_path_basic_target.pre")
+        str helper_path = join(tests_dir, "/helpers/import_path_basic_target.pre")
         
-        IMPORT_PATH(helper_path, 0d1.0)
+        import_path(helper_path, 0d1.0)
   - name: import_path-alias-type-func
     language: Prefix
     source: |
-        IMPORT("path")
+        import("path")
         
         str tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
-        str helper_path = JOIN(tests_dir, "/helpers/import_path_basic_target.pre")
+        str helper_path = join(tests_dir, "/helpers/import_path_basic_target.pre")
         
-        IMPORT_PATH(helper_path, LAMBDA bool: (){})
+        import_path(helper_path, LAMBDA bool: (){})
   - name: import_path-alias-type-int
     language: Prefix
     source: |
-        IMPORT("path")
+        import("path")
         
         str tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
-        str helper_path = JOIN(tests_dir, "/helpers/import_path_basic_target.pre")
+        str helper_path = join(tests_dir, "/helpers/import_path_basic_target.pre")
         
-        IMPORT_PATH(helper_path, 0d1)
+        import_path(helper_path, 0d1)
   - name: import_path-alias-type-map
     language: Prefix
     source: |
-        IMPORT("path")
+        import("path")
         
         str tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
-        str helper_path = JOIN(tests_dir, "/helpers/import_path_basic_target.pre")
+        str helper_path = join(tests_dir, "/helpers/import_path_basic_target.pre")
         
-        IMPORT_PATH(helper_path, <>)
+        import_path(helper_path, <>)
   - name: import_path-alias-type-thr
     language: Prefix
     source: |
-        IMPORT("path")
+        import("path")
         
         str tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
-        str helper_path = JOIN(tests_dir, "/helpers/import_path_basic_target.pre")
+        str helper_path = join(tests_dir, "/helpers/import_path_basic_target.pre")
         
-        IMPORT_PATH(helper_path, async{})
+        import_path(helper_path, async{})
   - name: import_path-alias-type-tns
     language: Prefix
     source: |
-        IMPORT("path")
+        import("path")
         
         str tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
-        str helper_path = JOIN(tests_dir, "/helpers/import_path_basic_target.pre")
+        str helper_path = join(tests_dir, "/helpers/import_path_basic_target.pre")
         
-        IMPORT_PATH(helper_path, [0d1])
+        import_path(helper_path, [0d1])
   - name: import_path-arity-three
     language: Prefix
-    source: 'IMPORT_PATH("g:/missing.pre", "helper", extra)'
+    source: 'import_path("g:/missing.pre", "helper", extra)'
   - name: import_path-arity-zero
     language: Prefix
-    source: IMPORT_PATH()
+    source: import_path()
   - name: import_path-missing-file
     language: Prefix
     source: |
-        IMPORT("path")
+        import("path")
         
         str tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
-        str missing_path = JOIN(tests_dir, "/helpers/import_path_missing_target.pre")
+        str missing_path = join(tests_dir, "/helpers/import_path_missing_target.pre")
         
-        IMPORT_PATH(missing_path)
+        import_path(missing_path)
   - name: import_path-qualified-only
     language: Prefix
     source: |
-        IMPORT("path")
+        import("path")
         
         str tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
-        str helper_path = JOIN(tests_dir, "/helpers/import_path_hidden_target.pre")
+        str helper_path = join(tests_dir, "/helpers/import_path_hidden_target.pre")
         
-        IMPORT_PATH(helper_path)
+        import_path(helper_path)
         
-        ASSERT(EQ(hidden, 0d7))
+        assert(eq(hidden, 0d7))
   - name: import_path-type-bool
     language: Prefix
-    source: IMPORT_PATH(true)
+    source: import_path(true)
   - name: import_path-type-flt
     language: Prefix
-    source: IMPORT_PATH(0d1.0)
+    source: import_path(0d1.0)
   - name: import_path-type-func
     language: Prefix
-    source: 'IMPORT_PATH(LAMBDA bool: (){})'
+    source: 'import_path(LAMBDA bool: (){})'
   - name: import_path-type-int
     language: Prefix
-    source: IMPORT_PATH(0d1)
+    source: import_path(0d1)
   - name: import_path-type-map
     language: Prefix
-    source: IMPORT_PATH(<>)
+    source: import_path(<>)
   - name: import_path-type-thr
     language: Prefix
-    source: IMPORT_PATH(async{})
+    source: import_path(async{})
   - name: import_path-type-tns
     language: Prefix
-    source: IMPORT_PATH([0d1])
+    source: import_path([0d1])

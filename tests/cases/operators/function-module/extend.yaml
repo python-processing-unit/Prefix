@@ -2,26 +2,26 @@ passing:
   - name: extend-alias-qualified-namespace
     language: Prefix
     source: |
-        IMPORT("path")
+        import("path")
         
         str tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
-        str helper_path = JOIN(tests_dir, "/helpers/extend_core_once.pre")
+        str helper_path = join(tests_dir, "/helpers/extend_core_once.pre")
         
-        REFUTE(IMPORT_PATH(helper_path, "first"))
-        REFUTE(IMPORT_PATH(helper_path, "second"))
-        ASSERT(EQ(first.extend_core.TST_EXT_RESTRICTED(), "core-restricted"))
-        ASSERT(EQ(second.extend_core.TST_EXT_RESTRICTED(), "core-restricted"))
-        ASSERT(EQ(TST_EXT_INIT_COUNT(), 0d1))
+        refute(import_path(helper_path, "first"))
+        refute(import_path(helper_path, "second"))
+        assert(eq(first.extend_core.TST_EXT_RESTRICTED(), "core-restricted"))
+        assert(eq(second.extend_core.TST_EXT_RESTRICTED(), "core-restricted"))
+        assert(eq(TST_EXT_INIT_COUNT(), 0d1))
   - name: extend-asmodule-global
     language: Prefix
     source: |
-        IMPORT("path")
+        import("path")
         
         str tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
-        str helper_path = JOIN(tests_dir, "/helpers/extend_core_once.pre")
+        str helper_path = join(tests_dir, "/helpers/extend_core_once.pre")
         
-        REFUTE(IMPORT_PATH(helper_path, "helper"))
-        ASSERT(EQ(TST_EXT_ASMODULE_ONLY(), "asmodule-global"))
+        refute(import_path(helper_path, "helper"))
+        assert(eq(TST_EXT_ASMODULE_ONLY(), "asmodule-global"))
   - name: extend-cli-multiple
     language: PowerShell
     source: |
@@ -36,8 +36,8 @@ passing:
           $programPath = Join-Path $tempDir 'program.pre'
         
           Set-Content -Path $programPath -Encoding Ascii -Value @'
-        ASSERT(EQ(TST_EXT_GLOBAL(), "core-global"))
-        ASSERT(EQ(TST_EXT_PACKAGE_INIT(), "package-init"))
+        assert(eq(TST_EXT_GLOBAL(), "core-global"))
+        assert(eq(TST_EXT_PACKAGE_INIT(), "package-init"))
         '@
         
           $result = Invoke-PrefixWithArguments -Arguments @($coreExtension, $packageExtension, $programPath)
@@ -65,7 +65,7 @@ passing:
           $programPath = Join-Path $tempDir 'program.pre'
         
           Set-Content -Path $programPath -Encoding Ascii -Value @'
-        ASSERT(true)
+        assert(true)
         '@
         
           $result = Invoke-PrefixWithArguments -Arguments @($prexPath, $programPath)
@@ -127,8 +127,8 @@ passing:
             return(0d1)
         }
         
-        ASSERT(EQ(TST_HOOKS_READY(), "hooks-ready"))
-        ASSERT(EQ(ping(), 0d1))
+        assert(eq(TST_HOOKS_READY(), "hooks-ready"))
+        assert(eq(ping(), 0d1))
         '@
         
           $result = Invoke-PrefixWithArguments -Arguments @($hooksExtension, $programPath) -EnvironmentVariables @{
@@ -166,7 +166,7 @@ passing:
           $programPath = Join-Path $tempDir 'program.pre'
         
           Set-Content -Path $programPath -Encoding Ascii -Value @'
-        THROW("boom")
+        throw("boom")
         '@
         
           $result = Invoke-PrefixWithArguments -Arguments @($hooksExtension, $programPath) -EnvironmentVariables @{
@@ -207,15 +207,15 @@ passing:
           Copy-Item -Path $coreExtension -Destination $stagedExtension -Force
         
           Set-Content -Path $programPath -Encoding Ascii -Value @"
-        bool loaded = EXTEND("$extensionSpecifier")
-        REFUTE(loaded)
+        bool loaded = extend("$extensionSpecifier")
+        refute(loaded)
         "@
         
           $result = Invoke-PrefixWithArguments -Arguments @($programPath)
           if ($result.ExitCode -eq 0) {
             $stdout = Format-VisibleText $result.Stdout
             $stderr = Format-VisibleText $result.Stderr
-            throw "Expected EXTEND to reject a suffix-qualified specifier`nSTDOUT: $stdout`nSTDERR: $stderr"
+            throw "Expected extend to reject a suffix-qualified specifier`nSTDOUT: $stdout`nSTDERR: $stderr"
           }
         }
         finally {
@@ -224,37 +224,37 @@ passing:
   - name: extend-idempotent
     language: Prefix
     source: |
-        IMPORT("path")
+        import("path")
         
         str tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
-        str helper_path = JOIN(tests_dir, "/helpers/extend_core_twice.pre")
+        str helper_path = join(tests_dir, "/helpers/extend_core_twice.pre")
         
-        REFUTE(IMPORT_PATH(helper_path, "helper"))
-        REFUTE(helper.first_result)
-        REFUTE(helper.second_result)
-        ASSERT(EQ(TST_EXT_INIT_COUNT(), 0d1))
+        refute(import_path(helper_path, "helper"))
+        refute(helper.first_result)
+        refute(helper.second_result)
+        assert(eq(TST_EXT_INIT_COUNT(), 0d1))
   - name: extend-package-init
     language: Prefix
     source: |
-        IMPORT("path")
+        import("path")
         
         str tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
-        str helper_path = JOIN(tests_dir, "/helpers/extend_package_loader.pre")
+        str helper_path = join(tests_dir, "/helpers/extend_package_loader.pre")
         
-        REFUTE(IMPORT_PATH(helper_path, "helper"))
-        REFUTE(helper.extend_result)
-        ASSERT(EQ(TST_EXT_PACKAGE_INIT(), "package-init"))
+        refute(import_path(helper_path, "helper"))
+        refute(helper.extend_result)
+        assert(eq(TST_EXT_PACKAGE_INIT(), "package-init"))
   - name: extend-package-submodule
     language: Prefix
     source: |
-        IMPORT("path")
+        import("path")
         
         str tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
-        str helper_path = JOIN(tests_dir, "/helpers/extend_submodule_loader.pre")
+        str helper_path = join(tests_dir, "/helpers/extend_submodule_loader.pre")
         
-        REFUTE(IMPORT_PATH(helper_path, "helper"))
-        REFUTE(helper.extend_result)
-        ASSERT(EQ(TST_EXT_PACKAGE_SUBMOD(), "package-submod"))
+        refute(import_path(helper_path, "helper"))
+        refute(helper.extend_result)
+        assert(eq(TST_EXT_PACKAGE_SUBMOD(), "package-submod"))
   - name: extend-periodic-hook
     language: PowerShell
     source: |
@@ -275,7 +275,7 @@ passing:
           total = +(total, i)
         }
         
-        ASSERT(GT(total, 0d0))
+        assert(gt(total, 0d0))
         '@
         
           $result = Invoke-PrefixWithArguments -Arguments @($hooksExtension, $programPath) -EnvironmentVariables @{
@@ -300,25 +300,25 @@ passing:
   - name: extend-qualified-namespace
     language: Prefix
     source: |
-        IMPORT("path")
+        import("path")
         
         str tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
-        str helper_path = JOIN(tests_dir, "/helpers/extend_core_once.pre")
+        str helper_path = join(tests_dir, "/helpers/extend_core_once.pre")
         
-        REFUTE(IMPORT_PATH(helper_path, "helper"))
-        ASSERT(EQ(helper.extend_core.TST_EXT_RESTRICTED(), "core-restricted"))
+        refute(import_path(helper_path, "helper"))
+        assert(eq(helper.extend_core.TST_EXT_RESTRICTED(), "core-restricted"))
   - name: extend-return-false
     language: Prefix
     source: |
-        IMPORT("path")
+        import("path")
         
         str tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
-        str helper_path = JOIN(tests_dir, "/helpers/extend_core_once.pre")
+        str helper_path = join(tests_dir, "/helpers/extend_core_once.pre")
         
-        REFUTE(IMPORT_PATH(helper_path, "helper"))
-        ASSERT(EQ(TYPE(helper.extend_result), "bool"))
-        REFUTE(helper.extend_result)
-        ASSERT(EQ(TST_EXT_GLOBAL(), "core-global"))
+        refute(import_path(helper_path, "helper"))
+        assert(eq(type(helper.extend_result), "bool"))
+        refute(helper.extend_result)
+        assert(eq(TST_EXT_GLOBAL(), "core-global"))
   - name: extend-search-cwd-before-roots
     language: PowerShell
     source: |
@@ -352,7 +352,7 @@ passing:
           Add-StagedProbe $libStdProbe
           Add-StagedProbe $libUsrProbe
         
-          $sourceText = 'bool loaded=EXTEND("search_probe");REFUTE(loaded);PRINT(TST_SEARCH_PROBE_PATH())'
+          $sourceText = 'bool loaded=extend("search_probe");refute(loaded);print(TST_SEARCH_PROBE_PATH())'
           $result = Invoke-PrefixWithArguments -Arguments @('-source', $sourceText) -WorkingDirectory $cwdDir
           Assert-PrefixSuccess $result
           Assert-NoErrorOutput $result
@@ -360,7 +360,7 @@ passing:
           $actualPath = $result.Stdout.Trim()
           $expectedPath = [IO.Path]::GetFullPath($cwdProbe)
           if ([IO.Path]::GetFullPath($actualPath).ToLowerInvariant() -ne $expectedPath.ToLowerInvariant()) {
-            throw "Expected EXTEND to resolve from the current working directory in -source mode`nExpected: $expectedPath`nActual:   $actualPath"
+            throw "Expected extend to resolve from the current working directory in -source mode`nExpected: $expectedPath`nActual:   $actualPath"
           }
         }
         finally {
@@ -400,9 +400,9 @@ passing:
           Add-StagedProbe $libUsrProbe
         
           Set-Content -Path $programPath -Encoding Ascii -Value @'
-        bool loaded = EXTEND("search_probe")
-        REFUTE(loaded)
-        PRINT(TST_SEARCH_PROBE_PATH())
+        bool loaded = extend("search_probe")
+        refute(loaded)
+        print(TST_SEARCH_PROBE_PATH())
         '@
         
           $result = Invoke-PrefixWithArguments -Arguments @($programPath)
@@ -412,7 +412,7 @@ passing:
           $actualPath = $result.Stdout.Trim()
           $expectedPath = [IO.Path]::GetFullPath($extStdProbe)
           if ([IO.Path]::GetFullPath($actualPath).ToLowerInvariant() -ne $expectedPath.ToLowerInvariant()) {
-            throw "Expected EXTEND to prefer ext/std over later roots`nExpected: $expectedPath`nActual:   $actualPath"
+            throw "Expected extend to prefer ext/std over later roots`nExpected: $expectedPath`nActual:   $actualPath"
           }
         }
         finally {
@@ -448,9 +448,9 @@ passing:
           Add-StagedProbe $libUsrProbe
         
           Set-Content -Path $programPath -Encoding Ascii -Value @'
-        bool loaded = EXTEND("search_probe")
-        REFUTE(loaded)
-        PRINT(TST_SEARCH_PROBE_PATH())
+        bool loaded = extend("search_probe")
+        refute(loaded)
+        print(TST_SEARCH_PROBE_PATH())
         '@
         
           $result = Invoke-PrefixWithArguments -Arguments @($programPath)
@@ -460,7 +460,7 @@ passing:
           $actualPath = $result.Stdout.Trim()
           $expectedPath = [IO.Path]::GetFullPath($libStdProbe)
           if ([IO.Path]::GetFullPath($actualPath).ToLowerInvariant() -ne $expectedPath.ToLowerInvariant()) {
-            throw "Expected EXTEND to prefer lib/std over lib/usr when ext roots are absent`nExpected: $expectedPath`nActual:   $actualPath"
+            throw "Expected extend to prefer lib/std over lib/usr when ext roots are absent`nExpected: $expectedPath`nActual:   $actualPath"
           }
         }
         finally {
@@ -509,9 +509,9 @@ passing:
           Add-StagedProbe $libUsrProbe
         
           Set-Content -Path $programPath -Encoding Ascii -Value @'
-        bool loaded = EXTEND("search_probe")
-        REFUTE(loaded)
-        PRINT(TST_SEARCH_PROBE_PATH())
+        bool loaded = extend("search_probe")
+        refute(loaded)
+        print(TST_SEARCH_PROBE_PATH())
         '@
         
           $result = Invoke-PrefixWithArguments -Arguments @($programPath) -WorkingDirectory $cwdDir
@@ -521,7 +521,7 @@ passing:
           $actualPath = $result.Stdout.Trim()
           $expectedPath = [IO.Path]::GetFullPath($programProbe)
           if ([IO.Path]::GetFullPath($actualPath).ToLowerInvariant() -ne $expectedPath.ToLowerInvariant()) {
-            throw "Expected EXTEND to resolve from the program directory`nExpected: $expectedPath`nActual:   $actualPath"
+            throw "Expected extend to resolve from the program directory`nExpected: $expectedPath`nActual:   $actualPath"
           }
         }
         finally {
@@ -535,52 +535,52 @@ failing:
   - name: extend-asmodule-not-qualified
     language: Prefix
     source: |
-        IMPORT("path")
+        import("path")
         
         str tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
-        str helper_path = JOIN(tests_dir, "/helpers/extend_core_once.pre")
+        str helper_path = join(tests_dir, "/helpers/extend_core_once.pre")
         
-        IMPORT_PATH(helper_path, "helper")
+        import_path(helper_path, "helper")
         
         helper.extend_core.TST_EXT_ASMODULE_ONLY()
   - name: extend-missing-file
     language: Prefix
-    source: EXTEND("prefix_missing_extension_target")
+    source: extend("prefix_missing_extension_target")
   - name: extend-missing-init-symbol
     language: Prefix
     source: |
-        IMPORT("path")
+        import("path")
         
         str tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
-        str helper_path = JOIN(tests_dir, "/helpers/extend_missing_init_loader.pre")
+        str helper_path = join(tests_dir, "/helpers/extend_missing_init_loader.pre")
         
-        IMPORT_PATH(helper_path)
+        import_path(helper_path)
   - name: extend-package-missing-init
     language: Prefix
     source: |
-        IMPORT("path")
+        import("path")
         
         str tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
-        str helper_path = JOIN(tests_dir, "/helpers/extend_missing_package_loader.pre")
+        str helper_path = join(tests_dir, "/helpers/extend_missing_package_loader.pre")
         
-        IMPORT_PATH(helper_path)
+        import_path(helper_path)
   - name: extend-prex-rejected
     language: Prefix
     source: |
-        IMPORT("path")
+        import("path")
         
         str tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
-        str helper_path = JOIN(tests_dir, "/helpers/extend_prex_loader.pre")
+        str helper_path = join(tests_dir, "/helpers/extend_prex_loader.pre")
         
-        IMPORT_PATH(helper_path)
+        import_path(helper_path)
   - name: extend-restricted-not-global
     language: Prefix
     source: |
-        IMPORT("path")
+        import("path")
         
         str tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
-        str helper_path = JOIN(tests_dir, "/helpers/extend_core_once.pre")
+        str helper_path = join(tests_dir, "/helpers/extend_core_once.pre")
         
-        IMPORT_PATH(helper_path, "helper")
+        import_path(helper_path, "helper")
         
         TST_EXT_RESTRICTED()

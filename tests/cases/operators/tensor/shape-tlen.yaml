@@ -4,99 +4,99 @@ passing:
     source: |
         tensor v = [0d10, 0d20, 0d30, 0d40]
         
-        ASSERT(EQ(TYPE(SHAPE(v)), "tensor"))
-        ASSERT(EQ(SHAPE(v), [0d4]))
+        assert(eq(type(shape(v)), "tensor"))
+        assert(eq(shape(v), [0d4]))
         
   - name: shape-rank-2
     language: Prefix
     source: |
         tensor m = [[0d1, 0d2, 0d3], [0d4, 0d5, 0d6]]
         
-        ASSERT(EQ(SHAPE(m), [0d2, 0d3]))
+        assert(eq(shape(m), [0d2, 0d3]))
         
   - name: shape-rank-3
     language: Prefix
     source: |
         tensor cube = [[[0d1, 0d2]], [[0d3, 0d4]], [[0d5, 0d6]]]
         
-        ASSERT(EQ(SHAPE(cube), [0d3, 0d1, 0d2]))
+        assert(eq(shape(cube), [0d3, 0d1, 0d2]))
         
   - name: shape-result-is-1d
     language: Prefix
     source: |
         tensor t = [[[0d1], [0d2], [0d3]], [[0d4], [0d5], [0d6]]]
-        tensor dims = SHAPE(t)
+        tensor dims = shape(t)
         
-        ASSERT(EQ(TYPE(dims), "tensor"))
-        ASSERT(EQ(TLEN(dims, 0d1), 0d3))
-        ASSERT(EQ(dims[0d1], 0d2))
-        ASSERT(EQ(dims[0d2], 0d3))
-        ASSERT(EQ(dims[0d3], 0d1))
+        assert(eq(type(dims), "tensor"))
+        assert(eq(len_dim(dims, 0d1), 0d3))
+        assert(eq(dims[0d1], 0d2))
+        assert(eq(dims[0d2], 0d3))
+        assert(eq(dims[0d3], 0d1))
         
   - name: tlen
     language: Prefix
     source: |
         tensor tensor = [[[0d1, 0d2, 0d3]], [[0d4, 0d5, 0d6]]]
         
-        ASSERT(EQ(TLEN(tensor, 0b1), 0d2))
-        ASSERT(EQ(TLEN(tensor, 0b10), 0d1))
-        ASSERT(EQ(TLEN(tensor, 0b11), 0d3))
-        ASSERT(EQ(BASE(TLEN(tensor, 0b11)), 0d2))
+        assert(eq(len_dim(tensor, 0b1), 0d2))
+        assert(eq(len_dim(tensor, 0b10), 0d1))
+        assert(eq(len_dim(tensor, 0b11), 0d3))
+        assert(eq(BASE(len_dim(tensor, 0b11)), 0d2))
 failing:
   - name: shape-arity-two
     language: Prefix
     source: |
-        SHAPE([0d1], [0d2])
+        shape([0d1], [0d2])
         
   - name: shape-arity-zero
     language: Prefix
     source: |
-        SHAPE()
+        shape()
         
   - name: shape-bool
     language: Prefix
     source: |
-        SHAPE(true)
+        shape(true)
         
   - name: shape-flt
     language: Prefix
     source: |
-        SHAPE(0d1.0)
+        shape(0d1.0)
         
   - name: shape-func
     language: Prefix
     source: |
-        SHAPE(LAMBDA int: (){})
+        shape(LAMBDA int: (){})
         
   - name: shape-int
     language: Prefix
     source: |
-        SHAPE(0d1)
+        shape(0d1)
         
   - name: shape-map
     language: Prefix
     source: |
-        SHAPE(<>)
+        shape(<>)
         
   - name: shape-str
     language: Prefix
     source: |
-        SHAPE("abc")
+        shape("abc")
         
   - name: shape-thr
     language: Prefix
     source: |
-        SHAPE(async{})
+        shape(async{})
         
   - name: tlen-too-large
     language: Prefix
     source: |
         tensor tensor = [[0d1, 0d2], [0d3, 0d4]]
         
-        TLEN(tensor, 0d3)
+        len_dim(tensor, 0d3)
   - name: tlen-zero-dim
     language: Prefix
     source: |
         tensor tensor = [[0d1, 0d2], [0d3, 0d4]]
         
-        TLEN(tensor, 0d0)
+        len_dim(tensor, 0d0)

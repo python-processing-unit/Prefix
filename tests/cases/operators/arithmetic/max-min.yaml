@@ -2,68 +2,68 @@ passing:
   - name: max-flt
     language: Prefix
     source: |
-        ! MAX with multiple float arguments
-        float result = MAX(0d1.5, -0d2.25, 0d3.0)
-        ASSERT(EQ(result, 0d3.0))
+        ! max with multiple float arguments
+        float result = max(0d1.5, -0d2.25, 0d3.0)
+        assert(eq(result, 0d3.0))
         
   - name: max-int
     language: Prefix
     source: |
-        ! MAX with multiple int arguments
-        int result = MAX(0d1, -0d2, 0d3)
-        ASSERT(EQ(result, 0d3))
+        ! max with multiple int arguments
+        int result = max(0d1, -0d2, 0d3)
+        assert(eq(result, 0d3))
         
   - name: max-str
     language: Prefix
     source: |
-        ! MAX returns the longest string
-        str result = MAX("a", "", "prefix", "bb")
-        ASSERT(EQ(result, "prefix"))
+        ! max returns the longest string
+        str result = max("a", "", "prefix", "bb")
+        assert(eq(result, "prefix"))
         
   - name: max-tns
     language: Prefix
     source: |
-        ! MAX flattens tensors and returns the maximum scalar element
+        ! max flattens tensors and returns the maximum scalar element
         tensor a = [[0d1, 0d2], [-0d3, 0d0]]
         tensor b = [0d0, 0d4]
-        int result = MAX(a, b)
-        ASSERT(EQ(result, 0d4))
+        int result = max(a, b)
+        assert(eq(result, 0d4))
         
   - name: min-flt
     language: Prefix
     source: |
-        ! MIN with multiple float arguments
-        float result = MIN(0d1.5, -0d2.25, 0d3.0)
-        ASSERT(EQ(result, -0d2.25))
+        ! min with multiple float arguments
+        float result = min(0d1.5, -0d2.25, 0d3.0)
+        assert(eq(result, -0d2.25))
         
   - name: min-int
     language: Prefix
     source: |
-        ! MIN with multiple int arguments
-        int result = MIN(0d1, -0d2, 0d3)
-        ASSERT(EQ(result, -0d2))
+        ! min with multiple int arguments
+        int result = min(0d1, -0d2, 0d3)
+        assert(eq(result, -0d2))
         
   - name: min-str
     language: Prefix
     source: |
-        ! MIN returns the shortest string
-        str result = MIN("a", "", "prefix", "bb")
-        ASSERT(EQ(result, ""))
+        ! min returns the shortest string
+        str result = min("a", "", "prefix", "bb")
+        assert(eq(result, ""))
         
   - name: min-tns
     language: Prefix
     source: |
-        ! MIN flattens tensors and returns the minimum scalar element (string length for str)
+        ! min flattens tensors and returns the minimum scalar element (string length for str)
         tensor a = [["aa", "b"], ["ccc", "dd"]]
-        str result = MIN(a)
-        ASSERT(EQ(result, "b"))
+        str result = min(a)
+        assert(eq(result, "b"))
         
 failing:
   - name: max-mixed-types
     language: Prefix
     source: |
         ! Mixing int and float in arguments must raise a runtime error per specification
-        int _ = MAX(0d1, 0d2.0)
+        int _ = max(0d1, 0d2.0)
         
   - name: max-tns-mixed-element-type
     language: Prefix
@@ -71,13 +71,13 @@ failing:
         ! tensor arguments must share the same scalar element type per specification
         tensor a = [0d1]
         tensor b = ["x"]
-        int _ = MAX(a, b)
+        int _ = max(a, b)
         
   - name: min-mixed-types
     language: Prefix
     source: |
         ! Mixing int and float in arguments must raise a runtime error per specification
-        _ = MIN(0d1, 0d2.0)
+        _ = min(0d1, 0d2.0)
         
   - name: min-tns-mixed-element-type
     language: Prefix
@@ -85,5 +85,5 @@ failing:
         ! tensor arguments must share the same scalar element type per specification
         tensor a = [0d1]
         tensor b = ["x"]
-        _ = MIN(a, b)
+        _ = min(a, b)
         

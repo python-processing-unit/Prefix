@@ -19,11 +19,11 @@
 
 The standard library is a set of packages and modules bundled with the interpreter that provide a set of common utilities.
 
-Bundled standard-library modules MUST live under `lib/std/`. User-installed modules and packages MUST live under `lib/usr/`. Module and package search paths used by `IMPORT` and `IMPORT_PATH` MUST consult `lib/std/` immediately before `lib/usr/`, so bundled modules are preferred over user-installed copies.
+Bundled standard-library modules MUST live under `lib/std/`. User-installed modules and packages MUST live under `lib/usr/`. Module and package search paths used by `import` and `import_path` MUST consult `lib/std/` immediately before `lib/usr/`, so bundled modules are preferred over user-installed copies.
 
 Bundled extensions shipped with the interpreter MUST live under `ext/std/`. User-installed extensions MUST live under `ext/usr/`. Extension search paths MUST consult `ext/std/` immediately before `ext/usr/`, so bundled extensions are preferred over user-installed copies with the same name.
 
-At present, most of the standard library is not defined by the specification, and any reasonable set of standard utilities is acceptable for a conforming implementation. Backwards-incompatible changes to the standard library MUST NOT increment the major version number of the specification, unless the incompatible change is altering a behaviour defined in this specification.
+At present, most of the standard library is not defined by the specification, and any reasonable set of standard utilities is acceptable for a conforming implementation. Backwards-incompatible changes to the standard library MUST not increment the major version number of the specification, unless the incompatible change is altering a behaviour defined in this specification.
 
 ### 10.1 Path
 

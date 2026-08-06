@@ -7,80 +7,80 @@ int MS_DEN = 0d1000
 int AUDIO_MAX = 0d100
 
 func int AUDIO_CLAMP(int v){
-    if(GT(v, AUDIO_MAX)){ return(AUDIO_MAX) }
-    if(LT(v, NEG(AUDIO_MAX))){ return(NEG(AUDIO_MAX)) }
+    if(gt(v, AUDIO_MAX)){ return(AUDIO_MAX) }
+    if(lt(v, neg(AUDIO_MAX))){ return(neg(AUDIO_MAX)) }
     return(v)
 }
 
 func tensor SQUARE(int freq, int ms, int amp, int sr){
-    ASSERT(GT(freq, 0d0))
-    ASSERT(GT(ms, 0d0))
-    ASSERT(GT(sr, 0d0))
+    assert(gt(freq, 0d0))
+    assert(gt(ms, 0d0))
+    assert(gt(sr, 0d0))
     int frames = /(*(sr, ms), MS_DEN)
     tensor shape = [frames]
     tensor out = tensor(shape, 0d0)
-    DEL("shape")
-    int period = CDIV(sr, freq)
-    if(LTE(period, 0d0)){ return(out) }
+    del("shape")
+    int period = cdiv(sr, freq)
+    if(lte(period, 0d0)){ return(out) }
     int half = /(period, 0d2)
     parfor(idx, frames){
-        int pos = MOD(-(idx, 0d1), period)
+        int pos = mod(-(idx, 0d1), period)
         int v = amp
-        if(GTE(pos, half)){ v = NEG(amp) }
+        if(gte(pos, half)){ v = neg(amp) }
         out[idx] = AUDIO_CLAMP(v)
     }
-    DEL("frames")
-    DEL("period")
-    DEL("half")
-    DEL("pos")
-    DEL("v")
+    del("frames")
+    del("period")
+    del("half")
+    del("pos")
+    del("v")
     return(out)
 }
 
 func tensor SAWTOOTH(int freq, int ms, int amp, int sr){
-    ASSERT(GT(freq, 0d0))
-    ASSERT(GT(ms, 0d0))
-    ASSERT(GT(sr, 0d0))
+    assert(gt(freq, 0d0))
+    assert(gt(ms, 0d0))
+    assert(gt(sr, 0d0))
     int frames = /(*(sr, ms), MS_DEN)
     tensor shape = [frames]
     tensor out = tensor(shape, 0d0)
-    DEL("shape")
-    int period = CDIV(sr, freq)
-    if(LTE(period, 0d0)){ return(out) }
+    del("shape")
+    int period = cdiv(sr, freq)
+    if(lte(period, 0d0)){ return(out) }
     parfor(idx, frames){
-        int pos = MOD(-(idx, 0d1), period)
+        int pos = mod(-(idx, 0d1), period)
         int num = *(*(*(pos, 0d4), amp), 0d1)
         int tmp = /(num, period)
         int v = -(tmp, amp)
         out[idx] = AUDIO_CLAMP(v)
     }
-    DEL("frames")
-    DEL("period")
-    DEL("pos")
-    DEL("num")
-    DEL("tmp")
-    DEL("v")
+    del("frames")
+    del("period")
+    del("pos")
+    del("num")
+    del("tmp")
+    del("v")
     return(out)
 }
 
 func tensor TRIANGLE(int freq, int ms, int amp, int sr){
-    ASSERT(GT(freq, 0d0))
-    ASSERT(GT(ms, 0d0))
-    ASSERT(GT(sr, 0d0))
+    assert(gt(freq, 0d0))
+    assert(gt(ms, 0d0))
+    assert(gt(sr, 0d0))
     int frames = /(*(sr, ms), MS_DEN)
     tensor shape = [frames]
     tensor out = tensor(shape, 0d0)
-    DEL("shape")
-    int period = CDIV(sr, freq)
-    if(LTE(period, 0d0)){ return(out) }
+    del("shape")
+    int period = cdiv(sr, freq)
+    if(lte(period, 0d0)){ return(out) }
     int half = /(period, 0d2)
     parfor(idx, frames){
-        int pos = MOD(-(idx, 0d1), period)
+        int pos = mod(-(idx, 0d1), period)
         int v = 0d0
-        if(LT(pos, half)){
+        if(lt(pos, half)){
             int num = *(*(*(pos, 0d4), amp), 0d1)
             int tmp = /(num, period)
-            v = +(NEG(amp), tmp)
+            v = +(neg(amp), tmp)
         }else{
             int t = -(pos, half)
             int num = *(*(*(t, 0d4), amp), 0d1)
@@ -89,31 +89,31 @@ func tensor TRIANGLE(int freq, int ms, int amp, int sr){
         }
         out[idx] = AUDIO_CLAMP(v)
     }
-    DEL("frames")
-    DEL("period")
-    DEL("half")
-    DEL("pos")
-    DEL("v")
-    DEL("num")
-    DEL("tmp")
-    DEL("t")
+    del("frames")
+    del("period")
+    del("half")
+    del("pos")
+    del("v")
+    del("num")
+    del("tmp")
+    del("t")
     return(out)
 }
 
 func tensor SINE(int freq, int ms, int amp, int sr){
-    ASSERT(GT(freq, 0d0))
-    ASSERT(GT(ms, 0d0))
-    ASSERT(GT(sr, 0d0))
+    assert(gt(freq, 0d0))
+    assert(gt(ms, 0d0))
+    assert(gt(sr, 0d0))
     int frames = /(*(sr, ms), MS_DEN)
     tensor shape = [frames]
     tensor base = SAWTOOTH(freq, ms, amp, sr)
     tensor out = tensor(shape, 0d0)
-    DEL("shape")
+    del("shape")
     parfor(idx, frames){
         int previ = idx
-        if(GT(idx, 0d1)){ previ = -(idx, 0d1) }
+        if(gt(idx, 0d1)){ previ = -(idx, 0d1) }
         int nexti = idx
-        if(LT(idx, frames)){ nexti = +(idx, 0d1) }
+        if(lt(idx, frames)){ nexti = +(idx, 0d1) }
         int a = base[previ]
         int b = base[idx]
         int c = base[nexti]
@@ -121,40 +121,40 @@ func tensor SINE(int freq, int ms, int amp, int sr){
         int v = /(sum, 0d3)
         out[idx] = AUDIO_CLAMP(v)
     }
-    DEL("frames")
-    DEL("previ")
-    DEL("nexti")
-    DEL("a")
-    DEL("b")
-    DEL("c")
-    DEL("sum")
+    del("frames")
+    del("previ")
+    del("nexti")
+    del("a")
+    del("b")
+    del("c")
+    del("sum")
     return(out)
 }
 
 func tensor PULSE(int freq, int ms, int amp, int sr, int duty){
-    ASSERT(GT(freq, 0d0))
-    ASSERT(GT(ms, 0d0))
-    ASSERT(GT(sr, 0d0))
-    ASSERT(GTE(duty, 0d0))
-    ASSERT(LTE(duty, 0d100))
+    assert(gt(freq, 0d0))
+    assert(gt(ms, 0d0))
+    assert(gt(sr, 0d0))
+    assert(gte(duty, 0d0))
+    assert(lte(duty, 0d100))
     int frames = /(*(sr, ms), MS_DEN)
     tensor shape = [frames]
     tensor out = tensor(shape, 0d0)
-    DEL("shape")
-    int period = CDIV(sr, freq)
-    if(LTE(period, 0d0)){ return(out) }
+    del("shape")
+    int period = cdiv(sr, freq)
+    if(lte(period, 0d0)){ return(out) }
     int thresh = /(*(period, duty), 0d100)
     parfor(idx, frames){
-        int pos = MOD(-(idx, 0d1), period)
+        int pos = mod(-(idx, 0d1), period)
         int v = amp
-        if(GTE(pos, thresh)){ v = NEG(amp) }
+        if(gte(pos, thresh)){ v = neg(amp) }
         out[idx] = AUDIO_CLAMP(v)
     }
-    DEL("frames")
-    DEL("period")
-    DEL("thresh")
-    DEL("pos")
-    DEL("v")
+    del("frames")
+    del("period")
+    del("thresh")
+    del("pos")
+    del("v")
     return(out)
 }
 
@@ -167,14 +167,14 @@ func tensor ENVELOPE_ADSR( ^
     int sustain, ^
     int release ^
     ){
-    ASSERT(GTE(attack, 0d0))
-    ASSERT(GTE(decay, 0d0))
-    ASSERT(GTE(sustain, 0d0))
-    ASSERT(GTE(release, 0d0))
+    assert(gte(attack, 0d0))
+    assert(gte(decay, 0d0))
+    assert(gte(sustain, 0d0))
+    assert(gte(release, 0d0))
     ! determine frames from shape tensor ([1, frames] expected)
-    int slen = TLEN(shape, 0d1)
+    int slen = len_dim(shape, 0d1)
     int frames = 0
-    if(EQ(slen, 0d1)){
+    if(eq(slen, 0d1)){
         frames = shape[0d1]
     } else {
         frames = shape[0d2]
@@ -182,40 +182,40 @@ func tensor ENVELOPE_ADSR( ^
     tensor out = tensor(shape, 0d0)
     ! clamp segment lengths so they don't exceed frames
     int a = attack
-    if(GT(a, frames)){ a = frames }
+    if(gt(a, frames)){ a = frames }
     int d = decay
-    if(GT(+(a,d), frames)){ d = -(frames, a) }
+    if(gt(+(a,d), frames)){ d = -(frames, a) }
     int r = release
-    if(GT(+(+(a,d), r), frames)){ r = -(frames, +(a,d)) }
+    if(gt(+(+(a,d), r), frames)){ r = -(frames, +(a,d)) }
     int s_len = -(frames, +(+(a,d), r))
     parfor(idx, frames){
         int z = -(idx, 0d1)
         int v = 0d0
-        if(LT(z, a)){
+        if(lt(z, a)){
             ! attack: ramp 0 -> 100
-            if(EQ(a, 0d0)){ v = 0d4 }else{
+            if(eq(a, 0d0)){ v = 0d4 }else{
                 int num = *(idx, 0d4)
                 v = /(num, a)
             }
         } else {
             int pos = -(z, a)
-            if(LT(pos, d)){
+            if(lt(pos, d)){
                 ! decay: ramp 100 -> sustain
-                if(EQ(d, 0d0)){ v = sustain }else{
+                if(eq(d, 0d0)){ v = sustain }else{
                     int num = *(-(0d4, sustain), -(d, pos))
                     int tmp = /(num, d)
                     v = +(sustain, tmp)
                 }
             }else{
                 int pos2 = -(pos, d)
-                if(LT(pos2, s_len)){
+                if(lt(pos2, s_len)){
                     ! sustain region
                     v = sustain
                 }else{
                     ! release region: ramp sustain -> 0
                     int relpos = -(pos2, s_len)
                     int relrem = -(r, relpos)
-                    if(OR(EQ(r, 0d0), LTE(relrem, 0d0))){ v = 0d0 }else{
+                    if(or(eq(r, 0d0), lte(relrem, 0d0))){ v = 0d0 }else{
                         int num = *(sustain, relrem)
                         v = /(num, r)
                     }
@@ -224,69 +224,69 @@ func tensor ENVELOPE_ADSR( ^
         }
         out[idx] = AUDIO_CLAMP(v)
     }
-    DEL("slen")
-    DEL("frames")
-    DEL("a")
-    DEL("d")
-    DEL("r")
-    DEL("s_len")
+    del("slen")
+    del("frames")
+    del("a")
+    del("d")
+    del("r")
+    del("s_len")
     return(out)
 }
 
 func tensor LOWPASS(tensor inp, int cutoff, int sr){
-    ASSERT(GT(cutoff, 0d0))
-    ASSERT(GT(sr, 0d0))
-    tensor shape = SHAPE(inp)
-    int slen = TLEN(shape, 0d1)
+    assert(gt(cutoff, 0d0))
+    assert(gt(sr, 0d0))
+    tensor shape = shape(inp)
+    int slen = len_dim(shape, 0d1)
     int frames = 0
-    if(EQ(slen, 0d1)){frames = shape[0d1] }else{ frames = shape[0d2]}
+    if(eq(slen, 0d1)){frames = shape[0d1] }else{ frames = shape[0d2]}
     tensor out = tensor(shape, 0d0)
-    int period = CDIV(sr, cutoff)
-    if(LTE(period, 0d0)){ return(out) }
+    int period = cdiv(sr, cutoff)
+    if(lte(period, 0d0)){ return(out) }
     parfor(idx, frames){
         int z = -(idx, 0d1)
         ! compute window start
         int start = -(z, -(period, 0d1))
-        if(LT(start, 0d0)){ start = 0d0 }
+        if(lt(start, 0d0)){ start = 0d0 }
         int j = start
         int sum = 0d0
-        while(LTE(j, z)){
+        while(lte(j, z)){
             int sample = inp[+(j, 0d1)]
             sum = +(sum, sample)
             j = +(j, 0d1)
         }
         int count = -( +(z, 0d1), start )
         int avg = 0d0
-        if(GTE(count, 0d1)){ avg = /(sum, count) }
+        if(gte(count, 0d1)){ avg = /(sum, count) }
         out[idx] = AUDIO_CLAMP(avg)
     }
-    DEL("slen")
-    DEL("frames")
-    DEL("period")
-    DEL("start")
-    DEL("j")
-    DEL("sum")
-    DEL("count")
-    DEL("avg")
+    del("slen")
+    del("frames")
+    del("period")
+    del("start")
+    del("j")
+    del("sum")
+    del("count")
+    del("avg")
     return(out)
 }
 
 func tensor HIGHPASS(tensor inp, int cutoff, int sr){
     ! highpass = original - lowpass
     tensor low = LOWPASS(inp, cutoff, sr)
-    tensor shape = SHAPE(inp)
+    tensor shape = shape(inp)
     tensor out = tensor(shape, 0d0)
-    int slen = TLEN(shape, 0d1)
+    int slen = len_dim(shape, 0d1)
     int frames = 0d0
-    if(EQ(slen, 0d1)){frames = shape[0d1]} else {frames = shape[0d2]}
+    if(eq(slen, 0d1)){frames = shape[0d1]} else {frames = shape[0d2]}
     parfor(idx, frames){
         int i1 = idx
         int a = inp[i1]
         int b = low[i1]
         out[i1] = AUDIO_CLAMP(-(a, b))
     }
-    DEL("slen")
-    DEL("frames")
-    DEL("low")
+    del("slen")
+    del("frames")
+    del("low")
     return(out)
 }

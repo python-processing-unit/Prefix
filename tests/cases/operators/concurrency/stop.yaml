@@ -4,14 +4,14 @@ passing:
     source: |
         bool reached_end = false
         
-        thread stopped = STOP(async{
+        thread stopped = stop(async{
             for(i, 0d100000){}
             reached_end = true
         })
         
-        ASSERT(EQ(TYPE(stopped), "thread"))
-        REFUTE(bool(stopped))
-        ASSERT(EQ(reached_end, false))
+        assert(eq(type(stopped), "thread"))
+        refute(bool(stopped))
+        assert(eq(reached_end, false))
         
   - name: stop-async-handle
     language: Prefix
@@ -23,15 +23,15 @@ passing:
             reached_end = true
         }
         
-        ASSERT(bool(worker))
+        assert(bool(worker))
         
-        thread stopped = STOP(worker)
+        thread stopped = stop(worker)
         
-        ASSERT(EQ(TYPE(stopped), "thread"))
-        ASSERT(EQ(stopped, worker))
-        REFUTE(bool(worker))
-        REFUTE(bool(stopped))
-        ASSERT(EQ(reached_end, false))
+        assert(eq(type(stopped), "thread"))
+        assert(eq(stopped, worker))
+        refute(bool(worker))
+        refute(bool(stopped))
+        assert(eq(reached_end, false))
   - name: stop-thread-handle
     language: Prefix
     source: |
@@ -43,43 +43,43 @@ passing:
             reached_end = true
         }
         
-        ASSERT(bool(worker))
+        assert(bool(worker))
         
-        thread stopped = STOP(worker)
+        thread stopped = stop(worker)
         
-        ASSERT(EQ(TYPE(stopped), "thread"))
-        ASSERT(EQ(stopped, worker))
-        REFUTE(bool(worker))
-        REFUTE(bool(stopped))
-        ASSERT(EQ(reached_end, false))
+        assert(eq(type(stopped), "thread"))
+        assert(eq(stopped, worker))
+        refute(bool(worker))
+        refute(bool(stopped))
+        assert(eq(reached_end, false))
 failing:
   - name: stop-arity-two
     language: Prefix
     source: |
         thread(worker){}
         
-        STOP(worker, worker)
+        stop(worker, worker)
   - name: stop-arity-zero
     language: Prefix
-    source: STOP()
+    source: stop()
   - name: stop-type-bool
     language: Prefix
-    source: STOP(true)
+    source: stop(true)
   - name: stop-type-flt
     language: Prefix
-    source: STOP(0d1.0)
+    source: stop(0d1.0)
   - name: stop-type-func
     language: Prefix
-    source: 'STOP(LAMBDA bool: (){})'
+    source: 'stop(LAMBDA bool: (){})'
   - name: stop-type-int
     language: Prefix
-    source: STOP(0d1)
+    source: stop(0d1)
   - name: stop-type-map
     language: Prefix
-    source: STOP(<>)
+    source: stop(<>)
   - name: stop-type-str
     language: Prefix
-    source: STOP("thread")
+    source: stop("thread")
   - name: stop-type-tns
     language: Prefix
-    source: STOP([0d1])
+    source: stop([0d1])

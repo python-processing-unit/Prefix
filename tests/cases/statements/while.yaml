@@ -3,10 +3,10 @@ passing:
     language: Prefix
     source: |
         int c = 0d0
-        while(LT(c, 0d10)){
+        while(lt(c, 0d10)){
             +(@c, 0d1)
         }
-        ASSERT(EQ(c, 0d10))
+        assert(eq(c, 0d10))
         
 failing:
   - name: while-no-block

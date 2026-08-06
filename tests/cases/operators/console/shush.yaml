@@ -11,8 +11,8 @@ passing:
           $programPath = Join-Path $tempDir 'program.pre'
         
           Set-Content -Path $programPath -Encoding Ascii -Value @'
-        SHUSH()
-        ASSERT(EQ(CL("echo prefix-shush-cl"), 0d0))
+        shush()
+        assert(eq(cl("echo prefix-shush-cl"), 0d0))
         '@
         
           $startInfo = New-Object System.Diagnostics.ProcessStartInfo
@@ -63,10 +63,10 @@ passing:
           $programPath = Join-Path $tempDir 'program.pre'
         
           Set-Content -Path $programPath -Encoding Ascii -Value @'
-        SHUSH()
-        str line = INPUT("PROMPT>")
-        ASSERT(EQ(line, "alpha"))
-        PRINT("hidden")
+        shush()
+        str line = input("PROMPT>")
+        assert(eq(line, "alpha"))
+        print("hidden")
         '@
         
           $result = Invoke-PrefixProgramWithInput -ProgramPath $programPath -InputText "alpha`r`n"
@@ -95,8 +95,8 @@ passing:
           $programPath = Join-Path $tempDir 'program.pre'
         
           Set-Content -Path $programPath -Encoding Ascii -Value @'
-        SHUSH()
-        PRINT("hidden")
+        shush()
+        print("hidden")
         '@
         
           $startInfo = New-Object System.Diagnostics.ProcessStartInfo
@@ -138,7 +138,7 @@ passing:
   - name: shush-return-false
     language: Prefix
     source: |
-        ASSERT(EQ(SHUSH(), false))
+        assert(eq(shush(), false))
         
   - name: shush-warn-suppresses-forwarding
     language: PowerShell
@@ -152,8 +152,8 @@ passing:
           $programPath = Join-Path $tempDir 'program.pre'
         
           Set-Content -Path $programPath -Encoding Ascii -Value @'
-        SHUSH()
-        WARN("hidden")
+        shush()
+        warn("hidden")
         '@
         
           $startInfo = New-Object System.Diagnostics.ProcessStartInfo
@@ -195,7 +195,7 @@ passing:
   - name: unshush-no-op
     language: Prefix
     source: |
-        ASSERT(EQ(UNSHUSH(), false))
+        assert(eq(unshush(), false))
         
   - name: unshush-restores-forwarding
     language: PowerShell
@@ -209,10 +209,10 @@ passing:
           $programPath = Join-Path $tempDir 'program.pre'
         
           Set-Content -Path $programPath -Encoding Ascii -Value @'
-        SHUSH()
-        PRINT("hidden")
-        ASSERT(EQ(UNSHUSH(), false))
-        PRINT("shown")
+        shush()
+        print("hidden")
+        assert(eq(unshush(), false))
+        print("shown")
         '@
         
           $startInfo = New-Object System.Diagnostics.ProcessStartInfo
@@ -254,17 +254,17 @@ passing:
   - name: unshush-return-false
     language: Prefix
     source: |
-        SHUSH()
-        ASSERT(EQ(UNSHUSH(), false))
+        shush()
+        assert(eq(unshush(), false))
         
 failing:
   - name: shush-arity-one
     language: Prefix
     source: |
-        SHUSH(0d1)
+        shush(0d1)
         
   - name: unshush-arity-one
     language: Prefix
     source: |
-        UNSHUSH(0d1)
+        unshush(0d1)
         

@@ -3,42 +3,42 @@ passing:
     language: Prefix
     source: |
         ! Passing float arithmetic, checking coercion and correct logic
-        float result_add = F+(0d10.5, 0d5.25)
-        ASSERT(EQ(result_add, 0d15.75))
+        float result_add = f+(0d10.5, 0d5.25)
+        assert(eq(result_add, 0d15.75))
         
-        float result_sub = F-(0d10.0, 0d2)
-        ASSERT(EQ(result_sub, 0d8.0))
+        float result_sub = f-(0d10.0, 0d2)
+        assert(eq(result_sub, 0d8.0))
         
-        float result_mul = F*(0d4.25, 0d2.0)
-        ASSERT(EQ(result_mul, 0d8.5))
+        float result_mul = f*(0d4.25, 0d2.0)
+        assert(eq(result_mul, 0d8.5))
         
-        float result_pow = FPOW(0d2.5, 0d2.0)
-        ASSERT(EQ(result_pow, 0d6.25))
+        float result_pow = fpow(0d2.5, 0d2.0)
+        assert(eq(result_pow, 0d6.25))
         
-        float result_root_normal = FROOT(0d16.0, 0d2.0)
-        ASSERT(EQ(result_root_normal, 0d4.0))
+        float result_root_normal = froot(0d16.0, 0d2.0)
+        assert(eq(result_root_normal, 0d4.0))
   - name: op-arithmetic-coerce-int-pass
     language: Prefix
     source: |
         ! Passing integer arithmetic, checking coercion and correct logic
-        int result_add_1 = I+(0d10, 0d5)
-        int result_add_2 = I+(0d10.5, 0d5.2) ! Coerces to integers before/after?
-        ASSERT(EQ(result_add_1, 0d15))
+        int result_add_1 = i+(0d10, 0d5)
+        int result_add_2 = i+(0d10.5, 0d5.2) ! Coerces to integers before/after?
+        assert(eq(result_add_1, 0d15))
         
-        int result_sub = I-(0d10, 0d2.0)
-        ASSERT(EQ(result_sub, 0d8))
+        int result_sub = i-(0d10, 0d2.0)
+        assert(eq(result_sub, 0d8))
         
-        int result_mul = I*(0d4, 0d5)
-        ASSERT(EQ(result_mul, 0d20))
+        int result_mul = i*(0d4, 0d5)
+        assert(eq(result_mul, 0d20))
         
-        int result_div = I/(0d20, 0d4)
-        ASSERT(EQ(result_div, 0d5))
+        int result_div = i/(0d20, 0d4)
+        assert(eq(result_div, 0d5))
         
-        int result_pow = IPOW(0d2, 0d3)
-        ASSERT(EQ(result_pow, 0d8))
+        int result_pow = ipow(0d2, 0d3)
+        assert(eq(result_pow, 0d8))
         
-        int result_root = IROOT(0d16, 0d2)
-        ASSERT(EQ(result_root, 0d4))
+        int result_root = iroot(0d16, 0d2)
+        assert(eq(result_root, 0d4))
         
   - name: op-arithmetic-flt
     language: Prefix
@@ -47,8 +47,8 @@ passing:
         float right_hex = 0x0.8
         float left_oct_one = 0o1.0
         
-        ASSERT(EQ(+(left_oct_one, right_hex), 0x1.8))
-        ASSERT(EQ(BASE(+(left_oct_one, right_hex)), 0d16))
+        assert(eq(+(left_oct_one, right_hex), 0x1.8))
+        assert(eq(BASE(+(left_oct_one, right_hex)), 0d16))
         
   - name: op-arithmetic-int
     language: Prefix
@@ -57,9 +57,9 @@ passing:
         int right_bin = 0b11
         int wide_hex = 0x10
         
-        ASSERT(EQ(+(left_dec, right_bin), 0d5))
-        ASSERT(EQ(BASE(+(left_dec, right_bin)), 0d10))
+        assert(eq(+(left_dec, right_bin), 0d5))
+        assert(eq(BASE(+(left_dec, right_bin)), 0d10))
         
-        ASSERT(EQ(+(wide_hex, left_dec), 0d18))
-        ASSERT(EQ(BASE(+(wide_hex, left_dec)), 0d16))
+        assert(eq(+(wide_hex, left_dec), 0d18))
+        assert(eq(BASE(+(wide_hex, left_dec)), 0d16))
         

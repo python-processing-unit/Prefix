@@ -6,12 +6,12 @@ passing:
         int hits = 0d0
         gotopoint('loop')
         +(@hits, 0d1)
-        if(LT(i, 0d2)){
+        if(lt(i, 0d2)){
             +(@i, 0d1)
             goto('loop')
         }
-        ASSERT(EQ(i, 0d2))
-        ASSERT(EQ(hits, 0d3))
+        assert(eq(i, 0d2))
+        assert(eq(hits, 0d3))
         
   - name: goto-cross-block
     language: Prefix
@@ -19,11 +19,11 @@ passing:
         int test = 0d0
         if(true){
             goto('target')
-            ASSERT(false)
+            assert(false)
         }
-        ASSERT(false)
+        assert(false)
         gotopoint('target')
-        ASSERT(EQ(test, 0d0))
+        assert(eq(test, 0d0))
         
   - name: goto-errors
     language: Prefix
@@ -33,49 +33,49 @@ passing:
         try {
             gotopoint(true)
         } catch(err) {
-            ASSERT(EQ(err, 'gotopoint requires int or str argument'))
+            assert(eq(err, 'gotopoint requires int or str argument'))
              +(@errors_caught, 0d1)
         }
         
         try {
             goto(true)
         } catch(err) {
-            ASSERT(EQ(err, 'goto requires int or str argument'))
+            assert(eq(err, 'goto requires int or str argument'))
              +(@errors_caught, 0d1)
         }
         
         try {
             gotopoint(-0d1)
         } catch(err) {
-            ASSERT(EQ(err, 'Negative gotopoint identifier is not allowed'))
+            assert(eq(err, 'Negative gotopoint identifier is not allowed'))
              +(@errors_caught, 0d1)
         }
         
         try {
             goto(-0d1)
         } catch(err) {
-            ASSERT(EQ(err, 'Negative goto target is not allowed'))
+            assert(eq(err, 'Negative goto target is not allowed'))
              +(@errors_caught, 0d1)
         }
         
         try {
             goto('unregistered')
         } catch(err) {
-            ASSERT(EQ(err, 'Unregistered goto target'))
+            assert(eq(err, 'Unregistered goto target'))
              +(@errors_caught, 0d1)
         }
         
-        ASSERT(EQ(errors_caught, 0d5))
+        assert(eq(errors_caught, 0d5))
         
   - name: goto-forward
     language: Prefix
     source: |
         int value = 0d0
         goto(0d1)
-        ASSERT(false)
+        assert(false)
         gotopoint(0d1)
         +(@value, 0d1)
-        ASSERT(EQ(value, 0d1))
+        assert(eq(value, 0d1))
         
 failing:
   - name: goto-no-parens

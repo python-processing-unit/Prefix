@@ -1,10 +1,10 @@
 passing:
   - name: cl-exit-nonzero
     language: Prefix
-    source: 'ASSERT(EQ(CL("exit 7"), 0d7))'
+    source: 'assert(eq(cl("exit 7"), 0d7))'
   - name: cl-exit-zero
     language: Prefix
-    source: 'ASSERT(EQ(CL("exit 0"), 0d0))'
+    source: 'assert(eq(cl("exit 0"), 0d0))'
   - name: cl-output-forwarding
     language: PowerShell
     source: |
@@ -17,7 +17,7 @@ passing:
           $programPath = Join-Path $tempDir 'program.pre'
         
           Set-Content -Path $programPath -Encoding Ascii -Value @'
-        ASSERT(EQ(CL("echo prefix-cl-output"), 0d0))
+        assert(eq(cl("echo prefix-cl-output"), 0d0))
         '@
         
           $startInfo = New-Object System.Diagnostics.ProcessStartInfo
@@ -58,28 +58,28 @@ passing:
 failing:
   - name: cl-arity-two
     language: Prefix
-    source: 'CL("exit 0", "extra")'
+    source: 'cl("exit 0", "extra")'
   - name: cl-arity-zero
     language: Prefix
-    source: CL()
+    source: cl()
   - name: cl-type-bool
     language: Prefix
-    source: CL(true)
+    source: cl(true)
   - name: cl-type-flt
     language: Prefix
-    source: CL(0d1.0)
+    source: cl(0d1.0)
   - name: cl-type-func
     language: Prefix
-    source: 'CL(LAMBDA bool: (){})'
+    source: 'cl(LAMBDA bool: (){})'
   - name: cl-type-int
     language: Prefix
-    source: CL(0d1)
+    source: cl(0d1)
   - name: cl-type-map
     language: Prefix
-    source: CL(<>)
+    source: cl(<>)
   - name: cl-type-thr
     language: Prefix
-    source: CL(async{})
+    source: cl(async{})
   - name: cl-type-tns
     language: Prefix
-    source: CL([0d1])
+    source: cl([0d1])
