@@ -1,0 +1,5 @@
+! Garbage collection for uninitialized symbols.
+
+extend("gc")
+
+bool track_new_symbols = true

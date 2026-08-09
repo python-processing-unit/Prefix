@@ -1,0 +1,222 @@
+passing:
+  - name: gc-aggressive-future-references
+    language: Prefix
+    source: |
+        import("gc")
+
+        assign(gc.track_new_symbols, false)
+        int dead = 0d1
+        int live = 0d2
+        assert(gc.track("dead"))
+        assert(gc.track("live"))
+        assert(gc.collect())
+        assert(eq(live, 0d2))
+        refute(exist("dead"))
+
+  - name: gc-track-new-symbols
+    language: Prefix
+    source: |
+        import("gc")
+        assert(eq(type(gc.track_new_symbols), "bool"))
+        assert(gc.track_new_symbols)
+
+  - name: gc-track
+    language: Prefix
+    source: |
+        import("gc")
+        assign(gc.track_new_symbols, false)
+        int tracked = 0d7
+        assert(gc.track("tracked"))
+        refute(gc.track("tracked"))
+
+  - name: gc-ignore
+    language: Prefix
+    source: |
+        import("gc")
+        assign(gc.track_new_symbols, false)
+        int ignored = 0d7
+        gc.track("ignored")
+        assert(gc.ignore("ignored"))
+        refute(gc.ignore("ignored"))
+
+  - name: gc-track-all
+    language: Prefix
+    source: |
+        import("gc")
+        assign(gc.track_new_symbols, false)
+        int first = 0d7
+        int second = 0d8
+        assert(gc.track_all())
+        refute(gc.track_all())
+
+  - name: gc-ignore-all
+    language: Prefix
+    source: |
+        import("gc")
+        int first = 0d7
+        int second = 0d8
+        gc.track_all()
+        assert(gc.ignore_all())
+        refute(gc.ignore_all())
+
+  - name: gc-ignore-safety
+    language: Prefix
+    source: |
+        import("gc")
+
+        assign(gc.track_new_symbols, false)
+        int protected = 0d7
+        int dead = 0d8
+        assert(gc.track("protected"))
+        assert(gc.track("dead"))
+        assert(gc.ignore("protected"))
+        assert(gc.collect())
+        assert(gc.track("protected"))
+        refute(exist("dead"))
+
+  - name: gc-default-tracking-and-initialized-collection
+    language: Prefix
+    source: |
+        import("gc")
+
+        assign(gc.track_new_symbols, true)
+        int automatic_dead = 0d1
+        int future_value = 0d2
+        assert(gc.collect())
+        assert(eq(future_value, 0d2))
+        refute(exist("automatic_dead"))
+
+  - name: gc-loop-without-ignore
+    language: Prefix
+    source: |
+        import("gc")
+
+        func int sum_with_checkpoints(){
+            int index = 0d1
+            int total = 0d0
+            while(lte(index, 0d4)){
+                assign(total, +(total, index))
+                if(eq(mod(index, 0d2), 0d0)){
+                    gc.collect()
+                }
+                +(@index, 0d1)
+            }
+            return(total)
+        }
+
+        assert(eq(sum_with_checkpoints(), 0d10))
+
+  - name: gc-collection-correctness
+    language: Prefix
+    source: |
+        import("gc")
+
+        int disposable = 0d17
+        int captured = 0d23
+        func int read_captured(){
+            return(captured)
+        }
+
+        gc.collect()
+        refute(exist("disposable"))
+        assert(eq(read_captured(), 0d23))
+
+  - name: gc-import-references
+    language: Prefix
+    source: |
+        import("gc")
+        import("path")
+        str root = path.BASEPATH(path.BASEPATH(path.script_dir))
+        str module_path = join(root, "/helpers/gc_import_target.pre")
+        import_path(module_path, "helper")
+        assign(gc.track_new_symbols, false)
+        assert(gc.track_all())
+        assert(gc.collect())
+        assert(eq(helper.read_live(), 0d7))
+        refute(exist("helper.module_dead"))
+
+  - name: gc-importing-module-references
+    language: Prefix
+    source: |
+        import("gc")
+        import("path")
+        str root = path.BASEPATH(path.BASEPATH(path.script_dir))
+        str module_path = join(root, "/helpers/gc_importing_target.pre")
+        import_path(module_path, "importer")
+        assign(gc.track_new_symbols, false)
+        assert(gc.track_all())
+        assert(gc.collect())
+        assert(eq(importer.read_imported_live(), 0d7))
+        refute(importer.imported_dead_exists())
+        refute(exist("gc_imported_target.internal_dead"))
+
+failing:
+  - name: gc-track-missing-symbol
+    language: Prefix
+    source: |
+        import("gc")
+        gc.track("missing")
+  - name: gc-ignore-missing-symbol
+    language: Prefix
+    source: |
+        import("gc")
+        gc.ignore("missing")
+  - name: gc-track-wrong-type
+    language: Prefix
+    source: |
+        import("gc")
+        gc.track(0d1)
+  - name: gc-ignore-wrong-type
+    language: Prefix
+    source: |
+        import("gc")
+        gc.ignore(false)
+  - name: gc-track-wrong-arity
+    language: Prefix
+    source: |
+        import("gc")
+        gc.track()
+  - name: gc-ignore-wrong-arity
+    language: Prefix
+    source: |
+        import("gc")
+        gc.ignore("a", "b")
+  - name: gc-track-all-wrong-arity
+    language: Prefix
+    source: |
+        import("gc")
+        gc.track_all(0d1)
+  - name: gc-ignore-all-wrong-arity
+    language: Prefix
+    source: |
+        import("gc")
+        gc.ignore_all(false)
+  - name: gc-collect-wrong-arity
+    language: Prefix
+    source: |
+        import("gc")
+        gc.collect(0d1)
+  - name: gc-track-empty-symbol
+    language: Prefix
+    source: |
+        import("gc")
+        gc.track("")
+  - name: gc-ignore-empty-symbol
+    language: Prefix
+    source: |
+        import("gc")
+        gc.ignore("")
+  - name: gc-run-references-ignored
+    language: Prefix
+    source: |
+        import("gc")
+        assign(gc.track_new_symbols, false)
+        int run_only = 0d1
+        assert(gc.track("run_only"))
+        assert(gc.collect())
+        run("assert(eq(run_only, 0d1))")
+  - name: gc-track-new-symbols-wrong-type
+    language: Prefix
+    source: |
+        import("gc")
+        assign(gc.track_new_symbols, 0d1)

@@ -1,0 +1,5 @@
+int module_live = 0d7
+int module_dead = 0d8
+func int read_live(){
+    return(module_live)
+}

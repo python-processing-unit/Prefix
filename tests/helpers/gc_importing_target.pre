@@ -1,0 +1,9 @@
+import("gc_imported_target")
+
+func int read_imported_live(){
+    return(gc_imported_target.internal_live)
+}
+
+func bool imported_dead_exists(){
+    return(gc_imported_target.has_internal_dead())
+}

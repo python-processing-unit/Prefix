@@ -44,6 +44,24 @@ Path is a standard-library module that provides utilities for working with files
 - `str script` = The path to the currently executing script.
 - `str script_dir` = The directory containing the currently executing script.
 
+### 10.2 Garbage collection
+
+The `gc` standard-library module tracks symbols and uses the remaining source
+program to determine whether they have a future reference. Collection removes
+tracked symbols that have no future reference, including initialized symbols.
+References in imported modules are included. Source evaluated dynamically by
+`run` is not analyzed. Use `gc.ignore` or `gc.ignore_all` to protect symbols
+from collection.
+
+#### 10.2.1 API
+
+- `bool gc.track_new_symbols` = Whether newly created symbols are tracked. The default value is `true`.
+- `func bool gc.track_all()` = Track all existing symbols and return whether any additional symbols were tracked.
+- `func bool gc.track(str symbol)` = Track `symbol`. The call MUST raise a runtime error if `symbol` does not exist.
+- `func bool gc.ignore_all()` = Stop tracking all existing symbols and return whether any symbols were untracked.
+- `func bool gc.ignore(str symbol)` = Stop tracking `symbol`. The call MUST raise a runtime error if `symbol` does not exist.
+- `func bool gc.collect()` = Delete all tracked symbols without future references and return whether any symbols were deleted.
+
   
   </script>
 
