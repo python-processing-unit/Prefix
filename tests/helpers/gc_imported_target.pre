@@ -1,0 +1,6 @@
+int internal_live = 0d7
+int internal_dead = 0d8
+
+func bool has_internal_dead(){
+    return(exist("internal_dead"))
+}
