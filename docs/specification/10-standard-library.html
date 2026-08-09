@@ -23,7 +23,7 @@ Bundled standard-library modules MUST live under `lib/std/`. User-installed modu
 
 Bundled extensions shipped with the interpreter MUST live under `ext/std/`. User-installed extensions MUST live under `ext/usr/`. Extension search paths MUST consult `ext/std/` immediately before `ext/usr/`, so bundled extensions are preferred over user-installed copies with the same name.
 
-At present, most of the standard library is not defined by the specification, and any reasonable set of standard utilities is acceptable for a conforming implementation. Backwards-incompatible changes to the standard library MUST not increment the major version number of the specification, unless the incompatible change is altering a behaviour defined in this specification.
+At present, most of the standard library is not defined by the specification, and any reasonable set of standard utilities is acceptable for a conforming implementation. Backwards-incompatible changes to the standard library MUST NOT increment the major version number of the specification, unless the incompatible change is altering a behaviour defined in this specification.
 
 ### 10.1 Path
 
