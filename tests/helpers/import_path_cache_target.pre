@@ -1,6 +1,6 @@
 import("path")
 
-str marker = path.TEMPFILE("prefix-import-path-cache-target.txt")
+str marker = path.temp_file("prefix-import-path-cache-target.txt")
 
 if(exist_file(marker)){
     write_file("reloaded", marker)

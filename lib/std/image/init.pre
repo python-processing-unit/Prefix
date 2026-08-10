@@ -11,7 +11,7 @@ extend("image")
 import("path")
 
 func tensor LOAD(str img_path){
-    str ext = path.EXTNAME(img_path)
+    str ext = path.extension_name(img_path)
     if(eq(ext, "png")){
         return(LOAD_PNG(img_path))
     } elseif (or(eq(ext, "jpg"),eq(ext, "jpeg"))){

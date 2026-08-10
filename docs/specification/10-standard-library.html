@@ -31,18 +31,18 @@ Path is a standard-library module that provides utilities for working with files
 
 #### 10.1.1 API
 
-- `str NORMALIZE_PATH(str path)` = Replace all backslashes in the path with forward slashes.
-- `str WINPATH(str path)` = Replace all forward slashes in the path with backslashes.
-- `str BASEPATH(str path)` = Return the directory part of the path, excluding the file name.
-- `str BASENAME(str path)` = Return the file name part of the path, excluding the directory.
-- `tensor SPLITEXT(str path)` = Split the path into a tensor containing the base name and the extension.
-- `str EXTNAME(str path)` = Return the file extension from the path, without the dot.
-- `str DELEXT(str path)` = Return the path without the file extension.
-- `str TEMPFILE(str prefix, str suffix)` = Modify the path to originate in the system's temporary directory.
-- `str interpreter` = The path to the Prefix interpreter executable.
-- `str interpreter_dir` = The directory containing the Prefix interpreter executable.
-- `str script` = The path to the currently executing script.
-- `str script_dir` = The directory containing the currently executing script.
+- `str path.normalize_path(str path)` = Replace all backslashes in the path with forward slashes.
+- `str path.windows_path(str path)` = Replace all forward slashes in the path with backslashes.
+- `str path.directory_name(str path)` = Return the directory part of the path, excluding the file name.
+- `str path.file_name(str path)` = Return the file name part of the path, excluding the directory.
+- `tensor path.split_extension(str path)` = Split the path into the path without its extension and its extension.
+- `str path.extension_name(str path)` = Return the file extension from the path, without the dot.
+- `str path.strip_extension(str path)` = Return the path without the file extension.
+- `str path.temp_file(str path)` = Modify the path to originate in the system's temporary directory.
+- `str path.interpreter` = The path to the Prefix interpreter executable.
+- `str path.interpreter_dir` = The directory containing the Prefix interpreter executable.
+- `str path.script` = The path to the currently executing script.
+- `str path.script_dir` = The directory containing the currently executing script.
 
 ### 10.2 Garbage collection
 

@@ -4,7 +4,7 @@ passing:
     source: |
         import("path")
         
-        str p = path.TEMPFILE("temp.txt")
+        str p = path.temp_file("temp.txt")
         write_file("Prefix", p)
         assert(exist_file(p))
         assert(delete_file(p))
@@ -15,7 +15,7 @@ failing:
     source: |
         import("path")
         
-        str p = path.TEMPFILE("temp.txt")
+        str p = path.temp_file("temp.txt")
         write_file("Prefix", p)
         assert(exist_file(p))
         assert(delete_file(p, "Prefix"))

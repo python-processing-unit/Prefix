@@ -4,7 +4,7 @@ passing:
     source: |
         import("path", "helper")
         
-        assert(eq(type(helper.TEMPFILE("import-alias-qualified-namespace.txt")), "str"))
+        assert(eq(type(helper.temp_file("import-alias-qualified-namespace.txt")), "str"))
   - name: import-alias-type-str
     language: Prefix
     source: |
@@ -296,7 +296,7 @@ passing:
     source: |
         import("path")
         
-        assert(eq(type(path.TEMPFILE("import-qualified-namespace.txt")), "str"))
+        assert(eq(type(path.temp_file("import-qualified-namespace.txt")), "str"))
   - name: import-qualified-only
     language: PowerShell
     source: |

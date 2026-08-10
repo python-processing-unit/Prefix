@@ -4,7 +4,7 @@ passing:
     source: |
         import("path")
         
-        str tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
+        str tests_dir = path.directory_name(path.directory_name(path.script_dir))
         str helper_path = join(tests_dir, "/helpers/export_target.pre")
         
         import_path(helper_path)
@@ -22,7 +22,7 @@ passing:
     source: |
         import("path")
         
-        str tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
+        str tests_dir = path.directory_name(path.directory_name(path.script_dir))
         str helper_path = join(tests_dir, "/helpers/export_target.pre")
         
         refute(import_path(helper_path, "helper"))
@@ -41,7 +41,7 @@ passing:
     source: |
         import("path")
         
-        str tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
+        str tests_dir = path.directory_name(path.directory_name(path.script_dir))
         str helper_path = join(tests_dir, "/helpers/export_target.pre")
         
         refute(import_path(helper_path, "helper"))
@@ -71,7 +71,7 @@ passing:
     source: |
         import("path")
         
-        str tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
+        str tests_dir = path.directory_name(path.directory_name(path.script_dir))
         str helper_path = join(tests_dir, "/helpers/export_target.pre")
         
         refute(import_path(helper_path, "helper"))
@@ -101,7 +101,7 @@ failing:
     source: |
         import("path")
         
-        str tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
+        str tests_dir = path.directory_name(path.directory_name(path.script_dir))
         str helper_path = join(tests_dir, "/helpers/export_target.pre")
         
         refute(import_path(helper_path, "helper"))
@@ -113,7 +113,7 @@ failing:
     source: |
         import("path")
         
-        str tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
+        str tests_dir = path.directory_name(path.directory_name(path.script_dir))
         str helper_path = join(tests_dir, "/helpers/export_target.pre")
         
         refute(import_path(helper_path, "helper"))
@@ -166,7 +166,7 @@ failing:
     source: |
         import("path")
         
-        str tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
+        str tests_dir = path.directory_name(path.directory_name(path.script_dir))
         str helper_path = join(tests_dir, "/helpers/export_target.pre")
         
         refute(import_path(helper_path, "helper"))
@@ -176,7 +176,7 @@ failing:
     source: |
         import("path")
         
-        str tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
+        str tests_dir = path.directory_name(path.directory_name(path.script_dir))
         str helper_path = join(tests_dir, "/helpers/export_target.pre")
         
         refute(import_path(helper_path, "helper"))
@@ -186,7 +186,7 @@ failing:
     source: |
         import("path")
         
-        str tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
+        str tests_dir = path.directory_name(path.directory_name(path.script_dir))
         str helper_path = join(tests_dir, "/helpers/export_target.pre")
         
         refute(import_path(helper_path, "helper"))
@@ -196,7 +196,7 @@ failing:
     source: |
         import("path")
         
-        str tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
+        str tests_dir = path.directory_name(path.directory_name(path.script_dir))
         str helper_path = join(tests_dir, "/helpers/export_target.pre")
         
         refute(import_path(helper_path, "helper"))
@@ -206,7 +206,7 @@ failing:
     source: |
         import("path")
         
-        str tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
+        str tests_dir = path.directory_name(path.directory_name(path.script_dir))
         str helper_path = join(tests_dir, "/helpers/export_target.pre")
         
         refute(import_path(helper_path, "helper"))
@@ -216,7 +216,7 @@ failing:
     source: |
         import("path")
         
-        str tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
+        str tests_dir = path.directory_name(path.directory_name(path.script_dir))
         str helper_path = join(tests_dir, "/helpers/export_target.pre")
         
         refute(import_path(helper_path, "helper"))
@@ -226,7 +226,7 @@ failing:
     source: |
         import("path")
         
-        str tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
+        str tests_dir = path.directory_name(path.directory_name(path.script_dir))
         str helper_path = join(tests_dir, "/helpers/export_target.pre")
         
         refute(import_path(helper_path, "helper"))
@@ -236,7 +236,7 @@ failing:
     source: |
         import("path")
         
-        str tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
+        str tests_dir = path.directory_name(path.directory_name(path.script_dir))
         str helper_path = join(tests_dir, "/helpers/export_target.pre")
         
         refute(import_path(helper_path, "helper"))
@@ -246,7 +246,7 @@ failing:
     source: |
         import("path")
         
-        str tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
+        str tests_dir = path.directory_name(path.directory_name(path.script_dir))
         str helper_path = join(tests_dir, "/helpers/export_target.pre")
         
         refute(import_path(helper_path, "helper"))

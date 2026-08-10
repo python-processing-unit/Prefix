@@ -33,7 +33,7 @@ passing:
     source: |
         import("path")
         
-        str p = path.TEMPFILE("prefix-readfile-utf16-replacement.bin")
+        str p = path.temp_file("prefix-readfile-utf16-replacement.bin")
         
         assert(write_file("00D8", p, coding = "hex"))
         assert(eq(read_file(p, coding = "UTF-16 LE"), "\uFFFD"))
@@ -44,7 +44,7 @@ failing:
     source: |
         import("path")
         
-        str missing = path.TEMPFILE("prefix-readfile-missing.txt")
+        str missing = path.temp_file("prefix-readfile-missing.txt")
         try{ delete_file(missing) } catch { }
         read_file(missing)
         

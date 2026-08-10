@@ -4,7 +4,7 @@ passing:
     source: |
         import("path")
         
-        str tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
+        str tests_dir = path.directory_name(path.directory_name(path.script_dir))
         str helper_path = join(tests_dir, "/helpers/import_path_basic_target.pre")
         
         refute(import_path(helper_path, "helper"))
@@ -14,7 +14,7 @@ passing:
     source: |
         import("path")
         
-        str tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
+        str tests_dir = path.directory_name(path.directory_name(path.script_dir))
         str helper_path = join(tests_dir, "/helpers/import_path_basic_target.pre")
         
         import_path(helper_path, "helper")
@@ -24,9 +24,9 @@ passing:
     source: |
         import("path")
         
-        str tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
+        str tests_dir = path.directory_name(path.directory_name(path.script_dir))
         str helper_path = join(tests_dir, "/helpers/import_path_cache_target.pre")
-        str marker_path = path.TEMPFILE("prefix-import-path-cache-target.txt")
+        str marker_path = path.temp_file("prefix-import-path-cache-target.txt")
         
         if(exist_file(marker_path)){
             assert(delete_file(marker_path))
@@ -46,7 +46,7 @@ passing:
     source: |
         import("path")
         
-        str tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
+        str tests_dir = path.directory_name(path.directory_name(path.script_dir))
         str helper_path = join(tests_dir, "/helpers/import_path_basic_target.pre")
         
         refute(import_path(helper_path))
@@ -104,7 +104,7 @@ passing:
     source: |
         import("path")
         
-        str tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
+        str tests_dir = path.directory_name(path.directory_name(path.script_dir))
         str helper_path = join(tests_dir, "/helpers/import_path_isolated_target.pre")
         
         int shared = 0d11
@@ -117,7 +117,7 @@ passing:
     source: |
         import("path")
         
-        str tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
+        str tests_dir = path.directory_name(path.directory_name(path.script_dir))
         str helper_path = join(tests_dir, "/helpers/import_path_prex_target.pre")
         
         refute(import_path(helper_path))
@@ -201,7 +201,7 @@ passing:
     source: |
         import("path")
         
-        str tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
+        str tests_dir = path.directory_name(path.directory_name(path.script_dir))
         str helper_path = join(tests_dir, "/helpers/import_path_basic_target.pre")
         
         assert(eq(type(import_path(helper_path)), "bool"))
@@ -212,7 +212,7 @@ failing:
     source: |
         import("path")
         
-        str tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
+        str tests_dir = path.directory_name(path.directory_name(path.script_dir))
         str helper_path = join(tests_dir, "/helpers/import_path_basic_target.pre")
         
         import_path(helper_path, true)
@@ -221,7 +221,7 @@ failing:
     source: |
         import("path")
         
-        str tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
+        str tests_dir = path.directory_name(path.directory_name(path.script_dir))
         str helper_path = join(tests_dir, "/helpers/import_path_basic_target.pre")
         
         import_path(helper_path, 0d1.0)
@@ -230,7 +230,7 @@ failing:
     source: |
         import("path")
         
-        str tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
+        str tests_dir = path.directory_name(path.directory_name(path.script_dir))
         str helper_path = join(tests_dir, "/helpers/import_path_basic_target.pre")
         
         import_path(helper_path, LAMBDA bool: (){})
@@ -239,7 +239,7 @@ failing:
     source: |
         import("path")
         
-        str tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
+        str tests_dir = path.directory_name(path.directory_name(path.script_dir))
         str helper_path = join(tests_dir, "/helpers/import_path_basic_target.pre")
         
         import_path(helper_path, 0d1)
@@ -248,7 +248,7 @@ failing:
     source: |
         import("path")
         
-        str tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
+        str tests_dir = path.directory_name(path.directory_name(path.script_dir))
         str helper_path = join(tests_dir, "/helpers/import_path_basic_target.pre")
         
         import_path(helper_path, <>)
@@ -257,7 +257,7 @@ failing:
     source: |
         import("path")
         
-        str tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
+        str tests_dir = path.directory_name(path.directory_name(path.script_dir))
         str helper_path = join(tests_dir, "/helpers/import_path_basic_target.pre")
         
         import_path(helper_path, async{})
@@ -266,7 +266,7 @@ failing:
     source: |
         import("path")
         
-        str tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
+        str tests_dir = path.directory_name(path.directory_name(path.script_dir))
         str helper_path = join(tests_dir, "/helpers/import_path_basic_target.pre")
         
         import_path(helper_path, [0d1])
@@ -281,7 +281,7 @@ failing:
     source: |
         import("path")
         
-        str tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
+        str tests_dir = path.directory_name(path.directory_name(path.script_dir))
         str missing_path = join(tests_dir, "/helpers/import_path_missing_target.pre")
         
         import_path(missing_path)
@@ -290,7 +290,7 @@ failing:
     source: |
         import("path")
         
-        str tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
+        str tests_dir = path.directory_name(path.directory_name(path.script_dir))
         str helper_path = join(tests_dir, "/helpers/import_path_hidden_target.pre")
         
         import_path(helper_path)
