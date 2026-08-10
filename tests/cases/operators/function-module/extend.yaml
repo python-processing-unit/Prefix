@@ -4,7 +4,7 @@ passing:
     source: |
         import("path")
         
-        str tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
+        str tests_dir = path.directory_name(path.directory_name(path.script_dir))
         str helper_path = join(tests_dir, "/helpers/extend_core_once.pre")
         
         refute(import_path(helper_path, "first"))
@@ -17,7 +17,7 @@ passing:
     source: |
         import("path")
         
-        str tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
+        str tests_dir = path.directory_name(path.directory_name(path.script_dir))
         str helper_path = join(tests_dir, "/helpers/extend_core_once.pre")
         
         refute(import_path(helper_path, "helper"))
@@ -226,7 +226,7 @@ passing:
     source: |
         import("path")
         
-        str tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
+        str tests_dir = path.directory_name(path.directory_name(path.script_dir))
         str helper_path = join(tests_dir, "/helpers/extend_core_twice.pre")
         
         refute(import_path(helper_path, "helper"))
@@ -238,7 +238,7 @@ passing:
     source: |
         import("path")
         
-        str tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
+        str tests_dir = path.directory_name(path.directory_name(path.script_dir))
         str helper_path = join(tests_dir, "/helpers/extend_package_loader.pre")
         
         refute(import_path(helper_path, "helper"))
@@ -249,7 +249,7 @@ passing:
     source: |
         import("path")
         
-        str tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
+        str tests_dir = path.directory_name(path.directory_name(path.script_dir))
         str helper_path = join(tests_dir, "/helpers/extend_submodule_loader.pre")
         
         refute(import_path(helper_path, "helper"))
@@ -302,7 +302,7 @@ passing:
     source: |
         import("path")
         
-        str tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
+        str tests_dir = path.directory_name(path.directory_name(path.script_dir))
         str helper_path = join(tests_dir, "/helpers/extend_core_once.pre")
         
         refute(import_path(helper_path, "helper"))
@@ -312,7 +312,7 @@ passing:
     source: |
         import("path")
         
-        str tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
+        str tests_dir = path.directory_name(path.directory_name(path.script_dir))
         str helper_path = join(tests_dir, "/helpers/extend_core_once.pre")
         
         refute(import_path(helper_path, "helper"))
@@ -537,7 +537,7 @@ failing:
     source: |
         import("path")
         
-        str tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
+        str tests_dir = path.directory_name(path.directory_name(path.script_dir))
         str helper_path = join(tests_dir, "/helpers/extend_core_once.pre")
         
         import_path(helper_path, "helper")
@@ -551,7 +551,7 @@ failing:
     source: |
         import("path")
         
-        str tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
+        str tests_dir = path.directory_name(path.directory_name(path.script_dir))
         str helper_path = join(tests_dir, "/helpers/extend_missing_init_loader.pre")
         
         import_path(helper_path)
@@ -560,7 +560,7 @@ failing:
     source: |
         import("path")
         
-        str tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
+        str tests_dir = path.directory_name(path.directory_name(path.script_dir))
         str helper_path = join(tests_dir, "/helpers/extend_missing_package_loader.pre")
         
         import_path(helper_path)
@@ -569,7 +569,7 @@ failing:
     source: |
         import("path")
         
-        str tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
+        str tests_dir = path.directory_name(path.directory_name(path.script_dir))
         str helper_path = join(tests_dir, "/helpers/extend_prex_loader.pre")
         
         import_path(helper_path)
@@ -578,7 +578,7 @@ failing:
     source: |
         import("path")
         
-        str tests_dir = path.BASEPATH(path.BASEPATH(path.script_dir))
+        str tests_dir = path.directory_name(path.directory_name(path.script_dir))
         str helper_path = join(tests_dir, "/helpers/extend_core_once.pre")
         
         import_path(helper_path, "helper")

@@ -414,7 +414,7 @@ passing:
     source: |
         include("path")
         
-        assert(eq(type(TEMPFILE("include-unqualified-namespace.txt")), "str"))
+        assert(eq(type(temp_file("include-unqualified-namespace.txt")), "str"))
         
 failing:
   - name: include-arity-two

@@ -1,35 +1,37 @@
 ! Path utilities for Prefix
 
-func str NORMALIZE_PATH(str path){
+func str normalize_path(str path){
     return(replace(path,"\\","/"))
 }
 
-func str WINPATH(str path){
+func str windows_path(str path){
     return(replace(path,"/","\\"))
 }
 
-func str BASEPATH(str path){ ! returns directory portion of path
-    str npath = NORMALIZE_PATH(path)
-    str base = BASENAME(npath)
+func str directory_name(str path){ ! returns directory portion of path
+    str npath = normalize_path(path)
+    str base = file_name(npath)
     if(eq(base, "")){
         return("")
     }
+    if(eq(npath, base)){
+        return("")
+    }
     str dir = replace(npath, join("/", base), "")
-    del("npath")
     pop("dir")
 }
 
-func str BASENAME(str path){ ! returns filename portion of path
-    tensor tpath = split(NORMALIZE_PATH(path), "/")
+func str file_name(str path){ ! returns filename portion of path
+    tensor tpath = split(normalize_path(path), "/")
     str basename = tpath[max(len_dim(tpath, 0d1), 0d1)]
     del("tpath")
     pop("basename")
 }
 
-func tensor SPLITEXT(str path){ ! returns [name without ext, ext]
-    str npath = NORMALIZE_PATH(path)
-    str base = BASENAME(npath)
-    str dir = BASEPATH(npath)
+func tensor split_extension(str path){ ! returns [name without ext, ext]
+    str npath = normalize_path(path)
+    str base = file_name(npath)
+    str dir = directory_name(npath)
     tensor parts = split(base, ".")
     ! If there is no dot, return the path unchanged and empty ext
     if(eq(len_dim(parts, 0d1), 0d1)){
@@ -49,7 +51,7 @@ func tensor SPLITEXT(str path){ ! returns [name without ext, ext]
         if( or( eq(dir, npath), eq(dir, join(npath, "/")) ) ){
             delex = name
         } else {
-            delex = join(dir, name)
+            delex = join(dir, "/", name)
         }
     }
     del("dir")
@@ -58,19 +60,19 @@ func tensor SPLITEXT(str path){ ! returns [name without ext, ext]
     pop("result")
 }
 
-func str EXTNAME(str path){ ! returns extension portion of path
-    return(SPLITEXT(path)[0d2])
+func str extension_name(str path){ ! returns extension portion of path
+    return(split_extension(path)[0d2])
 }
 
-func str DELEXT(str path){ ! returns path without extension
-    return(SPLITEXT(path)[0d1])
+func str strip_extension(str path){ ! returns path without extension
+    return(split_extension(path)[0d1])
 }
 
-func str TEMPFILE(str local_path){
+func str temp_file(str local_path){
     if(eq(os(),"win")){
         str temp = "C:/Windows/Temp/"
     } elseif(eq(os(),"mac")){
-        throw("TEMPFILE not implemented for macOS yet")
+        throw("temp_file not implemented for macOS yet")
         ! per-user temp dirs on macOS are more complex
         ! add later
     } else {
@@ -82,10 +84,10 @@ func str TEMPFILE(str local_path){
 }
 
 str interpreter = argv()[0d1]
-str interpreter_dir = NORMALIZE_PATH(BASEPATH(argv()[0d1]))
+str interpreter_dir = normalize_path(directory_name(argv()[0d1]))
 if(gte(len_dim(argv(), 0d1), 0d2)){
     str script = argv()[0d2]
-    str script_dir = NORMALIZE_PATH(BASEPATH(argv()[0d2]))
+    str script_dir = normalize_path(directory_name(argv()[0d2]))
 } else {
     str script = ""
     str script_dir = ""

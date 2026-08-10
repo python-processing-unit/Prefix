@@ -1,0 +1,480 @@
+passing:
+  - name: path-module-values
+    language: Prefix
+    source: |
+        import("path")
+        assert(eq(type(path.interpreter), "str"))
+        assert(eq(type(path.interpreter_dir), "str"))
+        assert(eq(type(path.script), "str"))
+        assert(eq(type(path.script_dir), "str"))
+
+  - name: path-normalize-path
+    language: Prefix
+    source: |
+        import("path")
+        assert(eq(path.normalize_path(""), ""))
+        assert(eq(path.normalize_path("file.txt"), "file.txt"))
+        assert(eq(path.normalize_path("dir\\file.txt"), "dir/file.txt"))
+        assert(eq(path.normalize_path("dir\\sub/file.txt"), "dir/sub/file.txt"))
+        assert(eq(path.normalize_path("\\\\server\\share\\file.txt"), "//server/share/file.txt"))
+        assert(eq(path.normalize_path("////dir\\\\file"), "////dir//file"))
+        assert(eq(path.normalize_path("./dir/../file"), "./dir/../file"))
+        assert(eq(type(path.normalize_path("x")), "str"))
+
+  - name: path-windows-path
+    language: Prefix
+    source: |
+        import("path")
+        assert(eq(path.windows_path(""), ""))
+        assert(eq(path.windows_path("file.txt"), "file.txt"))
+        assert(eq(path.windows_path("dir/file.txt"), "dir\\file.txt"))
+        assert(eq(path.windows_path("dir\\sub/file.txt"), "dir\\sub\\file.txt"))
+        assert(eq(path.windows_path("//server/share/file.txt"), "\\\\server\\share\\file.txt"))
+        assert(eq(path.windows_path("////dir//file"), "\\\\\\\\dir\\\\file"))
+        assert(eq(path.windows_path("./dir/../file"), ".\\dir\\..\\file"))
+        assert(eq(type(path.windows_path("x")), "str"))
+
+  - name: path-directory-name
+    language: Prefix
+    source: |
+        import("path")
+        assert(eq(path.directory_name(""), ""))
+        assert(eq(path.directory_name("file.txt"), ""))
+        assert(eq(path.directory_name("dir/file.txt"), "dir"))
+        assert(eq(path.directory_name("dir/sub/file.txt"), "dir/sub"))
+        assert(eq(path.directory_name("dir\\sub\\file.txt"), "dir/sub"))
+        assert(eq(path.directory_name("/file.txt"), ""))
+        assert(eq(path.directory_name("/dir/file.txt"), "/dir"))
+        assert(eq(path.directory_name("C:/dir/file.txt"), "C:/dir"))
+        assert(eq(path.directory_name("dir/"), ""))
+        assert(eq(path.directory_name("/"), ""))
+        assert(eq(type(path.directory_name("x")), "str"))
+
+  - name: path-file-name
+    language: Prefix
+    source: |
+        import("path")
+        assert(eq(path.file_name(""), ""))
+        assert(eq(path.file_name("file.txt"), "file.txt"))
+        assert(eq(path.file_name("dir/file.txt"), "file.txt"))
+        assert(eq(path.file_name("dir\\sub\\file.txt"), "file.txt"))
+        assert(eq(path.file_name("/file.txt"), "file.txt"))
+        assert(eq(path.file_name("dir/"), ""))
+        assert(eq(path.file_name("."), "."))
+        assert(eq(path.file_name(".."), ".."))
+        assert(eq(path.file_name(".hidden"), ".hidden"))
+        assert(eq(type(path.file_name("x")), "str"))
+
+  - name: path-split-extension
+    language: Prefix
+    source: |
+        import("path")
+        assert(eq(type(path.split_extension("file.txt")), "tensor"))
+        assert(eq(path.split_extension("file.txt")[0d1], "file"))
+        assert(eq(path.split_extension("file.txt")[0d2], "txt"))
+        assert(eq(path.split_extension("dir/file.txt")[0d1], "dir/file"))
+        assert(eq(path.split_extension("dir/file.txt")[0d2], "txt"))
+        assert(eq(path.split_extension("archive.tar.gz")[0d1], "archive.tar"))
+        assert(eq(path.split_extension("archive.tar.gz")[0d2], "gz"))
+        assert(eq(path.split_extension(".profile")[0d1], ""))
+        assert(eq(path.split_extension(".profile")[0d2], "profile"))
+        assert(eq(path.split_extension("file.")[0d1], "file"))
+        assert(eq(path.split_extension("file.")[0d2], ""))
+        assert(eq(path.split_extension("file")[0d1], "file"))
+        assert(eq(path.split_extension("file")[0d2], ""))
+        assert(eq(path.split_extension("dir\\file.tar")[0d1], "dir/file"))
+        assert(eq(path.split_extension("dir\\file.tar")[0d2], "tar"))
+
+  - name: path-extension-name
+    language: Prefix
+    source: |
+        import("path")
+        assert(eq(path.extension_name("file.txt"), "txt"))
+        assert(eq(path.extension_name("archive.tar.gz"), "gz"))
+        assert(eq(path.extension_name(".profile"), "profile"))
+        assert(eq(path.extension_name("file."), ""))
+        assert(eq(path.extension_name("file"), ""))
+        assert(eq(path.extension_name("dir\\file.TXT"), "TXT"))
+        assert(eq(type(path.extension_name("x")), "str"))
+
+  - name: path-strip-extension
+    language: Prefix
+    source: |
+        import("path")
+        assert(eq(path.strip_extension("file.txt"), "file"))
+        assert(eq(path.strip_extension("archive.tar.gz"), "archive.tar"))
+        assert(eq(path.strip_extension(".profile"), ""))
+        assert(eq(path.strip_extension("file."), "file"))
+        assert(eq(path.strip_extension("file"), "file"))
+        assert(eq(path.strip_extension("dir\\file.txt"), "dir/file"))
+        assert(eq(type(path.strip_extension("x")), "str"))
+
+  - name: path-temp-file
+    language: Prefix
+    source: |
+        import("path")
+        str result = path.temp_file("file.txt")
+        assert(eq(type(result), "str"))
+        if(eq(os(), "win")){
+            assert(eq(result, "C:/Windows/Temp/file.txt"))
+            assert(eq(path.temp_file("dir/sub/file.txt"), "C:/Windows/Temp/dir/sub/file.txt"))
+            assert(eq(path.temp_file("dir\\file.txt"), "C:/Windows/Temp/dir\\file.txt"))
+        } elseif(eq(os(), "mac")){
+            assert(false)
+        } else {
+            assert(eq(result, "/tmp/file.txt"))
+            assert(eq(path.temp_file("dir/sub/file.txt"), "/tmp/dir/sub/file.txt"))
+            assert(eq(path.temp_file("dir\\file.txt"), "/tmp/dir\\file.txt"))
+        }
+        if(eq(os(), "win")){
+            assert(eq(path.temp_file(""), "C:/Windows/Temp/"))
+        } elseif(eq(os(), "mac")){
+            assert(false)
+        } else {
+            assert(eq(path.temp_file(""), "/tmp/"))
+        }
+
+failing:
+  - name: path-normalize-path-bool
+    language: Prefix
+    source: |
+        import("path")
+        path.normalize_path(true)
+  - name: path-normalize-path-int
+    language: Prefix
+    source: |
+        import("path")
+        path.normalize_path(0d1)
+  - name: path-normalize-path-float
+    language: Prefix
+    source: |
+        import("path")
+        path.normalize_path(0d1.0)
+  - name: path-normalize-path-tensor
+    language: Prefix
+    source: |
+        import("path")
+        path.normalize_path([0d1])
+  - name: path-normalize-path-map
+    language: Prefix
+    source: |
+        import("path")
+        path.normalize_path(<"x" = 0d1>)
+  - name: path-normalize-path-func
+    language: Prefix
+    source: |
+        import("path")
+        func int value(){ return(0d1) }
+        path.normalize_path(value)
+  - name: path-normalize-path-thread
+    language: Prefix
+    source: |
+        import("path")
+        thread worker(){}
+        path.normalize_path(worker)
+  - name: path-normalize-path-arity
+    language: Prefix
+    source: |
+        import("path")
+        path.normalize_path()
+
+  - name: path-windows-path-bool
+    language: Prefix
+    source: |
+        import("path")
+        path.windows_path(true)
+  - name: path-windows-path-int
+    language: Prefix
+    source: |
+        import("path")
+        path.windows_path(0d1)
+  - name: path-windows-path-float
+    language: Prefix
+    source: |
+        import("path")
+        path.windows_path(0d1.0)
+  - name: path-windows-path-tensor
+    language: Prefix
+    source: |
+        import("path")
+        path.windows_path([0d1])
+  - name: path-windows-path-map
+    language: Prefix
+    source: |
+        import("path")
+        path.windows_path(<"x" = 0d1>)
+  - name: path-windows-path-func
+    language: Prefix
+    source: |
+        import("path")
+        func int value(){ return(0d1) }
+        path.windows_path(value)
+  - name: path-windows-path-thread
+    language: Prefix
+    source: |
+        import("path")
+        thread worker(){}
+        path.windows_path(worker)
+  - name: path-windows-path-arity
+    language: Prefix
+    source: |
+        import("path")
+        path.windows_path()
+
+  - name: path-directory-name-bool
+    language: Prefix
+    source: |
+        import("path")
+        path.directory_name(true)
+  - name: path-directory-name-int
+    language: Prefix
+    source: |
+        import("path")
+        path.directory_name(0d1)
+  - name: path-directory-name-float
+    language: Prefix
+    source: |
+        import("path")
+        path.directory_name(0d1.0)
+  - name: path-directory-name-tensor
+    language: Prefix
+    source: |
+        import("path")
+        path.directory_name([0d1])
+  - name: path-directory-name-map
+    language: Prefix
+    source: |
+        import("path")
+        path.directory_name(<"x" = 0d1>)
+  - name: path-directory-name-func
+    language: Prefix
+    source: |
+        import("path")
+        func int value(){ return(0d1) }
+        path.directory_name(value)
+  - name: path-directory-name-thread
+    language: Prefix
+    source: |
+        import("path")
+        thread worker(){}
+        path.directory_name(worker)
+  - name: path-directory-name-arity
+    language: Prefix
+    source: |
+        import("path")
+        path.directory_name()
+
+  - name: path-file-name-bool
+    language: Prefix
+    source: |
+        import("path")
+        path.file_name(true)
+  - name: path-file-name-int
+    language: Prefix
+    source: |
+        import("path")
+        path.file_name(0d1)
+  - name: path-file-name-float
+    language: Prefix
+    source: |
+        import("path")
+        path.file_name(0d1.0)
+  - name: path-file-name-tensor
+    language: Prefix
+    source: |
+        import("path")
+        path.file_name([0d1])
+  - name: path-file-name-map
+    language: Prefix
+    source: |
+        import("path")
+        path.file_name(<"x" = 0d1>)
+  - name: path-file-name-func
+    language: Prefix
+    source: |
+        import("path")
+        func int value(){ return(0d1) }
+        path.file_name(value)
+  - name: path-file-name-thread
+    language: Prefix
+    source: |
+        import("path")
+        thread worker(){}
+        path.file_name(worker)
+  - name: path-file-name-arity
+    language: Prefix
+    source: |
+        import("path")
+        path.file_name()
+
+  - name: path-split-extension-bool
+    language: Prefix
+    source: |
+        import("path")
+        path.split_extension(true)
+  - name: path-split-extension-int
+    language: Prefix
+    source: |
+        import("path")
+        path.split_extension(0d1)
+  - name: path-split-extension-float
+    language: Prefix
+    source: |
+        import("path")
+        path.split_extension(0d1.0)
+  - name: path-split-extension-tensor
+    language: Prefix
+    source: |
+        import("path")
+        path.split_extension([0d1])
+  - name: path-split-extension-map
+    language: Prefix
+    source: |
+        import("path")
+        path.split_extension(<"x" = 0d1>)
+  - name: path-split-extension-func
+    language: Prefix
+    source: |
+        import("path")
+        func int value(){ return(0d1) }
+        path.split_extension(value)
+  - name: path-split-extension-thread
+    language: Prefix
+    source: |
+        import("path")
+        thread worker(){}
+        path.split_extension(worker)
+  - name: path-split-extension-arity
+    language: Prefix
+    source: |
+        import("path")
+        path.split_extension()
+
+  - name: path-extension-name-bool
+    language: Prefix
+    source: |
+        import("path")
+        path.extension_name(true)
+  - name: path-extension-name-int
+    language: Prefix
+    source: |
+        import("path")
+        path.extension_name(0d1)
+  - name: path-extension-name-float
+    language: Prefix
+    source: |
+        import("path")
+        path.extension_name(0d1.0)
+  - name: path-extension-name-tensor
+    language: Prefix
+    source: |
+        import("path")
+        path.extension_name([0d1])
+  - name: path-extension-name-map
+    language: Prefix
+    source: |
+        import("path")
+        path.extension_name(<"x" = 0d1>)
+  - name: path-extension-name-func
+    language: Prefix
+    source: |
+        import("path")
+        func int value(){ return(0d1) }
+        path.extension_name(value)
+  - name: path-extension-name-thread
+    language: Prefix
+    source: |
+        import("path")
+        thread worker(){}
+        path.extension_name(worker)
+  - name: path-extension-name-arity
+    language: Prefix
+    source: |
+        import("path")
+        path.extension_name()
+
+  - name: path-strip-extension-bool
+    language: Prefix
+    source: |
+        import("path")
+        path.strip_extension(true)
+  - name: path-strip-extension-int
+    language: Prefix
+    source: |
+        import("path")
+        path.strip_extension(0d1)
+  - name: path-strip-extension-float
+    language: Prefix
+    source: |
+        import("path")
+        path.strip_extension(0d1.0)
+  - name: path-strip-extension-tensor
+    language: Prefix
+    source: |
+        import("path")
+        path.strip_extension([0d1])
+  - name: path-strip-extension-map
+    language: Prefix
+    source: |
+        import("path")
+        path.strip_extension(<"x" = 0d1>)
+  - name: path-strip-extension-func
+    language: Prefix
+    source: |
+        import("path")
+        func int value(){ return(0d1) }
+        path.strip_extension(value)
+  - name: path-strip-extension-thread
+    language: Prefix
+    source: |
+        import("path")
+        thread worker(){}
+        path.strip_extension(worker)
+  - name: path-strip-extension-arity
+    language: Prefix
+    source: |
+        import("path")
+        path.strip_extension()
+
+  - name: path-temp-file-bool
+    language: Prefix
+    source: |
+        import("path")
+        path.temp_file(true)
+  - name: path-temp-file-int
+    language: Prefix
+    source: |
+        import("path")
+        path.temp_file(0d1)
+  - name: path-temp-file-float
+    language: Prefix
+    source: |
+        import("path")
+        path.temp_file(0d1.0)
+  - name: path-temp-file-tensor
+    language: Prefix
+    source: |
+        import("path")
+        path.temp_file([0d1])
+  - name: path-temp-file-map
+    language: Prefix
+    source: |
+        import("path")
+        path.temp_file(<"x" = 0d1>)
+  - name: path-temp-file-func
+    language: Prefix
+    source: |
+        import("path")
+        func int value(){ return(0d1) }
+        path.temp_file(value)
+  - name: path-temp-file-thread
+    language: Prefix
+    source: |
+        import("path")
+        thread worker(){}
+        path.temp_file(worker)
+  - name: path-temp-file-arity
+    language: Prefix
+    source: |
+        import("path")
+        path.temp_file()

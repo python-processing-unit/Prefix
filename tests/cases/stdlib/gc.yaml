@@ -126,7 +126,7 @@ passing:
     source: |
         import("gc")
         import("path")
-        str root = path.BASEPATH(path.BASEPATH(path.script_dir))
+        str root = path.directory_name(path.directory_name(path.script_dir))
         str module_path = join(root, "/helpers/gc_import_target.pre")
         import_path(module_path, "helper")
         assign(gc.track_new_symbols, false)
@@ -140,7 +140,7 @@ passing:
     source: |
         import("gc")
         import("path")
-        str root = path.BASEPATH(path.BASEPATH(path.script_dir))
+        str root = path.directory_name(path.directory_name(path.script_dir))
         str module_path = join(root, "/helpers/gc_importing_target.pre")
         import_path(module_path, "importer")
         assign(gc.track_new_symbols, false)
