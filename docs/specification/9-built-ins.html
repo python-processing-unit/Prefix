@@ -29,7 +29,7 @@ A comma-separated signature such as `+, -, *` denotes a family of distinct opera
 
 `int` and `float` are not interoperable. Unless an operator explicitly permits or requires type mixing, all numeric operands MUST share the same numeric type; supplying mismatched types MUST raise a runtime error. The numeric base of an operation's result MUST be the highest base present among its numeric operands.
 
-Built-in operator names MUST be matched case-sensitively and MUST be written in their canonical form. A user-defined function MUST not share a name with any built-in operator; such a conflict MUST raise a runtime error. Extensions MAY register additional operators, which are dispatched through the same call syntax and MAY be qualified with a dotted extension-name prefix, but whose names MUST not conflict with those of built-in operators.
+Built-in operator names MUST be matched case-sensitively and MUST be written in their canonical form. A user-defined function MUST NOT share a name with any built-in operator; such a conflict MUST raise a runtime error. Extensions MAY register additional operators, which are dispatched through the same call syntax and MAY be qualified with a dotted extension-name prefix, but whose names MUST NOT conflict with those of built-in operators.
 
 ---
 
@@ -39,7 +39,7 @@ Built-in operator names MUST be matched case-sensitively and MUST be written in 
 
 - When the parsed `del` target is indexed, the base target MUST resolve to a `map` value and all intermediate lookups MUST resolve to nested `map` values; indexing a non-`map` MUST raise a runtime error. The map entry identified by the final key in the chain MUST be deleted. If an intermediate key does not exist, the operation MUST be a no-op. After deletion the modified map MUST be written back to the environment. `del` MUST return `false` on success, including indexed no-op cases.
 
-- `any assign(target, any value)` = MUST evaluate `value`, assign it to `target`, and return the assigned value. `target` MAY be a plain identifier, a tensor indexed target, or a map indexed target. If a plain identifier has not yet been declared, the typed form `assign(type name, value)` MUST be used. The typed form MUST not be used with indexed targets.
+- `any assign(target, any value)` = MUST evaluate `value`, assign it to `target`, and return the assigned value. `target` MAY be a plain identifier, a tensor indexed target, or a map indexed target. If a plain identifier has not yet been declared, the typed form `assign(type name, value)` MUST be used. The typed form MUST NOT be used with indexed targets.
 
 - `bool exist(str name)` = MUST evaluate `name`, require the result to be a `str`, and return `true` if that string's contents resolve to a visible readable binding in the current lexical environment chain and `false` otherwise.
 
@@ -187,7 +187,7 @@ Built-in operator names MUST be matched case-sensitively and MUST be written in 
 
 -- `bool extend(str ext)` = MUST load the compiled extension designated by `ext`. The specifier `ext` MUST exclude the platform filename suffix and MAY use package-style `..` separators. If `ext` resolves to a package, the loader MUST attempt `ext..init`. Relative extension names MUST resolve using the calling module's source directory when available, then the current working directory, then the configured extension roots `ext/std`, `ext/usr`, `lib/std`, and `lib/usr` (with bundled roots searched before user roots). Repeating an `extend` request for an already-loaded extension exposure MUST be idempotent. On success, `extend` MUST return `false`.
 
-  Operators registered with the module-restriction flag (for example `PREFIX_EXTENSION_MODULE_RESTRICTED`) MUST be exposed only under the extending module's namespace. Importing that module MUST expose the extension namespace qualifier under the importing module's qualified name. `PREFIX_EXTENSION_ASMODULE` by itself MUST not restrict an operator to the extending module's namespace or cause that qualified exposure. Extension side effects outside operator registration (for example process-global hooks or host-side state) remain global.
+  Operators registered with the module-restriction flag (for example `PREFIX_EXTENSION_MODULE_RESTRICTED`) MUST be exposed only under the extending module's namespace. Importing that module MUST expose the extension namespace qualifier under the importing module's qualified name. `PREFIX_EXTENSION_ASMODULE` by itself MUST NOT restrict an operator to the extending module's namespace or cause that qualified exposure. Extension side effects outside operator registration (for example process-global hooks or host-side state) remain global.
 
 - `bool import(str module)` or `bool import(str module, str alias)` = MUST load the named module, execute it in its own top-level environment on first import, cache that environment, and expose its bindings under the module name or the supplied alias. The implementation MUST search the referring source directory first, then bundled library locations as described in [8.2](#8-interpreter-use.html#82-extensions-and-extend), [10](#10-standard-library.html#10-standard-library), and the language's module-search rules. Re-importing an already loaded module MUST reuse the cached module namespace rather than re-executing the module.
 
@@ -197,11 +197,11 @@ Built-in operator names MUST be matched case-sensitively and MUST be written in 
 
   On first import, the module source MUST execute in its own isolated top-level environment. Unqualified identifiers during that execution MUST resolve within the module's own namespace. After execution completes, that namespace MUST be cached and reused by subsequent imports in the same interpreter process. Multiple aliases for the same module MUST provide distinct qualified views into the same cached module instance.
 
-  Module import MUST not implicitly load companion extension pointer files. Runtime extensions for module code MUST be loaded explicitly via `extend` inside the module. On success, `import` MUST return `false`.
+  Module import MUST NOT implicitly load companion extension pointer files. Runtime extensions for module code MUST be loaded explicitly via `extend` inside the module. On success, `import` MUST return `false`.
 
 - `bool import_path(str path)` or `bool import_path(str path, str alias)` = MUST load a module from an explicit filesystem path and expose it under `alias` or, if omitted, under a basename-derived module name. The argument MUST at minimum accept an absolute path to a `.pre` source file. The module's basename, excluding the `.pre` suffix, MUST be used as the default qualified module name when no alias is supplied. The loaded module MUST otherwise obey the same isolation, caching, and exposure rules as `import`. Runtime extensions for that module MUST be loaded explicitly via `extend`. On success, `import_path` MUST return `false`.
 
-- `bool include(str module)` = MUST load the named module using the same search rules as `import`, execute it in its own isolated environment on first load, and cache that environment for subsequent calls. After the module loads, its exported bindings MUST be injected directly into the caller's environment under their original unqualified names. Unlike `import`, `include` MUST not create a qualified namespace for the module and MUST not assign the module name itself as a binding in the caller. Re-importing an already loaded module MUST reuse the cached module namespace rather than re-executing the module. On success, `include` MUST return `false`.
+- `bool include(str module)` = MUST load the named module using the same search rules as `import`, execute it in its own isolated environment on first load, and cache that environment for subsequent calls. After the module loads, its exported bindings MUST be injected directly into the caller's environment under their original unqualified names. Unlike `import`, `include` MUST NOT create a qualified namespace for the module and MUST NOT assign the module name itself as a binding in the caller. Re-importing an already loaded module MUST reuse the cached module namespace rather than re-executing the module. On success, `include` MUST return `false`.
 
 - `bool export(str symbol, str module)` = MUST copy the caller's current binding for `symbol` into the namespace of the already imported module designated by `module`, making the exported binding available through that module's qualified namespace. `export` MUST return `false` on success and MUST raise a runtime error if `module` is not currently imported.
 
@@ -368,7 +368,7 @@ The operator semantics that use this format are defined next.
 
 #### 9.2.1 Block and expression statements
 
-The block form `{ statement1 ... statementN }` MUST execute its enclosed statements in source order within the current control context. If execution of any enclosed statement transfers control by `return`, `break`, `continue`, `goto`, runtime failure, or process termination, the remaining statements in that block MUST not execute.
+The block form `{ statement1 ... statementN }` MUST execute its enclosed statements in source order within the current control context. If execution of any enclosed statement transfers control by `return`, `break`, `continue`, `goto`, runtime failure, or process termination, the remaining statements in that block MUST NOT execute.
 
 An expression written in statement position MUST be evaluated for its side effects and its resulting value MUST be discarded. Expression statements MUST otherwise obey the same evaluation-order and runtime-error rules as the corresponding expression in expression position.
 
@@ -424,7 +424,7 @@ The statement `pop(str name)` MUST be valid only inside a function body. The `na
 
 The statement form `async{ ... }` MUST start execution of its block in a background task that runs asynchronously with respect to the caller while sharing the same lexical environment. When used as a statement, any resulting `thread` handle MUST be ignored.
 
-The statement form `thread(symbol){ ... }` MUST create a background task and bind its handle to `symbol` with static type `thread` in the current lexical environment. Runtime failures originating in either asynchronous statement form MUST be reported through the runtime's asynchronous error-reporting mechanisms and MUST not synchronously abort another execution context.
+The statement form `thread(symbol){ ... }` MUST create a background task and bind its handle to `symbol` with static type `thread` in the current lexical environment. Runtime failures originating in either asynchronous statement form MUST be reported through the runtime's asynchronous error-reporting mechanisms and MUST NOT synchronously abort another execution context.
 
 ---
 

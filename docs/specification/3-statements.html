@@ -69,7 +69,7 @@ If the `try` block completes without a runtime error, the `catch` block MUST be 
 
 In the parameterized form, `catch(SYMBOL name)` MUST create a temporary `str` binding named `name` in the handler's lexical environment containing the triggering error message. That temporary binding MUST shadow any existing binding of the same name only for the duration of the `catch` block.
 
-`try` and `catch` MUST intercept interpreter-level errors. Errors raised inside `async` or other background execution contexts MUST be reported through the runtime's error-reporting mechanisms and MUST not synchronously transfer control to a surrounding `catch` block in another thread.
+`try` and `catch` MUST intercept interpreter-level errors. Errors raised inside `async` or other background execution contexts MUST be reported through the runtime's error-reporting mechanisms and MUST NOT synchronously transfer control to a surrounding `catch` block in another thread.
 
 ---
 
@@ -77,7 +77,7 @@ In the parameterized form, `catch(SYMBOL name)` MUST create a temporary `str` bi
 
 `while(condition){ ... }` MUST repeatedly evaluate its condition before each iteration and MUST terminate when the condition becomes false.
 
-`for(counter, target){ ... }` MUST evaluate `target` exactly once at loop entry, require that value to be an `int`, initialize `counter` to `1`, and execute the body once for each value through `target`, inclusive. The loop counter MUST be loop-local and MUST not persist after the loop finishes, though other symbols declared in the body remain bound in the enclosing environment.
+`for(counter, target){ ... }` MUST evaluate `target` exactly once at loop entry, require that value to be an `int`, initialize `counter` to `1`, and execute the body once for each value through `target`, inclusive. The loop counter MUST be loop-local and MUST NOT persist after the loop finishes, though other symbols declared in the body remain bound in the enclosing environment.
 
 `parfor(counter, target){ ... }` MUST evaluate `target` once, require an `int`, then execute the iterations `1..target` concurrently. The interpreter MUST wait for all iterations to finish before continuing. The loop counter is iteration-local and does not persist afterward, while other symbols declared in iteration bodies are merged back into the enclosing environment. Concurrent writes to shared identifiers are therefore race-prone, and the resulting value is implementation-defined.
 
@@ -93,7 +93,7 @@ When `async{ ... }` appears in statement position, its resulting `thread` handle
 
 The statement form `thread(symbol){ ... }` MUST create a background task and bind its handle to `symbol` with static type `thread` in the current environment.
 
-Runtime errors raised inside asynchronous execution MUST be recorded by the interpreter's error-reporting and state-logging mechanisms and MUST not synchronously abort the main thread.
+Runtime errors raised inside asynchronous execution MUST be recorded by the interpreter's error-reporting and state-logging mechanisms and MUST NOT synchronously abort the main thread.
 
 ---
 

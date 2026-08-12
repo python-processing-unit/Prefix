@@ -115,7 +115,7 @@ Non-decimal `int` literals MUST include a base prefix. Valid prefixes are `0b`, 
 
 An `int` literal that begins with a decimal digit (`0`-`9`) and does not include a base prefix MUST be evaluated as a decimal (base-10) literal. A numeric literal that begins with a decimal digit and includes a base prefix (that is, one or more digits precede the base prefix) MUST raise an error.
 
-`int` literals MUST support negative values via prefixing with a `-` before the base prefix, and positive values with no sign. `int` literals MUST not support a `+` prefix.
+`int` literals MUST support negative values via prefixing with a `-` before the base prefix, and positive values with no sign. `int` literals MUST NOT support a `+` prefix.
 
 Literal digits MUST match the selected base's alphabet. Bases smaller than 2 or larger than 64 MUST raise an error.
 
@@ -141,7 +141,7 @@ A `float` literal that begins with a decimal digit (`0`-`9`) and does not includ
 
 `float` literals MUST consist of an integer part (preceded by the base prefix, if present), a radix point (`.`), and a fractional part. The integer and fractional parts MUST each contain at least one digit in the selected base.
 
-`float` literals MUST support negative values via prefixing with a `-` before the base prefix, and positive values with no sign. `float` literals MUST not support a `+` prefix.
+`float` literals MUST support negative values via prefixing with a `-` before the base prefix, and positive values with no sign. `float` literals MUST NOT support a `+` prefix.
 
 ---
 
@@ -151,9 +151,9 @@ A `float` literal that begins with a decimal digit (`0`-`9`) and does not includ
 
 - `INF` - Infinity. `INF` MUST support negative values via prefixing with a `-` (`-INF`).
 
-- `NaN` - Quiet Not a Number. `NaN` MUST not support negative values. Attempting to create a negative `NaN` MUST cause an error.
+- `NaN` - Quiet Not a Number. `NaN` MUST NOT support negative values. Attempting to create a negative `NaN` MUST cause an error.
 
-`INF`, `-INF`, and `NaN` MUST not include a base prefix and are considered base-NaN.
+`INF`, `-INF`, and `NaN` MUST NOT include a base prefix and are considered base-NaN.
 
 When numeric values are converted to `str`, they MUST render in their own base and MUST include the base prefix. `INF`, `-INF`, and `NaN` render without a base prefix.
 
@@ -177,7 +177,7 @@ When a `float` is used in a boolean context, `0.0` MUST be treated as `false`, a
 
 `tensor` literals MUST be enclosed in square brackets (`[` and `]`). Each pair of matching brackets MUST introduce a dimension, and nested brackets MUST form a rectangular shape where all sublists at a given depth have the same length. A `tensor` literal that mixes sub-brackets of differing lengths MUST raise a syntax error.
 
-If an element evaluates to a `tensor` value, it MUST occupy a single position and MUST not contribute additional dimensions to the shape.
+If an element evaluates to a `tensor` value, it MUST occupy a single position and MUST NOT contribute additional dimensions to the shape.
 
 ---
 
@@ -211,7 +211,7 @@ The literal `SELF` MAY be evaluated inside `map` literals. When used as a value 
 
 #### 4.5.2 Map indexing
 
-`map` indexing MUST use angle brackets (`<` and `>`) with a comma-separated list of keys. Each key MUST evaluate to a scalar value of type `int`, `float`, or `str`. Tensor values MUST not be permitted as keys. The number of keys supplied MAY vary between lookups.
+`map` indexing MUST use angle brackets (`<` and `>`) with a comma-separated list of keys. Each key MUST evaluate to a scalar value of type `int`, `float`, or `str`. Tensor values MUST NOT be permitted as keys. The number of keys supplied MAY vary between lookups.
 
 Looking up a key that does not exist MUST raise a runtime error.
 

@@ -39,7 +39,7 @@ Compiled extensions MUST be built against the public extension API declared in `
 
 At load time, the interpreter MUST use the host platform's dynamic-library facilities to load the extension, locate the exported `prefix_extension_init` symbol, invoke it with the extension context, and record all registered operators and hooks. On Windows this SHOULD use `LoadLibraryEx`; on Unix-like systems this SHOULD use `dlopen` or an equivalent facility.
 
-Extensions that opt into module-qualified registration MUST do so with a dedicated operator-registration flag. Only operators registered with that flag MAY be exposed under the extension name as a dotted prefix rather than injected into the global built-in namespace. `PREFIX_EXTENSION_ASMODULE` by itself MUST not imply module-qualified exposure. Event-handler registration MUST support the runtime lifecycle hooks defined by the interpreter, including program start and end, error reporting, statement boundaries, and call boundaries.
+Extensions that opt into module-qualified registration MUST do so with a dedicated operator-registration flag. Only operators registered with that flag MAY be exposed under the extension name as a dotted prefix rather than injected into the global built-in namespace. `PREFIX_EXTENSION_ASMODULE` by itself MUST NOT imply module-qualified exposure. Event-handler registration MUST support the runtime lifecycle hooks defined by the interpreter, including program start and end, error reporting, statement boundaries, and call boundaries.
 
 The extension context MUST provide registration surfaces equivalent to the following:
 
@@ -51,7 +51,7 @@ The extension context MUST provide registration surfaces equivalent to the follo
 
 - `register_repl_handler(repl_fn)` to replace or augment the default REPL implementation.
 
-The interpreter MUST not load `.prex` pointer files.
+The interpreter MUST NOT load `.prex` pointer files.
 
 Runtime extension loading from Prefix source MUST use `extend(str ext)`, defined in [9.1.8](#9-built-ins.html#918-function-and-module-operators). The `ext` specifier MUST exclude the platform filename suffix (`.dll`, `.so`, `.dylib`) and MAY use package semantics with `..`. When `ext` names a package, the loader MUST attempt `ext..init`.
 
