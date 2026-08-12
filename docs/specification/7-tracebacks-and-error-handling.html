@@ -25,7 +25,7 @@ Structured exception handling is defined in [3.4](#3-statements.html#34-exceptio
 
 A traceback MUST be produced whenever a runtime error prevents normal forward execution, including but not limited to undefined identifier access, type mismatch, divide-by-zero, invalid control-flow transfer, or failed assertion.
 
-Errors raised inside background execution contexts MUST be recorded through the same error-reporting and state-logging mechanisms, but they MUST not synchronously transfer control to an exception handler running on a different thread. Nested handlers MUST continue to obey the language's innermost-handler rule.
+Errors raised inside background execution contexts MUST be recorded through the same error-reporting and state-logging mechanisms, but they MUST NOT synchronously transfer control to an exception handler running on a different thread. Nested handlers MUST continue to obey the language's innermost-handler rule.
 
 ---
 
