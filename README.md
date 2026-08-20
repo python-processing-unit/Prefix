@@ -210,4 +210,4 @@ Prefix is distributed under the [Unlicense](https://unlicense.org/).
 Versioning
 ----------
 
-Prefix follows [SemVer 2.0](https://semver.org), treating [the specification](https://python-processing-unit.github.io/Prefix/SPECIFICATION.html) as the public API.
+Prefix follows [SemVer 2.0](https://semver.org), treating [the specification](https://python-processing-unit.github.io/Prefix/specification/0-toc-and-preamble.html) as the public API.
