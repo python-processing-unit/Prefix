@@ -144,6 +144,7 @@ Supported platforms:
 
 - Windows Vista or newer.
 - Ubuntu 22.04 or newer (x86_64).
+- Other Linux distros, maybe. Only Ubuntu is tested.
 
 Project layout
 --------------
